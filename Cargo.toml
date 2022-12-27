@@ -1,19 +1,11 @@
-[package]
-name = "hyperion"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = ["kernel", "os"]
+default-members = ["os"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[lib]
-crate-type = ["staticlib"]
-
-[profile.release]
-debug = 1
-
-[dependencies]
-
-
-[build-dependencies]
-#cc = "1.0.78"
-nasm-rs = "0.2.4"
+# [profile.dev.package.hyperion_kernel]
+# opt-level = 3
+# debug = false
+# debug-assertions = false
+# overflow-checks = false
+# incremental = false
+# codegen-units = 16
