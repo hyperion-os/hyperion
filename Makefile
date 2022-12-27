@@ -5,22 +5,25 @@
 # @version 0.1
 
 ARCH          ?= x86_64
+#ARCH          ?= x86
 PROFILE       ?= debug
 #PROFILE       ?= release
 
+# binary config
 NASM          ?= nasm
 LD            ?= ld.lld
 OBJCOPY       ?= llvm-objcopy
 CARGO         ?= cargo
 #CARGO         ?= cargo-clif
 
+# common directories
 TARGET_DIR    ?= target
 HYPER_DIR     := ${TARGET_DIR}/hyperion/${ARCH}
 ARCH_DIR      := src/arch/${ARCH}
+CARGO_DIR      = ${TARGET_DIR}/${RUST_T_${ARCH}}/${PROFILE}
 
 # hyperion kernel lib
 RUST_T_x86_64 := x86_64-unknown-none
-CARGO_DIR     := ${TARGET_DIR}/${RUST_T_${ARCH}}/${PROFILE}
 RUST_F_debug  :=
 RUST_F_release:= --release
 CARGO_FLAGS   ?=
