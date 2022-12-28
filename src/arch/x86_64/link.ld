@@ -3,8 +3,12 @@ ENTRY(start)
 SECTIONS {
     . = 1M;
 
+    .multiboot : ALIGN(4k) {
+        KEEP(*(.multiboot))
+        KEEP(*(.multiboot_rust))
+    }
+
     .boot : ALIGN(4k) {
-        KEEP(*(.multiboot1))
         *(.boot)
     }
 

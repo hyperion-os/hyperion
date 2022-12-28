@@ -56,6 +56,7 @@ KERNEL_DEPS   := ${BOOT_OBJ} ${KERNEL_LIB}
 LD_M_x86_64   := elf_x86_64
 LD_M_x86      := elf_i386
 LD_FLAGS      ?=
+#LD_FLAGS      += --whole-archive
 LD_FLAGS      += ${KERNEL_DEPS}
 LD_FLAGS      += -o ${KERNEL_ELF}
 LD_FLAGS      += --gc-sections
@@ -82,6 +83,13 @@ QEMU_FLAGS    += -kernel ${KERNEL_ELF}
 qemu : ${KERNEL_ELF}
 	${QEMU_${ARCH}} ${QEMU_FLAGS}
 
-.PHONY : build qemu
+# objdump
+objdump : ${KERNEL_ELF}
+	objdump -D ${KERNEL_ELF}
+
+readelf : ${KERNEL_ELF}
+	readelf --all ${KERNEL_ELF}
+
+.PHONY : build qemu objdump readelf
 
 # end
