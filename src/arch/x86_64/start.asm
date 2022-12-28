@@ -57,17 +57,17 @@ start:
 
 error:
     ;; print 'ERR: <err>'
-    mov dword [0xb8000], 0x4f524f45
-    mov dword [0xb8004], 0x4f3a4f52
-    mov dword [0xb8008], 0x4f204f20
+    mov dword [0xb8000], 0x4F524F45
+    mov dword [0xb8004], 0x4F3A4F52
+    mov dword [0xb8008], 0x4F204F20
     mov byte  [0xb800a], al
     jmp halt
 
 halt:
     ;; print ZZZ
-	mov word [0xb8f00], 0x0f5a
-	mov word [0xb8f02], 0x0f5a
-	mov word [0xb8f04], 0x0f5a
+	mov word [0xb8f00], 0x0F5A
+	mov word [0xb8f02], 0x0F5A
+	mov word [0xb8f04], 0x0F5A
     hlt
     jmp halt
 
@@ -199,8 +199,9 @@ long_mode_start:
 	mov gs, ax
 
 	; print 'OK'
-	mov dword [0xb8000], 0x2f4b2f4f
+	mov dword [0xb8000], 0x2F4B2F4F
 
+    mov rdi, 42
 	call kernel_main
 .halt:
 	hlt

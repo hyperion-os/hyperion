@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+pub mod vga;
+
 #[panic_handler]
 fn panic_handler(_: &core::panic::PanicInfo) -> ! {
     loop {}
@@ -8,10 +10,10 @@ fn panic_handler(_: &core::panic::PanicInfo) -> ! {
 
 #[no_mangle]
 #[link_section = ".boot"]
-pub extern "C" fn kernel_main() -> ! {
-    unsafe {
-        *(0xB8000 as *mut u32) = 0x4f524f45;
-    }
+pub extern "C" fn kernel_main(magic_num: u64) -> ! {
+    // null byte clears the VGA buffer
+    print!("\0");
+    println!("Hello from Hyperion, magic_num = {magic_num}");
 
     loop {
         unsafe {
