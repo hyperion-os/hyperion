@@ -1,12 +1,15 @@
-// both cannot coexist (AFAIK.) and QEMU
-// cannot boot multiboot2 kernels directly
-//
-// so multiboot1 it is .. temporarily
+#[cfg(feature = "multiboot1")]
+#[path = "multiboot1/mod.rs"]
+pub mod boot;
 
-// multiboot1 header and glue code
-#[cfg(all())]
-mod multiboot1;
+#[cfg(feature = "multiboot2")]
+#[path = "multiboot2/mod.rs"]
+pub mod boot;
 
-// multiboot2 header and glue code
-#[cfg(any())]
-mod multiboot2;
+#[cfg(feature = "bootboot")]
+#[path = "bootboot/mod.rs"]
+pub mod boot;
+
+#[cfg(feature = "limine")]
+#[path = "limine/mod.rs"]
+pub mod boot;

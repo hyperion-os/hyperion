@@ -1,5 +1,5 @@
     global start
-    extern kernel_main
+    extern _start_rust
 
     ;; ----------
     ;; Boot entry
@@ -9,7 +9,7 @@
     global start
     bits 32
 
-start:
+_start:
     cli
     cld
 
@@ -139,22 +139,22 @@ setup_page_tables:
 	ret
 
 enable_paging:
-	; pass page table location to the cpu
+	;; pass page table location to the cpu
 	mov eax, page_table_l4
 	mov cr3, eax
 
-	; enable PAE
+	;; enable Physical Address Extension
 	mov eax, cr4
 	or  eax, 1 << 5
 	mov cr4, eax
 
-	; enable long mode
+	;; enable long mode
 	mov ecx, 0xC0000080
 	rdmsr
 	or  eax, 1 << 8
 	wrmsr
 
-	; enable paging
+	;; enable paging
 	mov eax, cr0
 	or  eax, 1 << 31
 	mov cr0, eax
@@ -175,12 +175,9 @@ long_mode_start:
 	mov fs, ax
 	mov gs, ax
 
-	; print 'OK'
-	mov dword [0xb8000], 0x2F4B2F4F
-
     ;; take the multiboot info struct pointer
     pop rdi
-	call kernel_main
+	call _start_rust
 .halt:
 	hlt
     jmp halt

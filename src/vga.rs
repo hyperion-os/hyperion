@@ -7,30 +7,6 @@ use volatile::Volatile;
 
 //
 
-#[macro_export]
-macro_rules! println {
-    () => {
-        println!("");
-    };
-
-    ($($arg:tt)*) => {
-        $crate::vga::_println(format_args!($($arg)*))
-    }
-}
-
-#[macro_export]
-macro_rules! print {
-    () => {
-        print!("");
-    };
-
-    ($($arg:tt)*) => {
-        $crate::vga::_print(format_args!($($arg)*))
-    };
-}
-
-//
-
 pub struct Writer {
     cursor: [usize; 2],
     color: ColorCode,

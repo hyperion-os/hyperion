@@ -1,15 +1,10 @@
-ENTRY(start)
+ENTRY(_start)
 
 SECTIONS {
     . = 1M;
 
-    .multiboot : ALIGN(4k) {
-        KEEP(*(.multiboot))
-        KEEP(*(.multiboot_rust))
-    }
-
     .boot : ALIGN(4k) {
-        *(.boot)
+        KEEP(*(.boot))
     }
 
     .text : ALIGN(4k) {

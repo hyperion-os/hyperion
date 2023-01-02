@@ -16,7 +16,7 @@ const CHECKSUM: u32 = (0x100000000 - (MAGIC + ARCH + LEN) as u64) as u32;
 
 #[used]
 #[no_mangle]
-#[link_section = ".multiboot"]
+#[link_section = ".boot"]
 pub static MULTIBOOT2_HEADER: Multiboot2Header = Multiboot2Header {
     magic: MAGIC,
     architecture: ARCH,
@@ -27,6 +27,9 @@ pub static MULTIBOOT2_HEADER: Multiboot2Header = Multiboot2Header {
 };
 
 #[no_mangle]
-pub extern "C" fn kernel_main(_magic_num: u64) {
+extern "C" fn _start_rust(_magic_num: u64) -> ! {
+    *crate::BOOTLOADER.lock() = "Multiboot2";
     crate::kernel_main();
 }
+
+compile_error!("TODO: Multiboot2");
