@@ -4,6 +4,8 @@
 
 set -xe
 
+echo $@
+
 LIMINE_GIT_URL="https://github.com/limine-bootloader/limine.git"
 ISO_DIR=target/hyperion/x86_64/iso
 KERNEL=$1
@@ -21,7 +23,8 @@ cd -
 
 # Copy the needed files into an ISO image.
 mkdir -p $ISO_DIR
-cp $KERNEL cfg/limine.cfg target/limine/limine{.sys,-cd.bin,-cd-efi.bin} $ISO_DIR
+cp cfg/limine.cfg target/limine/limine{.sys,-cd.bin,-cd-efi.bin} $ISO_DIR
+cp $KERNEL $ISO_DIR/hyperion
 
 xorriso -as mkisofs \
     -b limine-cd.bin \
@@ -33,9 +36,37 @@ xorriso -as mkisofs \
 # For the image to be bootable on BIOS systems, we must run `limine-deploy` on it.
 target/limine/limine-deploy $KERNEL.iso
 
-# Run the created image with QEMU.
-qemu-system-x86_64 \
-    -machine q35 -cpu qemu64 -M smm=off \
-    -D target/log.txt -d int,guest_errors -no-reboot -no-shutdown \
-    -serial stdio \
-    $KERNEL.iso
+# A hack to detect if the kernel is a testing kernel
+# Cargo test binary generates a 'random id' for testing binaries
+if [ "$(basename $KERNEL)" = "hyperion" ]; then
+    # Run the created image with QEMU.
+    qemu-system-x86_64 \
+        -machine q35 \
+        -cpu qemu64 \
+        -M smm=off \
+        -d int,guest_errors,cpu_reset \
+        -no-reboot \
+        -serial stdio \
+        $KERNEL.iso
+    #-s -S \
+    #-no-shutdown \
+    #-D target/log.txt \
+else
+    set +e
+    # Run the created image with QEMU.
+    qemu-system-x86_64 \
+        -machine q35 \
+        -cpu qemu64 \
+        -M smm=off \
+        -d int,guest_errors,cpu_reset \
+        -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+        -no-reboot \
+        -serial stdio \
+        -display none \
+        $KERNEL.iso
+    #-no-shutdown \
+    #-D target/log.txt \
+
+    [ $? -ne 33 ] && exit 1
+    exit 0
+fi
