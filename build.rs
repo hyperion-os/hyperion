@@ -1,4 +1,12 @@
-use std::{env::var, error::Error};
+use std::{
+    env::var,
+    error::Error,
+    fs::{self, File, OpenOptions},
+    io::Read,
+    io::Write,
+    path::PathBuf,
+    process::Command,
+};
 
 //
 
@@ -33,6 +41,31 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         println!("cargo:warning=No bootloaders given");
         panic!();
+    };
+
+    let unifont_path = "target/hyperion/unifont.bmp";
+    let read_unifont = || {
+        let mut file = OpenOptions::new()
+            .read(true)
+            .create(false)
+            .write(false)
+            .open(unifont_path)?;
+
+        let mut buf = Vec::new();
+        file.read_to_end(buf)?;
+        Ok::<_, Box<dyn Error>>(buf)
+    };
+
+    let unifont = if let Ok(file) = read_unifont() {
+        file
+    } else {
+        Command::new("wget")
+            .arg("http://unifoundry.com/pub/unifont/unifont-15.0.01/unifont-15.0.01.bmp")
+            .args(["-O", unifont_path])
+            .spawn()
+            .unwrap();
+
+        read_unifont().unwrap()
     };
 
     Ok(())

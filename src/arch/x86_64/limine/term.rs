@@ -19,7 +19,7 @@ unsafe impl Send for Writer {}
 
 impl Write for Writer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        let mut write = self.0.write().ok_or(fmt::Error)?;
+        let write = self.0.write().ok_or(fmt::Error)?;
 
         for term in self.0.terminals() {
             write(term, s);

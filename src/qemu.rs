@@ -1,7 +1,4 @@
-use core::{
-    fmt::{Arguments, Write},
-    sync::atomic::AtomicUsize,
-};
+use core::fmt::{Arguments, Write};
 use spin::{Lazy, Mutex};
 use uart_16550::SerialPort;
 
@@ -16,6 +13,9 @@ pub fn _print(args: Arguments) {
 }
 
 /// Unlocks the COM1 writer IF it is locked by this exact thread
+///
+/// SAFETY: this is unsafe unless called from the same thread, this is intended for double fault
+/// handling
 pub unsafe fn unlock() {
     // TODO: SMP
     // if COM1_LOCKER.load(Ordering::SeqCst) != crate::THREAD {
@@ -27,7 +27,7 @@ pub unsafe fn unlock() {
 
 //
 
-static COM1_LOCKER: AtomicUsize = AtomicUsize::new(0);
+// static COM1_LOCKER: AtomicUsize = AtomicUsize::new(0);
 static COM1: Lazy<Mutex<SerialPort>> = Lazy::new(|| {
     let mut port = unsafe { SerialPort::new(0x3f8) };
     port.init();

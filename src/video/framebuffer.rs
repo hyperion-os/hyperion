@@ -1,7 +1,5 @@
-use core::{
-    fmt,
-    ops::{Deref, DerefMut},
-};
+use super::font::FONT;
+use core::fmt;
 use spin::{Mutex, Once};
 
 //
@@ -40,10 +38,31 @@ impl Framebuffer {
             }
         }
     }
+
+    pub fn put_byte(&mut self, x: usize, y: usize, ch: u8, fg: Color, bg: Color) {
+        let map = FONT[ch as usize];
+
+        for (yd, row) in map.into_iter().enumerate() {
+            for xd in 0..8 {
+                self.set(
+                    x + xd,
+                    y + yd,
+                    if (row & 1 << (7 - xd)) != 0 { fg } else { bg },
+                );
+            }
+        }
+    }
+
+    pub fn put_bytes(&mut self, x: usize, y: usize, s: &[u8], fg: Color, bg: Color) {
+        for (offs, ch) in s.iter().enumerate() {
+            self.put_byte(x + 12 * offs, y, *ch, fg, bg)
+        }
+    }
 }
 
 impl Color {
     pub const WHITE: Color = Color::new(0xff, 0xff, 0xff);
+    pub const BLACK: Color = Color::new(0x00, 0x00, 0x00);
 
     pub const RED: Color = Color::new(0xff, 0x00, 0x00);
     pub const GREEN: Color = Color::new(0x00, 0xff, 0x00);

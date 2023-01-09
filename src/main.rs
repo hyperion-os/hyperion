@@ -53,6 +53,8 @@ fn kernel_main() -> ! {
         fbo.fill(40, 40, 40, 40, Color::RED);
         fbo.fill(50, 50, 60, 40, Color::GREEN);
         fbo.fill(5, 15, 80, 20, Color::BLUE);
+
+        fbo.put_bytes(100, 100, b"ABABABAB\0", Color::WHITE, Color::BLACK);
     }
 
     #[cfg(test)]
@@ -61,6 +63,7 @@ fn kernel_main() -> ! {
     arch::done();
 }
 
+#[allow(unused)]
 fn stack_overflow(n: usize) {
     if n == 0 {
         return;

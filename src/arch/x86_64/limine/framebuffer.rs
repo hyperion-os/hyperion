@@ -2,9 +2,9 @@ use crate::{
     println,
     video::framebuffer::{Framebuffer, FBO},
 };
-use core::{ops::Deref, slice};
-use limine::{LimineFramebuffer, LimineFramebufferRequest, LimineFramebufferResponse};
-use spin::{Lazy, Mutex, MutexGuard};
+use core::slice;
+use limine::LimineFramebufferRequest;
+use spin::Mutex;
 
 //
 
