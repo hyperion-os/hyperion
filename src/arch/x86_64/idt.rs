@@ -30,7 +30,7 @@ extern "x86-interrupt" fn double_fault(stack: InterruptStackFrame, ec: u64) -> !
 
     crate::qemu::_print(format_args_nl!("INT: Double fault ({ec})\n{stack:#?}"));
 
-    let mut sp = stack.stack_pointer.as_ptr() as *const [u8; 8];
+    let sp = stack.stack_pointer.as_ptr() as *const [u8; 8];
     for i in 0isize..256 {
         let sp = unsafe { sp.offset(i) };
         let bytes: [u8; 8] = unsafe { *sp };

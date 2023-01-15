@@ -13,7 +13,7 @@ use spin::Mutex;
 
 use crate::{
     term::escape::encode::EscapeEncoder,
-    video::framebuffer::{get_fbo, Color, FBO},
+    video::framebuffer::{get_fbo, Color},
 };
 
 //
@@ -31,7 +31,7 @@ pub mod video;
 //
 
 /// Name of the kernel
-pub static KERNEL: &'static str = if cfg!(test) {
+pub static KERNEL: &str = if cfg!(test) {
     "Hyperion-Testing"
 } else {
     "Hyperion"

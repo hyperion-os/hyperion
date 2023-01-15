@@ -2,10 +2,10 @@ use crate::term::escape::decode::{DecodedPart, EscapeDecoder};
 
 use super::{
     font::FONT,
-    framebuffer::{get_fbo, Color, Framebuffer, FBO},
+    framebuffer::{get_fbo, Color, Framebuffer},
 };
 use core::fmt::{self, Arguments, Write};
-use spin::{Lazy, Mutex, MutexGuard, Once};
+use spin::{Mutex, MutexGuard};
 
 //
 

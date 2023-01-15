@@ -1,9 +1,8 @@
 use super::font::FONT;
 use core::{
-    fmt,
     ops::{Deref, DerefMut},
 };
-use spin::{Lazy, Mutex, MutexGuard, Once};
+use spin::{Mutex, MutexGuard, Once};
 
 //
 
@@ -67,7 +66,7 @@ impl Framebuffer {
 
     pub fn scroll(&mut self, h: usize) {
         for y in h..self.height {
-            let two_rows = &mut self.buf[(y - 1) * self.info.pitch..(y + 1) * self.info.pitch];
+            let _two_rows = &mut self.buf[(y - 1) * self.info.pitch..(y + 1) * self.info.pitch];
 
             self.buf.copy_within(
                 y * self.info.pitch..(y + 1) * self.info.pitch,

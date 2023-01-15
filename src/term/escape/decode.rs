@@ -36,13 +36,13 @@ impl EscapeDecoder {
         match (self.len, byte) {
             (0, b'\x1B') => {
                 self.len += 1;
-                self.buf[0 as usize] = byte;
+                self.buf[0_usize] = byte;
                 DecodedPart::None
             }
             (0, _) => DecodedPart::Byte(byte),
             (1, b'[') => {
                 self.len += 1;
-                self.buf[1 as usize] = byte;
+                self.buf[1_usize] = byte;
                 DecodedPart::None
             }
             (i, b'm') => {
@@ -103,6 +103,4 @@ impl EscapeDecoder {
 
 // longest supported: "\x1B[48;2;255;255;255m"
 const LONGEST_ESCAPE: usize = "\x1B[48;2;255;255;255m".len();
-const LONGEST_ESCAPE_PREV: usize = LONGEST_ESCAPE - 1;
-const LONGEST_ESCAPE_U8: u8 = LONGEST_ESCAPE as u8;
 const LONGEST_ESCAPE_PREV_U8: u8 = LONGEST_ESCAPE as u8 - 1;

@@ -1,4 +1,4 @@
-use crate::{arch::done, print, println};
+use crate::{print, println};
 use core::{any::type_name, panic::PanicInfo};
 use x86_64::instructions::port::Port;
 

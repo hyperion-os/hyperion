@@ -15,7 +15,7 @@ pub fn init() {
         .get_response()
         .get()
         .into_iter()
-        .flat_map(|resp| resp.framebuffers().into_iter())
+        .flat_map(|resp| resp.framebuffers().iter())
         .find_map(|fb| {
             if fb.bpp != 32 {
                 return None;
