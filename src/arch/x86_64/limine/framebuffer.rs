@@ -1,5 +1,5 @@
 use crate::{
-    println,
+    debug,
     video::framebuffer::{get_fbo, Framebuffer, FramebufferInfo, FBO},
 };
 use core::slice;
@@ -36,5 +36,5 @@ pub fn init() {
         fbo.clear();
         FBO.call_once(|| Mutex::new(fbo));
     }
-    println!("Global framebuffer: {:#?}", get_fbo().map(|f| f.info))
+    debug!("Global framebuffer: {:#?}", get_fbo().map(|f| f.info))
 }

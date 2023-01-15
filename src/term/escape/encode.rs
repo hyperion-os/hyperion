@@ -7,28 +7,40 @@ pub trait EscapeEncoder {
         EncodedPart { code, data: self }
     }
 
-    fn red(&self) -> EncodedPart<Self> {
+    fn true_red(&self) -> EncodedPart<Self> {
         self.with_escape_code("\x1B[38;2;255;0;0m")
     }
 
-    fn green(&self) -> EncodedPart<Self> {
+    fn true_green(&self) -> EncodedPart<Self> {
         self.with_escape_code("\x1B[38;2;0;255;0m")
     }
 
-    fn blue(&self) -> EncodedPart<Self> {
+    fn true_blue(&self) -> EncodedPart<Self> {
         self.with_escape_code("\x1B[38;2;0;0;255m")
     }
 
-    fn cyan(&self) -> EncodedPart<Self> {
+    fn true_cyan(&self) -> EncodedPart<Self> {
         self.with_escape_code("\x1B[38;2;0;255;255m")
     }
 
-    fn magenta(&self) -> EncodedPart<Self> {
+    fn true_magenta(&self) -> EncodedPart<Self> {
         self.with_escape_code("\x1B[38;2;255;0;255m")
     }
 
-    fn yellow(&self) -> EncodedPart<Self> {
+    fn true_yellow(&self) -> EncodedPart<Self> {
         self.with_escape_code("\x1B[38;2;255;255;0m")
+    }
+
+    fn true_black(&self) -> EncodedPart<Self> {
+        self.with_escape_code("\x1B[38;2;0;0;0m")
+    }
+
+    fn true_white(&self) -> EncodedPart<Self> {
+        self.with_escape_code("\x1B[38;2;255;255;255m")
+    }
+
+    fn true_grey(&self) -> EncodedPart<Self> {
+        self.with_escape_code("\x1B[38;2;128;128;128m")
     }
 }
 
@@ -39,7 +51,11 @@ pub struct EncodedPart<'a, T: ?Sized> {
 
 //
 
-impl EscapeEncoder for &str {}
+// impl EscapeEncoder for &str {}
+//
+// impl EscapeEncoder for char {}
+
+impl<T> EscapeEncoder for T {}
 
 impl<'a, T> fmt::Display for EncodedPart<'a, T>
 where

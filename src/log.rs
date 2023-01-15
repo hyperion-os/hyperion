@@ -1,8 +1,8 @@
+use crate::term::escape::encode::EscapeEncoder;
 use core::{
     fmt::Arguments,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::{AtomicBool, AtomicU8, Ordering},
 };
-use spin::Lazy;
 
 //
 
@@ -15,6 +15,41 @@ macro_rules! print {
 macro_rules! println {
     ()          => { $crate::log::_print(format_args!("\n")) };
     ($($t:tt)*) => { $crate::log::_print(format_args_nl!($($t)*)) };
+}
+
+#[macro_export]
+macro_rules! log {
+    ($level:expr, $($t:tt)*) => {
+        if $crate::log::test_log_level($level) {
+            $crate::log::_print_log_stamp($level, module_path!());
+            $crate::println!($($t)*);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! error {
+    ($($t:tt)*) => { $crate::log!($crate::log::LogLevel::Error, $($t)*) };
+}
+
+#[macro_export]
+macro_rules! warn {
+    ($($t:tt)*) => { $crate::log!($crate::log::LogLevel::Warn, $($t)*) };
+}
+
+#[macro_export]
+macro_rules! info {
+    ($($t:tt)*) => { $crate::log!($crate::log::LogLevel::Info, $($t)*) };
+}
+
+#[macro_export]
+macro_rules! debug {
+    ($($t:tt)*) => { $crate::log!($crate::log::LogLevel::Debug, $($t)*) };
+}
+
+#[macro_export]
+macro_rules! trace {
+    ($($t:tt)*) => { $crate::log!($crate::log::LogLevel::Trace, $($t)*) };
 }
 
 //
@@ -43,9 +78,89 @@ pub fn disable_qemu() {
     LOGGER.qemu.store(false, Ordering::SeqCst);
 }
 
+pub fn set_log_level(level: LogLevel) {
+    LOGGER.level.store(level as u8, Ordering::SeqCst);
+}
+
+// pub fn set_log_color(color: bool) {
+//     LOGGER.color.store(color, Ordering::SeqCst);
+// }
+
+pub fn test_log_level(level: LogLevel) -> bool {
+    LOGGER.level.load(Ordering::SeqCst) >= level as u8
+}
+
+#[doc(hidden)]
+pub fn _print_log_stamp(level: LogLevel, module: &str) {
+    // if !LOGGER.color.load(Ordering::SeqCst) {
+    //     print!("[{level:?}]: ")
+    // } else {
+    let level = match level {
+        LogLevel::None => " NONE  ",
+        LogLevel::Error => "\x1b[38;2;255;85;85m ERROR ",
+        LogLevel::Warn => "\x1b[38;2;255;255;85m WARN  ",
+        LogLevel::Info => "\x1b[38;2;85;255;85m INFO  ",
+        LogLevel::Debug => "\x1b[38;2;85;255;255m DEBUG ",
+        LogLevel::Trace => "\x1b[38;2;255;85;255m TRACE ",
+    };
+
+    print!(
+        "{}{level} {} {}: ",
+        '['.true_grey(),
+        module.true_grey(),
+        ']'.true_grey(),
+    )
+    // }
+}
+
 //
 
-static LOGGER: Lazy<Logger> = Lazy::new(Logger::init);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
+pub enum LogLevel {
+    None,
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+//
+
+impl LogLevel {
+    pub const DEFAULT: Self = Self::Info;
+    pub const ALL: [LogLevel; 5] = [
+        Self::Error,
+        Self::Warn,
+        Self::Info,
+        Self::Debug,
+        Self::Trace,
+    ];
+
+    pub fn parse(s: &str) -> Option<Self> {
+        // TODO: match any case
+        Some(match s {
+            "none" => Self::None,
+            "error" => Self::Error,
+            "warn" => Self::Warn,
+            "info" => Self::Info,
+            "debug" => Self::Debug,
+            "trace" => Self::Trace,
+            _ => return None,
+        })
+    }
+}
+
+impl Default for LogLevel {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+//
+
+static LOGGER: Logger = Logger::init();
 
 struct Logger {
     // Log to a bootloader given terminal
@@ -56,14 +171,22 @@ struct Logger {
 
     // Log to a QEMU serial
     qemu: AtomicBool,
+
+    // [`LogLevel`] in u8 form
+    level: AtomicU8,
+    // print logs with colors
+    // color: AtomicBool,
 }
 
 impl Logger {
-    fn init() -> Self {
+    const fn init() -> Self {
         Logger {
             // term: false.into(),
-            fbo: true.into(),
-            qemu: true.into(),
+            fbo: AtomicBool::new(true),
+            qemu: AtomicBool::new(true),
+
+            level: AtomicU8::new(LogLevel::DEFAULT as u8),
+            // color: AtomicBool::new(true),
         }
     }
 

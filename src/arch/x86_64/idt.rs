@@ -1,4 +1,4 @@
-use crate::println;
+use crate::{debug, info};
 use spin::Lazy;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
@@ -9,14 +9,14 @@ pub static DOUBLE_FAULT_IST: u16 = 1;
 //
 
 pub fn init() {
-    println!("Initializing IDT");
+    debug!("Initializing IDT");
     IDT.load();
 }
 
 //
 
 extern "x86-interrupt" fn breakpoint(stack: InterruptStackFrame) {
-    println!("INT: Breakpoint\n{stack:#?}")
+    info!("INT: Breakpoint\n{stack:#?}")
 }
 
 extern "x86-interrupt" fn double_fault(stack: InterruptStackFrame, ec: u64) -> ! {

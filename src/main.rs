@@ -4,22 +4,23 @@
 #![feature(abi_x86_interrupt)]
 #![feature(custom_test_frameworks)]
 #![feature(type_alias_impl_trait)]
+#![feature(result_option_inspect)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 //
 
-use spin::Mutex;
-
 use crate::{
     term::escape::encode::EscapeEncoder,
     video::framebuffer::{get_fbo, Color},
 };
+use spin::Once;
 
 //
 
 #[path = "arch/x86_64/mod.rs"]
 pub mod arch;
+pub mod env;
 pub mod log;
 pub mod panic;
 pub mod qemu;
@@ -38,18 +39,33 @@ pub static KERNEL: &str = if cfg!(test) {
 };
 
 /// Name of the detected bootloader
-pub static BOOTLOADER: Mutex<&'static str> = Mutex::new(KERNEL);
+pub static BOOTLOADER: Once<&'static str> = Once::new();
 
 //
 
 fn kernel_main() -> ! {
-    println!("\n\nHello from {}", KERNEL.cyan());
-    println!(" - {} was booted with {}", KERNEL.cyan(), BOOTLOADER.lock());
+    debug!("Cmdline: {:?}", env::Arguments::get());
+
+    // ofc. every kernel has to have this cringy ascii name splash
+    info!("\n{}\n", include_str!("./splash"));
+
+    if let Some(bl) = BOOTLOADER.get() {
+        let kernel = KERNEL.true_cyan();
+        debug!("{kernel} was booted with {bl}");
+    }
 
     // error handling test
     // stack_overflow(79999999);
     // unsafe {
     //     *(0xFFFFFFFFDEADC0DE as *mut u8) = 42;
+    // }
+
+    // for level in log::LogLevel::ALL {
+    //     log!(level, "LOG TEST")
+    // }
+
+    // for c in 0..=255u8 {
+    //     print!("{}", c as char);
     // }
 
     if let Some(mut fbo) = get_fbo() {

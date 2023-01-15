@@ -1,6 +1,5 @@
-use crate::println;
-
 use super::idt::DOUBLE_FAULT_IST;
+use crate::debug;
 use spin::Lazy;
 use x86_64::{
     instructions::tables::load_tss,
@@ -15,7 +14,7 @@ use x86_64::{
 //
 
 pub fn init() {
-    println!("Initializing GDT");
+    debug!("Initializing GDT");
     GDT.0.load();
 
     unsafe {

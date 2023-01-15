@@ -1,9 +1,8 @@
-use crate::term::escape::decode::{DecodedPart, EscapeDecoder};
-
 use super::{
     font::FONT,
     framebuffer::{get_fbo, Color, Framebuffer},
 };
+use crate::term::escape::decode::{DecodedPart, EscapeDecoder};
 use core::fmt::{self, Arguments, Write};
 use spin::{Mutex, MutexGuard};
 
@@ -125,7 +124,7 @@ impl Writer {
     }
 
     fn size(fbo: &mut MutexGuard<Framebuffer>) -> [u16; 2] {
-        [(fbo.width / 16) as _, (fbo.height / 16) as _]
+        [(fbo.width / 8) as _, (fbo.height / 16) as _]
     }
 }
 
