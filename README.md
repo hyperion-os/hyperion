@@ -19,3 +19,7 @@ Idk, I asked ChatGPT to give it a name:
 ## Demo image(s)
 
 ![image](https://user-images.githubusercontent.com/42496863/212522046-6f8f55b8-045c-4efb-a7a3-38d523efd501.png)
+
+## Font
+
+The font used contains the first 256 bitmap glyphs from [GNU Unifont](http://unifoundry.com/)
