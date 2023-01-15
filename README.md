@@ -15,3 +15,7 @@ Idk, I asked ChatGPT to give it a name:
 > operating system as both a hardware-level and a software-level entity. Additionally, the irregular
 > shape of Hyperion and its rapid rotation could be seen as metaphors for the flexibility and speed
 > of a modern operating system.
+
+## Demo image(s)
+
+![image](https://user-images.githubusercontent.com/42496863/212522046-6f8f55b8-045c-4efb-a7a3-38d523efd501.png)
