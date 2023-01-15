@@ -41,6 +41,7 @@ target/limine/limine-deploy $KERNEL.iso
 if [ "$(basename $KERNEL)" = "hyperion" ]; then
     # Run the created image with QEMU.
     qemu-system-x86_64 \
+        -enable-kvm \
         -machine q35 \
         -cpu qemu64 \
         -M smm=off \
@@ -55,6 +56,7 @@ else
     set +e
     # Run the created image with QEMU.
     qemu-system-x86_64 \
+        -enable-kvm \
         -machine q35 \
         -cpu qemu64 \
         -M smm=off \

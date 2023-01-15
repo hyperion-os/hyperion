@@ -27,7 +27,43 @@ extern "x86-interrupt" fn double_fault(stack: InterruptStackFrame, ec: u64) -> !
         // TODO: This won't be safe when multiple CPUs are running
         crate::qemu::unlock();
     }
-    panic!("INT: Double fault ({ec})\n{stack:#?}")
+
+    crate::qemu::_print(format_args_nl!("INT: Double fault ({ec})\n{stack:#?}"));
+
+    let mut sp = stack.stack_pointer.as_ptr() as *const [u8; 8];
+    for i in 0isize..256 {
+        let sp = unsafe { sp.offset(i) };
+        let bytes: [u8; 8] = unsafe { *sp };
+        let graphic = |c: u8| {
+            if c.is_ascii_graphic() {
+                c as char
+            } else {
+                '.'
+            }
+        };
+        crate::qemu::_print(format_args_nl!(
+            "{:#x}:  {:02x} {:02x} {:02x} {:02x}  {:02x} {:02x} {:02x} {:02x}   {}{}{}{}{}{}{}{}",
+            sp as usize,
+            bytes[0],
+            bytes[1],
+            bytes[2],
+            bytes[3],
+            bytes[4],
+            bytes[5],
+            bytes[6],
+            bytes[7],
+            graphic(bytes[0]),
+            graphic(bytes[1]),
+            graphic(bytes[2]),
+            graphic(bytes[3]),
+            graphic(bytes[4]),
+            graphic(bytes[5]),
+            graphic(bytes[6]),
+            graphic(bytes[7]),
+        ));
+    }
+
+    panic!();
 }
 
 //

@@ -1,6 +1,6 @@
 use crate::{
     println,
-    video::framebuffer::{Framebuffer, FBO},
+    video::framebuffer::{get_fbo, Framebuffer, FramebufferInfo, FBO},
 };
 use core::slice;
 use limine::LimineFramebufferRequest;
@@ -24,14 +24,17 @@ pub fn init() {
             let buf = unsafe { slice::from_raw_parts_mut(fb.address.as_ptr()?, fb.size()) };
             Some(Framebuffer {
                 buf,
-                width: fb.width as _,
-                height: fb.height as _,
-                pitch: fb.pitch as _,
+                info: FramebufferInfo {
+                    width: fb.width as _,
+                    height: fb.height as _,
+                    pitch: fb.pitch as _,
+                },
             })
         });
 
-    if let Some(fbo) = fbo {
+    if let Some(mut fbo) = fbo {
+        fbo.clear();
         FBO.call_once(|| Mutex::new(fbo));
     }
-    println!("Global framebuffer {:#?}", FBO.get())
+    println!("Global framebuffer: {:#?}", get_fbo().map(|f| f.info))
 }

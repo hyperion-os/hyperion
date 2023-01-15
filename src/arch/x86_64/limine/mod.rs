@@ -18,9 +18,6 @@ pub extern "C" fn _start() -> ! {
 
     framebuffer::init();
 
-    // the initial terminal logger crashes if used after initializing GDT and IDT
-    crate::log::disable_term();
-
     gdt::init();
     idt::init();
 

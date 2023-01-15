@@ -13,9 +13,6 @@ pub fn _print(args: Arguments) {
 }
 
 /// Unlocks the COM1 writer IF it is locked by this exact thread
-///
-/// SAFETY: this is unsafe unless called from the same thread, this is intended for double fault
-/// handling
 pub unsafe fn unlock() {
     // TODO: SMP
     // if COM1_LOCKER.load(Ordering::SeqCst) != crate::THREAD {

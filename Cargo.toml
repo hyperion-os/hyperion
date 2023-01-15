@@ -23,3 +23,6 @@ x86_64 = "0.14.10"
 uart_16550 = "0.2.18"
 limine = { version = "0.1.9", optional = true }
 #tracing = { version = "0.1.37", default-features = false }
+
+[build-dependencies]
+image = "0.24.5"

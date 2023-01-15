@@ -1,11 +1,8 @@
 use std::{
     env::var,
     error::Error,
-    fs::{self, File, OpenOptions},
-    io::Read,
+    fs::{self, File},
     io::Write,
-    path::PathBuf,
-    process::Command,
 };
 
 //
@@ -43,30 +40,56 @@ fn main() -> Result<(), Box<dyn Error>> {
         panic!();
     };
 
-    let unifont_path = "target/hyperion/unifont.bmp";
-    let read_unifont = || {
-        let mut file = OpenOptions::new()
-            .read(true)
-            .create(false)
-            .write(false)
-            .open(unifont_path)?;
+    // generate kernel font from the bitmap image
 
-        let mut buf = Vec::new();
-        file.read_to_end(buf)?;
-        Ok::<_, Box<dyn Error>>(buf)
-    };
-
-    let unifont = if let Ok(file) = read_unifont() {
-        file
-    } else {
-        Command::new("wget")
-            .arg("http://unifoundry.com/pub/unifont/unifont-15.0.01/unifont-15.0.01.bmp")
-            .args(["-O", unifont_path])
-            .spawn()
+    let bmp_date = fs::metadata("./src/video/font.bmp")
+        .unwrap()
+        .modified()
+        .unwrap();
+    let rs_date = fs::metadata("./src/video/font.rs")
+        .unwrap()
+        .modified()
+        .unwrap();
+    // panic!("{bmp_date:?} {rs_date:?}");
+    if bmp_date > rs_date {
+        let mut generated_rs = File::options()
+            .write(true)
+            .truncate(true)
+            .open("./src/video/font.rs")
             .unwrap();
 
-        read_unifont().unwrap()
-    };
+        let bmp = image::open("./src/video/font.bmp").unwrap().to_luma8();
+        assert_eq!(bmp.width(), 4096);
+        assert_eq!(bmp.height(), 16);
+        write!(
+            generated_rs,
+            "pub static FONT: [([u16; 16], bool); 256] = ["
+        )
+        .unwrap();
+
+        for i in 0..=255_u8 {
+            let mut byte = ([0u16; 16], false);
+
+            bmp.chunks(16)
+                .skip(i as usize)
+                .step_by(256)
+                .enumerate()
+                .for_each(|(i, s)| {
+                    s.iter().enumerate().for_each(|(j, b)| {
+                        if *b != 255 {
+                            byte.0[i] |= 1 << j
+                        }
+                    })
+                });
+
+            // set the flag if the character is 16 wide instead of 8 wide
+            byte.1 = !byte.0.iter().all(|c| *c < 0x100);
+
+            write!(generated_rs, "\n\t{byte:?},").unwrap();
+        }
+
+        write!(generated_rs, "\n];").unwrap();
+    }
 
     Ok(())
 }

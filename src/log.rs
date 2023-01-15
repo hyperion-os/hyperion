@@ -19,12 +19,20 @@ macro_rules! println {
 
 //
 
-pub fn enable_term() {
-    LOGGER.term.store(true, Ordering::SeqCst);
+// pub fn enable_term() {
+//     LOGGER.term.store(true, Ordering::SeqCst);
+// }
+//
+// pub fn disable_term() {
+//     LOGGER.term.store(false, Ordering::SeqCst);
+// }
+
+pub fn enable_fbo() {
+    LOGGER.fbo.store(true, Ordering::SeqCst);
 }
 
-pub fn disable_term() {
-    LOGGER.term.store(false, Ordering::SeqCst);
+pub fn disable_fbo() {
+    LOGGER.fbo.store(false, Ordering::SeqCst);
 }
 
 pub fn enable_qemu() {
@@ -40,24 +48,34 @@ pub fn disable_qemu() {
 static LOGGER: Lazy<Logger> = Lazy::new(Logger::init);
 
 struct Logger {
-    term: AtomicBool,
+    // Log to a bootloader given terminal
+    // term: AtomicBool,
+
+    // Log to a framebuffer
+    fbo: AtomicBool,
+
+    // Log to a QEMU serial
     qemu: AtomicBool,
 }
 
 impl Logger {
     fn init() -> Self {
         Logger {
-            term: true.into(),
+            // term: false.into(),
+            fbo: true.into(),
             qemu: true.into(),
         }
     }
 
     fn print(&self, args: Arguments) {
+        // if self.term.load(Ordering::SeqCst) {
+        //     crate::arch::boot::_print(args);
+        // }
         if self.qemu.load(Ordering::SeqCst) {
             crate::qemu::_print(args);
         }
-        if self.term.load(Ordering::SeqCst) {
-            crate::arch::boot::_print(args);
+        if self.fbo.load(Ordering::SeqCst) {
+            crate::video::logger::_print(args);
         }
     }
 }
