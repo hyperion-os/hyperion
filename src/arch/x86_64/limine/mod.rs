@@ -1,3 +1,5 @@
+use crate::println;
+
 use super::{gdt, idt};
 
 //
@@ -21,8 +23,10 @@ pub extern "C" fn _start() -> ! {
     gdt::init();
     idt::init();
 
+    println!("Re-enabling x86_64 interrupts");
     x86_64::instructions::interrupts::enable();
 
+    println!("Calling general kernel_main");
     crate::kernel_main()
 }
 

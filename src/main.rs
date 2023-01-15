@@ -43,7 +43,7 @@ pub static BOOTLOADER: Mutex<&'static str> = Mutex::new(KERNEL);
 //
 
 fn kernel_main() -> ! {
-    println!("Hello from {}", KERNEL.cyan());
+    println!("\n\nHello from {}", KERNEL.cyan());
     println!(" - {} was booted with {}", KERNEL.cyan(), BOOTLOADER.lock());
 
     // error handling test
@@ -53,9 +53,9 @@ fn kernel_main() -> ! {
     // }
 
     if let Some(mut fbo) = get_fbo() {
-        fbo.fill(240, 240, 40, 40, Color::RED);
-        fbo.fill(250, 250, 60, 40, Color::GREEN);
-        fbo.fill(205, 215, 80, 20, Color::BLUE);
+        fbo.fill(240, 340, 40, 40, Color::RED);
+        fbo.fill(250, 350, 60, 40, Color::GREEN);
+        fbo.fill(205, 315, 80, 20, Color::BLUE);
     }
 
     #[cfg(test)]

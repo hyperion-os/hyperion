@@ -9,6 +9,7 @@ pub static DOUBLE_FAULT_IST: u16 = 1;
 //
 
 pub fn init() {
+    println!("Initializing IDT");
     IDT.load();
 }
 
