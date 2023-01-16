@@ -1,16 +1,24 @@
-#[cfg(feature = "multiboot1")]
-#[path = "multiboot1/mod.rs"]
-pub mod boot;
-#[cfg(feature = "multiboot2")]
-#[path = "multiboot2/mod.rs"]
-pub mod boot;
-#[cfg(feature = "bootboot")]
-#[path = "bootboot/mod.rs"]
-pub mod boot;
-#[cfg(feature = "limine")]
-#[path = "limine/mod.rs"]
-pub mod boot;
-pub use boot::*;
+use crate::debug;
+
+//
 
 pub mod gdt;
 pub mod idt;
+
+//
+
+pub fn early_boot_cpu() {
+    gdt::init();
+    idt::init();
+
+    debug!("Re-enabling x86_64 interrupts");
+    x86_64::instructions::interrupts::enable();
+}
+
+pub fn early_per_cpu() {}
+
+pub fn done() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
+}

@@ -21,8 +21,7 @@ macro_rules! println {
 macro_rules! log {
     ($level:expr, $($t:tt)*) => {
         if $crate::log::test_log_level($level) {
-            $crate::log::_print_log_stamp($level, module_path!());
-            $crate::println!($($t)*);
+            $crate::log::_print_log($level, module_path!(), format_args_nl!($($t)*));
         }
     };
 }
@@ -91,7 +90,7 @@ pub fn test_log_level(level: LogLevel) -> bool {
 }
 
 #[doc(hidden)]
-pub fn _print_log_stamp(level: LogLevel, module: &str) {
+pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
     // if !LOGGER.color.load(Ordering::SeqCst) {
     //     print!("[{level:?}]: ")
     // } else {
@@ -105,12 +104,17 @@ pub fn _print_log_stamp(level: LogLevel, module: &str) {
     };
 
     print!(
-        "{}{level} {} {}: ",
+        "{}{level} {} {}: {args}",
         '['.true_grey(),
         module.true_grey(),
         ']'.true_grey(),
     )
     // }
+}
+
+#[doc(hidden)]
+pub fn _print(args: Arguments) {
+    LOGGER.print(args)
 }
 
 //
@@ -203,7 +207,25 @@ impl Logger {
     }
 }
 
-#[doc(hidden)]
-pub fn _print(args: Arguments) {
-    LOGGER.print(args)
+//
+
+#[cfg(test)]
+mod tests {
+    use super::{set_log_level, LogLevel};
+
+    #[test_case]
+    fn log_levels() {
+        set_log_level(LogLevel::Trace);
+
+        for level in LogLevel::ALL {
+            log!(level, "LOG TEST")
+        }
+    }
+
+    #[test_case]
+    fn log_chars() {
+        for c in 0..=255u8 {
+            print!("{}", c as char);
+        }
+    }
 }

@@ -1,6 +1,7 @@
 use super::{
+    color::Color,
     font::FONT,
-    framebuffer::{get_fbo, Color, Framebuffer},
+    framebuffer::{get_fbo, Framebuffer},
 };
 use crate::term::escape::decode::{DecodedPart, EscapeDecoder};
 use core::fmt::{self, Arguments, Write};

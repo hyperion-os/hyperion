@@ -20,7 +20,6 @@ pub trait TestCase {
 impl<F: Fn()> TestCase for F {
     fn run(&self) {
         let name = type_name::<Self>();
-        name.len();
         print!(" - {name:.<40}");
         self();
         println!("[ok]");
@@ -64,8 +63,31 @@ pub fn test_panic_handler(info: &PanicInfo) {
 
 #[cfg(test)]
 mod tests {
+    #[allow(clippy::eq_op)]
     #[test_case]
     fn trivial() {
         assert_eq!(0, 0);
+    }
+
+    // TODO: should_panic / should_fail
+    #[test_case]
+    fn random_tests() {
+        // error handling test
+        // stack_overflow(79999999);
+        // unsafe {
+        //     *(0xFFFFFFFFDEADC0DE as *mut u8) = 42;
+        // }
+
+        #[allow(unused)]
+        fn stack_overflow(n: usize) {
+            if n == 0 {
+                return;
+            } else {
+                stack_overflow(n - 1);
+            }
+            unsafe {
+                core::ptr::read_volatile(&0 as *const i32);
+            }
+        }
     }
 }

@@ -10,8 +10,8 @@ use std::{
 fn main() -> Result<(), Box<dyn Error>> {
     let kernel = var("CARGO_PKG_NAME")?;
     println!("cargo:rerun-if-env-changed=CARGO_PKG_NAME");
-    let arch = var("CARGO_CFG_TARGET_ARCH")?;
-    println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
+    //let arch = var("CARGO_CFG_TARGET_ARCH")?;
+    //println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
 
     let mut bootloader: Option<&'static str> = None;
     let mut set = |s| {
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     set("multiboot2");
 
     if let Some(bootloader) = bootloader {
-        let script = format!("src/arch/{arch}/{bootloader}/link.ld");
+        let script = format!("src/boot/{bootloader}/link.ld");
         println!("cargo:rustc-link-arg-bin={kernel}=--script={script}");
         println!("cargo:rerun-if-changed={script}");
     } else {

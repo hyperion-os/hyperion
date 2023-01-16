@@ -1,6 +1,6 @@
 use super::idt::DOUBLE_FAULT_IST;
 use crate::debug;
-use spin::Lazy;
+use spin::{Lazy, Once};
 use x86_64::{
     instructions::tables::load_tss,
     registers::segmentation::{Segment, CS, SS},
@@ -15,7 +15,7 @@ use x86_64::{
 
 pub fn init() {
     debug!("Initializing GDT");
-    GDT.0.load();
+    GDT_ONCE.call_once(|| GDT.0.load());
 
     unsafe {
         CS::set_reg(GDT.1.kc);
@@ -43,6 +43,7 @@ static GDT: Lazy<(GlobalDescriptorTable, SegmentSelectors)> = Lazy::new(|| {
     // gdt.add_entry(Descriptor::user_data_segment());
     (gdt, sel)
 });
+static GDT_ONCE: Once<()> = Once::new();
 
 static TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
     let mut tss = TaskStateSegment::new();

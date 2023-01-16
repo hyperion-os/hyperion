@@ -5,25 +5,31 @@
 #![feature(custom_test_frameworks)]
 #![feature(type_alias_impl_trait)]
 #![feature(result_option_inspect)]
+#![feature(allocator_api)]
+#![feature(nonnull_slice_from_raw_parts)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 //
 
-use crate::{
-    term::escape::encode::EscapeEncoder,
-    video::framebuffer::{get_fbo, Color},
-};
+use crate::term::escape::encode::EscapeEncoder;
 use spin::Once;
+
+//
+
+extern crate alloc;
 
 //
 
 #[path = "arch/x86_64/mod.rs"]
 pub mod arch;
+pub mod boot;
 pub mod env;
 pub mod log;
+pub mod mem;
 pub mod panic;
 pub mod qemu;
+pub mod smp;
 pub mod term;
 #[cfg(test)]
 pub mod testfw;
@@ -44,7 +50,10 @@ pub static BOOTLOADER: Once<&'static str> = Once::new();
 //
 
 fn kernel_main() -> ! {
+    debug!("Entering kernel_main");
     debug!("Cmdline: {:?}", env::Arguments::get());
+
+    mem::init();
 
     // ofc. every kernel has to have this cringy ascii name splash
     info!("\n{}\n", include_str!("./splash"));
@@ -54,40 +63,8 @@ fn kernel_main() -> ! {
         debug!("{kernel} was booted with {bl}");
     }
 
-    // error handling test
-    // stack_overflow(79999999);
-    // unsafe {
-    //     *(0xFFFFFFFFDEADC0DE as *mut u8) = 42;
-    // }
-
-    // for level in log::LogLevel::ALL {
-    //     log!(level, "LOG TEST")
-    // }
-
-    // for c in 0..=255u8 {
-    //     print!("{}", c as char);
-    // }
-
-    if let Some(mut fbo) = get_fbo() {
-        fbo.fill(240, 340, 40, 40, Color::RED);
-        fbo.fill(250, 350, 60, 40, Color::GREEN);
-        fbo.fill(205, 315, 80, 20, Color::BLUE);
-    }
-
     #[cfg(test)]
     test_main();
 
-    arch::done();
-}
-
-#[allow(unused)]
-fn stack_overflow(n: usize) {
-    if n == 0 {
-        return;
-    } else {
-        stack_overflow(n - 1);
-    }
-    unsafe {
-        core::ptr::read_volatile(&0 as *const i32);
-    }
+    smp::init();
 }

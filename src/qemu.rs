@@ -6,10 +6,7 @@ use uart_16550::SerialPort;
 
 #[doc(hidden)]
 pub fn _print(args: Arguments) {
-    if let Some(mut writer) = COM1.try_lock() {
-        // COM1_LOCKER.store(crate::THREAD, Ordering::SeqCst);
-        _ = writer.write_fmt(args);
-    }
+    _ = COM1.lock().write_fmt(args);
 }
 
 /// Unlocks the COM1 writer IF it is locked by this exact thread
