@@ -1,4 +1,4 @@
-use crate::{boot, debug, error};
+use crate::{boot, debug, error, util::NumberPostfix};
 use core::{
     alloc::{GlobalAlloc, Layout},
     ptr::null_mut,
@@ -13,12 +13,13 @@ pub fn init() {
 
     for Memmap { base, len } in boot::memmap() {
         usable += len;
-        debug!("base: {base:#X} len: {len:#X}");
+        debug!("base: {base:#X} len: {len:#X} ({}B)", len.postfix_binary());
 
         ALLOC.memory.store(base, Ordering::SeqCst);
         *ALLOC.remaining.lock() = len;
     }
-    debug!("Usable system memory: {usable}");
+
+    debug!("Usable system memory: {}B", usable.postfix_binary());
 }
 
 //

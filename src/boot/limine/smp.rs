@@ -1,7 +1,4 @@
-use crate::{
-    arch,
-    smp::{smp_main, Cpu},
-};
+use crate::{arch, smp::Cpu, smp_main};
 use limine::{LimineSmpInfo, LimineSmpRequest};
 
 //

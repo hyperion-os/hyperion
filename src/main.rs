@@ -7,13 +7,9 @@
 #![feature(result_option_inspect)]
 #![feature(allocator_api)]
 #![feature(nonnull_slice_from_raw_parts)]
+#![feature(exclusive_range_pattern)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
-
-//
-
-use crate::term::escape::encode::EscapeEncoder;
-use spin::Once;
 
 //
 
@@ -33,19 +29,18 @@ pub mod smp;
 pub mod term;
 #[cfg(test)]
 pub mod testfw;
+pub mod util;
 pub mod video;
 
 //
 
-/// Name of the kernel
-pub static KERNEL: &str = if cfg!(test) {
+pub static KERNEL_NAME: &str = if cfg!(test) {
     "Hyperion-Testing"
 } else {
     "Hyperion"
 };
 
-/// Name of the detected bootloader
-pub static BOOTLOADER: Once<&'static str> = Once::new();
+pub static KERNEL_VERS: &str = env!("CARGO_PKG_VERSION");
 
 //
 
@@ -58,13 +53,22 @@ fn kernel_main() -> ! {
     // ofc. every kernel has to have this cringy ascii name splash
     info!("\n{}\n", include_str!("./splash"));
 
-    if let Some(bl) = BOOTLOADER.get() {
-        let kernel = KERNEL.true_cyan();
-        debug!("{kernel} was booted with {bl}");
+    if let Some(bl) = boot::BOOT_NAME.get() {
+        debug!("{KERNEL_NAME} {KERNEL_VERS} was booted with {bl}");
     }
 
     #[cfg(test)]
     test_main();
 
+    debug!("{}", arch::rng_seed());
+
     smp::init();
+}
+
+fn smp_main(cpu: smp::Cpu) -> ! {
+    debug!("{cpu} entering smp_main");
+
+    // x86_64::instructions::interrupts::int3();
+
+    arch::done();
 }

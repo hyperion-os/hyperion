@@ -1,4 +1,5 @@
-use crate::arch;
+use super::BOOT_NAME;
+use crate::{arch, kernel_main};
 
 //
 
@@ -17,7 +18,7 @@ mod term;
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    crate::BOOTLOADER.call_once(|| "Limine");
+    BOOT_NAME.call_once(|| "Limine");
 
     framebuffer::init();
     cmdline::init();
@@ -25,7 +26,7 @@ pub extern "C" fn _start() -> ! {
     arch::early_boot_cpu();
     arch::early_per_cpu();
 
-    crate::kernel_main()
+    kernel_main()
 }
 
 pub fn smp_init() {

@@ -1,3 +1,7 @@
+use spin::Once;
+
+//
+
 #[cfg(feature = "multiboot1")]
 #[path = "multiboot1/mod.rs"]
 mod boot;
@@ -11,4 +15,11 @@ mod boot;
 #[path = "limine/mod.rs"]
 mod boot;
 
+//
+
 pub use boot::*;
+
+//
+
+/// Name of the detected bootloader
+pub static BOOT_NAME: Once<&'static str> = Once::new();

@@ -3,8 +3,6 @@ use spin::Once;
 
 //
 
-//
-
 pub fn args() -> Arguments {
     Arguments::get()
 }
@@ -25,7 +23,7 @@ pub struct Arguments {
 impl Arguments {
     pub fn parse(s: &'static str) {
         ARGUMENTS.call_once(|| {
-            let mut iter = s.split_whitespace();
+            let mut iter = s.split(|c: char| c.is_whitespace() || c == '=');
             let mut result = Arguments::default();
             result.cmdline = s;
 
@@ -38,13 +36,6 @@ impl Arguments {
                             } else {
                                 result.had_unrecognized = true
                             }
-                        }
-                    }
-                    _ if item.starts_with("log=") => {
-                        if let Some(l) = LogLevel::parse(&item[4..]) {
-                            result.log_level = l
-                        } else {
-                            result.had_unrecognized = true
                         }
                     }
                     _ => result.had_unrecognized = true,

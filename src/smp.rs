@@ -10,18 +10,10 @@ use core::fmt::{self, Display, Formatter};
 pub fn init() -> ! {
     debug!("Waking up non-boot CPUs");
     boot::smp_init();
-    smp_main(Cpu {
+    crate::smp_main(Cpu {
         processor_id: 0,
         local_apic_id: 0,
     })
-}
-
-pub fn smp_main(cpu: Cpu) -> ! {
-    debug!("Entering smp_main ({cpu})");
-
-    // x86_64::instructions::interrupts::int3();
-
-    arch::done();
 }
 
 //

@@ -43,8 +43,9 @@ if [ "$(basename $KERNEL)" = "hyperion" ]; then
     qemu-system-x86_64 \
         -enable-kvm \
         -machine q35 \
-        -cpu qemu64 \
+        -cpu qemu64,+rdrand,+rdseed \
         -smp 8 \
+        -m 512m \
         -M smm=off \
         -d int,guest_errors,cpu_reset \
         -no-reboot \
@@ -59,8 +60,9 @@ else
     qemu-system-x86_64 \
         -enable-kvm \
         -machine q35 \
-        -cpu qemu64 \
+        -cpu qemu64,+rdrand,+rdseed \
         -smp 8 \
+        -m 512m \
         -M smm=off \
         -d int,guest_errors,cpu_reset \
         -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
