@@ -45,6 +45,7 @@ pub static KERNEL_VERS: &str = env!("CARGO_PKG_VERSION");
 
 //
 
+// the actual entry exists in [´crate::boot::boot´]
 fn kernel_main() -> ! {
     debug!("Entering kernel_main");
     debug!("Cmdline: {:?}", env::Arguments::get());
@@ -61,7 +62,7 @@ fn kernel_main() -> ! {
     #[cfg(test)]
     test_main();
 
-    debug!("{}", arch::rng_seed());
+    debug!("RNG Seed {}", arch::rng_seed());
 
     smp::init();
 }
