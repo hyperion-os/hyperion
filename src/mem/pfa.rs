@@ -1,7 +1,6 @@
 use super::map::Memmap;
 use crate::{
     boot, debug,
-    log::{test_log_level, LogLevel},
     mem::bump,
     util::{bitmap::Bitmap, fmt::NumberPostfix},
 };
@@ -79,7 +78,7 @@ pub fn init() {
             #[cfg(debug_assertions)]
             bitmap.set(page as _, false).unwrap();
             #[cfg(not(debug_assertions))]
-            let _ = bitmap.set(page as _, false);
+            let res = bitmap.set(page as _, false);
         }
     }
 
@@ -109,5 +108,5 @@ pub struct PageFrameAllocator {
 //
 
 impl PageFrameAllocator {
-    pub fn free_page(&mut self, addr: u64) {}
+    pub fn free_page(&mut self, _addr: u64) {}
 }

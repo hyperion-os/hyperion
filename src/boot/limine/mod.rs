@@ -3,12 +3,15 @@ use crate::{arch, kernel_main};
 
 //
 
+pub use addr::phys_addr;
+pub use addr::virt_addr;
 pub use mem::memmap;
 pub use mem::memtotal;
 pub use term::_print;
 
 //
 
+mod addr;
 mod cmdline;
 mod framebuffer;
 mod mem;

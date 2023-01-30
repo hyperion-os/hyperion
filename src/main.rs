@@ -14,6 +14,12 @@
 
 //
 
+use x86_64::{
+    registers::control::Cr3,
+    structures::paging::{PageTable, PhysFrame},
+    VirtAddr,
+};
+
 extern crate alloc;
 
 //
@@ -50,7 +56,45 @@ fn kernel_main() -> ! {
     debug!("Entering kernel_main");
     debug!("Cmdline: {:?}", env::Arguments::get());
 
+    debug!(
+        "Kernel addr: {:?} {:?}",
+        boot::virt_addr(),
+        boot::phys_addr()
+    );
+
     mem::init();
+
+    /* let (l4, _) = Cr3::read();
+
+    let read_pt = |frame: PhysFrame| -> &mut PageTable {
+        let addr = VirtAddr::new(frame.start_address().as_u64());
+        let table: *mut PageTable = addr.as_mut_ptr();
+        unsafe { &mut *table }
+    };
+
+    for (i, e) in read_pt(l4).iter().enumerate() {
+        if !e.is_unused() {
+            println!("L4 entry {i}: {e:?}");
+
+            for (i, e) in read_pt(e.frame().unwrap()).iter().enumerate() {
+                if !e.is_unused() {
+                    println!("  L3 entry {i}: {e:?}");
+
+                    for (i, e) in read_pt(e.frame().unwrap()).iter().enumerate() {
+                        if !e.is_unused() {
+                            println!("    L2 entry {i}: {e:?}");
+
+                            for (i, e) in read_pt(e.frame().unwrap()).iter().enumerate() {
+                                if !e.is_unused() {
+                                    println!("      L1 entry {i}: {e:?}");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } */
 
     // ofc. every kernel has to have this cringy ascii name splash
     info!("\n{}\n", include_str!("./splash"));

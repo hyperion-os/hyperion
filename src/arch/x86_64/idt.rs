@@ -1,6 +1,9 @@
-use crate::{debug, info};
+use crate::{debug, error, info};
 use spin::Lazy;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use x86_64::{
+    registers::control::Cr2,
+    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
+};
 
 //
 
@@ -67,16 +70,28 @@ extern "x86-interrupt" fn double_fault(stack: InterruptStackFrame, ec: u64) -> !
     panic!();
 }
 
+extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
+    let addr = Cr2::read();
+
+    error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+
+    panic!();
+}
+
 //
 
 static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     let mut idt = InterruptDescriptorTable::new();
+
     idt.breakpoint.set_handler_fn(breakpoint);
+
+    let opt = idt.double_fault.set_handler_fn(double_fault);
     unsafe {
-        idt.double_fault
-            .set_handler_fn(double_fault)
-            .set_stack_index(DOUBLE_FAULT_IST);
+        opt.set_stack_index(DOUBLE_FAULT_IST);
     }
+
+    idt.page_fault.set_handler_fn(page_fault);
+
     idt
 });
 

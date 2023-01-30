@@ -1,4 +1,4 @@
-use crate::{debug, mem::map::Memmap};
+use crate::mem::map::Memmap;
 use limine::{LimineMemmapEntry, LimineMemmapRequest, LimineMemoryMapEntryType, NonNullPtr};
 use spin::Lazy;
 

@@ -63,6 +63,8 @@ pub fn test_panic_handler(info: &PanicInfo) {
 
 #[cfg(test)]
 mod tests {
+    /* use crate::{debug, println}; */
+
     #[allow(clippy::eq_op)]
     #[test_case]
     fn trivial() {
@@ -73,10 +75,19 @@ mod tests {
     #[test_case]
     fn random_tests() {
         // error handling test
-        // stack_overflow(79999999);
-        // unsafe {
-        //     *(0xFFFFFFFFDEADC0DE as *mut u8) = 42;
-        // }
+
+        /* stack_overflow(79999999); */
+
+        /* unsafe {
+            *(0xFFFFFFFFDEADC0DE as *mut u8) = 42;
+        } */
+
+        /* unsafe {
+            let x = *(0xffffffffc18a8137 as *mut u8);
+            println!("Read worked: {x}");
+            *(0xffffffffc18a8137 as *mut u8) = 42;
+            println!("Write worked");
+        } */
 
         #[allow(unused)]
         fn stack_overflow(n: usize) {
