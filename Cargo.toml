@@ -13,9 +13,6 @@ multiboot1 = []
 multiboot2 = []
 # Pick limine OR bootboot OR multiboot1 OR multiboot2, they conflict with eachother
 
-# [lib]
-# crate-type = ["staticlib"]
-
 [dependencies]
 spin = "0.9.4"
 volatile = "0.4.5"
@@ -28,7 +25,6 @@ git = "https://github.com/limine-bootloader/limine-rs"
 rev = "c2fbc349419d4330b80e053019ad2fe504a61764"
 # version = "0.1.9" # 0.1.9 LimineFile struct has a bug
 optional = true
-
 
 [build-dependencies]
 image = "0.24.5"

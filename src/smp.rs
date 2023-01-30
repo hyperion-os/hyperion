@@ -1,4 +1,4 @@
-use crate::{arch, boot, debug};
+use crate::{boot, debug};
 use core::fmt::{self, Display, Formatter};
 
 //

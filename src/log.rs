@@ -95,19 +95,20 @@ pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
     //     print!("[{level:?}]: ")
     // } else {
     let level = match level {
-        LogLevel::None => " NONE  ",
-        LogLevel::Error => "\x1b[38;2;255;85;85m ERROR ",
-        LogLevel::Warn => "\x1b[38;2;255;255;85m WARN  ",
-        LogLevel::Info => "\x1b[38;2;85;255;85m INFO  ",
-        LogLevel::Debug => "\x1b[38;2;85;255;255m DEBUG ",
-        LogLevel::Trace => "\x1b[38;2;255;85;255m TRACE ",
-    };
+        LogLevel::None => " NONE  ".into(),
+        LogLevel::Error => " ERROR ".true_red(),
+        LogLevel::Warn => " WARN  ".true_yellow(),
+        LogLevel::Info => " INFO  ".true_green(),
+        LogLevel::Debug => " DEBUG ".true_cyan(),
+        LogLevel::Trace => " TRACE ".true_magenta(),
+    }
+    .with_reset(false);
 
     print!(
         "{}{level} {} {}: {args}",
         '['.true_grey(),
-        module.true_grey(),
-        ']'.true_grey(),
+        module.true_grey().with_reset(false),
+        ']'.reset_after(),
     )
     // }
 }

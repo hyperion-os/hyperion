@@ -4,6 +4,7 @@ use crate::{arch, kernel_main};
 //
 
 pub use mem::memmap;
+pub use mem::memtotal;
 pub use term::_print;
 
 //
