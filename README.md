@@ -18,7 +18,7 @@ Idk, I asked ChatGPT to give it a name:
 
 ## Demo image(s)
 
-![image](https://user-images.githubusercontent.com/42496863/212522046-6f8f55b8-045c-4efb-a7a3-38d523efd501.png)
+![image](https://user-images.githubusercontent.com/42496863/214513691-41c9a83a-73aa-487c-98b4-2072b39647c6.png)
 
 ## Font
 
