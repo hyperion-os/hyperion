@@ -1,7 +1,7 @@
 use super::{
     color::Color,
     font::FONT,
-    framebuffer::{get_fbo, Framebuffer},
+    framebuffer::{get, Framebuffer},
 };
 use crate::term::escape::decode::{DecodedPart, EscapeDecoder};
 use core::fmt::{self, Arguments, Write};
@@ -39,7 +39,7 @@ impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
         match self.escapes.next(byte) {
             DecodedPart::Byte(b'\n') => {
-                if let Some(mut fbo) = get_fbo() {
+                if let Some(mut fbo) = get() {
                     #[cfg(debug_assertions)]
                     let lines = if self.cursor[1] + 1 >= Self::size(&mut fbo)[1] {
                         // scroll more if the cursor is near the bottom
@@ -76,7 +76,7 @@ impl Writer {
     }
 
     pub fn write_byte_raw(&mut self, byte: u8) {
-        if let Some(mut fbo) = get_fbo() {
+        if let Some(mut fbo) = get() {
             let size = Self::size(&mut fbo);
             if size[0] == 0 || size[1] == 0 {
                 return;

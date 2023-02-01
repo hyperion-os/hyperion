@@ -1,3 +1,4 @@
+use super::args;
 use super::BOOT_NAME;
 use crate::{arch, kernel_main};
 
@@ -6,6 +7,8 @@ use crate::{arch, kernel_main};
 pub use addr::hhdm_offset;
 pub use addr::phys_addr;
 pub use addr::virt_addr;
+pub use cmdline::cmdline;
+pub use framebuffer::framebuffer;
 pub use mem::memmap;
 pub use term::_print;
 
@@ -24,8 +27,7 @@ mod term;
 pub extern "C" fn _start() -> ! {
     BOOT_NAME.call_once(|| "Limine");
 
-    framebuffer::init();
-    cmdline::init();
+    args::get().apply();
 
     arch::early_boot_cpu();
     arch::early_per_cpu();

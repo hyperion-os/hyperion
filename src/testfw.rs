@@ -20,7 +20,7 @@ pub trait TestCase {
 impl<F: Fn()> TestCase for F {
     fn run(&self) {
         let name = type_name::<Self>();
-        print!(" - {name:.<40}");
+        print!(" - {name:.<60}");
         self();
         println!("[ok]");
     }

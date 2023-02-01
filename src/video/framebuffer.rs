@@ -1,15 +1,15 @@
 use super::{color::Color, font::FONT};
-use core::ops::{Deref, DerefMut};
-use spin::{Mutex, MutexGuard, Once};
+use crate::boot;
+use core::{
+    fmt,
+    ops::{Deref, DerefMut},
+};
+use spin::{Lazy, Mutex, MutexGuard};
 
 //
 
-pub static FBO: Once<Mutex<Framebuffer>> = Once::new();
-
-//
-
-pub fn get_fbo() -> Option<MutexGuard<'static, Framebuffer>> {
-    FBO.get().map(|mtx| mtx.lock())
+pub fn get() -> Option<MutexGuard<'static, Framebuffer>> {
+    FBO.as_ref().map(|mtx| mtx.lock())
 }
 
 //
@@ -26,6 +26,15 @@ pub struct FramebufferInfo {
     pub height: usize,
     pub pitch: usize, // pixels to the next row
 }
+
+//
+
+static FBO: Lazy<Option<Mutex<Framebuffer>>> = Lazy::new(|| {
+    let fbo = boot::framebuffer();
+    let mut fbo = fbo?;
+    fbo.clear();
+    Some(Mutex::new(fbo))
+});
 
 //
 
@@ -91,18 +100,26 @@ impl DerefMut for Framebuffer {
     }
 }
 
+impl fmt::Debug for Framebuffer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Framebuffer")
+            .field("info", &self.info)
+            .finish()
+    }
+}
+
 //
 
 #[cfg(test)]
 mod tests {
-    use super::get_fbo;
+    use super::get;
     use crate::video::color::Color;
 
     //
 
     #[test_case]
     fn fbo_draw() {
-        if let Some(mut fbo) = get_fbo() {
+        if let Some(mut fbo) = get() {
             fbo.fill(440, 340, 40, 40, Color::RED);
             fbo.fill(450, 350, 60, 40, Color::GREEN);
             fbo.fill(405, 315, 80, 20, Color::BLUE);

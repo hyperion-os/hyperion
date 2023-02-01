@@ -1,15 +1,13 @@
 use super::{map::Memmap, to_higher_half};
 use crate::{
-    boot, debug,
-    mem::bump,
-    trace,
+    boot, debug, trace,
     util::{bitmap::Bitmap, fmt::NumberPostfix},
 };
 use core::{
     fmt, slice,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
-use spin::{Mutex, Once};
+use spin::{Lazy, Mutex};
 use x86_64::{align_up, PhysAddr};
 
 //
@@ -18,11 +16,11 @@ const PAGE_SIZE: u64 = 2u64.pow(12); // 4KiB pages
 
 // const PAGE_SIZE: u64 = 2u64.pow(21); // 2MiB pages
 
-static PFA: Once<PageFrameAllocator> = Once::new();
+static PFA: Lazy<PageFrameAllocator> = Lazy::new(init);
 
 //
 
-pub fn init() {
+fn init() -> PageFrameAllocator {
     // usable system memory
     let usable: u64 = boot::memmap()
         .filter(Memmap::is_usable)
@@ -61,11 +59,6 @@ pub fn init() {
         ty: _,
     } in boot::memmap().filter(Memmap::is_usable)
     {
-        if let Some(map) = bump::map() && map.base == base {
-            // skip the BumpAllocator spot
-            base += map.base.as_u64();
-            len -= map.len;
-        }
         if base == bitmap_data {
             // skip the bitmap allocation spot
             base += bitmap_data.as_u64();
@@ -89,20 +82,18 @@ pub fn init() {
         }
     }
 
-    let used = bump::map().map(|Memmap { len, .. }| len).unwrap_or(0) + bitmap_size;
-
     let pfa = PageFrameAllocator {
         bitmap: bitmap.into(),
         usable: usable.into(),
-        used: used.into(),
+        used: bitmap_size.into(),
         total: total.into(),
 
         last_alloc_index: 0.into(),
     };
 
-    debug!("PFA:\n{pfa}");
+    debug!("PFA initialized:\n{pfa}");
 
-    PFA.call_once(|| pfa);
+    pfa
 }
 
 //
@@ -126,6 +117,10 @@ pub struct PageFrame {
 //
 
 impl PageFrameAllocator {
+    pub fn get() -> &'static PageFrameAllocator {
+        &*PFA
+    }
+
     /// System total memory in bytes
     pub fn total_mem(&self) -> u64 {
         self.total.load(Ordering::SeqCst)
@@ -285,8 +280,34 @@ impl fmt::Display for PageFrameAllocator {
 }
 
 impl PageFrame {
+    // physical address of the first page
     pub fn addr(&self) -> PhysAddr {
         self.first
+    }
+
+    /// number of pages
+    pub fn len(&self) -> usize {
+        self.count
+    }
+
+    /// number of bytes
+    pub fn byte_len(&self) -> usize {
+        self.count * PAGE_SIZE as usize
+    }
+
+    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+        // SAFETY: &mut self makes sure that this is the only safe mut ref
+        unsafe { self.as_bytes_mut_unsafe() }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        // SAFETY: the mut ref is immediately downgraded to a const ref
+        unsafe { self.as_bytes_mut_unsafe() }
+    }
+
+    /// SAFETY: only 1 mutable slice at one time
+    unsafe fn as_bytes_mut_unsafe(&self) -> &mut [u8] {
+        slice::from_raw_parts_mut(to_higher_half(self.first).as_mut_ptr(), self.byte_len())
     }
 }
 
@@ -294,11 +315,11 @@ impl PageFrame {
 
 #[cfg(test)]
 mod tests {
-    use crate::mem::pmm::PFA;
+    use super::PageFrameAllocator;
 
     #[test_case]
     fn pfa_simple() {
-        let pfa = PFA.get().unwrap();
+        let pfa = PageFrameAllocator::get();
 
         let a = pfa.alloc(1);
         assert_ne!(a.addr().as_u64(), 0);

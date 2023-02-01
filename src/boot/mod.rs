@@ -2,6 +2,10 @@ use spin::Once;
 
 //
 
+pub use boot::*;
+
+//
+
 #[cfg(feature = "multiboot1")]
 #[path = "multiboot1/mod.rs"]
 #[allow(clippy::module_inception)]
@@ -19,9 +23,7 @@ mod boot;
 #[allow(clippy::module_inception)]
 mod boot;
 
-//
-
-pub use boot::*;
+pub mod args;
 
 //
 

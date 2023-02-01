@@ -1,7 +1,7 @@
 use crate::video::color::Color;
 
-/// foreground color can be changed like this: "\x1B[38;2;<r>;<g>;<b>m"
-/// background color can be changed like this: "\x1B[48;2;<r>;<g>;<b>m"
+/// foreground color can be changed like this: `"\x1B[38;2;<r>;<g>;<b>m"`
+/// background color can be changed like this: `"\x1B[48;2;<r>;<g>;<b>m"`
 ///
 /// THESE ARE NON STANDARD ESCAPE SEQUENCES
 pub struct EscapeDecoder {

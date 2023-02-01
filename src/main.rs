@@ -11,6 +11,7 @@
 #![feature(let_chains)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![doc = include_str!("../README.md")]
 
 //
 
@@ -47,17 +48,25 @@ pub static KERNEL_VERS: &str = env!("CARGO_PKG_VERSION");
 
 // the actual entry exists in [´crate::boot::boot´]
 fn kernel_main() -> ! {
+    let args = boot::args::get();
+    args.apply();
+
     debug!("Entering kernel_main");
-    debug!("Cmdline: {:?}", env::Arguments::get());
+    debug!("Cmdline: {args:?}");
 
     debug!(
-        "Kernel addr: {:?}, {:?}, HDDM Offset: {:#0X?}",
+        "Kernel addr: {:?}, {:?}, HHDM Offset: {:#0X?}",
         boot::virt_addr(),
         boot::phys_addr(),
         boot::hhdm_offset()
     );
 
-    mem::init();
+    debug!(
+        "{:?}",
+        (0u32..32)
+            .map(|i| 2u32.pow(i))
+            .collect::<alloc::vec::Vec<_>>()
+    );
 
     // ofc. every kernel has to have this cringy ascii name splash
     info!("\n{}\n", include_str!("./splash"));

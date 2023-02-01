@@ -15,13 +15,6 @@ pub mod pmm;
 
 //
 
-pub fn init() {
-    bump::init();
-    pmm::init();
-}
-
-//
-
 #[allow(unused)]
 fn is_higher_half(addr: u64) -> bool {
     addr >= boot::hhdm_offset()
