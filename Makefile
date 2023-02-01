@@ -83,8 +83,8 @@ build: ${KERNEL}
 # bootable iso alias
 iso: ${HYPERION}
 
-reset-cargo-deps:
-	rm ${CARGO_DIR}/hyperion.d
+clippy:
+	${CARGO} clippy ${CARGO_FLAGS} -- -D warnings
 
 # connect gdb to qemu
 gdb:

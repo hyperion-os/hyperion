@@ -1,4 +1,4 @@
-use super::map::Memmap;
+use super::{map::Memmap, to_higher_half};
 use crate::{boot, error};
 use core::{
     alloc::{GlobalAlloc, Layout},
@@ -57,11 +57,11 @@ unsafe impl GlobalAlloc for BumpAllocator {
         let memory = inner.map.base;
         let mut remaining = inner.remaining.lock();
 
-        let top = memory + *remaining;
+        let top = (memory + *remaining).as_u64();
         let Some(tmp) = top.checked_sub(layout.size() as u64) else {
             error!("OUT OF MEMORY");
             error!(
-                "ALLOC: size: {} align: {} top: {top} memory: {memory} remaining: {remaining}",
+                "ALLOC: size: {} align: {} top: {top} memory: {memory:?} remaining: {remaining}",
                 layout.size(),
                 layout.align()
                 );
@@ -72,11 +72,11 @@ unsafe impl GlobalAlloc for BumpAllocator {
 
         if let Some(left) = remaining.checked_sub(reservation) {
             *remaining = left;
-            (memory + left) as _
+            to_higher_half(memory + left).as_mut_ptr()
         } else {
             error!("OUT OF MEMORY");
             error!(
-                "ALLOC: size: {} align: {} top: {top} new: {new_top} memory: {memory} remaining: {remaining}",
+                "ALLOC: size: {} align: {} top: {top} new: {new_top} memory: {memory:?} remaining: {remaining}",
                 layout.size(),
                 layout.align()
             );

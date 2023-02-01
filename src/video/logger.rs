@@ -40,7 +40,18 @@ impl Writer {
         match self.escapes.next(byte) {
             DecodedPart::Byte(b'\n') => {
                 if let Some(mut fbo) = get_fbo() {
-                    self.new_line(1, &mut fbo)
+                    #[cfg(debug_assertions)]
+                    let lines = if self.cursor[1] + 1 >= Self::size(&mut fbo)[1] {
+                        // scroll more if the cursor is near the bottom
+                        //
+                        // because scrolling is slow in debug mode
+                        8
+                    } else {
+                        1
+                    };
+                    #[cfg(not(debug_assertions))]
+                    let lines = 1;
+                    self.new_line(lines, &mut fbo)
                 }
             }
             DecodedPart::Byte(b'\t') => {
