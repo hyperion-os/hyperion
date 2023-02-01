@@ -9,7 +9,7 @@ pub fn args() -> Arguments {
 
 //
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Arguments {
     pub log_level: LogLevel,
     // log_color: bool,
@@ -24,8 +24,10 @@ impl Arguments {
     pub fn parse(s: &'static str) {
         ARGUMENTS.call_once(|| {
             let mut iter = s.split(|c: char| c.is_whitespace() || c == '=');
-            let mut result = Arguments::default();
-            result.cmdline = s;
+            let mut result = Arguments {
+                cmdline: s,
+                ..<_>::default()
+            };
 
             while let Some(item) = iter.next() {
                 match item {
@@ -55,16 +57,6 @@ impl Arguments {
     pub fn assign(&self) {
         log::set_log_level(self.log_level);
         // log::set_log_color(self.log_color);
-    }
-}
-
-impl Default for Arguments {
-    fn default() -> Self {
-        Self {
-            log_level: LogLevel::default(),
-            had_unrecognized: false,
-            cmdline: "",
-        }
     }
 }
 

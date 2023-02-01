@@ -1,19 +1,16 @@
 use super::{map::Memmap, to_higher_half};
 use crate::{
     boot, debug,
-    log::{test_log_level, LogLevel},
-    mem::{bump, map::Memtype},
+    mem::bump,
     trace,
     util::{bitmap::Bitmap, fmt::NumberPostfix},
 };
 use core::{
-    any::type_name,
-    convert::identity,
     fmt, slice,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 use spin::{Mutex, Once};
-use x86_64::{align_down, align_up, PhysAddr, VirtAddr};
+use x86_64::{align_up, PhysAddr};
 
 //
 
@@ -38,7 +35,7 @@ pub fn init() {
     // the end of the usable physical memory address space
     let top = boot::memmap()
         .filter(Memmap::is_usable)
-        .map(|Memmap { base, len, ty }| base + len)
+        .map(|Memmap { base, len, ty: _ }| base + len)
         .max()
         .expect("No memory");
 
@@ -61,7 +58,7 @@ pub fn init() {
     for Memmap {
         mut base,
         mut len,
-        ty,
+        ty: _,
     } in boot::memmap().filter(Memmap::is_usable)
     {
         if let Some(map) = bump::map() && map.base == base {

@@ -1,4 +1,4 @@
-use crate::{boot, debug, mem::map::Memmap, util::fmt::NumberPostfix};
+use crate::{boot, debug};
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{page_table::FrameError, PageTable, PhysFrame, Size2MiB, Size4KiB},
@@ -22,10 +22,12 @@ pub fn init() {
 
 //
 
+#[allow(unused)]
 fn is_higher_half(addr: u64) -> bool {
     addr >= boot::hhdm_offset()
 }
 
+#[allow(unused)]
 fn to_higher_half(addr: PhysAddr) -> VirtAddr {
     let addr = addr.as_u64();
     if is_higher_half(addr) {
@@ -35,6 +37,7 @@ fn to_higher_half(addr: PhysAddr) -> VirtAddr {
     }
 }
 
+#[allow(unused)]
 fn from_higher_half(addr: VirtAddr) -> PhysAddr {
     let addr = addr.as_u64();
     if is_higher_half(addr) {
@@ -87,6 +90,7 @@ fn walk_page_tables(addr: VirtAddr) -> Option<PhysAddr> {
     Some(frame.start_address() + u64::from(addr.page_offset()))
 }
 
+#[allow(unused)]
 fn debug_phys_addr(addr: PhysAddr) {
     debug!(
         "{:?} {:?} {:?}",

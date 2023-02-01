@@ -7,7 +7,7 @@ pub trait NumberPostfix: Sized + Copy + DivAssign + PartialOrd {
     const NUM_1024: Self;
 
     fn postfix(mut self) -> NumberPostfixed<Self> {
-        const TABLE: [&'static str; 10] = ["", "K", "M", "G", "T", "P", "E", "Z", "Y", "R"];
+        const TABLE: [&str; 10] = ["", "K", "M", "G", "T", "P", "E", "Z", "Y", "R"];
         for scale in TABLE {
             if self < Self::NUM_1000 {
                 return NumberPostfixed { n: self, scale };
@@ -21,8 +21,7 @@ pub trait NumberPostfix: Sized + Copy + DivAssign + PartialOrd {
     }
 
     fn postfix_binary(mut self) -> NumberPostfixed<Self> {
-        const TABLE: [&'static str; 10] =
-            ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi", "Ri"];
+        const TABLE: [&str; 10] = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi", "Ri"];
         for scale in TABLE {
             if self < Self::NUM_1024 {
                 return NumberPostfixed { n: self, scale };

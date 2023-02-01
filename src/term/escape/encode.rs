@@ -6,7 +6,7 @@ pub trait EscapeEncoder
 where
     Self: Sized,
 {
-    fn with_escape_code<'a>(self, code: &'a str) -> EncodedPart<'a, Self> {
+    fn with_escape_code(self, code: &str) -> EncodedPart<Self> {
         EncodedPart {
             code,
             data: self,
