@@ -1,19 +1,47 @@
+use core::alloc::{GlobalAlloc, Layout};
+
 use crate::{boot, debug};
+use spin::Lazy;
 use x86_64::{
     registers::control::Cr3,
-    structures::paging::{page_table::FrameError, OffsetPageTable, PageTable, Translate},
+    structures::paging::{page_table::FrameError, Mapper, OffsetPageTable, PageTable, Translate},
     PhysAddr, VirtAddr,
 };
+
+use self::slab::SlabAllocator;
 
 //
 
 pub mod map;
+pub mod pmm;
+pub mod vmm;
 
 // allocator
-pub mod bump;
-pub mod pmm;
+//pub mod bump;
+pub mod slab;
 
 //
+
+struct KAlloc {
+    slab: Lazy<SlabAllocator>,
+}
+
+#[global_allocator]
+static ALLOC: KAlloc = KAlloc {
+    slab: Lazy::new(SlabAllocator::new),
+};
+
+//
+
+unsafe impl GlobalAlloc for KAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        self.slab.alloc(layout.size()).as_mut_ptr()
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        self.slab.free(VirtAddr::new(ptr as u64))
+    }
+}
 
 #[macro_export]
 #[allow(unused)]

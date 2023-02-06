@@ -27,5 +27,9 @@ rev = "c2fbc349419d4330b80e053019ad2fe504a61764"
 # version = "0.1.9" # 0.1.9 LimineFile struct has a bug
 optional = true
 
+[dependencies.itertools]
+version = "0.10.5"
+default-features = false
+
 [build-dependencies]
 image = "0.24.5"

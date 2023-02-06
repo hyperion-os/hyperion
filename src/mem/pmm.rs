@@ -2,17 +2,20 @@
 //!
 //! Page frame allocating
 
-use super::{map::Memmap, to_higher_half};
+use super::{from_higher_half, map::Memmap, to_higher_half};
 use crate::{
     boot, debug, trace,
     util::{bitmap::Bitmap, fmt::NumberPostfix},
 };
 use core::{
-    fmt, slice,
+    alloc::{AllocError, Allocator, Layout},
+    fmt,
+    ptr::NonNull,
+    slice,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 use spin::{Lazy, Mutex};
-use x86_64::{align_up, PhysAddr};
+use x86_64::{align_up, PhysAddr, VirtAddr};
 
 //
 
@@ -246,6 +249,23 @@ impl PageFrameAllocator {
     }
 }
 
+unsafe impl Allocator for PageFrameAllocator {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        let frame = self.alloc(layout.size() / PAGE_SIZE as usize);
+
+        NonNull::new(to_higher_half(frame.addr()).as_mut_ptr())
+            .map(|first| NonNull::slice_from_raw_parts(first, frame.byte_len()))
+            .ok_or(AllocError)
+    }
+
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        self.free(PageFrame {
+            first: from_higher_half(VirtAddr::new(ptr.as_ptr() as u64)),
+            count: layout.size() / PAGE_SIZE as usize,
+        })
+    }
+}
+
 impl fmt::Display for PageFrameAllocator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(
@@ -287,6 +307,11 @@ impl PageFrame {
     /// number of pages
     pub fn len(&self) -> usize {
         self.count
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// number of bytes

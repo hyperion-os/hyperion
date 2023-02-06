@@ -15,7 +15,11 @@
 
 //
 
-use crate::util::fmt::NumberPostfix;
+use crate::{
+    mem::{slab::SlabAllocator, vmm::PageMapImpl},
+    util::fmt::NumberPostfix,
+};
+use x86_64::VirtAddr;
 
 extern crate alloc;
 
@@ -54,15 +58,32 @@ fn kernel_main() -> ! {
     debug!("Cmdline: {:?}", boot::args::get());
 
     debug!(
-        "Kernel addr: {:?}, {:?} ({}B), HHDM Offset: {:#0X?}",
+        "Kernel addr: {:?} ({}B), {:?} ({}B), ",
         boot::virt_addr(),
+        boot::virt_addr().as_u64().postfix_binary(),
         boot::phys_addr(),
         boot::phys_addr().as_u64().postfix_binary(),
-        boot::hhdm_offset()
     );
+    debug!("HHDM Offset: {:#0X?}", boot::hhdm_offset());
 
-    debug_phys_addr!(boot::phys_addr());
-    debug_phys_addr!(x86_64::PhysAddr(boot::hhdm_offset()));
+    let map = mem::vmm::PageMap::init();
+    let frame = mem::pmm::PageFrameAllocator::get().alloc(1);
+    map.unmap(VirtAddr::new(0x1000), 1);
+    map.map(VirtAddr::new(0x0), frame.addr(), 1);
+    map.map(VirtAddr::new(0x1000), frame.addr(), 1);
+
+    let a1 = unsafe { &mut *(0x1 as *mut u8) };
+    let a2 = unsafe { &mut *(0x1001 as *mut u8) };
+
+    debug!("{frame:?}");
+    *a1 = 50;
+    assert_eq!(a1, a2);
+    *a1 = 150;
+    assert_eq!(a1, a2);
+
+    let alloc = SlabAllocator::new();
+
+    alloc.alloc(48);
 
     debug!(
         "{:?}",

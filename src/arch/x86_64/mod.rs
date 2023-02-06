@@ -5,6 +5,8 @@ use x86_64::instructions::random::RdRand;
 
 pub mod gdt;
 pub mod idt;
+pub mod pmm;
+pub mod vmm;
 
 //
 

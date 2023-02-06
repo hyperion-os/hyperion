@@ -15,7 +15,7 @@ pub fn memmap() -> impl Iterator<Item = Memmap> {
     memiter().filter_map(move |memmap| {
         // TODO: zero init reclaimable regions
 
-        if first_time && memmap.typ != LimineMemoryMapEntryType::Reserved {
+        if first_time {
             trace!("{memmap:?}");
         }
 
