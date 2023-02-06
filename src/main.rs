@@ -15,6 +15,8 @@
 
 //
 
+use crate::util::fmt::NumberPostfix;
+
 extern crate alloc;
 
 //
@@ -48,18 +50,19 @@ pub static KERNEL_VERS: &str = env!("CARGO_PKG_VERSION");
 
 // the actual entry exists in [´crate::boot::boot´]
 fn kernel_main() -> ! {
-    let args = boot::args::get();
-    args.apply();
-
     debug!("Entering kernel_main");
-    debug!("Cmdline: {args:?}");
+    debug!("Cmdline: {:?}", boot::args::get());
 
     debug!(
-        "Kernel addr: {:?}, {:?}, HHDM Offset: {:#0X?}",
+        "Kernel addr: {:?}, {:?} ({}B), HHDM Offset: {:#0X?}",
         boot::virt_addr(),
         boot::phys_addr(),
+        boot::phys_addr().as_u64().postfix_binary(),
         boot::hhdm_offset()
     );
+
+    debug_phys_addr!(boot::phys_addr());
+    debug_phys_addr!(x86_64::PhysAddr(boot::hhdm_offset()));
 
     debug!(
         "{:?}",

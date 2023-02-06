@@ -1,3 +1,8 @@
+//! Bump allocator
+//!
+//! This bump allocator takes 4 pages from the [`PageFrameAllocator`] and uses them to provide a
+//! quick and dirty global allocator
+
 use super::{
     pmm::{PageFrame, PageFrameAllocator},
     to_higher_half,

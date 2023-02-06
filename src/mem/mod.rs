@@ -1,7 +1,7 @@
 use crate::{boot, debug};
 use x86_64::{
     registers::control::Cr3,
-    structures::paging::{page_table::FrameError, PageTable, PhysFrame, Size2MiB, Size4KiB},
+    structures::paging::{page_table::FrameError, OffsetPageTable, PageTable, Translate},
     PhysAddr, VirtAddr,
 };
 
@@ -15,13 +15,26 @@ pub mod pmm;
 
 //
 
+#[macro_export]
 #[allow(unused)]
-fn is_higher_half(addr: u64) -> bool {
+macro_rules! debug_phys_addr {
+    ($addr:expr) => {
+        $crate::debug!(
+            "{:?} {:?} {:?}",
+            $addr,
+            $crate::mem::walk_page_tables(x86_64::VirtAddr::new($addr.as_u64())),
+            $crate::mem::walk_page_tables($crate::mem::to_higher_half($addr))
+        );
+    };
+}
+
+#[allow(unused)]
+pub fn is_higher_half(addr: u64) -> bool {
     addr >= boot::hhdm_offset()
 }
 
 #[allow(unused)]
-fn to_higher_half(addr: PhysAddr) -> VirtAddr {
+pub fn to_higher_half(addr: PhysAddr) -> VirtAddr {
     let addr = addr.as_u64();
     if is_higher_half(addr) {
         VirtAddr::new(addr)
@@ -31,7 +44,7 @@ fn to_higher_half(addr: PhysAddr) -> VirtAddr {
 }
 
 #[allow(unused)]
-fn from_higher_half(addr: VirtAddr) -> PhysAddr {
+pub fn from_higher_half(addr: VirtAddr) -> PhysAddr {
     let addr = addr.as_u64();
     if is_higher_half(addr) {
         PhysAddr::new(addr - boot::hhdm_offset())
@@ -40,22 +53,16 @@ fn from_higher_half(addr: VirtAddr) -> PhysAddr {
     }
 }
 
-fn walk_page_tables(addr: VirtAddr) -> Option<PhysAddr> {
-    enum AnyPhysFrame {
-        Size4KiB(PhysFrame<Size4KiB>),
-        Size2MiB(PhysFrame<Size2MiB>),
-    }
-
-    impl AnyPhysFrame {
-        fn start_address(&self) -> PhysAddr {
-            match self {
-                AnyPhysFrame::Size4KiB(v) => v.start_address(),
-                AnyPhysFrame::Size2MiB(v) => v.start_address(),
-            }
-        }
-    }
-
+pub fn walk_page_tables(addr: VirtAddr) -> Option<PhysAddr> {
     let (l4, _) = Cr3::read();
+
+    let virt = to_higher_half(l4.start_address());
+    let table: *mut PageTable = virt.as_mut_ptr();
+    let table = unsafe { &mut *table };
+
+    let offs = unsafe { OffsetPageTable::new(table, VirtAddr::new(boot::hhdm_offset())) };
+
+    return offs.translate_addr(addr);
 
     let page_table_indices = [
         addr.p4_index(),
@@ -63,32 +70,26 @@ fn walk_page_tables(addr: VirtAddr) -> Option<PhysAddr> {
         addr.p2_index(),
         addr.p1_index(),
     ];
-    let mut frame = AnyPhysFrame::Size4KiB(l4);
+    debug!("{page_table_indices:?}");
 
-    for index in page_table_indices {
-        let virt = to_higher_half(frame.start_address());
-        let table: *const PageTable = virt.as_ptr();
-        let table = unsafe { &*table };
+    page_table_indices
+        .into_iter()
+        .fold(Some(l4), |acc, index| {
+            let frame = acc?;
 
-        let entry = &table[index];
-        frame = match entry.frame() {
-            Ok(frame) => AnyPhysFrame::Size4KiB(frame),
-            Err(FrameError::FrameNotPresent) => return None,
-            Err(FrameError::HugeFrame) => {
-                AnyPhysFrame::Size2MiB(PhysFrame::<Size2MiB>::containing_address(entry.addr()))
+            let virt = to_higher_half(frame.start_address());
+            let table: *const PageTable = virt.as_ptr();
+            let table = unsafe { &*table };
+
+            let entry = &table[index];
+
+            match entry.frame() {
+                Ok(frame) => Some(frame),
+                Err(FrameError::FrameNotPresent) => None,
+                Err(FrameError::HugeFrame) => {
+                    todo!("Huge pages")
+                }
             }
-        }
-    }
-
-    Some(frame.start_address() + u64::from(addr.page_offset()))
-}
-
-#[allow(unused)]
-fn debug_phys_addr(addr: PhysAddr) {
-    debug!(
-        "{:?} {:?} {:?}",
-        addr,
-        walk_page_tables(VirtAddr::new(addr.as_u64())),
-        walk_page_tables(to_higher_half(addr))
-    );
+        })
+        .map(|frame| frame.start_address() + u64::from(addr.page_offset()))
 }

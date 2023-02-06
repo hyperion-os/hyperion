@@ -1,3 +1,7 @@
+//! Physical memory management
+//!
+//! Page frame allocating
+
 use super::{map::Memmap, to_higher_half};
 use crate::{
     boot, debug, trace,
@@ -13,88 +17,6 @@ use x86_64::{align_up, PhysAddr};
 //
 
 const PAGE_SIZE: u64 = 2u64.pow(12); // 4KiB pages
-
-// const PAGE_SIZE: u64 = 2u64.pow(21); // 2MiB pages
-
-static PFA: Lazy<PageFrameAllocator> = Lazy::new(init);
-
-//
-
-fn init() -> PageFrameAllocator {
-    // usable system memory
-    let usable: u64 = boot::memmap()
-        .filter(Memmap::is_usable)
-        .map(|Memmap { len, .. }| len)
-        .sum();
-
-    // total system memory
-    let total: u64 = boot::memmap().map(|Memmap { len, .. }| len).sum();
-
-    // the end of the usable physical memory address space
-    let top = boot::memmap()
-        .filter(Memmap::is_usable)
-        .map(|Memmap { base, len, ty: _ }| base + len)
-        .max()
-        .expect("No memory");
-
-    // size in bytes
-    let bitmap_size = align_up(top.as_u64() / PAGE_SIZE / 8, PAGE_SIZE);
-    let bitmap_data = boot::memmap()
-        .filter(Memmap::is_usable)
-        .find(|Memmap { len, .. }| *len >= bitmap_size)
-        .expect("No place to store PageFrameAllocator bitmap")
-        .base;
-
-    // SAFETY: this bitmap is going to be initialized before it is read from
-    let bitmap = unsafe {
-        slice::from_raw_parts_mut(to_higher_half(bitmap_data).as_mut_ptr(), bitmap_size as _)
-    };
-    let mut bitmap = Bitmap::new(bitmap);
-    bitmap.fill(true); // initialized here
-
-    // free up some pages
-    for Memmap {
-        mut base,
-        mut len,
-        ty: _,
-    } in boot::memmap().filter(Memmap::is_usable)
-    {
-        if base == bitmap_data {
-            // skip the bitmap allocation spot
-            base += bitmap_data.as_u64();
-            len -= bitmap_size;
-        }
-
-        let mut bottom = base.as_u64();
-        let mut top = base.as_u64() + len;
-
-        debug!(
-            "Free pages: {:#0X?} ({}B)",
-            bottom..top,
-            (top - bottom).postfix_binary()
-        );
-
-        bottom /= PAGE_SIZE;
-        top /= PAGE_SIZE;
-
-        for page in bottom..top {
-            bitmap.set(page as _, false).unwrap();
-        }
-    }
-
-    let pfa = PageFrameAllocator {
-        bitmap: bitmap.into(),
-        usable: usable.into(),
-        used: bitmap_size.into(),
-        total: total.into(),
-
-        last_alloc_index: 0.into(),
-    };
-
-    debug!("PFA initialized:\n{pfa}");
-
-    pfa
-}
 
 //
 
@@ -118,7 +40,8 @@ pub struct PageFrame {
 
 impl PageFrameAllocator {
     pub fn get() -> &'static PageFrameAllocator {
-        &*PFA
+        static PFA: Lazy<PageFrameAllocator> = Lazy::new(PageFrameAllocator::init);
+        &PFA
     }
 
     /// System total memory in bytes
@@ -244,6 +167,82 @@ impl PageFrameAllocator {
 
             return Some(first_page);
         }
+    }
+
+    fn init() -> Self {
+        // usable system memory
+        let usable: u64 = boot::memmap()
+            .filter(Memmap::is_usable)
+            .map(|Memmap { len, .. }| len)
+            .sum();
+
+        // total system memory
+        let total: u64 = boot::memmap().map(|Memmap { len, .. }| len).sum();
+
+        // the end of the usable physical memory address space
+        let top = boot::memmap()
+            .filter(Memmap::is_usable)
+            .map(|Memmap { base, len, ty: _ }| base + len)
+            .max()
+            .expect("No memory");
+
+        // size in bytes
+        let bitmap_size = align_up(top.as_u64() / PAGE_SIZE / 8, PAGE_SIZE);
+        let bitmap_data = boot::memmap()
+            .filter(Memmap::is_usable)
+            .find(|Memmap { len, .. }| *len >= bitmap_size)
+            .expect("No place to store PageFrameAllocator bitmap")
+            .base;
+
+        // SAFETY: this bitmap is going to be initialized before it is read from
+        let bitmap = unsafe {
+            slice::from_raw_parts_mut(to_higher_half(bitmap_data).as_mut_ptr(), bitmap_size as _)
+        };
+        let mut bitmap = Bitmap::new(bitmap);
+        bitmap.fill(true); // initialized here
+
+        // free up some pages
+        for Memmap {
+            mut base,
+            mut len,
+            ty: _,
+        } in boot::memmap().filter(Memmap::is_usable)
+        {
+            if base == bitmap_data {
+                // skip the bitmap allocation spot
+                base += bitmap_data.as_u64();
+                len -= bitmap_size;
+            }
+
+            let mut bottom = base.as_u64();
+            let mut top = base.as_u64() + len;
+
+            debug!(
+                "Free pages: {:#0X?} ({}B)",
+                bottom..top,
+                (top - bottom).postfix_binary()
+            );
+
+            bottom /= PAGE_SIZE;
+            top /= PAGE_SIZE;
+
+            for page in bottom..top {
+                bitmap.set(page as _, false).unwrap();
+            }
+        }
+
+        let pfa = Self {
+            bitmap: bitmap.into(),
+            usable: usable.into(),
+            used: bitmap_size.into(),
+            total: total.into(),
+
+            last_alloc_index: 0.into(),
+        };
+
+        debug!("PFA initialized:\n{pfa}");
+
+        pfa
     }
 }
 

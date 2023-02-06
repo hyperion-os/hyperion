@@ -2,7 +2,7 @@ use crate::{
     boot,
     log::{self, LogLevel},
 };
-use spin::{Lazy, Once};
+use spin::Lazy;
 
 //
 

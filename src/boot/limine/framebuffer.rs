@@ -1,7 +1,4 @@
-use crate::{
-    debug,
-    video::framebuffer::{Framebuffer, FramebufferInfo},
-};
+use crate::video::framebuffer::{Framebuffer, FramebufferInfo};
 use core::slice;
 use limine::LimineFramebufferRequest;
 

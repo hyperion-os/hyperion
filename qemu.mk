@@ -1,3 +1,5 @@
+MEMORY          ?= 256m
+
 QEMU_FLAGS      ?=
 ifeq (${KVM},true)
 QEMU_FLAGS      += -enable-kvm
@@ -8,7 +10,7 @@ endif
 QEMU_FLAGS      += -machine q35
 QEMU_FLAGS      += -cpu qemu64,+rdrand,+rdseed
 QEMU_FLAGS      += -smp 8
-QEMU_FLAGS      += -m 256m
+QEMU_FLAGS      += -m ${MEMORY}
 QEMU_FLAGS      += -M smm=off
 #QEMU_FLAGS      += -d int,guest_errors,cpu_reset
 QEMU_FLAGS      += -d int,guest_errors
@@ -16,12 +18,15 @@ QEMU_FLAGS      += -no-reboot
 QEMU_FLAGS      += -serial stdio
 #QEMU_OVMF     ?= /usr/share/ovmf/x64/OVMF.fd
 #QEMU_FLAGS    += -bios ${QEMU_OVMF}
+
 QEMU_RUN_FLAGS  ?=
 QEMU_RUN_FLAGS  += ${QEMU_FLAGS}
+
 QEMU_TEST_FLAGS ?=
 QEMU_TEST_FLAGS += ${QEMU_FLAGS}
 QEMU_TEST_FLAGS += -device isa-debug-exit,iobase=0xf4,iosize=0x04
 QEMU_TEST_FLAGS += -display none
+
 QEMU_KERNEL     := -kernel ${KERNEL} -append qemu
 QEMU_DRIVE      := -drive format=raw,file
 
