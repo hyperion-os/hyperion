@@ -67,5 +67,3 @@ impl PageMapImpl for PageMap {
         }
     }
 }
-
-fn gen_table(t: &mut PageTable) {}

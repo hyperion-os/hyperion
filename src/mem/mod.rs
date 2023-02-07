@@ -1,14 +1,8 @@
-use core::alloc::{GlobalAlloc, Layout};
-
-use crate::{boot, debug};
-use spin::Lazy;
-use x86_64::{
-    registers::control::Cr3,
-    structures::paging::{page_table::FrameError, Mapper, OffsetPageTable, PageTable, Translate},
-    PhysAddr, VirtAddr,
-};
-
 use self::slab::SlabAllocator;
+use crate::boot;
+use core::alloc::{GlobalAlloc, Layout};
+use spin::Lazy;
+use x86_64::{PhysAddr, VirtAddr};
 
 //
 
@@ -79,45 +73,4 @@ pub fn from_higher_half(addr: VirtAddr) -> PhysAddr {
     } else {
         PhysAddr::new(addr)
     }
-}
-
-pub fn walk_page_tables(addr: VirtAddr) -> Option<PhysAddr> {
-    let (l4, _) = Cr3::read();
-
-    let virt = to_higher_half(l4.start_address());
-    let table: *mut PageTable = virt.as_mut_ptr();
-    let table = unsafe { &mut *table };
-
-    let offs = unsafe { OffsetPageTable::new(table, VirtAddr::new(boot::hhdm_offset())) };
-
-    return offs.translate_addr(addr);
-
-    let page_table_indices = [
-        addr.p4_index(),
-        addr.p3_index(),
-        addr.p2_index(),
-        addr.p1_index(),
-    ];
-    debug!("{page_table_indices:?}");
-
-    page_table_indices
-        .into_iter()
-        .fold(Some(l4), |acc, index| {
-            let frame = acc?;
-
-            let virt = to_higher_half(frame.start_address());
-            let table: *const PageTable = virt.as_ptr();
-            let table = unsafe { &*table };
-
-            let entry = &table[index];
-
-            match entry.frame() {
-                Ok(frame) => Some(frame),
-                Err(FrameError::FrameNotPresent) => None,
-                Err(FrameError::HugeFrame) => {
-                    todo!("Huge pages")
-                }
-            }
-        })
-        .map(|frame| frame.start_address() + u64::from(addr.page_offset()))
 }

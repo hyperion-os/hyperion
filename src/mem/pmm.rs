@@ -321,17 +321,16 @@ impl PageFrame {
 
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
         // SAFETY: &mut self makes sure that this is the only safe mut ref
-        unsafe { self.as_bytes_mut_unsafe() }
+        // TODO: safety incomplete
+        unsafe {
+            slice::from_raw_parts_mut(to_higher_half(self.first).as_mut_ptr(), self.byte_len())
+        }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
         // SAFETY: the mut ref is immediately downgraded to a const ref
-        unsafe { self.as_bytes_mut_unsafe() }
-    }
-
-    /// SAFETY: only 1 mutable slice at one time
-    unsafe fn as_bytes_mut_unsafe(&self) -> &mut [u8] {
-        slice::from_raw_parts_mut(to_higher_half(self.first).as_mut_ptr(), self.byte_len())
+        // TODO: safety incomplete
+        unsafe { slice::from_raw_parts(to_higher_half(self.first).as_ptr(), self.byte_len()) }
     }
 }
 

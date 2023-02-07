@@ -1,5 +1,5 @@
 use super::{
-    pmm::{self, PageFrame},
+    pmm::{self},
     to_higher_half,
 };
 use core::{mem, slice};
