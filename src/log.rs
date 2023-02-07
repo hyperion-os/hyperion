@@ -81,6 +81,17 @@ pub fn set_log_level(level: LogLevel) {
     LOGGER.level.store(level as u8, Ordering::SeqCst);
 }
 
+pub fn get_log_level() -> LogLevel {
+    match LOGGER.level.load(Ordering::SeqCst) {
+        0 => LogLevel::None,
+        1 => LogLevel::Error,
+        2 => LogLevel::Warn,
+        3 => LogLevel::Info,
+        4 => LogLevel::Debug,
+        5.. => LogLevel::Trace,
+    }
+}
+
 // pub fn set_log_color(color: bool) {
 //     LOGGER.color.store(color, Ordering::SeqCst);
 // }
@@ -204,29 +215,6 @@ impl Logger {
         }
         if self.fbo.load(Ordering::SeqCst) {
             crate::video::logger::_print(args);
-        }
-    }
-}
-
-//
-
-#[cfg(test)]
-mod tests {
-    use super::{set_log_level, LogLevel};
-
-    #[test_case]
-    fn log_levels() {
-        set_log_level(LogLevel::Trace);
-
-        for level in LogLevel::ALL {
-            log!(level, "LOG TEST")
-        }
-    }
-
-    #[test_case]
-    fn log_chars() {
-        for c in 0..=255u8 {
-            print!("{}", c as char);
         }
     }
 }

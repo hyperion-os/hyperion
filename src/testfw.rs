@@ -1,5 +1,10 @@
-use crate::{print, println};
-use core::{any::type_name, panic::PanicInfo};
+use crate::{log, print, println};
+use core::{
+    any::type_name,
+    panic::PanicInfo,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+use spin::Once;
 use x86_64::instructions::port::Port;
 
 //
@@ -11,13 +16,13 @@ pub enum QemuExitCode {
     Failed = 0x11,
 }
 
-pub trait TestCase {
+pub trait TestCase: Sync {
     fn run(&self);
 }
 
 //
 
-impl<F: Fn()> TestCase for F {
+impl<F: Fn() + Sync> TestCase for F {
     fn run(&self) {
         let name = type_name::<Self>();
         print!(" - {name:.<60}");
@@ -35,31 +40,38 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
     }
 }
 
-pub fn test_runner(tests: &[&dyn TestCase]) {
+pub fn test_runner(tests: &'static [&'static dyn TestCase]) {
+    TESTS.call_once(|| tests);
+
+    log::set_log_level(log::LogLevel::None);
     println!("Running {} tests", tests.len());
-    for test in tests {
-        // unsafe {
-        //     core::intrinsics::r#try(
-        //         move |_| test(),
-        //         0 as _,
-        //         |_, _| {
-        //             println!("[failed]\n");
-        //         },
-        //     );
-        // }
-
-        // TODO: core::panic::catch_unwind // https://github.com/rust-lang/rfcs/issues/2810
-
-        test.run();
-    }
+    run_tests();
 
     exit_qemu(QemuExitCode::Success);
 }
 
+pub fn next_test() -> Option<&'static dyn TestCase> {
+    TESTS
+        .get()
+        .and_then(|tests| tests.get(IDX.fetch_add(1, Ordering::SeqCst)))
+        .copied()
+}
+
+pub fn run_tests() {
+    while let Some(next_test) = next_test() {
+        next_test.run();
+    }
+}
+
 pub fn test_panic_handler(info: &PanicInfo) {
     println!("[failed]\n{info}\n");
+    // a hack to keep running tests even tho a panic happened
+    run_tests();
     exit_qemu(QemuExitCode::Failed);
 }
+
+static TESTS: Once<&'static [&'static dyn TestCase]> = Once::new();
+static IDX: AtomicUsize = AtomicUsize::new(0);
 
 #[cfg(test)]
 mod tests {
@@ -68,7 +80,7 @@ mod tests {
     #[allow(clippy::eq_op)]
     #[test_case]
     fn trivial() {
-        assert_eq!(0, 0);
+        assert_eq!(0, 1);
     }
 
     // TODO: should_panic / should_fail

@@ -16,7 +16,7 @@ pub struct Slab {
     idx: u8,
     size: usize,
 
-    next: Option<VirtAddr>,
+    next: VirtAddr,
 }
 
 pub struct SlabHeader {
@@ -24,7 +24,7 @@ pub struct SlabHeader {
 }
 
 pub struct SlabData {
-    next: Option<VirtAddr>,
+    next: VirtAddr,
 }
 
 //
@@ -75,40 +75,44 @@ impl Slab {
         Self {
             idx,
             size,
-            next: None,
+            next: VirtAddr::new(0),
         }
     }
 
     pub fn next_slab(&mut self) -> VirtAddr {
-        *self.next.get_or_insert_with(|| {
-            let page = pmm::PageFrameAllocator::get().alloc(1);
-            let page_bytes = page.byte_len();
-            let page = to_higher_half(page.addr());
+        if !self.next.is_null() {
+            return self.next;
+        }
 
-            // write header
+        let page = pmm::PageFrameAllocator::get().alloc(1);
+        let page_bytes = page.byte_len();
+        let page = to_higher_half(page.addr());
 
-            let header: &mut SlabHeader = unsafe { &mut *page.as_mut_ptr() };
-            header.slab_idx = self.idx;
+        // write header
 
-            // write slab chain
+        let header: &mut SlabHeader = unsafe { &mut *page.as_mut_ptr() };
+        header.slab_idx = self.idx;
 
-            let header_align = align_up(mem::size_of::<SlabHeader>() as u64, self.size as _);
+        // write slab chain
 
-            let len = (page_bytes - header_align as usize) / mem::size_of::<SlabData>();
-            let data: &mut [SlabData] =
-                unsafe { slice::from_raw_parts_mut((page + header_align).as_mut_ptr(), len) };
-            let step = self.size / mem::size_of::<SlabData>();
+        let header_align = align_up(mem::size_of::<SlabHeader>() as u64, self.size as _);
 
-            for (prev, next) in (0..len - 1).zip(1..len).step_by(step) {
-                let next_addr = Some(VirtAddr::new(&data[next] as *const SlabData as u64));
-                data[prev].next = next_addr;
-            }
-            if let Some(last) = data.iter_mut().step_by(step).last() {
-                last.next = None
-            }
+        let len = (page_bytes - header_align as usize) / mem::size_of::<SlabData>();
+        let data: &mut [SlabData] =
+            unsafe { slice::from_raw_parts_mut((page + header_align).as_mut_ptr(), len) };
+        let step = self.size / mem::size_of::<SlabData>();
 
-            page
-        })
+        for (prev, next) in (0..len - 1).zip(1..len).step_by(step) {
+            let next_addr = VirtAddr::new(&data[next] as *const SlabData as u64);
+            data[prev].next = next_addr
+        }
+        if let Some(last) = data.iter_mut().step_by(step).last() {
+            last.next = VirtAddr::new(0)
+        }
+
+        self.next = page;
+
+        page
     }
 
     pub fn alloc(&mut self) -> VirtAddr {
@@ -131,6 +135,6 @@ impl Slab {
         let step = self.size / mem::size_of::<SlabData>();
         let data: &mut [SlabData] = unsafe { slice::from_raw_parts_mut(slab.as_mut_ptr(), step) };
         data[0].next = self.next;
-        self.next = Some(slab);
+        self.next = slab;
     }
 }

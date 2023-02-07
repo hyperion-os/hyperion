@@ -15,11 +15,7 @@
 
 //
 
-use crate::{
-    mem::{slab::SlabAllocator, vmm::PageMapImpl},
-    util::fmt::NumberPostfix,
-};
-use x86_64::VirtAddr;
+use crate::util::fmt::NumberPostfix;
 
 extern crate alloc;
 
@@ -65,32 +61,6 @@ fn kernel_main() -> ! {
         boot::phys_addr().as_u64().postfix_binary(),
     );
     debug!("HHDM Offset: {:#0X?}", boot::hhdm_offset());
-
-    let map = mem::vmm::PageMap::init();
-    let frame = mem::pmm::PageFrameAllocator::get().alloc(1);
-    map.unmap(VirtAddr::new(0x1000), 1);
-    map.map(VirtAddr::new(0x0), frame.addr(), 1);
-    map.map(VirtAddr::new(0x1000), frame.addr(), 1);
-
-    let a1 = unsafe { &mut *(0x1 as *mut u8) };
-    let a2 = unsafe { &mut *(0x1001 as *mut u8) };
-
-    debug!("{frame:?}");
-    *a1 = 50;
-    assert_eq!(a1, a2);
-    *a1 = 150;
-    assert_eq!(a1, a2);
-
-    let alloc = SlabAllocator::new();
-
-    alloc.alloc(48);
-
-    debug!(
-        "{:?}",
-        (0u32..32)
-            .map(|i| 2u32.pow(i))
-            .collect::<alloc::vec::Vec<_>>()
-    );
 
     // ofc. every kernel has to have this cringy ascii name splash
     info!("\n{}\n", include_str!("./splash"));

@@ -3,14 +3,14 @@ use core::panic::PanicInfo;
 
 //
 
-#[cfg(not(feature = "tests"))]
+#[cfg(not(test))]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     crate::println!("Kernel {info}");
     done();
 }
 
-#[cfg(feature = "tests")]
+#[cfg(test)]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     crate::testfw::test_panic_handler(info);
