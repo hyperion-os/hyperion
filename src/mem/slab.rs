@@ -1,10 +1,8 @@
-use core::{mem, slice};
-
 use super::{
     pmm::{self, PageFrame},
     to_higher_half,
 };
-use itertools::Itertools;
+use core::{mem, slice};
 use spin::RwLock;
 use x86_64::{align_up, VirtAddr};
 
@@ -101,7 +99,7 @@ impl Slab {
                 unsafe { slice::from_raw_parts_mut((page + header_align).as_mut_ptr(), len) };
             let step = self.size / mem::size_of::<SlabData>();
 
-            for (prev, next) in (0..len - 1).step_by(step).tuple_windows() {
+            for (prev, next) in (0..len - 1).zip(1..len).step_by(step) {
                 let next_addr = Some(VirtAddr::new(&data[next] as *const SlabData as u64));
                 data[prev].next = next_addr;
             }
