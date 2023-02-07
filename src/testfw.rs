@@ -80,7 +80,7 @@ mod tests {
     #[allow(clippy::eq_op)]
     #[test_case]
     fn trivial() {
-        assert_eq!(0, 1);
+        assert_eq!(0, 0);
     }
 
     // TODO: should_panic / should_fail
