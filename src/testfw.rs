@@ -1,8 +1,10 @@
+//! Tests should only be ran on a single thread at the moment
+
 use crate::{log, print, println};
 use core::{
     any::type_name,
     panic::PanicInfo,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 use spin::Once;
 use x86_64::instructions::port::Port;
@@ -27,7 +29,6 @@ impl<F: Fn() + Sync> TestCase for F {
         let name = type_name::<Self>();
         print!(" - {name:.<60}");
         self();
-        println!("[ok]");
     }
 }
 
@@ -59,19 +60,54 @@ pub fn next_test() -> Option<&'static dyn TestCase> {
 
 pub fn run_tests() {
     while let Some(next_test) = next_test() {
+        NEXT_SHOULD_PANIC.store(false, Ordering::SeqCst);
+
         next_test.run();
+
+        verify_outcome(None);
     }
 }
 
 pub fn test_panic_handler(info: &PanicInfo) {
-    println!("[failed]\n{info}\n");
+    verify_outcome(Some(info));
+
     // a hack to keep running tests even tho a panic happened
     run_tests();
-    exit_qemu(QemuExitCode::Failed);
+
+    if SUCCESSFUL.load(Ordering::SeqCst) {
+        exit_qemu(QemuExitCode::Success);
+    } else {
+        exit_qemu(QemuExitCode::Failed);
+    }
+}
+
+pub fn verify_outcome(panic_info: Option<&PanicInfo>) {
+    if NEXT_SHOULD_PANIC.load(Ordering::SeqCst) == panic_info.is_some() {
+        println!("[ok]");
+    } else {
+        if let Some(panic_info) = panic_info {
+            println!("[failed]\n{panic_info}");
+        } else {
+            println!("[failed]");
+        }
+        SUCCESSFUL.store(false, Ordering::SeqCst);
+    }
+}
+
+/// NOTE: Every panic cannot be handled
+///
+/// Double faults and page faults for example cannot be handled
+pub fn should_panic() {
+    NEXT_SHOULD_PANIC.store(true, Ordering::SeqCst);
 }
 
 static TESTS: Once<&'static [&'static dyn TestCase]> = Once::new();
 static IDX: AtomicUsize = AtomicUsize::new(0);
+
+// TODO: thread local
+static NEXT_SHOULD_PANIC: AtomicBool = AtomicBool::new(false);
+// TODO: thread local
+static SUCCESSFUL: AtomicBool = AtomicBool::new(true);
 
 #[cfg(test)]
 mod tests {
@@ -83,34 +119,10 @@ mod tests {
         assert_eq!(0, 0);
     }
 
-    // TODO: should_panic / should_fail
     #[test_case]
-    fn random_tests() {
-        // error handling test
-
-        /* stack_overflow(79999999); */
-
-        /* unsafe {
-            *(0xFFFFFFFFDEADC0DE as *mut u8) = 42;
-        } */
-
-        /* unsafe {
-            let x = *(0xffffffffc18a8137 as *mut u8);
-            println!("Read worked: {x}");
-            *(0xffffffffc18a8137 as *mut u8) = 42;
-            println!("Write worked");
-        } */
-
-        #[allow(unused)]
-        fn stack_overflow(n: usize) {
-            if n == 0 {
-                return;
-            } else {
-                stack_overflow(n - 1);
-            }
-            unsafe {
-                core::ptr::read_volatile(&0 as *const i32);
-            }
-        }
+    fn should_panic() {
+        // mark this test to be a panic=success
+        super::should_panic();
+        assert_eq!(0, 1);
     }
 }

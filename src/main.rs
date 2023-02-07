@@ -1,17 +1,16 @@
+#![doc = include_str!("../README.md")]
+//
 #![no_std]
 #![no_main]
+//
 #![feature(format_args_nl)]
 #![feature(abi_x86_interrupt)]
-#![feature(custom_test_frameworks)]
-#![feature(type_alias_impl_trait)]
-#![feature(result_option_inspect)]
 #![feature(allocator_api)]
 #![feature(nonnull_slice_from_raw_parts)]
-#![feature(exclusive_range_pattern)]
-#![feature(let_chains)]
+//
+#![feature(custom_test_frameworks)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
-#![doc = include_str!("../README.md")]
 
 //
 

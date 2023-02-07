@@ -50,7 +50,7 @@ CARGO_FLAGS      += --target=${RUST_T_${ARCH}}
 CARGO_FLAGS      += --package=hyperion
 KERNEL           := ${CARGO_DIR}/hyperion
 KERNEL_TESTING   := ${KERNEL}-testing
-KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion.d))
+KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion.d)) src/testfw.rs
 
 # gdb
 GDB_FLAGS        ?=
