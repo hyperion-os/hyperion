@@ -1,4 +1,4 @@
-use crate::{arch, smp::Cpu, smp_main};
+use crate::{smp::Cpu, smp_main};
 use limine::{LimineSmpInfo, LimineSmpRequest};
 
 //
@@ -33,7 +33,6 @@ pub fn init() -> Cpu {
 
 extern "C" fn smp_start(info: *const LimineSmpInfo) -> ! {
     let info = unsafe { &*info };
-    arch::early_per_cpu();
     smp_main(Cpu::from(info));
 }
 

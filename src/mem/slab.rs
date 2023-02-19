@@ -1,29 +1,42 @@
+//! Slab allocator
+//!
+//! Each allocated page is divided into `n` [`Block`]s where `n = page_size / slab_size`.
+//!
+//! The first [`Block`] is the [`SlabHeader`], it tells the [`SlabAllocator`] which [`Slab`] allocated
+//! that [`Block`].
+//!
+//! The other [`Block`]s are pushed into a linked list.
+//!
+//! The metadata like [`SlabHeader`] or [`SlabData`] is stored in the first bytes of the [`Block`].
+//!
+//! When a block is allocated, it is removed from the linked list and when it is freed, it is
+//! pushed back into it.
+
+//
+
+use crate::trace;
+
 use super::{
-    pmm::{self},
+    from_higher_half,
+    pmm::{self, PageFrame},
     to_higher_half,
 };
-use core::{mem, slice};
+use core::{mem, slice, sync::atomic::AtomicU64};
 use spin::RwLock;
-use x86_64::{align_up, VirtAddr};
+use x86_64::VirtAddr;
 
 //
 
 pub struct SlabAllocator {
     slabs: [(RwLock<Slab>, usize); 7],
+
+    used: AtomicU64,
 }
 
 pub struct Slab {
     idx: u8,
     size: usize,
 
-    next: VirtAddr,
-}
-
-pub struct SlabHeader {
-    slab_idx: u8,
-}
-
-pub struct SlabData {
     next: VirtAddr,
 }
 
@@ -39,6 +52,8 @@ impl SlabAllocator {
 
                 (RwLock::new(Slab::new(slab_idx, size)), size)
             }),
+
+            used: AtomicU64::new(0),
         }
     }
 
@@ -50,17 +65,74 @@ impl SlabAllocator {
     }
 
     pub fn alloc(&self, size: usize) -> VirtAddr {
-        self.get_slab(size)
-            .expect("TODO: Big alloc")
-            .write()
-            .alloc()
+        if let Some(slab) = self.get_slab(size) {
+            slab.write().alloc()
+        } else {
+            self.big_alloc(size)
+        }
     }
 
     pub fn free(&self, v_addr: VirtAddr) {
-        let header = v_addr.align_down(4096u64);
-        let header: &mut SlabHeader = unsafe { &mut *header.as_mut_ptr() };
+        if v_addr.as_u64() == 0 {
+            return;
+        }
 
-        self.slabs[header.slab_idx as usize].0.write().free(v_addr);
+        if v_addr.is_aligned(0x1000u64) {
+            return self.big_free(v_addr);
+        }
+
+        let page = v_addr.align_down(0x1000u64);
+        let header: &mut u8 = unsafe { &mut *page.as_mut_ptr() };
+
+        self.slabs[*header as usize].0.write().free(v_addr);
+    }
+
+    fn big_alloc(&self, size: usize) -> VirtAddr {
+        // minimum number of pages for the alloc + 1 page
+        // for metadata
+        let pages = size.div_ceil(0x1000) + 1;
+        let mut pages = pmm::PageFrameAllocator::get().alloc(pages);
+
+        let metadata: &mut [usize] = pages.as_mut_slice();
+        metadata[0] = size;
+        let mp = metadata.as_ptr() as u64;
+
+        trace!("BigAlloc    {:#x} {size}", pages.addr().as_u64(),);
+
+        // pmm already zeroed the memory
+        let mut v_addr = to_higher_half(pages.addr()) + 0x1000u64;
+        // return v_addr;
+
+        v_addr -= 0x1000u64;
+
+        let metadata: &mut usize = unsafe { &mut *v_addr.as_mut_ptr() };
+        let mp = metadata as *const usize as u64;
+        let pages = (*metadata).div_ceil(0x1000) + 1;
+        let pages = unsafe { PageFrame::new(from_higher_half(v_addr), pages) };
+
+        let metadata: &[usize] = pages.as_slice();
+        let metadata = metadata[0];
+
+        trace!("SIMBigFree  {:#x} {metadata}", pages.addr().as_u64(),);
+
+        v_addr += 0x1000u64;
+
+        v_addr
+    }
+
+    fn big_free(&self, mut v_addr: VirtAddr) {
+        // TODO: what if v_addr is invalid?
+
+        v_addr -= 0x1000u64;
+
+        let metadata: &mut usize = unsafe { &mut *v_addr.as_mut_ptr() };
+        let mp = metadata as *const usize as u64;
+        let pages = (*metadata).div_ceil(0x1000) + 1;
+        let pages = unsafe { PageFrame::new(from_higher_half(v_addr), pages) };
+
+        trace!("BigFree     {:#x} {metadata}", pages.addr().as_u64(),);
+
+        pmm::PageFrameAllocator::get().free(pages);
     }
 }
 
@@ -79,62 +151,64 @@ impl Slab {
         }
     }
 
-    pub fn next_slab(&mut self) -> VirtAddr {
+    pub fn next_block(&mut self) -> VirtAddr {
         if !self.next.is_null() {
             return self.next;
         }
 
-        let page = pmm::PageFrameAllocator::get().alloc(1);
-        let page_bytes = page.byte_len();
-        let page = to_higher_half(page.addr());
+        let mut page = pmm::PageFrameAllocator::get().alloc(1);
+        // let page_bytes = page.byte_len();
+        // let page = to_higher_half(page.addr());
+
+        let mut blocks = page.as_mut_slice().chunks_exact_mut(self.size / 8);
 
         // write header
 
-        let header: &mut SlabHeader = unsafe { &mut *page.as_mut_ptr() };
-        header.slab_idx = self.idx;
+        let header = blocks.next().expect("Slab size too large");
+        header[0] = self.idx as u64;
 
-        // write slab chain
+        // create a slab chain
 
-        let header_align = align_up(mem::size_of::<SlabHeader>() as u64, self.size as _);
+        let mut first = None::<VirtAddr>;
+        let mut prev = None::<&mut [u64]>;
+        for next in blocks {
+            let addr = VirtAddr::new(next.as_ptr() as _);
+            if first.is_none() {
+                first = Some(addr);
+            }
+            if let Some(prev) = prev {
+                prev[0] = addr.as_u64();
+            }
 
-        let len = (page_bytes - header_align as usize) / mem::size_of::<SlabData>();
-        let data: &mut [SlabData] =
-            unsafe { slice::from_raw_parts_mut((page + header_align).as_mut_ptr(), len) };
-        let step = self.size / mem::size_of::<SlabData>();
-
-        for (prev, next) in (0..len - 1).zip(1..len).step_by(step) {
-            let next_addr = VirtAddr::new(&data[next] as *const SlabData as u64);
-            data[prev].next = next_addr
+            prev = Some(next);
         }
-        if let Some(last) = data.iter_mut().step_by(step).last() {
-            last.next = VirtAddr::new(0)
-        }
 
-        self.next = page;
+        let (Some(first), Some(prev)) = (first, prev) else {
+            panic!("Slab size too large");
+        };
 
-        page
+        prev[0] = 0;
+
+        first
     }
 
     pub fn alloc(&mut self) -> VirtAddr {
-        let slab = self.next_slab();
+        let block = self.next_block();
 
-        let step = self.size / mem::size_of::<SlabData>();
-        let data: &mut [SlabData] = unsafe { slice::from_raw_parts_mut(slab.as_mut_ptr(), step) };
-        self.next = data[0].next;
+        let block_data: &mut [u64] =
+            unsafe { slice::from_raw_parts_mut(block.as_mut_ptr(), self.size / 8) };
 
-        data.fill_with(|| unsafe { mem::zeroed() });
+        self.next = VirtAddr::new(block_data[0]);
+        block_data[0] = 0; // zero out the first u64 that was used as the 'next' pointer
 
-        slab
+        block
     }
 
-    pub fn free(&mut self, slab: VirtAddr) {
-        if slab.as_u64() == 0 {
-            return;
-        }
+    pub fn free(&mut self, block: VirtAddr) {
+        let block_data: &mut [u64] =
+            unsafe { slice::from_raw_parts_mut(block.as_mut_ptr(), self.size / 8) };
 
-        let step = self.size / mem::size_of::<SlabData>();
-        let data: &mut [SlabData] = unsafe { slice::from_raw_parts_mut(slab.as_mut_ptr(), step) };
-        data[0].next = self.next;
-        self.next = slab;
+        block_data[0] = self.next.as_u64();
+        self.next = block;
     }
 }

@@ -7,12 +7,20 @@
 #![feature(abi_x86_interrupt)]
 #![feature(allocator_api)]
 #![feature(nonnull_slice_from_raw_parts)]
+#![feature(pointer_is_aligned)]
+#![feature(int_roundings)]
 //
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 //
+
+use alloc::vec::Vec;
+use x86_64::structures::{
+    gdt::{self, GlobalDescriptorTable},
+    idt::InterruptDescriptorTable,
+};
 
 use crate::util::fmt::NumberPostfix;
 
@@ -50,6 +58,11 @@ pub static KERNEL_VERS: &str = env!("CARGO_PKG_VERSION");
 // the actual entry exists in [´crate::boot::boot´]
 fn kernel_main() -> ! {
     debug!("Entering kernel_main");
+
+    arch::early_boot_cpu();
+
+    x86_64::instructions::interrupts::int3();
+
     debug!("Cmdline: {:?}", boot::args::get());
 
     debug!(
@@ -68,6 +81,8 @@ fn kernel_main() -> ! {
         debug!("{KERNEL_NAME} {KERNEL_VERS} was booted with {bl}");
     }
 
+    core::hint::black_box((0..128).map(|i| i * 32).collect::<Vec<_>>());
+
     #[cfg(test)]
     test_main();
 
@@ -78,6 +93,8 @@ fn kernel_main() -> ! {
 
 fn smp_main(cpu: smp::Cpu) -> ! {
     debug!("{cpu} entering smp_main");
+
+    arch::early_per_cpu(&cpu);
 
     // x86_64::instructions::interrupts::int3();
 

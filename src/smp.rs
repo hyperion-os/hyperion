@@ -10,10 +10,7 @@ use core::fmt::{self, Display, Formatter};
 pub fn init() -> ! {
     debug!("Waking up non-boot CPUs");
     boot::smp_init();
-    crate::smp_main(Cpu {
-        processor_id: 0,
-        local_apic_id: 0,
-    })
+    crate::smp_main(Cpu::new_boot())
 }
 
 //
@@ -25,11 +22,22 @@ pub struct Cpu {
 }
 
 impl Cpu {
+    pub fn new_boot() -> Self {
+        Self {
+            processor_id: 0,
+            local_apic_id: 0,
+        }
+    }
+
     pub fn new(processor_id: u32, local_apic_id: u32) -> Self {
         Self {
             processor_id,
             local_apic_id,
         }
+    }
+
+    pub fn is_boot(&self) -> bool {
+        self.processor_id == 0
     }
 }
 

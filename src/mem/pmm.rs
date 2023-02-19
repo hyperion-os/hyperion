@@ -4,7 +4,7 @@
 
 use super::{from_higher_half, map::Memmap, to_higher_half};
 use crate::{
-    boot, debug, trace,
+    boot, debug, mem, trace,
     util::{bitmap::Bitmap, fmt::NumberPostfix},
 };
 use core::{
@@ -83,6 +83,7 @@ impl PageFrameAllocator {
 
         let mut bitmap = self.bitmap.lock();
         let page = (frame.first.as_u64() / PAGE_SIZE) as usize;
+        // trace!("freeing pages first={page} count={}", frame.count);
         for page in page..page + frame.count {
             bitmap.set(page, false).unwrap();
         }
@@ -123,11 +124,13 @@ impl PageFrameAllocator {
         };
 
         // fill the page with zeros
-        trace!("Memzeroing {:?}", page_data.as_ptr_range());
+        // trace!("Memzeroing {:?}", page_data.as_ptr_range());
         page_data.fill(0);
 
         self.used
             .fetch_add(count as u64 * PAGE_SIZE, Ordering::SeqCst);
+
+        // trace!("allocating pages first={first_page} count={}", count);
 
         PageFrame { first: addr, count }
     }
@@ -299,7 +302,13 @@ impl fmt::Display for PageFrameAllocator {
 }
 
 impl PageFrame {
-    // physical address of the first page
+    /// The caller has to make sure that it has exclusive access to bytes in physical memory range
+    /// `first..first + PAGE_SIZE * count`
+    pub unsafe fn new(first: PhysAddr, count: usize) -> Self {
+        Self { first, count }
+    }
+
+    /// physical address of the first page
     pub fn addr(&self) -> PhysAddr {
         self.first
     }
@@ -319,18 +328,28 @@ impl PageFrame {
         self.count * PAGE_SIZE as usize
     }
 
-    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+    pub fn as_mut_slice<T>(&mut self) -> &mut [T] {
+        let addr: *mut T = to_higher_half(self.first).as_mut_ptr();
+        assert!(addr.is_aligned());
+
         // SAFETY: &mut self makes sure that this is the only safe mut ref
+        //
+        // Alignment of addr is checked
+        //
         // TODO: safety incomplete
-        unsafe {
-            slice::from_raw_parts_mut(to_higher_half(self.first).as_mut_ptr(), self.byte_len())
-        }
+        unsafe { slice::from_raw_parts_mut(addr, self.byte_len()) }
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn as_slice<T>(&self) -> &[T] {
+        let addr: *mut T = to_higher_half(self.first).as_mut_ptr();
+        assert!(addr.is_aligned());
+
         // SAFETY: the mut ref is immediately downgraded to a const ref
+        //
+        // Alignment of addr is checked
+        //
         // TODO: safety incomplete
-        unsafe { slice::from_raw_parts(to_higher_half(self.first).as_ptr(), self.byte_len()) }
+        unsafe { slice::from_raw_parts(addr, self.byte_len()) }
     }
 }
 

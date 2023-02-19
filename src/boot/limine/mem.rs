@@ -16,7 +16,11 @@ pub fn memmap() -> impl Iterator<Item = Memmap> {
         // TODO: zero init reclaimable regions
 
         if first_time {
-            trace!("{memmap:?}");
+            trace!(
+                "[ {:#018x?} ]: {:?}",
+                memmap.base..memmap.base + memmap.len,
+                memmap.typ
+            );
         }
 
         let ty = match memmap.typ {

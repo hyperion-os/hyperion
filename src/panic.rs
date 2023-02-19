@@ -6,7 +6,7 @@ use core::panic::PanicInfo;
 #[cfg(not(test))]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
-    crate::println!("Kernel {info}");
+    crate::println!("Kernel CPU {info}");
     done();
 }
 

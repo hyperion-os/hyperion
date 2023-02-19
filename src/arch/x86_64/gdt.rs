@@ -1,8 +1,6 @@
-use super::idt::DOUBLE_FAULT_IST;
 use crate::debug;
 use spin::{Lazy, Once};
 use x86_64::{
-    instructions::tables::load_tss,
     registers::segmentation::{Segment, CS, SS},
     structures::{
         gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector},
@@ -20,16 +18,19 @@ pub fn init() {
     unsafe {
         CS::set_reg(GDT.1.kc);
         SS::set_reg(GDT.1.kd);
-        load_tss(GDT.1.tss);
+        // load_tss(GDT.1.tss);
     }
+
+    debug!("correct gdt={:?}", GDT);
 }
 
 //
 
+#[derive(Debug)]
 struct SegmentSelectors {
     kc: SegmentSelector,
     kd: SegmentSelector,
-    tss: SegmentSelector,
+    // tss: SegmentSelector,
 }
 
 static GDT: Lazy<(GlobalDescriptorTable, SegmentSelectors)> = Lazy::new(|| {
@@ -37,7 +38,7 @@ static GDT: Lazy<(GlobalDescriptorTable, SegmentSelectors)> = Lazy::new(|| {
     let sel = SegmentSelectors {
         kc: gdt.add_entry(Descriptor::kernel_code_segment()),
         kd: gdt.add_entry(Descriptor::kernel_data_segment()),
-        tss: gdt.add_entry(Descriptor::tss_segment(&TSS)),
+        // tss: gdt.add_entry(Descriptor::tss_segment(&TSS)),
     };
     // gdt.add_entry(Descriptor::user_code_segment());
     // gdt.add_entry(Descriptor::user_data_segment());
@@ -47,7 +48,7 @@ static GDT_ONCE: Once<()> = Once::new();
 
 static TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
     let mut tss = TaskStateSegment::new();
-    tss.interrupt_stack_table[DOUBLE_FAULT_IST as usize] = {
+    tss.interrupt_stack_table[0] = {
         static mut STACK: [u8; 4096 * 5] = [0; 4096 * 5];
 
         let stack_range = unsafe { STACK }.as_ptr_range();

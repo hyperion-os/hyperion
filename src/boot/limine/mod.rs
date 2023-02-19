@@ -1,6 +1,5 @@
-use super::args;
-use super::BOOT_NAME;
-use crate::{arch, kernel_main};
+use super::{args, BOOT_NAME};
+use crate::kernel_main;
 
 //
 
@@ -28,9 +27,6 @@ pub extern "C" fn _start() -> ! {
     BOOT_NAME.call_once(|| "Limine");
 
     args::get().apply();
-
-    arch::early_boot_cpu();
-    arch::early_per_cpu();
 
     kernel_main()
 }
