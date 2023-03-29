@@ -275,8 +275,9 @@ checksum = "99227334921fae1a979cf0bfdfcc6b3e5ce376ef57e16fb6fb3ea2ed6095f80c"
 
 [[package]]
 name = "limine"
-version = "0.1.9"
-source = "git+https://github.com/limine-bootloader/limine-rs?rev=c2fbc349419d4330b80e053019ad2fe504a61764#c2fbc349419d4330b80e053019ad2fe504a61764"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e9d0c951056ac044f0e6b09448b9d702f8fb1001db89cffd2bc467bd1c25307"
 
 [[package]]
 name = "lock_api"

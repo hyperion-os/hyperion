@@ -22,9 +22,9 @@ uart_16550 = "0.2.18"
 #tracing = { version = "0.1.37", default-features = false }
 
 [dependencies.limine]
-git = "https://github.com/limine-bootloader/limine-rs"
-rev = "c2fbc349419d4330b80e053019ad2fe504a61764"
-# version = "0.1.9" # 0.1.9 LimineFile struct has a bug
+# git = "https://github.com/limine-bootloader/limine-rs"
+# rev = "c2fbc349419d4330b80e053019ad2fe504a61764"
+version = "0.1.10"
 optional = true
 
 #[dependencies.itertools]
