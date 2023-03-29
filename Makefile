@@ -60,6 +60,8 @@ GDB_FLAGS        ?=
 GDB_FLAGS        += --eval-command="target remote localhost:1234"
 GDB_FLAGS        += --eval-command="symbol-file ${KERNEL}"
 
+${KERNEL_SRC}:
+
 # hyperion kernel compilation
 ${KERNEL}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 	@echo -e "\n\033[32m--[[ building Hyperion ]]--\033[0m"
