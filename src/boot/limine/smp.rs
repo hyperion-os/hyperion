@@ -37,7 +37,7 @@ pub fn boot_cpu() -> Cpu {
                 Cpu::new(0, 0)
             });
 
-        debug!("Boot CPU is {boot}");
+        debug!("Boot CPU is {boot:#}");
 
         boot
     });

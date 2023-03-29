@@ -22,6 +22,7 @@ extern crate alloc;
 
 //
 
+pub mod acpi;
 #[path = "arch/x86_64/mod.rs"]
 pub mod arch;
 pub mod boot;
@@ -55,7 +56,7 @@ fn kernel_main() -> ! {
 
     // init the page frame allocator early to make the logs cleaner
     // makes the lazy initialization completely useless btw
-    mem::pmm::PageFrameAllocator::get();
+    _ = mem::pmm::PageFrameAllocator::get();
 
     arch::early_boot_cpu();
 
@@ -81,6 +82,8 @@ fn kernel_main() -> ! {
     test_main();
 
     debug!("RNG Seed {}", arch::rng_seed());
+
+    acpi::init();
 
     smp::init();
 }

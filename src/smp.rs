@@ -40,7 +40,15 @@ impl Cpu {
 
 impl Display for Cpu {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "CPU{}", self.processor_id)
+        let Self {
+            processor_id: p_id,
+            local_apic_id: a_id,
+        } = *self;
+        if f.alternate() {
+            write!(f, "CPU-{p_id} (APIC-{a_id})",)
+        } else {
+            write!(f, "CPU-{p_id}")
+        }
     }
 }
 
