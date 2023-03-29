@@ -302,6 +302,8 @@ impl fmt::Display for PageFrameAllocator {
 }
 
 impl PageFrame {
+    /// # Safety
+    ///
     /// The caller has to make sure that it has exclusive access to bytes in physical memory range
     /// `first..first + PAGE_SIZE * count`
     pub unsafe fn new(first: PhysAddr, count: usize) -> Self {
