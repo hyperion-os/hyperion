@@ -1,4 +1,4 @@
-use crate::{boot, error, smp::Cpu, warn};
+use crate::{error, smp::Cpu, warn};
 use x86_64::instructions::{self as ins, interrupts as int, random::RdRand};
 
 //
@@ -7,9 +7,6 @@ pub mod cpu;
 // pub mod mem;
 pub mod pmm;
 pub mod vmm;
-
-mod gdt;
-mod idt;
 
 //
 
