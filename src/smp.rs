@@ -15,7 +15,7 @@ pub fn init() -> ! {
 
 //
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cpu {
     pub processor_id: u32,
     pub local_apic_id: u32,
@@ -23,20 +23,17 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn new_boot() -> Self {
-        Self {
-            processor_id: 0,
-            local_apic_id: 0,
-        }
+        boot::boot_cpu()
     }
 
-    pub fn new(processor_id: u32, local_apic_id: u32) -> Self {
+    pub const fn new(processor_id: u32, local_apic_id: u32) -> Self {
         Self {
             processor_id,
             local_apic_id,
         }
     }
 
-    pub fn is_boot(&self) -> bool {
+    pub const fn is_boot(&self) -> bool {
         self.processor_id == 0
     }
 }

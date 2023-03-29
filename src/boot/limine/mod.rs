@@ -34,3 +34,7 @@ pub extern "C" fn _start() -> ! {
 pub fn smp_init() {
     smp::init();
 }
+
+pub fn boot_cpu() -> crate::smp::Cpu {
+    smp::boot_cpu()
+}
