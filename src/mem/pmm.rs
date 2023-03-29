@@ -19,6 +19,8 @@ use x86_64::{align_up, PhysAddr, VirtAddr};
 
 //
 
+pub static PFA: Lazy<PageFrameAllocator> = Lazy::new(PageFrameAllocator::init);
+
 const PAGE_SIZE: u64 = 2u64.pow(12); // 4KiB pages
 
 //
@@ -43,7 +45,6 @@ pub struct PageFrame {
 
 impl PageFrameAllocator {
     pub fn get() -> &'static PageFrameAllocator {
-        static PFA: Lazy<PageFrameAllocator> = Lazy::new(PageFrameAllocator::init);
         &PFA
     }
 
