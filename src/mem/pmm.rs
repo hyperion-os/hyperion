@@ -4,7 +4,7 @@
 
 use super::{from_higher_half, map::Memmap, to_higher_half};
 use crate::{
-    boot, debug, mem, trace,
+    boot, debug,
     util::{bitmap::Bitmap, fmt::NumberPostfix},
 };
 use core::{
@@ -216,7 +216,7 @@ impl PageFrameAllocator {
         {
             if base == bitmap_data {
                 // skip the bitmap allocation spot
-                base += bitmap_data.as_u64();
+                base += bitmap_size;
                 len -= bitmap_size;
             }
 
@@ -224,7 +224,7 @@ impl PageFrameAllocator {
             let mut top = base.as_u64() + len;
 
             debug!(
-                "Free pages: {:#0X?} ({}B)",
+                "Free pages: [ {:#018x?} ] ({}B)",
                 bottom..top,
                 (top - bottom).postfix_binary()
             );

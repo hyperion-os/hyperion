@@ -1,5 +1,5 @@
 use self::{gdt::Gdt, idt::Idt, tss::Tss};
-use crate::{debug, smp::Cpu, trace};
+use crate::{smp::Cpu, trace};
 use alloc::boxed::Box;
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Once;
@@ -13,6 +13,7 @@ pub mod tss;
 //
 
 pub fn init(cpu: &Cpu) -> CpuState {
+    trace!("Loading CpuState for {cpu}");
     let cpu_state = if cpu.is_boot() {
         // boot cpu doesn't need to allocate
         CpuState::new_boot()
@@ -28,14 +29,6 @@ pub fn init(cpu: &Cpu) -> CpuState {
         }
     }
 
-    trace!("Loading CpuState for {cpu}");
-
-    cpu_state.gdt.load();
-    cpu_state.idt.load();
-
-    debug!("CpuState {:#018x?}", cpu_state.gdt as *const _);
-    debug!("CpuState {:#018x?}", cpu_state.idt as *const _);
-
     cpu_state
 }
 
@@ -43,9 +36,9 @@ pub fn init(cpu: &Cpu) -> CpuState {
 
 #[derive(Clone, Copy)]
 pub struct CpuState {
-    tss: &'static Tss,
-    gdt: &'static Gdt,
-    idt: &'static Idt,
+    // tss: &'static Tss,
+    // gdt: &'static Gdt,
+    // idt: &'static Idt,
 }
 
 static BOOT_TSS: Once<Tss> = Once::new();
@@ -54,23 +47,24 @@ static BOOT_IDT: Once<Idt> = Once::new();
 
 impl CpuState {
     fn new_boot() -> Self {
-        if let (Some(tss), Some(gdt), Some(idt)) = (BOOT_TSS.get(), BOOT_GDT.get(), BOOT_IDT.get())
-        {
-            return Self { tss, gdt, idt };
-        }
+        let tss = BOOT_TSS.call_once(Tss::new);
 
-        let tss = BOOT_TSS.call_once(|| Tss::new());
         let gdt = BOOT_GDT.call_once(|| Gdt::new(tss));
-        let idt = BOOT_IDT.call_once(|| Idt::new(tss));
+        gdt.load();
 
-        Self { tss, gdt, idt }
+        let idt = BOOT_IDT.call_once(|| Idt::new(tss));
+        idt.load();
+
+        Self {}
     }
 
     fn new() -> Self {
         let tss = Box::leak(Box::new(Tss::new()));
         let gdt = Box::leak(Box::new(Gdt::new(tss)));
+        gdt.load();
         let idt = Box::leak(Box::new(Idt::new(tss)));
+        idt.load();
 
-        Self { tss, gdt, idt }
+        Self {}
     }
 }

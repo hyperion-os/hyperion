@@ -14,8 +14,8 @@ multiboot2 = []
 # Pick limine OR bootboot OR multiboot1 OR multiboot2, they conflict with eachother
 
 [dependencies]
-spin = "0.9.4"
-volatile = "0.4.5"
+spin = "0.9.7"
+volatile = "0.4.6"
 x86_64 = "0.14.10"
 uart_16550 = "0.2.18"
 # bitvec = "1.0.1"
@@ -32,4 +32,4 @@ optional = true
 #default-features = false
 
 [build-dependencies]
-image = "0.24.5"
+image = "0.24.6"

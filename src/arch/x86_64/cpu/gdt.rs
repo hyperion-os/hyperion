@@ -20,7 +20,7 @@ struct SegmentSelectors {
     kernel_data: SegmentSelector,
     // user_code: SegmentSelector,
     // user_data: SegmentSelector,
-    // tss: SegmentSelector,
+    tss: SegmentSelector,
 }
 
 //
@@ -34,22 +34,20 @@ impl Gdt {
             kernel_data: inner.add_entry(Descriptor::kernel_data_segment()),
             // user_code: inner.add_entry(Descriptor::user_code_segment()),
             // user_data: inner.add_entry(Descriptor::user_data_segment()),
-            // tss: inner.add_entry(Descriptor::tss_segment(&tss.inner)),
+            tss: inner.add_entry(Descriptor::tss_segment(&tss.inner)),
         };
 
         Self { inner, selectors }
     }
 
     pub fn load(&'static self) {
-        trace!("Loading GDT");
+        // trace!("Loading GDT");
         self.inner.load();
 
         unsafe {
             CS::set_reg(self.selectors.kernel_code);
             SS::set_reg(self.selectors.kernel_data);
-            // load_tss(self.selectors.tss);
+            load_tss(self.selectors.tss);
         }
-
-        trace!("incorrect gdt={self:?}");
     }
 }

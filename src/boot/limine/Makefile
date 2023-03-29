@@ -1,4 +1,4 @@
-LIM_GIT   := "https://github.com/limine-bootloader/limine.git" 
+LIM_GIT   := https://github.com/limine-bootloader/limine.git"
 LIM_DIR   := ${TARGET_DIR}/limine
 LIM_FILES := ${LIM_DIR}/limine-cd-efi.bin ${LIM_DIR}/limine-cd.bin ${LIM_DIR}/limine.sys
 LIM_CFG   := cfg/limine.cfg
@@ -17,7 +17,7 @@ XORRISO_FLAGS += --protective-msdos-label
 # clone limine
 ${LIM_FILES}:
 	@echo "\n\033[32m--[[ cloning Limine ]]--\033[0m"
-	git clone ${LIM_GIT} --depth=1 --branch v3.0-branch-binary ${LIM_DIR}
+	git clone "${LIM_GIT}" --depth=1 --branch v3.0-branch-binary ${LIM_DIR}
 	cd ${LIM_DIR}; make
 
 # create ISO
@@ -29,7 +29,7 @@ ${HYPERION}: ${KERNEL} ${LIM_CFG} ${LIM_FILES} Makefile
 
 	${XORRISO} ${XORRISO_FLAGS} ${ISO_DIR} -o ${HYPERION}
 
-	./${LIM_DIR}/limine-deploy ${HYPERION}
+	${LIM_DIR}/limine-deploy ${HYPERION}
 
 # create testing ISO
 ${HYPERION_TESTING}: ${KERNEL_TESTING} ${LIM_CFG} ${LIM_FILES} Makefile
@@ -40,4 +40,4 @@ ${HYPERION_TESTING}: ${KERNEL_TESTING} ${LIM_CFG} ${LIM_FILES} Makefile
 
 	${XORRISO} ${XORRISO_FLAGS} ${ISO_TESTING_DIR} -o ${HYPERION_TESTING}
 
-	./${LIM_DIR}/limine-deploy ${HYPERION_TESTING}
+	${LIM_DIR}/limine-deploy ${HYPERION_TESTING}

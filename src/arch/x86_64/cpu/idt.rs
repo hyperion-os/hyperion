@@ -18,16 +18,15 @@ impl Idt {
         let mut idt = InterruptDescriptorTable::new();
 
         idt.breakpoint.set_handler_fn(breakpoint);
-        info!("{:#018x?}", breakpoint as u64);
 
         let opt = idt.double_fault.set_handler_fn(double_fault);
         let stack = tss
             .stacks
             .take_interrupt_stack()
             .expect("Out of interrupt stacks");
-        // unsafe {
-        //     opt.set_stack_index(stack);
-        // }
+        unsafe {
+            opt.set_stack_index(stack);
+        }
 
         idt.page_fault.set_handler_fn(page_fault);
 
@@ -35,7 +34,7 @@ impl Idt {
     }
 
     pub fn load(&'static self) {
-        trace!("Loading IDT");
+        // trace!("Loading IDT");
         self.inner.load()
     }
 }

@@ -14,15 +14,15 @@
 
 //
 
-use crate::trace;
-
 use super::{
     from_higher_half,
     pmm::{self, PageFrame},
     to_higher_half,
 };
-use core::{mem, slice, sync::atomic::AtomicU64};
+use crate::trace;
+use core::{slice, sync::atomic::AtomicU64};
 use spin::RwLock;
+use volatile::Volatile;
 use x86_64::VirtAddr;
 
 //
@@ -38,6 +38,13 @@ pub struct Slab {
     size: usize,
 
     next: VirtAddr,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(transparent)]
+pub struct BigAllocPageMetadata {
+    // size of the alloc in bytes
+    size: usize,
 }
 
 //
@@ -93,31 +100,16 @@ impl SlabAllocator {
         let pages = size.div_ceil(0x1000) + 1;
         let mut pages = pmm::PageFrameAllocator::get().alloc(pages);
 
-        let metadata: &mut [usize] = pages.as_mut_slice();
-        metadata[0] = size;
-        let mp = metadata.as_ptr() as u64;
+        // write the big alloc metadata
+        let metadata: &mut [BigAllocPageMetadata] = pages.as_mut_slice();
+        Volatile::new_write_only(&mut metadata[0]).write(BigAllocPageMetadata { size });
 
-        trace!("BigAlloc    {:#x} {size}", pages.addr().as_u64(),);
+        // trace!("BigAlloc    {:#x} {size}", pages.addr().as_u64());
 
         // pmm already zeroed the memory
-        let mut v_addr = to_higher_half(pages.addr()) + 0x1000u64;
-        // return v_addr;
-
-        v_addr -= 0x1000u64;
-
-        let metadata: &mut usize = unsafe { &mut *v_addr.as_mut_ptr() };
-        let mp = metadata as *const usize as u64;
-        let pages = (*metadata).div_ceil(0x1000) + 1;
-        let pages = unsafe { PageFrame::new(from_higher_half(v_addr), pages) };
-
-        let metadata: &[usize] = pages.as_slice();
-        let metadata = metadata[0];
-
-        trace!("SIMBigFree  {:#x} {metadata}", pages.addr().as_u64(),);
-
-        v_addr += 0x1000u64;
-
-        v_addr
+        //
+        // the returned memory is the next page, because this page contains the metadata
+        to_higher_half(pages.addr()) + 0x1000u64
     }
 
     fn big_free(&self, mut v_addr: VirtAddr) {
@@ -125,12 +117,13 @@ impl SlabAllocator {
 
         v_addr -= 0x1000u64;
 
-        let metadata: &mut usize = unsafe { &mut *v_addr.as_mut_ptr() };
-        let mp = metadata as *const usize as u64;
-        let pages = (*metadata).div_ceil(0x1000) + 1;
+        let metadata: &BigAllocPageMetadata = unsafe { &*v_addr.as_ptr() };
+        let size = Volatile::new_read_only(&metadata).read().size;
+
+        let pages = size.div_ceil(0x1000) + 1;
         let pages = unsafe { PageFrame::new(from_higher_half(v_addr), pages) };
 
-        trace!("BigFree     {:#x} {metadata}", pages.addr().as_u64(),);
+        // trace!("BigFree     {:#x} {size}", pages.addr().as_u64());
 
         pmm::PageFrameAllocator::get().free(pages);
     }

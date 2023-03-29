@@ -29,7 +29,10 @@ QEMU             ?= ${QEMU_${ARCH}}
 RUST_T_x86_64    := x86_64-unknown-none
 
 # common directories
-TARGET_DIR       ?= target
+TARGET_DIR       ?= $(shell cargo metadata --format-version=1  | jq -r ".target_directory")
+ifeq (${TARGET_DIR},)
+TARGET_DIR       := target
+endif
 HYPER_DIR        := ${TARGET_DIR}/hyperion/${BOOTLOADER}/${ARCH}
 ARCH_DIR         := src/arch/${ARCH}
 BOOT_DIR         := src/boot
