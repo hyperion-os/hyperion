@@ -1,5 +1,5 @@
 use super::tss::Tss;
-use crate::{error, info, trace};
+use crate::{error, info};
 use x86_64::{
     registers::control::Cr2,
     structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},

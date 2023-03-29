@@ -1,5 +1,5 @@
 use super::tss::Tss;
-use crate::trace;
+
 use x86_64::{
     instructions::tables::load_tss,
     registers::segmentation::{Segment, CS, SS},
