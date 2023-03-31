@@ -9,7 +9,7 @@ pub use addr::virt_addr;
 pub use cmdline::cmdline;
 pub use framebuffer::framebuffer;
 pub use mem::memmap;
-pub use rsdp::rsdp;
+pub use sdp::sdp;
 pub use smp::{boot_cpu, init as smp_init};
 pub use term::_print;
 
@@ -19,7 +19,7 @@ mod addr;
 mod cmdline;
 mod framebuffer;
 mod mem;
-mod rsdp;
+mod sdp;
 mod smp;
 mod term;
 

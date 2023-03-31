@@ -1,7 +1,8 @@
-pub mod rsdp;
+pub mod sdp;
+pub mod sdt;
 
 //
 
 pub fn init() {
-    _ = rsdp::RsdpDescriptor::get();
+    _ = sdp::SdpDescriptor::get();
 }
