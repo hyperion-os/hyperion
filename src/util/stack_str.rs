@@ -20,7 +20,7 @@ impl<const SIZE: usize> StackStr<SIZE> {
     /// # Safety
     ///
     /// `bytes` must contain valid utf8 until the first zero byte
-    pub unsafe fn from_utf8_unchecked(bytes: [u8; SIZE]) -> Self {
+    pub const unsafe fn from_utf8_unchecked(bytes: [u8; SIZE]) -> Self {
         Self { bytes }
     }
 

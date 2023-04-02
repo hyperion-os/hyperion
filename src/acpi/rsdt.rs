@@ -2,12 +2,17 @@
 //!
 //! https://wiki.osdev.org/RSDT
 
+use super::SdtError;
 use crate::{
-    acpi::rsdp::{Rsdp, RSDP},
+    acpi::{rsdp::RSDP, RawSdtHeader},
     debug,
     util::stack_str::StackStr,
 };
-use core::{mem, ops::Add, ptr::read_unaligned, slice, str::Utf8Error};
+use core::{
+    mem,
+    ptr::{read_unaligned, read_volatile},
+    str::Utf8Error,
+};
 use spin::Lazy;
 
 //
@@ -17,14 +22,19 @@ pub static RSDT: Lazy<Rsdt> = Lazy::new(Rsdt::init);
 
 //
 
-pub struct Rsdt {}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rsdt {
+    /// pointers to System Descriptor Tables
+    pub first: usize,
+    /// the number of pointers
+    pub len: usize,
+
+    pub extended: bool,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum RsdtError {
-    Utf8Error(Utf8Error),
-    InvalidSignature,
-    InvalidRevision,
-    InvalidChecksum,
+    SdtHeader(SdtError),
 }
 
 //
@@ -35,71 +45,88 @@ impl Rsdt {
     }
 
     pub fn init() -> Self {
-        match RSDP.pointer() {
-            Rsdp::RSDT(ptr) => {
-                let header: RawSdtHeader = unsafe { read_unaligned(ptr as *const RawSdtHeader) };
+        Self::try_init().expect("RSDT should be valid")
+    }
 
-                debug!("RSDT Header {header:#?}");
-                debug!(
-                    "RSDT Header signature {:?}",
-                    StackStr::from_utf8(header.signature)
-                );
-                debug!(
-                    "RSDT Header oem_id {:?}",
-                    StackStr::from_utf8(header.oem_id)
-                );
-                debug!(
-                    "RSDT Header oem_table_id {:?}",
-                    StackStr::from_utf8(header.oem_table_id)
-                );
+    pub fn try_init() -> Result<Self, RsdtError> {
+        let ptr = RSDP.ptr;
+        let extended = RSDP.extended;
 
-                let sdt_pointers = (header.length as usize - mem::size_of::<RawSdtHeader>()) / 4;
-                let sdt_pointers = unsafe {
-                    slice::from_raw_parts(
-                        (ptr + mem::size_of::<RawSdtHeader>()) as *const u32,
-                        sdt_pointers,
-                    )
+        let (size, signature) = if extended {
+            (8, *b"XSDT")
+        } else {
+            (4, *b"RSDT")
+        };
+
+        let ptr = ptr as *const RawSdtHeader;
+        let header = unsafe { &*ptr };
+        debug!("RSDT {:?}", StackStr::from_utf8(header.signature));
+
+        header.validate(Some(StackStr::from_utf8(signature)?))?;
+
+        Ok(Self {
+            first: ptr as usize + mem::size_of::<RawSdtHeader>(),
+            len: (header.length as usize - mem::size_of::<RawSdtHeader>()) / size,
+            extended,
+        })
+    }
+
+    pub fn iter(self) -> impl Iterator<Item = *const RawSdtHeader> {
+        let first = self.first as *const u32;
+        let ext = self.extended;
+
+        (0..self.len as isize).map(move |i| {
+            macro_rules! read_next_entry {
+                ($t:ty) => {
+                    // calculate the ptr in the SDT structure
+                    //
+                    // the pointer is in an array right after the RawSdtHeader without any
+                    // alignment
+                    let sdt_pointer_pointer = unsafe { first.offset(i) };
+                    // read it from volatile memory to avoid breaking optimizations
+                    let sdt_pointer_data: [u8; mem::size_of::<$t>()] =
+                        unsafe { read_volatile(sdt_pointer_pointer as *const _) };
+                    // and copy the potentially unaligned data to aligned data
+                    (unsafe { read_unaligned::<$t>(&sdt_pointer_data as *const u8 as _) }) as _
                 };
-
-                debug!("RSDT pointers: {sdt_pointers:?}",);
             }
-            Rsdp::XSDT(_) => todo!(),
-        }
 
-        todo!()
+            if ext {
+                read_next_entry! { u64 }
+            } else {
+                read_next_entry! { u32 }
+            }
+        })
+    }
+
+    pub fn iter_headers(self) -> impl Iterator<Item = &'static RawSdtHeader> {
+        self.iter().map(|ptr| {
+            let header = unsafe { &*ptr };
+            debug!("SDT {:?}", StackStr::from_utf8(header.signature));
+            header
+        })
     }
 }
 
-impl TryFrom<RawSdtHeader> for Rsdt {
-    type Error = RsdtError;
+impl From<SdtError> for RsdtError {
+    fn from(value: SdtError) -> Self {
+        Self::SdtHeader(value)
+    }
+}
 
-    fn try_from(value: RawSdtHeader) -> Result<Self, Self::Error> {
-        if value.signature != *b"RSDT" {
-            return Err(RsdtError::InvalidSignature);
-        }
-
-        todo!()
+impl From<Utf8Error> for RsdtError {
+    fn from(value: Utf8Error) -> Self {
+        Self::SdtHeader(SdtError::Utf8Error(value))
     }
 }
 
 //
 
+/// https://wiki.osdev.org/MADT
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(packed, C)]
-struct RawSdtHeader {
-    signature: [u8; 4],
-    length: u32,
-    revision: u8,
-    checksum: u8,
-    oem_id: [u8; 6],
-    oem_table_id: [u8; 8],
-    oem_revision: u32,
-    creator_id: u32,
-    creator_revision: u32,
+struct RawMadt {
+    header: RawSdtHeader,
+    local_apic_address: u32,
+    flags: u32,
 }
-
-//
-
-impl RawSdtHeader {}
-
-//
