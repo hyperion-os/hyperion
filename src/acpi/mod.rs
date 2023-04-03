@@ -15,7 +15,8 @@ pub mod rsdt;
 //
 
 pub fn init() {
-    debug!("{:?}", madt::Madt::get());
+    debug!("{:018x?}", *IO_APIC);
+    debug!("{:018x?}", *LOCAL_APIC);
 }
 
 /// checksum_validation
