@@ -1,4 +1,5 @@
-use crate::{error, smp::Cpu, warn};
+use crate::{acpi::LOCAL_APIC, debug, error, smp::Cpu, warn};
+use core::ptr;
 use x86_64::instructions::{self as ins, interrupts as int, random::RdRand};
 
 //
@@ -11,9 +12,7 @@ pub mod vmm;
 //
 
 pub fn early_boot_cpu() {
-    int::disable();
     cpu::init(&Cpu::new_boot());
-    int::enable();
 
     if cfg!(debug_assertions) {
         warn!("[debug_assertions] Throwing a debug interrupt exception");
@@ -22,9 +21,7 @@ pub fn early_boot_cpu() {
 }
 
 pub fn early_per_cpu(cpu: &Cpu) {
-    int::disable();
     cpu::init(cpu);
-    int::enable();
 }
 
 pub fn debug_interrupt() {

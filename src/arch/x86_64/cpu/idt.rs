@@ -1,9 +1,16 @@
+use core::arch::asm;
+
 use super::tss::Tss;
-use crate::{error, info};
+use crate::{acpi::apic::apic_regs, debug, error, info};
 use x86_64::{
     registers::control::Cr2,
     structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
 };
+
+//
+
+pub const SPURIOUS_IRQ: u8 = 0xFF;
+pub const TIMER_IRQ: u8 = 0x32;
 
 //
 
@@ -16,6 +23,9 @@ pub struct Idt {
 impl Idt {
     pub fn new(tss: &Tss) -> Self {
         let mut idt = InterruptDescriptorTable::new();
+
+        idt[SPURIOUS_IRQ as _].set_handler_fn(apic_spurious);
+        idt[TIMER_IRQ as _].set_handler_fn(apic_timer);
 
         idt.breakpoint.set_handler_fn(breakpoint);
 
@@ -30,6 +40,9 @@ impl Idt {
 
         idt.page_fault.set_handler_fn(page_fault);
 
+        idt.general_protection_fault
+            .set_handler_fn(general_protection_fault);
+
         Self { inner: idt }
     }
 
@@ -40,6 +53,12 @@ impl Idt {
 }
 
 //
+
+pub extern "x86-interrupt" fn apic_spurious(stack: InterruptStackFrame) {}
+
+pub extern "x86-interrupt" fn apic_timer(stack: InterruptStackFrame) {
+    apic_regs().eoi.write(0);
+}
 
 pub extern "x86-interrupt" fn breakpoint(stack: InterruptStackFrame) {
     info!("INT: Breakpoint\n{stack:#?}")
@@ -97,6 +116,13 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
     let addr = Cr2::read();
 
     error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+
+    panic!();
+}
+
+pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFrame, e: u64) {
+    let addr = Cr2::read();
+    error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
 
     panic!();
 }

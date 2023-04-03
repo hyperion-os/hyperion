@@ -16,7 +16,7 @@
 
 //
 
-use crate::util::fmt::NumberPostfix;
+use crate::{acpi::apic, util::fmt::NumberPostfix};
 
 extern crate alloc;
 
@@ -91,9 +91,8 @@ fn kernel_main() -> ! {
 fn smp_main(cpu: smp::Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
-    if !cpu.is_boot() {
-        arch::early_per_cpu(&cpu);
-    }
+    arch::early_per_cpu(&cpu);
 
+    debug!("{cpu} halt");
     arch::done();
 }
