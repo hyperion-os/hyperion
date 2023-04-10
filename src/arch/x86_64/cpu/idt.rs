@@ -46,15 +46,6 @@ pub extern "x86-interrupt" fn breakpoint(stack: InterruptStackFrame) {
 }
 
 pub extern "x86-interrupt" fn double_fault(stack: InterruptStackFrame, ec: u64) -> ! {
-    // SAFETY: Unlocking the Mutex is safe if this is the only CPU running
-    //
-    // This CPU might have locked the COM1 writer and then stack-overflowed before unlocking it but
-    // we won't return anyways, so lets just unlock it
-    unsafe {
-        // TODO: This won't be safe when multiple CPUs are running
-        crate::qemu::unlock();
-    }
-
     error!("INT: Double fault ({ec})\n{stack:#?}");
 
     let sp = stack.stack_pointer.as_ptr() as *const [u8; 8];
@@ -68,7 +59,7 @@ pub extern "x86-interrupt" fn double_fault(stack: InterruptStackFrame, ec: u64) 
                 '.'
             }
         };
-        crate::qemu::_print(format_args_nl!(
+        crate::driver::qemu::_print(format_args_nl!(
             "{:#x}:  {:02x} {:02x} {:02x} {:02x}  {:02x} {:02x} {:02x} {:02x}   {}{}{}{}{}{}{}{}",
             sp as usize,
             bytes[0],

@@ -4,8 +4,8 @@
 //!
 //! This module finds the pointer to the Root/eXtended System Descriptor Table [`super::rsdt`]
 
-use super::{bytes_sum_to_zero, AcpiVersion};
-use crate::{acpi::AcpiOem, boot, debug, util::stack_str::StackStr};
+use super::{bytes_sum_to_zero, AcpiOem, AcpiVersion};
+use crate::{boot, debug, util::stack_str::StackStr};
 use core::{mem, ops::Deref, ptr::read_volatile, str::Utf8Error};
 use spin::Lazy;
 

@@ -2,12 +2,8 @@
 //!
 //! https://wiki.osdev.org/RSDT
 
-use super::SdtError;
-use crate::{
-    acpi::{rsdp::RSDP, RawSdtHeader},
-    debug,
-    util::stack_str::StackStr,
-};
+use super::{rsdp::RSDP, RawSdtHeader, SdtError};
+use crate::{debug, util::stack_str::StackStr};
 use core::{
     mem,
     ptr::{read_unaligned, read_volatile},

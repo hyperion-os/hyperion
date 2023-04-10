@@ -22,21 +22,18 @@ extern crate alloc;
 
 //
 
-pub mod acpi;
 #[path = "arch/x86_64/mod.rs"]
 pub mod arch;
 pub mod boot;
-pub mod env;
+pub mod driver;
 pub mod log;
 pub mod mem;
 pub mod panic;
-pub mod qemu;
 pub mod smp;
 pub mod term;
 #[cfg(test)]
 pub mod testfw;
 pub mod util;
-pub mod video;
 
 //
 
@@ -54,9 +51,7 @@ pub static KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 fn kernel_main() -> ! {
     debug!("Entering kernel_main");
 
-    // init the page frame allocator early to make the logs cleaner
-    // makes the lazy initialization completely useless btw
-    _ = mem::pmm::PageFrameAllocator::get();
+    boot::memmap().for_each(|_| {});
 
     arch::early_boot_cpu();
 
@@ -83,7 +78,8 @@ fn kernel_main() -> ! {
 
     debug!("RNG Seed {}", arch::rng_seed());
 
-    acpi::init();
+    driver::acpi::init();
+    let _ = &*driver::rtc::RTC;
 
     smp::init();
 }

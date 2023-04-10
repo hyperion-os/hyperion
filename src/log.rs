@@ -211,10 +211,10 @@ impl Logger {
         //     crate::arch::boot::_print(args);
         // }
         if self.qemu.load(Ordering::SeqCst) {
-            crate::qemu::_print(args);
+            crate::driver::qemu::_print(args);
         }
         if self.fbo.load(Ordering::SeqCst) {
-            crate::video::logger::_print(args);
+            crate::driver::video::logger::_print(args);
         }
     }
 }

@@ -2,11 +2,8 @@
 //!
 //! https://wiki.osdev.org/MADT
 
-use super::SdtError;
-use crate::{
-    acpi::{rsdt::RSDT, RawSdtHeader},
-    trace, warn,
-};
+use super::{rsdt::RSDT, RawSdtHeader, SdtError};
+use crate::{trace, warn};
 use core::{
     mem,
     ptr::{read_unaligned, read_volatile},
