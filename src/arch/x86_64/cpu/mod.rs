@@ -3,6 +3,7 @@ use crate::{smp::Cpu, trace};
 use alloc::boxed::Box;
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Once;
+use x86_64::instructions::interrupts::{self as int, without_interrupts};
 
 //
 
@@ -47,6 +48,10 @@ static BOOT_IDT: Once<Idt> = Once::new();
 
 impl CpuState {
     fn new_boot() -> Self {
+        if BOOT_TSS.get().is_some() && BOOT_GDT.get().is_some() && BOOT_IDT.get().is_some() {
+            return Self {};
+        }
+
         let tss = BOOT_TSS.call_once(Tss::new);
 
         let gdt = BOOT_GDT.call_once(|| Gdt::new(tss));

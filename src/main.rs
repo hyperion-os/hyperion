@@ -78,18 +78,15 @@ fn kernel_main() -> ! {
 
     debug!("RNG Seed {}", arch::rng_seed());
 
-    driver::acpi::init();
-    let _ = &*driver::rtc::RTC;
-
-    smp::init();
+    // smp::init();
+    arch::done();
 }
 
 fn smp_main(cpu: smp::Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
-    if !cpu.is_boot() {
-        arch::early_per_cpu(&cpu);
-    }
+    arch::early_per_cpu(&cpu);
 
+    debug!("{cpu} halt");
     arch::done();
 }

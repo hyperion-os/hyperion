@@ -1,4 +1,6 @@
 use crate::{debug, util::stack_str::StackStr};
+use core::arch::asm;
+use core::ptr;
 use core::{mem, slice, str::Utf8Error};
 
 //
@@ -8,6 +10,7 @@ pub use madt::LOCAL_APIC;
 
 //
 
+pub mod apic;
 pub mod madt;
 pub mod rsdp;
 pub mod rsdt;
@@ -17,6 +20,8 @@ pub mod rsdt;
 pub fn init() {
     debug!("{:018x?}", *IO_APIC);
     debug!("{:018x?}", *LOCAL_APIC);
+
+    apic::enable();
 }
 
 /// checksum_validation

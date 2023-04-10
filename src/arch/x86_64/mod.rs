@@ -1,4 +1,4 @@
-use crate::{error, smp::Cpu, warn};
+use crate::{driver, error, smp::Cpu, warn};
 use x86_64::instructions::{self as ins, interrupts as int, random::RdRand};
 
 //
@@ -11,8 +11,17 @@ pub mod vmm;
 //
 
 pub fn early_boot_cpu() {
-    int::disable();
     cpu::init(&Cpu::new_boot());
+
+    {
+        let pics = &*driver::pic::PICS;
+        let _rtc = &*driver::rtc::RTC;
+
+        pics.lock().enable();
+    }
+
+    // driver::acpi::init();
+
     int::enable();
 
     if cfg!(debug_assertions) {
@@ -22,9 +31,7 @@ pub fn early_boot_cpu() {
 }
 
 pub fn early_per_cpu(cpu: &Cpu) {
-    int::disable();
     cpu::init(cpu);
-    int::enable();
 }
 
 pub fn debug_interrupt() {

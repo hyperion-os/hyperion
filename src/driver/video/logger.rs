@@ -6,11 +6,12 @@ use super::{
 use crate::term::escape::decode::{DecodedPart, EscapeDecoder};
 use core::fmt::{self, Arguments, Write};
 use spin::{Mutex, MutexGuard};
+use x86_64::instructions::interrupts::without_interrupts;
 
 //
 
 pub fn _print(args: Arguments) {
-    _ = WRITER.lock().write_fmt(args)
+    without_interrupts(|| _ = WRITER.lock().write_fmt(args))
 }
 
 //

@@ -42,11 +42,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // generate kernel font from the bitmap image
 
-    let bmp_date = fs::metadata("./src/video/font.bmp")
+    let bmp_date = fs::metadata("./src/driver/video/font.bmp")
         .unwrap()
         .modified()
         .unwrap();
-    let rs_date = fs::metadata("./src/video/font.rs")
+    let rs_date = fs::metadata("./src/driver/video/font.rs")
         .unwrap()
         .modified()
         .unwrap();

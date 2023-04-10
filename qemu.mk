@@ -2,7 +2,7 @@ MEMORY          ?= 256m
 
 QEMU_FLAGS      ?=
 ifeq (${KVM},true)
-# QEMU_FLAGS      += -enable-kvm
+QEMU_FLAGS      += -enable-kvm
 endif
 ifeq (${GDB},true)
 QEMU_FLAGS      += -s -S
@@ -12,10 +12,13 @@ QEMU_FLAGS      += -cpu qemu64,+rdrand,+rdseed
 QEMU_FLAGS      += -smp 8
 QEMU_FLAGS      += -m ${MEMORY}
 QEMU_FLAGS      += -M smm=off,accel=kvm
+# QEMU_FLAGS      += -M smm=off
 # QEMU_FLAGS      += -d int,guest_errors,cpu_reset
-QEMU_FLAGS      += -d int,guest_errors
+# QEMU_FLAGS      += -d int,guest_errors
+QEMU_FLAGS      += -d guest_errors
 QEMU_FLAGS      += -no-reboot
 QEMU_FLAGS      += -serial stdio
+QEMU_FLAGS      += -rtc base=localtime
 #QEMU_OVMF     ?= /usr/share/ovmf/x64/OVMF.fd
 #QEMU_FLAGS    += -bios ${QEMU_OVMF}
 

@@ -1,0 +1,151 @@
+use crate::{arch::cpu::idt::PIC_IRQ_OFFSET, debug};
+use spin::{Lazy, Mutex};
+use x86_64::instructions::port::Port;
+
+//
+
+pub static PICS: Lazy<Mutex<Pics>> = Lazy::new(|| {
+    let mut pics = Pics::new();
+    pics.init();
+    Mutex::new(pics)
+});
+
+const ICW1_ICW4: u8 = 0x01; // ICW4 will be present
+const ICW1_INIT: u8 = 0x10; // Init cmd
+
+const ICW4_8086: u8 = 0x01; // 8086 mode
+
+const EOI: u8 = 0x20;
+
+//
+
+pub struct Pics {
+    master: Pic,
+    slave: Pic,
+}
+
+pub struct Pic {
+    // IDT offset
+    offs: u8,
+    cmd: Port<u8>,
+    data: Port<u8>,
+}
+
+//
+
+impl Pics {
+    pub const fn new() -> Self {
+        Self {
+            master: Pic {
+                offs: PIC_IRQ_OFFSET,
+                cmd: Port::new(0x20),
+                data: Port::new(0x21),
+            },
+            slave: Pic {
+                offs: PIC_IRQ_OFFSET + 8,
+                cmd: Port::new(0xA0),
+                data: Port::new(0xA1),
+            },
+        }
+    }
+
+    pub fn init(&mut self) {
+        // save masks
+        let original_masks = [self.master.read_mask(), self.slave.read_mask()];
+        debug!("masks {:?}", original_masks);
+
+        // ICW1: init
+        // (ICW = Initialization Command Word)
+        self.master.cmd(ICW1_INIT | ICW1_ICW4);
+        self.slave.cmd(ICW1_INIT | ICW1_ICW4);
+
+        // ICW2: IDT offsets
+        self.master.data(self.master.offs);
+        self.slave.data(self.slave.offs);
+
+        // ICW3: cascade
+        self.master.data(4);
+        self.slave.data(2);
+
+        // ICW4: cascade
+        self.master.data(ICW4_8086);
+        self.slave.data(ICW4_8086);
+
+        debug!("8086 PIC initialized");
+
+        // restore masks
+        self.master.write_mask(original_masks[0]);
+        self.slave.write_mask(original_masks[1]);
+    }
+
+    pub fn mask(&mut self, irq: u8) {
+        let (pic, irq) = if irq < 8 {
+            (&mut self.master, irq)
+        } else {
+            (&mut self.slave, irq - 8)
+        };
+
+        let mask = pic.read_mask();
+        pic.write_mask(mask | (1 << irq));
+    }
+
+    pub fn unmask(&mut self, irq: u8) {
+        let (pic, irq) = if irq < 8 {
+            (&mut self.master, irq)
+        } else {
+            (&mut self.slave, irq - 8)
+        };
+
+        let mask = pic.read_mask();
+        pic.write_mask(mask & !(1 << irq));
+    }
+
+    pub fn enable(&mut self) {
+        self.master.write_mask(0);
+        self.slave.write_mask(0);
+        debug!("8086 PIC enabled");
+    }
+
+    pub fn disable(&mut self) {
+        self.master.write_mask(0xFF);
+        self.slave.write_mask(0xFF);
+        debug!("8086 PIC disabled");
+    }
+
+    pub fn end_of_interrupt(&mut self, int_id: u8) {
+        if (PIC_IRQ_OFFSET..PIC_IRQ_OFFSET + 8).contains(&int_id) {
+            self.master.cmd(EOI);
+        }
+        if (PIC_IRQ_OFFSET + 8..PIC_IRQ_OFFSET + 16).contains(&int_id) {
+            self.slave.cmd(EOI);
+        }
+    }
+}
+
+impl Pic {
+    fn cmd(&mut self, cmd: u8) {
+        unsafe { self.cmd.write(cmd) };
+        iowait();
+    }
+
+    fn data(&mut self, v: u8) {
+        unsafe { self.data.write(v) };
+        iowait();
+    }
+
+    fn read_mask(&mut self) -> u8 {
+        unsafe { self.data.read() }
+    }
+
+    fn write_mask(&mut self, v: u8) {
+        unsafe { self.data.write(v) }
+    }
+}
+
+//
+
+fn iowait() {
+    unsafe {
+        Port::<u8>::new(0x80).write(0)
+    }
+}
