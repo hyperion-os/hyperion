@@ -9,6 +9,7 @@
 #![feature(pointer_is_aligned)]
 #![feature(int_roundings)]
 #![feature(array_chunks)]
+#![feature(cfg_target_has_atomic)]
 //
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::testfw::test_runner)]

@@ -11,15 +11,19 @@ use x86_64::{
 
 //
 
-pub const PIC_IRQ_OFFSET: u8 = 32;
-pub const PIC_TIMER_IRQ: u8 = PIC_IRQ_OFFSET;
-pub const KEYBOARD_IRQ: u8 = PIC_IRQ_OFFSET + 1;
-pub const RTC_IRQ: u8 = PIC_IRQ_OFFSET + 8;
-
-pub const TIMER_IRQ: u8 = 0x32;
-pub const SPURIOUS_IRQ: u8 = 0xFF;
-
-//
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum Irq {
+    // BEG: 0x20..0x30 PIC space
+    PicTimer = 0x20,
+    PicKeyboard = 0x21,
+    PicRtc = 0x28,
+    // END: 0x20..0x30 PIC space
+    // BEG: 0x30..0xFF APIC space
+    ApicTimer = 0x32,
+    ApicSpurious = 0xFF,
+    // END: 0x30..0xFF APIC space
+}
 
 pub struct Idt {
     inner: InterruptDescriptorTable,
@@ -27,15 +31,36 @@ pub struct Idt {
 
 //
 
+impl Irq {
+    pub fn iter() -> impl DoubleEndedIterator + ExactSizeIterator<Item = Self> {
+        [
+            Self::PicTimer,
+            Self::PicKeyboard,
+            Self::PicRtc,
+            Self::ApicTimer,
+            Self::ApicSpurious,
+        ]
+        .into_iter()
+    }
+
+    pub fn handler(self) -> extern "x86-interrupt" fn(InterruptStackFrame) {
+        match self {
+            Irq::PicTimer => pic_timer,
+            Irq::PicKeyboard => keyboard,
+            Irq::PicRtc => rtc_tick,
+            Irq::ApicTimer => apic_timer,
+            Irq::ApicSpurious => apic_spurious,
+        }
+    }
+}
+
 impl Idt {
     pub fn new(tss: &Tss) -> Self {
         let mut idt = InterruptDescriptorTable::new();
 
-        idt[PIC_TIMER_IRQ as _].set_handler_fn(pic_timer);
-        idt[KEYBOARD_IRQ as _].set_handler_fn(keyboard);
-        idt[RTC_IRQ as _].set_handler_fn(rtc_tick);
-        idt[TIMER_IRQ as _].set_handler_fn(apic_timer);
-        idt[SPURIOUS_IRQ as _].set_handler_fn(apic_spurious);
+        for irq in Irq::iter() {
+            idt[irq as _].set_handler_fn(irq.handler());
+        }
 
         idt.breakpoint.set_handler_fn(breakpoint);
 
@@ -66,7 +91,7 @@ impl Idt {
 
 pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
     // info!(".");
-    PICS.lock().end_of_interrupt(PIC_TIMER_IRQ);
+    PICS.lock().end_of_interrupt(Irq::PicTimer as _);
 }
 
 pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
@@ -75,12 +100,12 @@ pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
         info!("{ch}");
     }
 
-    PICS.lock().end_of_interrupt(KEYBOARD_IRQ);
+    PICS.lock().end_of_interrupt(Irq::PicKeyboard as _);
 }
 
 pub extern "x86-interrupt" fn rtc_tick(_: InterruptStackFrame) {
     info!("RTC tick");
-    PICS.lock().end_of_interrupt(RTC_IRQ);
+    PICS.lock().end_of_interrupt(Irq::PicRtc as _);
 }
 
 pub extern "x86-interrupt" fn apic_timer(_: InterruptStackFrame) {

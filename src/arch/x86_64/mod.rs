@@ -11,27 +11,34 @@ pub mod vmm;
 //
 
 pub fn early_boot_cpu() {
+    int::disable();
+
     cpu::init(&Cpu::new_boot());
 
     {
         let pics = &*driver::pic::PICS;
-        let _rtc = &*driver::rtc::RTC;
+        driver::rtc::RTC.now();
 
         pics.lock().enable();
     }
+
+    driver::acpi::init();
+
+    int::enable();
+}
+
+pub fn early_per_cpu(cpu: &Cpu) {
+    int::disable();
+    cpu::init(cpu);
 
     // driver::acpi::init();
 
     int::enable();
 
     if cfg!(debug_assertions) {
-        warn!("[debug_assertions] Throwing a debug interrupt exception");
+        warn!("[debug_assertions] {cpu} throwing a debug interrupt exception");
         debug_interrupt();
     }
-}
-
-pub fn early_per_cpu(cpu: &Cpu) {
-    cpu::init(cpu);
 }
 
 pub fn debug_interrupt() {

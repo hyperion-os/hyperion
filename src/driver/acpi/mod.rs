@@ -1,6 +1,5 @@
+use crate::driver::pic::PICS;
 use crate::{debug, util::stack_str::StackStr};
-use core::arch::asm;
-use core::ptr;
 use core::{mem, slice, str::Utf8Error};
 
 //
@@ -18,6 +17,8 @@ pub mod rsdt;
 //
 
 pub fn init() {
+    PICS.lock().disable();
+
     debug!("{:018x?}", *IO_APIC);
     debug!("{:018x?}", *LOCAL_APIC);
 

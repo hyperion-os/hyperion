@@ -1,5 +1,5 @@
 use super::LOCAL_APIC;
-use crate::{arch::cpu::idt::TIMER_IRQ, debug};
+use crate::{arch::cpu::idt::Irq, debug};
 use core::{fmt, marker::PhantomData, ptr};
 use spin::{Lazy, Mutex, MutexGuard};
 
@@ -16,7 +16,7 @@ pub fn apic_regs() -> MutexGuard<'static, &'static mut ApicRegs> {
 
 const IA32_APIC_BASE: u32 = 0x1B;
 const IA32_APIC_XAPIC_ENABLE: u64 = 1 << 11;
-const IA32_APIC_X2APIC_ENABLE: u64 = 1 << 10;
+const _IA32_APIC_X2APIC_ENABLE: u64 = 1 << 10;
 
 const APIC_SW_ENABLE: u32 = 1 << 8;
 const APIC_DISABLE: u32 = 1 << 16;
@@ -27,14 +27,14 @@ const _APIC_TIMER_MODE_ONESHOT: u32 = 0b00 << 17;
 const APIC_TIMER_MODE_PERIODIC: u32 = 0b01 << 17;
 const _APIC_TIMER_MODE_TSC_DEADLINE: u32 = 0b10 << 17;
 
-const APIC_TIMER_DIV_BY_1: u32 = 0b1011;
-const APIC_TIMER_DIV_BY_2: u32 = 0b0000;
-const APIC_TIMER_DIV_BY_4: u32 = 0b0001;
-const APIC_TIMER_DIV_BY_8: u32 = 0b0010;
+const _APIC_TIMER_DIV_BY_1: u32 = 0b1011;
+const _APIC_TIMER_DIV_BY_2: u32 = 0b0000;
+const _APIC_TIMER_DIV_BY_4: u32 = 0b0001;
+const _APIC_TIMER_DIV_BY_8: u32 = 0b0010;
 const APIC_TIMER_DIV_BY_16: u32 = 0b0011;
-const APIC_TIMER_DIV_BY_32: u32 = 0b1000;
-const APIC_TIMER_DIV_BY_64: u32 = 0b1001;
-const APIC_TIMER_DIV_BY_128: u32 = 0b1010;
+const _APIC_TIMER_DIV_BY_32: u32 = 0b1000;
+const _APIC_TIMER_DIV_BY_64: u32 = 0b1001;
+const _APIC_TIMER_DIV_BY_128: u32 = 0b1010;
 const APIC_TIMER_DIV: u32 = APIC_TIMER_DIV_BY_16;
 
 pub fn enable() {
@@ -66,7 +66,7 @@ pub fn enable() {
     apic_regs.timer_divide.write(APIC_TIMER_DIV);
     apic_regs
         .lvt_timer
-        .write(TIMER_IRQ as u32 | APIC_TIMER_MODE_PERIODIC);
+        .write(Irq::ApicTimer as u32 | APIC_TIMER_MODE_PERIODIC);
     apic_regs.timer_init.write(apic_period);
 
     apic_regs.lvt_thermal_sensor.write(0);

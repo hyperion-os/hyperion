@@ -5,6 +5,8 @@ use std::{
     io::Write,
 };
 
+use chrono::{Datelike, Utc};
+
 //
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -41,6 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // generate kernel font from the bitmap image
+    // TODO: convert to proc-macro?
 
     let bmp_date = fs::metadata("./src/driver/video/font.bmp")
         .unwrap()
@@ -90,6 +93,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         write!(generated_rs, "\n];").unwrap();
     }
+
+    // TODO: convert to proc-macro?
+    let mut generated_date = File::options()
+        .write(true)
+        .truncate(true)
+        .open("./src/driver/rtc.year")
+        .unwrap();
+    write!(generated_date, "{}", Utc::now().date_naive().year()).unwrap();
 
     Ok(())
 }

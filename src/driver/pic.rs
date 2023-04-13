@@ -1,4 +1,4 @@
-use crate::{arch::cpu::idt::PIC_IRQ_OFFSET, debug};
+use crate::{arch::cpu::idt::Irq, debug};
 use spin::{Lazy, Mutex};
 use x86_64::instructions::port::Port;
 
@@ -35,14 +35,15 @@ pub struct Pic {
 
 impl Pics {
     pub const fn new() -> Self {
+        let offs = Irq::PicTimer as u8;
         Self {
             master: Pic {
-                offs: PIC_IRQ_OFFSET,
+                offs,
                 cmd: Port::new(0x20),
                 data: Port::new(0x21),
             },
             slave: Pic {
-                offs: PIC_IRQ_OFFSET + 8,
+                offs: offs + 8,
                 cmd: Port::new(0xA0),
                 data: Port::new(0xA1),
             },
@@ -113,10 +114,10 @@ impl Pics {
     }
 
     pub fn end_of_interrupt(&mut self, int_id: u8) {
-        if (PIC_IRQ_OFFSET..PIC_IRQ_OFFSET + 8).contains(&int_id) {
+        if self.master.has(int_id) {
             self.master.cmd(EOI);
         }
-        if (PIC_IRQ_OFFSET + 8..PIC_IRQ_OFFSET + 16).contains(&int_id) {
+        if self.slave.has(int_id) {
             self.slave.cmd(EOI);
         }
     }
@@ -140,12 +141,14 @@ impl Pic {
     fn write_mask(&mut self, v: u8) {
         unsafe { self.data.write(v) }
     }
+
+    fn has(&self, irq: u8) -> bool {
+        (self.offs..self.offs + 8).contains(&irq)
+    }
 }
 
 //
 
 fn iowait() {
-    unsafe {
-        Port::<u8>::new(0x80).write(0)
-    }
+    unsafe { Port::<u8>::new(0x80).write(0) }
 }
