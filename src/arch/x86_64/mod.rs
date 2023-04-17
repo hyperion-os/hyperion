@@ -22,7 +22,7 @@ pub fn early_boot_cpu() {
         pics.lock().enable();
     }
 
-    driver::acpi::init();
+    // driver::acpi::init();
 
     int::enable();
 }
