@@ -1,5 +1,6 @@
 use super::{color::Color, font::FONT};
 use crate::boot;
+use alloc::{boxed::Box, vec};
 use core::{
     fmt,
     ops::{Deref, DerefMut},
@@ -15,7 +16,10 @@ pub fn get() -> Option<MutexGuard<'static, Framebuffer>> {
 //
 
 pub struct Framebuffer {
-    pub buf: &'static mut [u8],
+    /// video memory
+    vmem: &'static mut [u8],
+    /// backbuffer
+    buf: Box<[u8]>,
 
     pub info: FramebufferInfo,
 }
@@ -39,6 +43,26 @@ static FBO: Lazy<Option<Mutex<Framebuffer>>> = Lazy::new(|| {
 //
 
 impl Framebuffer {
+    pub fn new(vmem: &'static mut [u8], info: FramebufferInfo) -> Self {
+        Self {
+            vmem,
+            buf: vec![0; vmem.len()].into_boxed_slice(),
+            info,
+        }
+    }
+
+    pub fn flush(&mut self) {
+        // https://doc.rust-lang.org/stable/core/intrinsics/fn.volatile_copy_nonoverlapping_memory.html
+        assert_eq!(self.buf.len(), self.vmem.len());
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                self.buf.as_ptr(),
+                self.vmem.as_mut_ptr(),
+                self.vmem.len(),
+            );
+        }
+    }
+
     pub fn set(&mut self, x: usize, y: usize, color: Color) {
         let spot = x * 4 + y * self.pitch;
         self.buf[spot..spot + 4].copy_from_slice(&color.as_arr()[..]);
