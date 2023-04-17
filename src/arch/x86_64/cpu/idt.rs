@@ -96,7 +96,7 @@ pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
 
 pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
     let scancode: u8 = unsafe { Port::new(0x60).read() };
-    if let Some(ch) = driver::ps2::process(scancode) {
+    if let Some(ch) = driver::ps2::keyboard::process(scancode) {
         info!("{ch}");
     }
 
