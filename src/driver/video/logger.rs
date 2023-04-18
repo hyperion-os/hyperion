@@ -1,7 +1,7 @@
 use super::{
     color::Color,
     font::FONT,
-    framebuffer::{get, Framebuffer},
+    framebuffer::{Framebuffer, FramebufferRaiiFlush},
 };
 use crate::term::escape::decode::{DecodedPart, EscapeDecoder};
 use core::fmt::{self, Arguments, Write};
@@ -11,7 +11,15 @@ use x86_64::instructions::interrupts::without_interrupts;
 //
 
 pub fn _print(args: Arguments) {
-    without_interrupts(|| _ = WRITER.lock().write_fmt(args))
+    without_interrupts(|| {
+        if let Some(fbo) = Framebuffer::get() {
+            _ = WriterLock {
+                lock: WRITER.lock(),
+                fbo,
+            }
+            .write_fmt(args)
+        }
+    });
 }
 
 //
@@ -28,42 +36,45 @@ struct Writer {
     escapes: EscapeDecoder,
 }
 
+struct WriterLock {
+    lock: MutexGuard<'static, Writer>,
+    fbo: FramebufferRaiiFlush,
+}
+
 //
 
 impl Writer {
-    pub fn write_bytes(&mut self, bytes: &[u8]) {
+    fn write_bytes(&mut self, bytes: &[u8], fbo: &mut FramebufferRaiiFlush) {
         for byte in bytes {
-            self.write_byte(*byte)
+            self.write_byte(*byte, fbo);
         }
     }
 
-    pub fn write_byte(&mut self, byte: u8) {
+    fn write_byte(&mut self, byte: u8, fbo: &mut FramebufferRaiiFlush) {
         match self.escapes.next(byte) {
             DecodedPart::Byte(b'\n') => {
-                if let Some(mut fbo) = get() {
-                    #[cfg(debug_assertions)]
-                    let lines = if self.cursor[1] + 1 >= Self::size(&mut fbo)[1] {
-                        // scroll more if the cursor is near the bottom
-                        //
-                        // because scrolling is slow in debug mode
-                        8
-                    } else {
-                        1
-                    };
-                    #[cfg(not(debug_assertions))]
-                    let lines = 1;
-                    self.new_line(lines, &mut fbo)
-                }
+                #[cfg(debug_assertions)]
+                let lines = if self.cursor[1] + 1 >= Self::size(fbo)[1] {
+                    // scroll more if the cursor is near the bottom
+                    //
+                    // because scrolling is slow in debug mode
+                    8
+                } else {
+                    1
+                };
+                #[cfg(not(debug_assertions))]
+                let lines = 1;
+                self.new_line(lines, fbo)
             }
             DecodedPart::Byte(b'\t') => {
                 self.cursor[0] = (self.cursor[0] / 4 + 1) * 4;
             }
 
-            DecodedPart::Byte(byte) => self.write_byte_raw(byte),
+            DecodedPart::Byte(byte) => self.write_byte_raw(byte, fbo),
             DecodedPart::Bytes(bytes) => bytes
                 .into_iter()
                 .take_while(|b| *b != 0)
-                .for_each(|byte| self.write_byte_raw(byte)),
+                .for_each(|byte| self.write_byte_raw(byte, fbo)),
 
             DecodedPart::FgColor(color) => self.fg_color = color,
             DecodedPart::BgColor(color) => self.bg_color = color,
@@ -76,15 +87,23 @@ impl Writer {
         }
     }
 
-    pub fn write_byte_raw(&mut self, byte: u8) {
-        if let Some(mut fbo) = get() {
-            let size = Self::size(&mut fbo);
-            if size[0] == 0 || size[1] == 0 {
-                return;
-            }
-
-            self._write_byte_raw(byte, &mut fbo);
+    fn write_byte_raw(&mut self, byte: u8, fbo: &mut FramebufferRaiiFlush) {
+        let size = Self::size(fbo);
+        if size[0] == 0 || size[1] == 0 {
+            return;
         }
+
+        let is_double = FONT[byte as usize].1;
+
+        // insert a new line if the next character would be off screen
+        if self.cursor[0] + if is_double { 1 } else { 0 } >= Self::size(fbo)[0] {
+            self.new_line(8, fbo);
+        }
+
+        let (x, y) = (self.cursor[0] as usize * 8, self.cursor[1] as usize * 16);
+        self.cursor[0] += if is_double { 2 } else { 1 };
+
+        fbo.ascii_char(x, y, byte, self.fg_color, self.bg_color);
     }
 
     const FG_COLOR: Color = Color::from_hex("#bbbbbb");
@@ -100,33 +119,7 @@ impl Writer {
         }
     }
 
-    fn _write_byte_raw(&mut self, byte: u8, fbo: &mut MutexGuard<Framebuffer>) {
-        let (map, is_double) = FONT[byte as usize];
-
-        // insert a new line if the next character would be off screen
-        if self.cursor[0] + if is_double { 1 } else { 0 } >= Self::size(fbo)[0] {
-            self.new_line(8, fbo);
-        }
-
-        let (x, y) = (self.cursor[0] as usize * 8, self.cursor[1] as usize * 16);
-        self.cursor[0] += if is_double { 2 } else { 1 };
-
-        for (yd, row) in map.into_iter().enumerate() {
-            for xd in 0..if is_double { 16 } else { 8 } {
-                fbo.set(
-                    x + xd,
-                    y + yd,
-                    if (row & 1 << xd) != 0 {
-                        self.fg_color
-                    } else {
-                        self.bg_color
-                    },
-                );
-            }
-        }
-    }
-
-    fn new_line(&mut self, count: u16, fbo: &mut MutexGuard<Framebuffer>) {
+    fn new_line(&mut self, count: u16, fbo: &mut FramebufferRaiiFlush) {
         self.cursor[0] = 0;
         self.cursor[1] += 1;
         if self.cursor[1] >= Self::size(fbo)[1] {
@@ -136,14 +129,14 @@ impl Writer {
         }
     }
 
-    fn size(fbo: &mut MutexGuard<Framebuffer>) -> [u16; 2] {
+    fn size(fbo: &mut FramebufferRaiiFlush) -> [u16; 2] {
         [(fbo.width / 8) as _, (fbo.height / 16) as _]
     }
 }
 
-impl fmt::Write for Writer {
+impl fmt::Write for WriterLock {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.write_bytes(s.as_bytes());
+        self.lock.write_bytes(s.as_bytes(), &mut self.fbo);
         Ok(())
     }
 }

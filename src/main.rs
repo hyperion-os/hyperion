@@ -10,6 +10,7 @@
 #![feature(int_roundings)]
 #![feature(array_chunks)]
 #![feature(cfg_target_has_atomic)]
+#![feature(slice_as_chunks)]
 //
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::testfw::test_runner)]
@@ -51,8 +52,6 @@ pub static KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 // the actual entry exists in [´crate::boot::boot´]
 fn kernel_main() -> ! {
     debug!("Entering kernel_main");
-
-    boot::memmap().for_each(|_| {});
 
     arch::early_boot_cpu();
 

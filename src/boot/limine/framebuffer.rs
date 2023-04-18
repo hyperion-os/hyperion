@@ -19,13 +19,13 @@ pub fn framebuffer() -> Option<Framebuffer> {
 
             let buf = unsafe { slice::from_raw_parts_mut(fb.address.as_ptr()?, fb.size()) };
 
-            Some(Framebuffer {
+            Some(Framebuffer::new(
                 buf,
-                info: FramebufferInfo {
+                FramebufferInfo {
                     width: fb.width as _,
                     height: fb.height as _,
                     pitch: fb.pitch as _,
                 },
-            })
+            ))
         })
 }
