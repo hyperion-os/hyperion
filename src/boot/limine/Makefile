@@ -1,4 +1,4 @@
-LIM_GIT   := https://github.com/limine-bootloader/limine.git"
+LIM_GIT   := https://github.com/limine-bootloader/limine.git
 LIM_DIR   := ${TARGET_DIR}/limine
 LIM_FILES := ${LIM_DIR}/limine-cd-efi.bin ${LIM_DIR}/limine-cd.bin ${LIM_DIR}/limine.sys
 LIM_CFG   := cfg/limine.cfg
