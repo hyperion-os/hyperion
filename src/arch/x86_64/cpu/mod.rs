@@ -3,7 +3,6 @@ use crate::{smp::Cpu, trace};
 use alloc::boxed::Box;
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::Once;
-use x86_64::instructions::interrupts::{self as int, without_interrupts};
 
 //
 

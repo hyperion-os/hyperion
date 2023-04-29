@@ -4,9 +4,9 @@
 //!
 //! This module finds the pointer to the Root/eXtended System Descriptor Table [`super::rsdt`]
 
-use super::{bytes_sum_to_zero, AcpiOem, AcpiVersion};
-use crate::{boot, debug, driver::acpi::read_unaligned_volatile, util::stack_str::StackStr};
-use core::{mem, ops::Deref, str::Utf8Error};
+use super::{checksum_of, AcpiOem, AcpiVersion};
+use crate::{boot, debug, driver::acpi::StructUnpacker, util::stack_str::StackStr};
+use core::str::Utf8Error;
 use spin::Lazy;
 
 //
@@ -44,26 +44,31 @@ impl Rsdp {
     }
 
     pub fn try_init() -> Result<Self, RsdpError> {
-        let rsdp: RawRsdpDescriptor = unsafe { read_unaligned_volatile(boot::rsdp() as _) };
+        let mut unpacker =
+            unsafe { StructUnpacker::from(boot::rsdp() as *const RawRsdpDescriptor) };
+
+        let rsdp: RawRsdpDescriptor = unsafe { unpacker.next_unchecked(true) };
 
         if rsdp.signature != *b"RSD PTR " {
             return Err(RsdpError::InvalidSignature);
         }
 
         let oem: AcpiOem = StackStr::from_utf8(rsdp.oem_id)?.into();
-        debug!("Oem: {oem:?}");
+        debug!("ACPI Oem: {oem:?}");
 
         let version: AcpiVersion = rsdp.revision.try_into()?;
+        debug!("ACPI Version: {version:?}");
 
         match version {
             AcpiVersion::V1 => Self::init_rsdp(rsdp),
-            AcpiVersion::V2 => Self::init_xsdp(boot::rsdp() as _),
+            AcpiVersion::V2 => Self::init_xsdp(rsdp, &mut unpacker),
         }
     }
 
     fn init_rsdp(rsdp: RawRsdpDescriptor) -> Result<Self, RsdpError> {
-        let valid = unsafe { bytes_sum_to_zero(&rsdp, Some(mem::size_of::<RawRsdpDescriptor>())) };
-        if !valid {
+        debug!("System descriptor pointer is RSDP");
+
+        if checksum_of(&rsdp) != 0 {
             return Err(RsdpError::InvalidChecksum);
         }
 
@@ -73,16 +78,15 @@ impl Rsdp {
         })
     }
 
-    fn init_xsdp(xsdp: *const RawRsdpDescriptorExt) -> Result<Self, RsdpError> {
-        let xsdp = unsafe { read_unaligned_volatile(xsdp) };
+    fn init_xsdp(
+        rsdp: RawRsdpDescriptor,
+        unpacker: &mut StructUnpacker,
+    ) -> Result<Self, RsdpError> {
+        debug!("System descriptor pointer is XSDP (eXtended)");
 
-        let valid = unsafe {
-            bytes_sum_to_zero(
-                &xsdp,
-                Some(mem::size_of::<RawRsdpDescriptorExt>().min(xsdp.length as _)),
-            )
-        };
-        if !valid {
+        let xsdp: RawRsdpDescriptorExt = unsafe { unpacker.next_unchecked(true) };
+
+        if checksum_of(&(rsdp, xsdp)) != 0 {
             return Err(RsdpError::InvalidChecksum);
         }
 
@@ -116,8 +120,6 @@ struct RawRsdpDescriptor {
 #[derive(Debug, Clone, Copy)]
 #[repr(packed, C)]
 struct RawRsdpDescriptorExt {
-    first: RawRsdpDescriptor,
-
     length: u32,
     xsdt_address: u64,
     _extended_checksum: u8,
@@ -135,13 +137,5 @@ impl TryFrom<u8> for AcpiVersion {
             2 => Ok(AcpiVersion::V2),
             _ => Err(RsdpError::InvalidRevision(v)),
         }
-    }
-}
-
-impl Deref for RawRsdpDescriptorExt {
-    type Target = RawRsdpDescriptor;
-
-    fn deref(&self) -> &Self::Target {
-        &self.first
     }
 }

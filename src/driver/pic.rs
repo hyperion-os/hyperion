@@ -1,11 +1,4 @@
-use crate::{
-    arch::{self, cpu::idt::Irq},
-    debug, println,
-};
-use core::{
-    sync::atomic::{AtomicUsize, Ordering},
-    time::Duration,
-};
+use crate::{arch::cpu::idt::Irq, debug};
 use spin::{Lazy, Mutex};
 use x86_64::instructions::port::Port;
 
@@ -17,9 +10,9 @@ pub static PICS: Lazy<Mutex<Pics>> = Lazy::new(|| {
     Mutex::new(pics)
 });
 
-pub static PIT: Lazy<Mutex<Pit>> = Lazy::new(|| Mutex::new(Pit::new()));
+// pub static PIT: Lazy<Mutex<Pit>> = Lazy::new(|| Mutex::new(Pit::new()));
 
-static PIT_CLOCK: AtomicUsize = AtomicUsize::new(0);
+// static PIT_CLOCK: AtomicUsize = AtomicUsize::new(0);
 
 const ICW1_ICW4: u8 = 0x01; // ICW4 will be present
 const ICW1_INIT: u8 = 0x10; // Init cmd
@@ -42,11 +35,11 @@ pub struct Pic {
     data: Port<u8>,
 }
 
-pub struct Pit {
+/* pub struct Pit {
     ch: [Port<u8>; 3],
     cmd: Port<u8>,
     ch2_gate: Port<u8>,
-}
+} */
 
 //
 
@@ -187,7 +180,7 @@ impl Pic {
     }
 }
 
-impl Pit {
+/* impl Pit {
     pub const fn new() -> Self {
         Self {
             ch: [Port::new(0x40), Port::new(0x41), Port::new(0x42)],
@@ -200,7 +193,7 @@ impl Pit {
         let x = (unsafe { self.ch2_gate.read() } & 0xfd) | 1;
         println!("{x}");
     }
-}
+} */
 
 //
 

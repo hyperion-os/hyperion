@@ -2,9 +2,13 @@
 //!
 //! https://wiki.osdev.org/RSDT
 
-use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
 use crate::{debug, util::stack_str::StackStr};
-use core::str::Utf8Error;
+
+use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
+use core::{
+    str::Utf8Error,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use spin::Lazy;
 
 //
@@ -45,38 +49,44 @@ impl Rsdt {
         let ptr = RSDP.ptr;
         let extended = RSDP.extended;
 
-        let signature = if extended { *b"XSDT" } else { *b"RSDT" };
+        let mut unpacker = unsafe { StructUnpacker::from(ptr as *const RawSdtHeader) };
 
-        let ptr = ptr as *const RawSdtHeader;
-        let header = unsafe { &*ptr };
-        debug!("RSDT {:?}", StackStr::from_utf8(header.signature),);
-
-        header.validate(Some(StackStr::from_utf8(signature)?))?;
-
-        let mut unpacker = unsafe { StructUnpacker::new(ptr as _, header.length as _) };
-        let _: RawSdtHeader = unpacker.next(true).unwrap();
+        let expected_signature = if extended { *b"XSDT" } else { *b"RSDT" };
+        RawSdtHeader::parse(&mut unpacker, Some(expected_signature))?;
 
         Ok(Self { unpacker, extended })
     }
 
-    pub fn iter(self) -> impl Iterator<Item = *const RawSdtHeader> {
+    pub fn iter(self) -> impl Iterator<Item = StructUnpacker> {
         let ext: bool = self.extended;
         let mut unpacker: StructUnpacker = self.unpacker;
 
         core::iter::from_fn(move || {
             Some(if ext {
-                unpacker.next::<u64>(true)? as _
+                unpacker.next::<u64>(true)? as *const RawSdtHeader
             } else {
                 unpacker.next::<u32>(true)? as _
             })
         })
+        .map(|ptr| unsafe { StructUnpacker::from(ptr) })
     }
 
-    pub fn iter_headers(self) -> impl Iterator<Item = &'static RawSdtHeader> {
-        self.iter().map(|ptr| {
-            let header = unsafe { &*ptr };
-            debug!("SDT {:?}", StackStr::from_utf8(header.signature));
-            header
+    pub fn iter_headers(self) -> impl Iterator<Item = (RawSdtHeader, StructUnpacker)> {
+        static FIRST: AtomicBool = AtomicBool::new(true);
+        if FIRST.swap(false, Ordering::SeqCst) {
+            // On SeaBIOS QEmu:
+            // FACP, APIC, HPET, MCFG, WAET
+            // On OVMF QEmu:
+            // FACP, APIC, HPET, MCFG, WAET, BGRT
+            debug!("RSDT entries:");
+            for (header, _) in self.iter_headers() {
+                debug!(" - {:?}", StackStr::from_utf8(header.signature));
+            }
+        }
+
+        self.iter().filter_map(|mut unpacker| {
+            let header = RawSdtHeader::parse(&mut unpacker, None).ok()?;
+            Some((header, unpacker))
         })
     }
 }

@@ -124,7 +124,7 @@ impl Time {
         }
     }
 
-    fn load(&self) -> i64 {
+    /* fn load(&self) -> i64 {
         #[cfg(target_has_atomic_load_store = "64")]
         {
             self.store_a.load(Ordering::SeqCst)
@@ -133,7 +133,7 @@ impl Time {
         {
             *self.store_b.read()
         }
-    }
+    } */
 }
 
 impl RtcPorts {

@@ -1,11 +1,6 @@
 use crate::driver::pic::PICS;
 use crate::{debug, util::stack_str::StackStr};
-use core::{
-    mem,
-    ptr::{read_unaligned, read_volatile},
-    slice,
-    str::Utf8Error,
-};
+use core::{mem, slice, str::Utf8Error};
 
 //
 
@@ -30,18 +25,22 @@ pub fn init() {
     apic::enable();
 }
 
-/// checksum_validation
-///
-/// sums up every byte in the structure
-///
-/// # Safety
-///
-/// * `size` has to be `None` or the memory range must be readable
-unsafe fn bytes_sum_to_zero<T>(ptr: *const T, size: Option<usize>) -> bool {
-    let size = size.unwrap_or(mem::size_of::<T>());
-    let bytes: &[u8] = unsafe { slice::from_raw_parts(ptr as *const u8, size) };
+/// bitwise checksum:
+///  - sum of every byte in the value
+///  - does not travel recurse on ptrs/refs
+pub fn checksum_of<T>(value: &T) -> u8 {
+    let bytes: &[u8] =
+        unsafe { slice::from_raw_parts(value as *const T as *const u8, mem::size_of::<T>()) };
+    bytes.iter().fold(0u8, |acc, v| acc.wrapping_add(*v))
+}
 
-    bytes.iter().fold(0u8, |acc, v| acc.overflowing_add(*v).0) == 0
+/// bitwise checksum:
+///  - sum of every byte in the value
+///  - does not travel recurse on ptrs/refs
+pub fn checksum_of_slice<T>(value: &[T]) -> u8 {
+    value
+        .iter()
+        .fold(0u8, |acc, v| acc.wrapping_add(checksum_of(v)))
 }
 
 //
@@ -79,6 +78,7 @@ pub enum SdtError {
     InvalidSignature,
     InvalidRevision(u8),
     InvalidChecksum,
+    InvalidStructure,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -90,26 +90,35 @@ pub struct StructUnpacker {
 //
 
 impl RawSdtHeader {
-    pub fn validate(&self, signature: Option<StackStr<4>>) -> Result<(), SdtError> {
-        let parsed_signature = StackStr::from_utf8(self.signature)?;
+    pub fn parse(
+        unpacker: &mut StructUnpacker,
+        signature: Option<[u8; 4]>,
+    ) -> Result<RawSdtHeader, SdtError> {
+        let checksum_first = unpacker.now_at();
+        let header: RawSdtHeader = unpacker.next(true).ok_or(SdtError::InvalidStructure)?;
+
         if signature
-            .map(|signature| signature != parsed_signature)
+            .map(|signature| signature != header.signature)
             .unwrap_or(false)
         {
             return Err(SdtError::InvalidSignature);
         }
 
-        _ = StackStr::from_utf8(self.oem_id)?;
+        _ = StackStr::from_utf8(header.oem_id)?;
 
-        _ = StackStr::from_utf8(self.oem_table_id)?;
+        _ = StackStr::from_utf8(header.oem_table_id)?;
 
-        let is_valid =
-            unsafe { bytes_sum_to_zero(self as *const Self, Some(self.length as usize)) };
-        if !is_valid {
+        // header + extra
+        let all_bytes = unsafe { slice::from_raw_parts(checksum_first, header.length as _) };
+        let checksum = checksum_of_slice(all_bytes);
+
+        unsafe { unpacker.extend(header.length as usize - mem::size_of::<Self>()) };
+
+        if checksum != 0 {
             return Err(SdtError::InvalidChecksum);
         }
 
-        Ok(())
+        Ok(header)
     }
 }
 
@@ -141,9 +150,16 @@ impl StructUnpacker {
 
     /// # Safety
     ///
-    /// bytes from `first` to `first + bytes` must be readable
-    pub unsafe fn resize(&mut self, bytes: usize) {
-        self.end = self.next.add(bytes);
+    /// bytes from `first` to `first + core::mem::size_of::<T>()` must be readable
+    pub const unsafe fn from<T: Sized>(first: *const T) -> Self {
+        Self::new(first as _, mem::size_of::<T>())
+    }
+
+    /// # Safety
+    ///
+    /// bytes from `first` to `end + bytes` must be readable
+    pub unsafe fn extend(&mut self, bytes: usize) {
+        self.end = self.end.add(bytes);
     }
 
     pub fn next<T: Copy>(&mut self, inc: bool) -> Option<T> {
@@ -155,14 +171,28 @@ impl StructUnpacker {
 
         let item = unsafe { read_unaligned_volatile(self.next as _) };
 
-        // let bytes: [u8; SIZE] = unsafe { read_volatile(self.next as _) };
-        // let item = unsafe { read_unaligned(&bytes as *const u8 as *const T) };
-
         if inc {
             self.skip(mem::size_of::<T>());
         }
 
         Some(item)
+    }
+
+    /// # Safety
+    ///
+    /// data at `self.next` must be readable
+    pub unsafe fn next_unchecked<T: Copy>(&mut self, inc: bool) -> T {
+        let item = unsafe { read_unaligned_volatile(self.next as _) };
+
+        if inc {
+            self.skip(mem::size_of::<T>());
+        }
+
+        item
+    }
+
+    pub fn unpack<T: Copy>(&mut self, inc: bool) -> Result<T, SdtError> {
+        self.next(inc).ok_or(SdtError::InvalidStructure)
     }
 
     pub fn skip(&mut self, n: usize) {
@@ -172,8 +202,18 @@ impl StructUnpacker {
     pub fn backtrack(&mut self, n: usize) {
         self.next = unsafe { self.next.sub(n) };
     }
+
+    pub fn now_at(&self) -> *const u8 {
+        self.next
+    }
+
+    pub fn left(&self) -> usize {
+        (self.end as usize).saturating_sub(self.next as usize)
+    }
 }
 
+/// # Safety
+/// data in `ptr` must be readable (doesn't have to be aligned)
 pub unsafe fn read_unaligned_volatile<T: Copy>(ptr: *const T) -> T {
     // TODO: replace this with _something_ when _something_ gets stabilized
     core::intrinsics::unaligned_volatile_load(ptr)

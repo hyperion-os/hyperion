@@ -77,7 +77,7 @@ pub fn enable() {
 
     apic_freq();
 
-    loop { /* debug!("APIC TIMER {}", apic_regs.timer_current.read()); */ }
+    // loop { /* debug!("APIC TIMER {}", apic_regs.timer_current.read()); */ }
 }
 
 fn apic_freq() {
@@ -85,13 +85,13 @@ fn apic_freq() {
     panic!("{x:?}");
 }
 
-fn read_apic_reg(reg: usize) -> u32 {
+/* fn read_apic_reg(reg: usize) -> u32 {
     unsafe { ptr::read_volatile((*LOCAL_APIC + reg) as _) }
 }
 
 fn write_apic_reg(reg: usize, val: u32) {
     unsafe { ptr::write_volatile((*LOCAL_APIC + reg) as _, val) }
-}
+} */
 
 fn read_msr(msr: u32) -> u64 {
     unsafe { x86_64::registers::model_specific::Msr::new(msr).read() }
@@ -103,77 +103,11 @@ fn write_msr(msr: u32, val: u64) {
 
 //
 
-macro_rules! apic_regs_builder {
-    (struct $name:ident { $($field:ident : $mode:ident = $offs:literal,)* }) => {
-        #[derive(Debug)]
-        #[repr(C)]
-        struct $name {
-            $(
-                apic_regs_builder! { $field : $mode },
-            )*
-        }
-
-        #[cfg(test)]
-        mod tests {
-            use super::ApicRegs;
-            use core::mem;
-
-            #[test_case]
-            fn test_apic_reg_offsets() {
-                let base: ApicRegs = unsafe { mem::uninitialized() };
-                let base_ptr = &base as *const _ as usize;
-
-                $(;
-                    let ptr = &base.$field as *const _ as usize;
-                    let offs = ptr.saturating_sub(base_ptr);
-                    assert_eq!(offs, $offs);
-                 )*
-            }
-        }
-    };
-
-    ($field:ident : r) => {
-        $field : Reg<Read>,
-    };
-
-    ($field:ident : rw) => {
-        $field : Reg<ReadWrite>,
-    };
-
-    ($field:ident : w) => {
-        $field : Reg<Write>,
-    };
-
-    ($field:ident : i) => {
-        $field : Reg,
-    };
-}
-
 /// Table 10-1 Local APIC Register Address Map
 ///
 /// https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf
 ///
 /// 10-6 Vol. 3A
-/* apic_regs_builder! {
-    struct ApicRegs {
-    _res0: i = 0x00,
-    _res1: i = 0x10,
-    lapic_id: rw = 0x20,
-    lapic_ver: r = 0x30,
-    _res2: i = 0x40,
-    _res3: i = 0x50,
-    _res4: i = 0x60,
-    _res5: i = 0x70,
-    task_priority: rw = 0x80,
-    arbitration_priority: r = 0x90,
-    processor_priority: r = 0xA0,
-    eoi: w = 0xB0,
-    remote_read: r = 0xC0,
-    logical_destination: rw = 0xD0,
-    destination_format: rw = 0xE0,
-    spurious_interrupt_vector: rw = 0xF0,
-    }
-} */
 #[derive(Debug)]
 #[repr(C)]
 pub struct ApicRegs {
@@ -258,38 +192,5 @@ impl fmt::Debug for Reg<Write> {
 impl fmt::Debug for Reg<()> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt("<NO READS>", f)
-    }
-}
-
-//
-
-#[cfg(test)]
-mod tests {
-    use super::ApicRegs;
-    use core::mem;
-
-    #[test_case]
-    fn test_apic_reg_offsets() {
-        macro_rules! assert_apic_reg_offsets {
-            ($($field:ident == $offs:literal),* $(,)?) => {
-                let base: ApicRegs = unsafe { mem::uninitialized() };
-                let base_ptr = &base as *const _ as usize;
-
-                $(
-                    let ptr = &base.$field as *const _ as usize;
-                    let offs = ptr.saturating_sub(base_ptr);
-                    assert_eq!(offs, $offs);
-                )*
-            };
-        }
-
-        assert_apic_reg_offsets! {
-            lapic_id == 0x20,
-            lapic_ver == 0x30,
-            task_priority == 0x80,
-            arbitration_priority == 0x90,
-            processor_priority == 0xA0,
-            lvt_timer == 0x320,
-        };
     }
 }

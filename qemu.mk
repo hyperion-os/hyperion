@@ -19,8 +19,10 @@ QEMU_FLAGS      += -d guest_errors
 QEMU_FLAGS      += -no-reboot
 QEMU_FLAGS      += -serial stdio
 QEMU_FLAGS      += -rtc base=localtime
-#QEMU_OVMF     ?= /usr/share/ovmf/x64/OVMF.fd
-#QEMU_FLAGS    += -bios ${QEMU_OVMF}
+QEMU_OVMF       ?= /usr/share/ovmf/x64/OVMF.fd
+ifeq (${UEFI},true)
+QEMU_FLAGS      += -bios ${QEMU_OVMF}
+endif
 
 QEMU_RUN_FLAGS  ?=
 QEMU_RUN_FLAGS  += ${QEMU_FLAGS}

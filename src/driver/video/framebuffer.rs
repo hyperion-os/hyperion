@@ -108,16 +108,16 @@ impl Framebuffer {
     }
 
     pub fn scroll(&mut self, h: usize) {
-        // for y in h..self.height {
-        //     let _two_rows = &mut self.buf[(y - 1) * self.info.pitch..(y + 1) * self.info.pitch];
-        //
-        //     self.buf.copy_within(
-        //         y * self.info.pitch..(y + 1) * self.info.pitch,
-        //         (y - h) * self.info.pitch,
-        //     );
-        // }
-        //
-        // self.buf[(self.info.height - h) * self.info.pitch..].fill(0);
+        for y in h..self.height {
+            let _two_rows = &mut self.buf[(y - 1) * self.info.pitch..(y + 1) * self.info.pitch];
+
+            self.buf.copy_within(
+                y * self.info.pitch..(y + 1) * self.info.pitch,
+                (y - h) * self.info.pitch,
+            );
+        }
+
+        self.buf[(self.info.height - h) * self.info.pitch..].fill(0);
     }
 
     pub fn clear(&mut self) {
@@ -217,14 +217,14 @@ static FBO: Lazy<Option<Mutex<Framebuffer>>> = Lazy::new(|| {
 
 #[cfg(test)]
 mod tests {
-    use super::get;
+    use super::Framebuffer;
     use crate::driver::video::color::Color;
 
     //
 
     #[test_case]
     fn fbo_draw() {
-        if let Some(mut fbo) = get() {
+        if let Some(mut fbo) = Framebuffer::get() {
             fbo.fill(440, 340, 40, 40, Color::RED);
             fbo.fill(450, 350, 60, 40, Color::GREEN);
             fbo.fill(405, 315, 80, 20, Color::BLUE);

@@ -2,12 +2,9 @@
 //!
 //! https://wiki.osdev.org/MADT
 
-use super::{rsdt::RSDT, RawSdtHeader, SdtError};
-use crate::{driver::acpi::StructUnpacker, trace, warn};
-use core::{
-    mem,
-    ptr::{read_unaligned, read_volatile},
-};
+use super::{rsdt::RSDT, SdtError};
+use crate::{trace, warn};
+use core::mem;
 use spin::Lazy;
 
 //
@@ -28,7 +25,6 @@ pub struct Madt {
 pub enum MadtError {
     SdtHeader(SdtError),
     DoesntExist,
-    InvalidStructure,
 }
 
 //
@@ -43,34 +39,23 @@ impl Madt {
     }
 
     pub fn try_init() -> Result<Self, MadtError> {
-        let Some(madt) = RSDT
+        let Some((_, mut unpacker)) = RSDT
             .iter_headers()
-            .find(|header| header.signature == *b"APIC") else {
+            .find(|(header, _)| {
+                header.signature == *b"APIC"
+            }) else {
                 return Err(MadtError::DoesntExist);
             };
-
-        madt.validate(None)?;
-
-        // start unpacking madt structure
-        let mut unpacker = unsafe {
-            StructUnpacker::new(madt as *const RawSdtHeader as *const u8, madt.length as _)
-        };
         let u = &mut unpacker;
-        fn unpack<T: Copy>(unpacker: &mut StructUnpacker, inc: bool) -> Result<T, MadtError> {
-            unpacker.next(inc).ok_or(MadtError::InvalidStructure)
-        }
-
-        // skip sdt header
-        let _: RawSdtHeader = unpack(u, true)?;
 
         // skip MADT header
-        let madt: RawMadt = unpack(u, true)?;
+        let madt: RawMadt = u.unpack(true)?;
         trace!("{madt:?}");
 
         let mut local_apic_addr = madt.local_apic_addr as usize;
         let mut io_apic_addr = None;
 
-        while let Ok(header) = unpack::<RawEntryHeader>(u, true) {
+        while let Ok(header) = u.unpack::<RawEntryHeader>(true) {
             // trace!("MADT Entry {header:?}");
 
             let len = header.record_len as usize;
@@ -79,41 +64,41 @@ impl Madt {
             match header.entry_type {
                 0 => {
                     assert_eq!(data_len, mem::size_of::<ProcessorLocalApic>());
-                    let data: ProcessorLocalApic = unpack(u, false)?;
+                    let data: ProcessorLocalApic = u.unpack(false)?;
                     trace!("{data:?}");
                 }
                 1 => {
                     assert_eq!(data_len, mem::size_of::<IoApic>());
-                    let data: IoApic = unpack(u, false)?;
+                    let data: IoApic = u.unpack(false)?;
                     trace!("{data:?}");
 
                     io_apic_addr = Some(data.io_apic_addr as usize);
                 }
                 2 => {
                     assert_eq!(data_len, mem::size_of::<InterruptSourceOverride>());
-                    let data: InterruptSourceOverride = unpack(u, false)?;
+                    let data: InterruptSourceOverride = u.unpack(false)?;
                     trace!("{data:?}");
                 }
                 3 => {
                     assert_eq!(data_len, mem::size_of::<NonMaskableInterruptSource>());
-                    let data: NonMaskableInterruptSource = unpack(u, false)?;
+                    let data: NonMaskableInterruptSource = u.unpack(false)?;
                     trace!("{data:?}");
                 }
                 4 => {
                     assert_eq!(data_len, mem::size_of::<LocalApicNonMaskableInterrupts>());
-                    let data: LocalApicNonMaskableInterrupts = unpack(u, false)?;
+                    let data: LocalApicNonMaskableInterrupts = u.unpack(false)?;
                     trace!("{data:?}");
                 }
                 5 => {
                     assert_eq!(data_len, mem::size_of::<LocalApicAddressOverride>());
-                    let data: LocalApicAddressOverride = unpack(u, false)?;
+                    let data: LocalApicAddressOverride = u.unpack(false)?;
                     trace!("{data:?}");
 
                     local_apic_addr = data.local_apic_addr as usize;
                 }
                 9 => {
                     assert_eq!(data_len, mem::size_of::<ProcessorLocalx2Apic>());
-                    let data: ProcessorLocalx2Apic = unpack(u, false)?;
+                    let data: ProcessorLocalx2Apic = u.unpack(false)?;
                     trace!("{data:?}");
                 }
                 _ => {
