@@ -15,7 +15,7 @@ use x86_64::{
 #[repr(u8)]
 pub enum Irq {
     // BEG: 0x20..0x30 PIC space
-    PicTimer = 0x20,
+    PicTimer = 0x20, // aka. the PIT (Programmable Interrupt Timer)
     PicKeyboard = 0x21,
     PicRtc = 0x28,
     // END: 0x20..0x30 PIC space
@@ -90,7 +90,7 @@ impl Idt {
 //
 
 pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
-    // info!(".");
+    info!("pit int");
     PICS.lock().end_of_interrupt(Irq::PicTimer as _);
 }
 

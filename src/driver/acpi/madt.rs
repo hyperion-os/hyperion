@@ -3,7 +3,7 @@
 //! https://wiki.osdev.org/MADT
 
 use super::{rsdt::RSDT, RawSdtHeader, SdtError};
-use crate::{trace, warn};
+use crate::{driver::acpi::StructUnpacker, trace, warn};
 use core::{
     mem,
     ptr::{read_unaligned, read_volatile},
@@ -51,85 +51,69 @@ impl Madt {
 
         madt.validate(None)?;
 
-        let mut unpacker = StructUnpacker {
-            next: (madt as *const _ as usize + mem::size_of::<RawSdtHeader>()) as _,
-            end: (madt as *const _ as usize + madt.length as usize) as _,
+        // start unpacking madt structure
+        let mut unpacker = unsafe {
+            StructUnpacker::new(madt as *const RawSdtHeader as *const u8, madt.length as _)
         };
-
-        let mut local_apic_addr;
-        let mut io_apic_addr = None;
-
-        macro_rules! unpack {
-            ($unpacker:expr, $t:ty) => {
-                unpack!($unpacker, $t, true)
-            };
-
-            ($unpacker:expr, $t:ty, $inc:expr) => {
-                $unpacker
-                    .next::<{ mem::size_of::<$t>() }, $t>($inc)
-                    .ok_or(MadtError::InvalidStructure)
-            };
+        let u = &mut unpacker;
+        fn unpack<T: Copy>(unpacker: &mut StructUnpacker, inc: bool) -> Result<T, MadtError> {
+            unpacker.next(inc).ok_or(MadtError::InvalidStructure)
         }
 
-        let madt = unpack!(unpacker, RawMadt)?;
+        // skip sdt header
+        let _: RawSdtHeader = unpack(u, true)?;
+
+        // skip MADT header
+        let madt: RawMadt = unpack(u, true)?;
         trace!("{madt:?}");
 
-        local_apic_addr = madt.local_apic_addr as usize;
+        let mut local_apic_addr = madt.local_apic_addr as usize;
+        let mut io_apic_addr = None;
 
-        while let Ok(header) = unpack!(unpacker, RawEntryHeader, true) {
+        while let Ok(header) = unpack::<RawEntryHeader>(u, true) {
             // trace!("MADT Entry {header:?}");
+
+            let len = header.record_len as usize;
+            let data_len = len - mem::size_of::<RawEntryHeader>();
 
             match header.entry_type {
                 0 => {
-                    assert_eq!(
-                        header.record_len as usize,
-                        mem::size_of::<(RawEntryHeader, ProcessorLocalApic)>()
-                    );
-                    let data = unpack!(unpacker, ProcessorLocalApic, false)?;
+                    assert_eq!(data_len, mem::size_of::<ProcessorLocalApic>());
+                    let data: ProcessorLocalApic = unpack(u, false)?;
                     trace!("{data:?}");
                 }
                 1 => {
-                    assert_eq!(
-                        header.record_len as usize,
-                        mem::size_of::<(RawEntryHeader, IoApic)>()
-                    );
-                    let data = unpack!(unpacker, IoApic, false)?;
+                    assert_eq!(data_len, mem::size_of::<IoApic>());
+                    let data: IoApic = unpack(u, false)?;
                     trace!("{data:?}");
 
                     io_apic_addr = Some(data.io_apic_addr as usize);
                 }
                 2 => {
-                    assert_eq!(
-                        header.record_len as usize,
-                        mem::size_of::<(RawEntryHeader, InterruptSourceOverride)>()
-                    );
-                    let data = unpack!(unpacker, InterruptSourceOverride, false)?;
+                    assert_eq!(data_len, mem::size_of::<InterruptSourceOverride>());
+                    let data: InterruptSourceOverride = unpack(u, false)?;
                     trace!("{data:?}");
                 }
                 3 => {
-                    assert_eq!(
-                        header.record_len as usize,
-                        mem::size_of::<(RawEntryHeader, NonMaskableInterruptSource)>()
-                    );
-                    let data = unpack!(unpacker, NonMaskableInterruptSource, false)?;
+                    assert_eq!(data_len, mem::size_of::<NonMaskableInterruptSource>());
+                    let data: NonMaskableInterruptSource = unpack(u, false)?;
                     trace!("{data:?}");
                 }
                 4 => {
-                    assert_eq!(
-                        header.record_len as usize,
-                        mem::size_of::<(RawEntryHeader, LocalApicNonMaskableInterrupts)>()
-                    );
-                    let data = unpack!(unpacker, LocalApicNonMaskableInterrupts, false)?;
+                    assert_eq!(data_len, mem::size_of::<LocalApicNonMaskableInterrupts>());
+                    let data: LocalApicNonMaskableInterrupts = unpack(u, false)?;
                     trace!("{data:?}");
                 }
                 5 => {
-                    let data = unpack!(unpacker, LocalApicAddressOverride, false)?;
+                    assert_eq!(data_len, mem::size_of::<LocalApicAddressOverride>());
+                    let data: LocalApicAddressOverride = unpack(u, false)?;
                     trace!("{data:?}");
 
                     local_apic_addr = data.local_apic_addr as usize;
                 }
                 9 => {
-                    let data = unpack!(unpacker, ProcessorLocalx2Apic, false)?;
+                    assert_eq!(data_len, mem::size_of::<ProcessorLocalx2Apic>());
+                    let data: ProcessorLocalx2Apic = unpack(u, false)?;
                     trace!("{data:?}");
                 }
                 _ => {
@@ -137,8 +121,7 @@ impl Madt {
                 }
             }
 
-            unpacker.skip(header.record_len as usize);
-            unpacker.backtrack(mem::size_of::<RawEntryHeader>());
+            u.skip(data_len);
         }
 
         debug_assert_eq!(unpacker.end, unpacker.next);
@@ -233,36 +216,4 @@ struct ProcessorLocalx2Apic {
     acpi_id: u32,
 }
 
-struct StructUnpacker {
-    next: *const u8,
-    end: *const u8,
-}
-
 //
-
-impl StructUnpacker {
-    pub fn next<const SIZE: usize, T: Copy>(&mut self, inc: bool) -> Option<T> {
-        let end = unsafe { self.next.add(SIZE) };
-
-        if end > self.end {
-            return None;
-        }
-
-        let bytes: [u8; SIZE] = unsafe { read_volatile(self.next as _) };
-        let item = unsafe { read_unaligned(&bytes as *const u8 as *const T) };
-
-        if inc {
-            self.skip(SIZE);
-        }
-
-        Some(item)
-    }
-
-    pub fn skip(&mut self, n: usize) {
-        self.next = unsafe { self.next.add(n) };
-    }
-
-    pub fn backtrack(&mut self, n: usize) {
-        self.next = unsafe { self.next.sub(n) };
-    }
-}

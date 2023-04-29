@@ -1,6 +1,11 @@
 use crate::driver::pic::PICS;
 use crate::{debug, util::stack_str::StackStr};
-use core::{mem, slice, str::Utf8Error};
+use core::{
+    mem,
+    ptr::{read_unaligned, read_volatile},
+    slice,
+    str::Utf8Error,
+};
 
 //
 
@@ -76,6 +81,12 @@ pub enum SdtError {
     InvalidChecksum,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct StructUnpacker {
+    next: *const u8,
+    end: *const u8,
+}
+
 //
 
 impl RawSdtHeader {
@@ -115,4 +126,55 @@ impl From<StackStr<6>> for AcpiOem {
             _ => Self::Other(v),
         }
     }
+}
+
+impl StructUnpacker {
+    /// # Safety
+    ///
+    /// bytes from `first` to `first + bytes` must be readable
+    pub const unsafe fn new(first: *const u8, bytes: usize) -> Self {
+        Self {
+            next: first,
+            end: first.add(bytes),
+        }
+    }
+
+    /// # Safety
+    ///
+    /// bytes from `first` to `first + bytes` must be readable
+    pub unsafe fn resize(&mut self, bytes: usize) {
+        self.end = self.next.add(bytes);
+    }
+
+    pub fn next<T: Copy>(&mut self, inc: bool) -> Option<T> {
+        let end = unsafe { self.next.add(mem::size_of::<T>()) };
+
+        if end > self.end {
+            return None;
+        }
+
+        let item = unsafe { read_unaligned_volatile(self.next as _) };
+
+        // let bytes: [u8; SIZE] = unsafe { read_volatile(self.next as _) };
+        // let item = unsafe { read_unaligned(&bytes as *const u8 as *const T) };
+
+        if inc {
+            self.skip(mem::size_of::<T>());
+        }
+
+        Some(item)
+    }
+
+    pub fn skip(&mut self, n: usize) {
+        self.next = unsafe { self.next.add(n) };
+    }
+
+    pub fn backtrack(&mut self, n: usize) {
+        self.next = unsafe { self.next.sub(n) };
+    }
+}
+
+pub unsafe fn read_unaligned_volatile<T: Copy>(ptr: *const T) -> T {
+    // TODO: replace this with _something_ when _something_ gets stabilized
+    core::intrinsics::unaligned_volatile_load(ptr)
 }

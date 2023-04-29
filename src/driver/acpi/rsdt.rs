@@ -2,13 +2,9 @@
 //!
 //! https://wiki.osdev.org/RSDT
 
-use super::{rsdp::RSDP, RawSdtHeader, SdtError};
+use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
 use crate::{debug, util::stack_str::StackStr};
-use core::{
-    mem,
-    ptr::{read_unaligned, read_volatile},
-    str::Utf8Error,
-};
+use core::str::Utf8Error;
 use spin::Lazy;
 
 //
@@ -18,12 +14,10 @@ pub static RSDT: Lazy<Rsdt> = Lazy::new(Rsdt::init);
 
 //
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rsdt {
     /// pointers to System Descriptor Tables
-    pub first: usize,
-    /// the number of pointers
-    pub len: usize,
+    unpacker: StructUnpacker,
 
     pub extended: bool,
 }
@@ -34,6 +28,9 @@ pub enum RsdtError {
 }
 
 //
+
+unsafe impl Send for Rsdt {}
+unsafe impl Sync for Rsdt {}
 
 impl Rsdt {
     pub fn get() -> &'static Self {
@@ -48,50 +45,30 @@ impl Rsdt {
         let ptr = RSDP.ptr;
         let extended = RSDP.extended;
 
-        let (size, signature) = if extended {
-            (8, *b"XSDT")
-        } else {
-            (4, *b"RSDT")
-        };
+        let signature = if extended { *b"XSDT" } else { *b"RSDT" };
 
         let ptr = ptr as *const RawSdtHeader;
         let header = unsafe { &*ptr };
-        debug!("RSDT {:?}", StackStr::from_utf8(header.signature));
+        debug!("RSDT {:?}", StackStr::from_utf8(header.signature),);
 
         header.validate(Some(StackStr::from_utf8(signature)?))?;
 
-        Ok(Self {
-            first: ptr as usize + mem::size_of::<RawSdtHeader>(),
-            len: (header.length as usize - mem::size_of::<RawSdtHeader>()) / size,
-            extended,
-        })
+        let mut unpacker = unsafe { StructUnpacker::new(ptr as _, header.length as _) };
+        let _: RawSdtHeader = unpacker.next(true).unwrap();
+
+        Ok(Self { unpacker, extended })
     }
 
     pub fn iter(self) -> impl Iterator<Item = *const RawSdtHeader> {
-        let first = self.first as *const u32;
-        let ext = self.extended;
+        let ext: bool = self.extended;
+        let mut unpacker: StructUnpacker = self.unpacker;
 
-        (0..self.len as isize).map(move |i| {
-            macro_rules! read_next_entry {
-                ($t:ty) => {
-                    // calculate the ptr in the SDT structure
-                    //
-                    // the pointer is in an array right after the RawSdtHeader without any
-                    // alignment
-                    let sdt_pointer_pointer = unsafe { first.offset(i) };
-                    // read it from volatile memory to avoid breaking optimizations
-                    let sdt_pointer_data: [u8; mem::size_of::<$t>()] =
-                        unsafe { read_volatile(sdt_pointer_pointer as *const _) };
-                    // and copy the potentially unaligned data to aligned data
-                    (unsafe { read_unaligned::<$t>(&sdt_pointer_data as *const u8 as _) }) as _
-                };
-            }
-
-            if ext {
-                read_next_entry! { u64 }
+        core::iter::from_fn(move || {
+            Some(if ext {
+                unpacker.next::<u64>(true)? as _
             } else {
-                read_next_entry! { u32 }
-            }
+                unpacker.next::<u32>(true)? as _
+            })
         })
     }
 

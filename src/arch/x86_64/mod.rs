@@ -22,7 +22,9 @@ pub fn early_boot_cpu() {
         pics.lock().enable();
     }
 
-    // driver::acpi::init();
+    /* driver::pic::PIT.lock().init(); */
+
+    driver::acpi::init();
 
     int::enable();
 }
@@ -52,8 +54,12 @@ pub fn rng_seed() -> u64 {
     })
 }
 
+pub fn wait_interrupt() {
+    ins::hlt()
+}
+
 pub fn done() -> ! {
     loop {
-        ins::hlt();
+        wait_interrupt()
     }
 }

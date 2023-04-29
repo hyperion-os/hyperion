@@ -1,4 +1,11 @@
-use crate::{arch::cpu::idt::Irq, debug};
+use crate::{
+    arch::{self, cpu::idt::Irq},
+    debug, println,
+};
+use core::{
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
+};
 use spin::{Lazy, Mutex};
 use x86_64::instructions::port::Port;
 
@@ -9,6 +16,10 @@ pub static PICS: Lazy<Mutex<Pics>> = Lazy::new(|| {
     pics.init();
     Mutex::new(pics)
 });
+
+pub static PIT: Lazy<Mutex<Pit>> = Lazy::new(|| Mutex::new(Pit::new()));
+
+static PIT_CLOCK: AtomicUsize = AtomicUsize::new(0);
 
 const ICW1_ICW4: u8 = 0x01; // ICW4 will be present
 const ICW1_INIT: u8 = 0x10; // Init cmd
@@ -29,6 +40,12 @@ pub struct Pic {
     offs: u8,
     cmd: Port<u8>,
     data: Port<u8>,
+}
+
+pub struct Pit {
+    ch: [Port<u8>; 3],
+    cmd: Port<u8>,
+    ch2_gate: Port<u8>,
 }
 
 //
@@ -121,6 +138,29 @@ impl Pics {
             self.slave.cmd(EOI);
         }
     }
+
+    /* pub fn pit_tick() {
+        PIT_CLOCK.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn pit_wait() -> usize {
+        PIT_CLOCK.store(0, Ordering::SeqCst);
+        loop {
+            arch::wait_interrupt();
+            let t = PIT_CLOCK.load(Ordering::SeqCst);
+            if t != 0 {
+                return t;
+            }
+        }
+    }
+
+    pub fn pit_sleep(time: Duration) {
+        let millis = time.as_millis() as usize;
+        PIT_CLOCK.store(0, Ordering::SeqCst);
+        while PIT_CLOCK.load(Ordering::SeqCst) <= millis {
+            arch::wait_interrupt()
+        }
+    } */
 }
 
 impl Pic {
@@ -144,6 +184,21 @@ impl Pic {
 
     fn has(&self, irq: u8) -> bool {
         (self.offs..self.offs + 8).contains(&irq)
+    }
+}
+
+impl Pit {
+    pub const fn new() -> Self {
+        Self {
+            ch: [Port::new(0x40), Port::new(0x41), Port::new(0x42)],
+            cmd: Port::new(0x43),
+            ch2_gate: Port::new(0x61),
+        }
+    }
+
+    pub fn init(&mut self) {
+        let x = (unsafe { self.ch2_gate.read() } & 0xfd) | 1;
+        println!("{x}");
     }
 }
 

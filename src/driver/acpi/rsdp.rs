@@ -5,8 +5,8 @@
 //! This module finds the pointer to the Root/eXtended System Descriptor Table [`super::rsdt`]
 
 use super::{bytes_sum_to_zero, AcpiOem, AcpiVersion};
-use crate::{boot, debug, util::stack_str::StackStr};
-use core::{mem, ops::Deref, ptr::read_volatile, str::Utf8Error};
+use crate::{boot, debug, driver::acpi::read_unaligned_volatile, util::stack_str::StackStr};
+use core::{mem, ops::Deref, str::Utf8Error};
 use spin::Lazy;
 
 //
@@ -20,6 +20,7 @@ pub static RSDP: Lazy<Rsdp> = Lazy::new(Rsdp::init);
 pub struct Rsdp {
     /// pointer to Root/eXtended System Descriptor Table
     pub ptr: usize,
+    /// `ptr` is XSDT pointer instead of RSDT pointer
     pub extended: bool,
 }
 
@@ -43,7 +44,7 @@ impl Rsdp {
     }
 
     pub fn try_init() -> Result<Self, RsdpError> {
-        let rsdp: RawRsdpDescriptor2 = unsafe { read_volatile(boot::rsdp() as _) };
+        let rsdp: RawRsdpDescriptor = unsafe { read_unaligned_volatile(boot::rsdp() as _) };
 
         if rsdp.signature != *b"RSD PTR " {
             return Err(RsdpError::InvalidSignature);
@@ -53,20 +54,41 @@ impl Rsdp {
         debug!("Oem: {oem:?}");
 
         let version: AcpiVersion = rsdp.revision.try_into()?;
-        if !version.checksum_valid(&rsdp) {
+
+        match version {
+            AcpiVersion::V1 => Self::init_rsdp(rsdp),
+            AcpiVersion::V2 => Self::init_xsdp(boot::rsdp() as _),
+        }
+    }
+
+    fn init_rsdp(rsdp: RawRsdpDescriptor) -> Result<Self, RsdpError> {
+        let valid = unsafe { bytes_sum_to_zero(&rsdp, Some(mem::size_of::<RawRsdpDescriptor>())) };
+        if !valid {
             return Err(RsdpError::InvalidChecksum);
         }
 
-        Ok(if version == AcpiVersion::V2 {
-            Self {
-                ptr: rsdp.xsdt_address as _,
-                extended: true,
-            }
-        } else {
-            Self {
-                ptr: rsdp.rsdt_address as _,
-                extended: false,
-            }
+        Ok(Self {
+            ptr: rsdp.rsdt_address as _,
+            extended: false,
+        })
+    }
+
+    fn init_xsdp(xsdp: *const RawRsdpDescriptorExt) -> Result<Self, RsdpError> {
+        let xsdp = unsafe { read_unaligned_volatile(xsdp) };
+
+        let valid = unsafe {
+            bytes_sum_to_zero(
+                &xsdp,
+                Some(mem::size_of::<RawRsdpDescriptorExt>().min(xsdp.length as _)),
+            )
+        };
+        if !valid {
+            return Err(RsdpError::InvalidChecksum);
+        }
+
+        Ok(Self {
+            ptr: xsdp.xsdt_address as _,
+            extended: true,
         })
     }
 }
@@ -93,7 +115,7 @@ struct RawRsdpDescriptor {
 // https://wiki.osdev.org/RSDP
 #[derive(Debug, Clone, Copy)]
 #[repr(packed, C)]
-struct RawRsdpDescriptor2 {
+struct RawRsdpDescriptorExt {
     first: RawRsdpDescriptor,
 
     length: u32,
@@ -103,17 +125,6 @@ struct RawRsdpDescriptor2 {
 }
 
 //
-
-impl AcpiVersion {
-    fn checksum_valid(self, value: &RawRsdpDescriptor2) -> bool {
-        let length = match self {
-            AcpiVersion::V1 => mem::size_of::<RawRsdpDescriptor>(),
-            AcpiVersion::V2 => mem::size_of::<RawRsdpDescriptor2>().min(value.length as _),
-        };
-
-        unsafe { bytes_sum_to_zero(value, Some(length)) }
-    }
-}
 
 impl TryFrom<u8> for AcpiVersion {
     type Error = RsdpError;
@@ -127,7 +138,7 @@ impl TryFrom<u8> for AcpiVersion {
     }
 }
 
-impl Deref for RawRsdpDescriptor2 {
+impl Deref for RawRsdpDescriptorExt {
     type Target = RawRsdpDescriptor;
 
     fn deref(&self) -> &Self::Target {
