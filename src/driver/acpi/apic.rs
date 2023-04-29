@@ -75,14 +75,7 @@ pub fn enable() {
     // buggy HW fix:
     apic_regs.timer_divide.write(APIC_TIMER_DIV);
 
-    apic_freq();
-
     // loop { /* debug!("APIC TIMER {}", apic_regs.timer_current.read()); */ }
-}
-
-fn apic_freq() {
-    let x = unsafe { core::arch::x86_64::__cpuid(0x0B) };
-    panic!("{x:?}");
 }
 
 /* fn read_apic_reg(reg: usize) -> u32 {
