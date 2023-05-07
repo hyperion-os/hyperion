@@ -2,7 +2,7 @@
 //!
 //! https://wiki.osdev.org/RSDT
 
-use crate::{debug, util::stack_str::StackStr};
+use crate::debug;
 
 use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
 use core::{
@@ -80,7 +80,7 @@ impl Rsdt {
             // FACP, APIC, HPET, MCFG, WAET, BGRT
             debug!("RSDT entries:");
             for (header, _) in self.iter_headers() {
-                debug!(" - {:?}", StackStr::from_utf8(header.signature));
+                debug!(" - {:?}", header.signature);
             }
         }
 
@@ -92,7 +92,7 @@ impl Rsdt {
 
     pub fn find_table(self, signature: [u8; 4]) -> Option<(RawSdtHeader, StructUnpacker)> {
         RSDT.iter_headers()
-            .find(|(header, _)| header.signature == signature)
+            .find(|(header, _)| header.signature.as_bytes() == signature)
     }
 }
 
@@ -106,15 +106,4 @@ impl From<Utf8Error> for RsdtError {
     fn from(value: Utf8Error) -> Self {
         Self::SdtHeader(SdtError::Utf8Error(value))
     }
-}
-
-//
-
-/// https://wiki.osdev.org/MADT
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(packed, C)]
-struct RawMadt {
-    header: RawSdtHeader,
-    local_apic_address: u32,
-    flags: u32,
 }

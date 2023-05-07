@@ -1,7 +1,10 @@
 pub use crate::arch::vmm::PageMap;
+use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
 //
+
+pub static PAGE_MAP: Lazy<PageMap> = Lazy::new(PageMap::init);
 
 pub trait PageMapImpl {
     fn init() -> Self;

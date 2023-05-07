@@ -1,6 +1,5 @@
-use super::LOCAL_APIC;
-use crate::{arch::cpu::idt::Irq, debug};
-use core::{fmt, marker::PhantomData, ptr};
+use super::{ReadOnly, ReadWrite, Reg, WriteOnly, LOCAL_APIC};
+use crate::{arch::cpu::idt::Irq, debug, driver::acpi::hpet::HPET};
 use spin::{Lazy, Mutex, MutexGuard};
 
 //
@@ -45,7 +44,9 @@ pub fn enable() {
     );
 
     let apic_regs = unsafe { &mut *(*LOCAL_APIC as *mut ApicRegs) };
-    // debug!("Apic regs: {apic_regs:#?}");
+    debug!("Apic regs: {apic_regs:#?}");
+
+    let _hpet = &*HPET;
 
     // reset to well-known state
     apic_regs.destination_format.write(0xFFFF_FFFF);
@@ -104,86 +105,27 @@ fn write_msr(msr: u32, val: u64) {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ApicRegs {
-    pub _res0: [Reg; 2],
-    pub lapic_id: Reg<ReadWrite>,
-    pub lapic_ver: Reg<Read>,
-    pub _res1: [Reg; 4],
-    pub task_priority: Reg<ReadWrite>,
-    pub arbitration_priority: Reg<Read>,
-    pub processor_priority: Reg<Read>,
-    pub eoi: Reg<Write>,
-    pub remote_read: Reg<Read>,
-    pub logical_destination: Reg<ReadWrite>,
-    pub destination_format: Reg<ReadWrite>,
-    pub spurious_interrupt_vector: Reg<ReadWrite>,
-    pub _pad2: [Reg; 34],
-    pub lvt_timer: Reg<ReadWrite>,
-    pub lvt_thermal_sensor: Reg<ReadWrite>,
-    pub lvt_perf_mon_counters: Reg<ReadWrite>,
-    pub lvt_lint_0: Reg<ReadWrite>,
-    pub lvt_lint_1: Reg<ReadWrite>,
-    pub lvt_error: Reg<ReadWrite>,
-    pub timer_init: Reg<ReadWrite>,
-    pub timer_current: Reg<Read>,
+    pub _res0: Reg<3, (), [u32; 2]>,
+    pub lapic_id: Reg<3, ReadWrite>,
+    pub lapic_ver: Reg<3, ReadOnly>,
+    pub _res1: Reg<3, (), [u32; 4]>,
+    pub task_priority: Reg<3, ReadWrite>,
+    pub arbitration_priority: Reg<3, ReadOnly>,
+    pub processor_priority: Reg<3, ReadOnly>,
+    pub eoi: Reg<3, WriteOnly>,
+    pub remote_read: Reg<3, ReadOnly>,
+    pub logical_destination: Reg<3, ReadWrite>,
+    pub destination_format: Reg<3, ReadWrite>,
+    pub spurious_interrupt_vector: Reg<3, ReadWrite>,
+    pub _pad2: Reg<3, (), [u32; 34]>,
+    pub lvt_timer: Reg<3, ReadWrite>,
+    pub lvt_thermal_sensor: Reg<3, ReadWrite>,
+    pub lvt_perf_mon_counters: Reg<3, ReadWrite>,
+    pub lvt_lint_0: Reg<3, ReadWrite>,
+    pub lvt_lint_1: Reg<3, ReadWrite>,
+    pub lvt_error: Reg<3, ReadWrite>,
+    pub timer_init: Reg<3, ReadWrite>,
+    pub timer_current: Reg<3, ReadOnly>,
     pub _res2: Reg,
-    pub timer_divide: Reg<ReadWrite>,
-}
-
-#[repr(C)]
-pub struct Reg<A = ()> {
-    val: u32,
-    _pad: [u32; 3],
-    _p: PhantomData<A>,
-}
-
-pub struct Read;
-pub struct ReadWrite;
-pub struct Write;
-
-//
-
-impl Reg<Read> {
-    pub fn read(&self) -> u32 {
-        unsafe { ptr::read_volatile(&self.val as _) }
-    }
-}
-
-impl Reg<ReadWrite> {
-    pub fn read(&self) -> u32 {
-        unsafe { ptr::read_volatile(&self.val as _) }
-    }
-
-    pub fn write(&mut self, val: u32) {
-        unsafe { ptr::write_volatile(&mut self.val as _, val) }
-    }
-}
-
-impl Reg<Write> {
-    pub fn write(&mut self, val: u32) {
-        unsafe { ptr::write_volatile(&mut self.val as _, val) }
-    }
-}
-
-impl fmt::Debug for Reg<Read> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self.read(), f)
-    }
-}
-
-impl fmt::Debug for Reg<ReadWrite> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(&self.read(), f)
-    }
-}
-
-impl fmt::Debug for Reg<Write> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt("<NO READS>", f)
-    }
-}
-
-impl fmt::Debug for Reg<()> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt("<NO READS>", f)
-    }
+    pub timer_divide: Reg<3, ReadWrite>,
 }

@@ -15,12 +15,12 @@ pub fn early_boot_cpu() {
 
     cpu::init(&Cpu::new_boot());
 
-    {
+    /* {
         let pics = &*driver::pic::PICS;
         driver::rtc::RTC.now();
 
         pics.lock().enable();
-    }
+    } */
 
     /* driver::pic::PIT.lock().init(); */
 

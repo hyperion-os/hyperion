@@ -79,8 +79,7 @@ fn kernel_main() -> ! {
 
     debug!("RNG Seed {}", arch::rng_seed());
 
-    // smp::init();
-    arch::done();
+    smp::init()
 }
 
 fn smp_main(cpu: smp::Cpu) -> ! {

@@ -28,6 +28,10 @@ impl<const SIZE: usize> StackStr<SIZE> {
         zero_limited(&self.bytes)
     }
 
+    pub fn as_str_checked(&self) -> Result<&str, Utf8Error> {
+        core::str::from_utf8(zero_limited(&self.bytes))
+    }
+
     pub fn as_str(&self) -> &str {
         unsafe { core::str::from_utf8_unchecked(zero_limited(&self.bytes)) }
     }

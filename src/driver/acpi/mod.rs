@@ -1,6 +1,6 @@
 use crate::driver::pic::PICS;
 use crate::{debug, util::stack_str::StackStr};
-use core::{mem, slice, str::Utf8Error};
+use core::{fmt, marker::PhantomData, mem, ptr, slice, str::Utf8Error};
 
 //
 
@@ -10,6 +10,7 @@ pub use madt::LOCAL_APIC;
 //
 
 pub mod apic;
+pub mod hpet;
 pub mod madt;
 pub mod rsdp;
 pub mod rsdt;
@@ -61,14 +62,14 @@ pub enum AcpiVersion {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(packed, C)]
 pub struct RawSdtHeader {
-    signature: [u8; 4],
+    signature: StackStr<4>,
     length: u32,
     revision: u8,
     checksum: u8,
-    oem_id: [u8; 6],
-    oem_table_id: [u8; 8],
+    oem_id: StackStr<6>,
+    oem_table_id: StackStr<8>,
     oem_revision: u32,
-    creator_id: u32,
+    creator_id: StackStr<4>,
     creator_revision: u32,
 }
 
@@ -97,16 +98,16 @@ impl RawSdtHeader {
         let checksum_first = unpacker.now_at();
         let header: RawSdtHeader = unpacker.next(true).ok_or(SdtError::InvalidStructure)?;
 
+        header.oem_id.as_str_checked()?;
+        header.oem_table_id.as_str_checked()?;
+        header.creator_id.as_str_checked()?;
+
         if signature
-            .map(|signature| signature != header.signature)
+            .map(|signature| signature != header.signature.as_bytes())
             .unwrap_or(false)
         {
             return Err(SdtError::InvalidSignature);
         }
-
-        _ = StackStr::from_utf8(header.oem_id)?;
-
-        _ = StackStr::from_utf8(header.oem_table_id)?;
 
         // header + extra
         let all_bytes = unsafe { slice::from_raw_parts(checksum_first, header.length as _) };
@@ -217,4 +218,65 @@ impl StructUnpacker {
 pub unsafe fn read_unaligned_volatile<T: Copy>(ptr: *const T) -> T {
     // TODO: replace this with _something_ when _something_ gets stabilized
     core::intrinsics::unaligned_volatile_load(ptr)
+}
+
+//
+
+#[repr(C)]
+pub struct Reg<const PAD: usize = 3, A = (), T = u32> {
+    val: T,
+    _pad: [T; PAD],
+    _p: PhantomData<A>,
+}
+
+pub struct ReadOnly;
+pub struct ReadWrite;
+pub struct WriteOnly;
+
+//
+
+impl<const PAD: usize, T: Copy> Reg<PAD, ReadOnly, T> {
+    pub fn read(&self) -> T {
+        unsafe { ptr::read_volatile(&self.val as _) }
+    }
+}
+
+impl<const PAD: usize, T: Copy> Reg<PAD, ReadWrite, T> {
+    pub fn read(&self) -> T {
+        unsafe { ptr::read_volatile(&self.val as _) }
+    }
+
+    pub fn write(&mut self, val: T) {
+        unsafe { ptr::write_volatile(&mut self.val as _, val) }
+    }
+}
+
+impl<const PAD: usize, T: Copy> Reg<PAD, WriteOnly, T> {
+    pub fn write(&mut self, val: T) {
+        unsafe { ptr::write_volatile(&mut self.val as _, val) }
+    }
+}
+
+impl<const PAD: usize, T: fmt::Debug + Copy> fmt::Debug for Reg<PAD, ReadOnly, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.read(), f)
+    }
+}
+
+impl<const PAD: usize, T: fmt::Debug + Copy> fmt::Debug for Reg<PAD, ReadWrite, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.read(), f)
+    }
+}
+
+impl<const PAD: usize, T: fmt::Debug + Copy> fmt::Debug for Reg<PAD, WriteOnly, T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt("<NO READS>", f)
+    }
+}
+
+impl<const PAD: usize, T: fmt::Debug + Copy> fmt::Debug for Reg<PAD, (), T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt("<NO READS>", f)
+    }
 }

@@ -49,8 +49,8 @@ impl PageMapImpl for PageMap {
         let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
 
         for i in (0..pages).map(|i| i * 4096) {
-            let page = Page::<Size4KiB>::from_start_address(v_addr + i).unwrap();
-            let frame = PhysFrame::from_start_address(p_addr + i).unwrap();
+            let page = Page::<Size4KiB>::containing_address(v_addr + i);
+            let frame = PhysFrame::containing_address(p_addr + i);
 
             unsafe {
                 offs.map_to(page, frame, flags, &mut pmm).unwrap().flush();

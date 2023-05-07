@@ -23,7 +23,7 @@ pub struct Madt {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MadtError {
-    SdtHeader(SdtError),
+    Sdt(SdtError),
     DoesntExist,
 }
 
@@ -44,7 +44,7 @@ impl Madt {
 
         // skip MADT header
         let madt: RawMadt = u.unpack(true)?;
-        trace!("{madt:?}");
+        trace!("{madt:#x?}");
 
         let mut local_apic_addr = madt.local_apic_addr as usize;
         let mut io_apic_addr = None;
@@ -58,42 +58,42 @@ impl Madt {
             match header.entry_type {
                 0 => {
                     assert_eq!(data_len, mem::size_of::<ProcessorLocalApic>());
-                    let data: ProcessorLocalApic = u.unpack(false)?;
-                    trace!("{data:?}");
+                    let _data: ProcessorLocalApic = u.unpack(false)?;
+                    // trace!("{data:#x?}");
                 }
                 1 => {
                     assert_eq!(data_len, mem::size_of::<IoApic>());
                     let data: IoApic = u.unpack(false)?;
-                    trace!("{data:?}");
+                    trace!("{data:#x?}");
 
                     io_apic_addr = Some(data.io_apic_addr as usize);
                 }
                 2 => {
                     assert_eq!(data_len, mem::size_of::<InterruptSourceOverride>());
-                    let data: InterruptSourceOverride = u.unpack(false)?;
-                    trace!("{data:?}");
+                    let _data: InterruptSourceOverride = u.unpack(false)?;
+                    // trace!("{data:#x?}");
                 }
                 3 => {
                     assert_eq!(data_len, mem::size_of::<NonMaskableInterruptSource>());
-                    let data: NonMaskableInterruptSource = u.unpack(false)?;
-                    trace!("{data:?}");
+                    let _data: NonMaskableInterruptSource = u.unpack(false)?;
+                    // trace!("{data:#x?}");
                 }
                 4 => {
                     assert_eq!(data_len, mem::size_of::<LocalApicNonMaskableInterrupts>());
-                    let data: LocalApicNonMaskableInterrupts = u.unpack(false)?;
-                    trace!("{data:?}");
+                    let _data: LocalApicNonMaskableInterrupts = u.unpack(false)?;
+                    // trace!("{data:#x?}");
                 }
                 5 => {
                     assert_eq!(data_len, mem::size_of::<LocalApicAddressOverride>());
                     let data: LocalApicAddressOverride = u.unpack(false)?;
-                    trace!("{data:?}");
+                    trace!("{data:#x?}");
 
                     local_apic_addr = data.local_apic_addr as usize;
                 }
                 9 => {
                     assert_eq!(data_len, mem::size_of::<ProcessorLocalx2Apic>());
-                    let data: ProcessorLocalx2Apic = u.unpack(false)?;
-                    trace!("{data:?}");
+                    let _data: ProcessorLocalx2Apic = u.unpack(false)?;
+                    // trace!("{data:#x?}");
                 }
                 _ => {
                     warn!("Unidentified MADT Entry");
@@ -114,7 +114,7 @@ impl Madt {
 
 impl From<SdtError> for MadtError {
     fn from(value: SdtError) -> Self {
-        Self::SdtHeader(value)
+        Self::Sdt(value)
     }
 }
 
