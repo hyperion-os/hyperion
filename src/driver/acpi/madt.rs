@@ -39,13 +39,7 @@ impl Madt {
     }
 
     pub fn try_init() -> Result<Self, MadtError> {
-        let Some((_, mut unpacker)) = RSDT
-            .iter_headers()
-            .find(|(header, _)| {
-                header.signature == *b"APIC"
-            }) else {
-                return Err(MadtError::DoesntExist);
-            };
+        let (_, mut unpacker) = RSDT.find_table(*b"APIC").ok_or(MadtError::DoesntExist)?;
         let u = &mut unpacker;
 
         // skip MADT header

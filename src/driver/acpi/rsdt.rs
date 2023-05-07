@@ -89,6 +89,11 @@ impl Rsdt {
             Some((header, unpacker))
         })
     }
+
+    pub fn find_table(self, signature: [u8; 4]) -> Option<(RawSdtHeader, StructUnpacker)> {
+        RSDT.iter_headers()
+            .find(|(header, _)| header.signature == signature)
+    }
 }
 
 impl From<SdtError> for RsdtError {
