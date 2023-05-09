@@ -23,7 +23,12 @@ Idk, I asked ChatGPT to give it a name:
 It is as simple as just:
 
 ```bash
+# normal
 make run
+# without kvm
+make KVM=false run
+# with uefi
+make UEFI=true run
 ```
 
 ### On HW?
