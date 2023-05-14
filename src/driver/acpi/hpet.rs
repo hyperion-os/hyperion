@@ -20,7 +20,14 @@ pub static HPET: Lazy<Hpet> = Lazy::new(Hpet::init);
 #[derive(Debug)]
 pub struct Hpet {
     addr: u64,
-    // regs: Mutex<&'static mut HpetRegs>,
+
+    /// HPET period in femtoseconds
+    period: u32,
+    // vendor_id: u16,
+    // leg_rt_cap: bool,
+    // count_size_cap: bool,
+    timers: u8,
+    // rev_id: u8,
 }
 
 #[derive(Debug)]
@@ -29,6 +36,12 @@ pub struct HpetRegs {
     // general_config: Reg<1, ReadWrite, GeneralConfig>,
     // general_interrupt_status: Reg<1, ReadWrite, GeneralInterruptStatus>,
     // main_counter_value: Reg<1, ReadWrite, MainCounterValue>,
+}
+
+#[derive(Debug)]
+pub struct TimerN<'a> {
+    hpet: &'a mut Hpet,
+    offs: u64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -65,44 +78,60 @@ impl Hpet {
 
         regs.get_mut().general_config.read(); */
 
-        Ok(Self { addr })
+        let mut res = Self {
+            addr,
+            period: 0,
+            timers: 0,
+        };
+
+        let caps = res.caps();
+        res.period = caps.period() as u32;
+        res.timers = caps.num_tim_cap() as u8;
+
+        Ok(res)
     }
 
-    pub fn general_caps(&mut self) -> GeneralCaps {
+    //
+
+    pub fn timer(&mut self, n: u8) -> TimerN {
+        assert!(n <= self.timers);
+        TimerN {
+            hpet: self,
+            offs: 0x100 + 0x20 * n as u64,
+        }
+    }
+
+    //
+
+    pub fn caps(&mut self) -> GeneralCaps {
         GeneralCaps(self.read_reg(0x000))
     }
 
-    pub fn general_config(&mut self) -> GeneralConfig {
+    pub fn config(&mut self) -> GeneralConfig {
         GeneralConfig(self.read_reg(0x010))
     }
 
-    pub fn set_general_config(&mut self, config: GeneralConfig) {
+    pub fn set_config(&mut self, config: GeneralConfig) {
         self.write_reg(0x010, config.0)
     }
 
-    pub fn general_interrupt_status(&mut self) -> GeneralInterruptStatus {
+    pub fn interrupt_status(&mut self) -> GeneralInterruptStatus {
         GeneralInterruptStatus(self.read_reg(0x020))
     }
 
-    pub fn set_general_interrupt_status(&mut self, status: GeneralInterruptStatus) {
+    pub fn set_interrupt_status(&mut self, status: GeneralInterruptStatus) {
         self.write_reg(0x020, status.0)
     }
 
-    pub fn main_counter_value(&mut self) -> MainCounterValue {
+    pub fn main_counter_value(&mut self) -> CounterValue {
         self.read_reg(0x030)
     }
 
-    pub fn set_main_counter_value(&mut self, val: MainCounterValue) {
+    pub fn set_main_counter_value(&mut self, val: CounterValue) {
         self.write_reg(0x0F0, val)
     }
 
-    /* pub fn timer_n_config_and_caps(&mut self) -> TimerNConfigAndCaps {
-        self.read_reg(0x030)
-    }
-
-    pub fn set_timer_n_config_and_caps(&mut self, val: MainCounterValue) {
-        self.write_reg(0x0F0, val)
-    } */
+    //
 
     fn read_reg(&mut self, reg: u64) -> u64 {
         unsafe { read_volatile((self.addr + reg) as *const u64) }
@@ -117,6 +146,24 @@ impl Hpet {
         const SECOND: u64 = 10u64.pow(15);
         const _100_NANOS: u32 = (SECOND / 10_000_000) as u32;
         _100_NANOS
+    }
+}
+
+impl TimerN<'_> {
+    pub fn config_and_caps(&mut self) -> TimerNConfigAndCaps {
+        TimerNConfigAndCaps(self.hpet.read_reg(self.offs))
+    }
+
+    pub fn set_config_and_caps(&mut self, val: TimerNConfigAndCaps) {
+        self.hpet.write_reg(self.offs, val.0)
+    }
+
+    pub fn counter_value(&mut self) -> CounterValue {
+        self.hpet.read_reg(self.offs + 0x8)
+    }
+
+    pub fn set_counter_value(&mut self, val: CounterValue) {
+        self.hpet.write_reg(self.offs + 0x8, val)
     }
 }
 
@@ -196,7 +243,7 @@ impl GeneralInterruptStatus {
     }
 }
 
-pub type MainCounterValue = u64;
+pub type CounterValue = u64;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(packed, C)]
