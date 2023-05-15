@@ -1,5 +1,4 @@
 use super::task::Task;
-use crate::arch;
 use alloc::sync::Arc;
 use core::future::Future;
 use crossbeam_queue::SegQueue;
@@ -37,7 +36,7 @@ impl Executor {
     }
 
     pub fn add_task(&self, task: Arc<Task>) {
-        self.tasks.push(task.into())
+        self.tasks.push(task)
     }
 
     pub fn take_task(&self) -> Option<Arc<Task>> {

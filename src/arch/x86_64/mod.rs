@@ -1,4 +1,4 @@
-use crate::{driver, error, smp::Cpu, warn};
+use crate::{driver, error, smp::Cpu};
 use x86_64::instructions::{self as ins, interrupts as int, random::RdRand};
 
 //

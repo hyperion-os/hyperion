@@ -1,6 +1,6 @@
 use super::tss::Tss;
 use crate::{
-    driver::{self, acpi::apic::apic_regs, pic::PICS},
+    driver::{self, acpi::apic::apic_regs, pic::PICS, rtc::RTC},
     error, info,
 };
 use x86_64::{
@@ -104,6 +104,7 @@ pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
 
 pub extern "x86-interrupt" fn rtc_tick(_: InterruptStackFrame) {
     info!("RTC tick");
+    RTC.int_ack();
     PICS.lock().end_of_interrupt(Irq::PicRtc as _);
 }
 

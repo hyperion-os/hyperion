@@ -1,4 +1,4 @@
-use crate::{debug, warn};
+use crate::warn;
 use core::{
     pin::Pin,
     task::{Context, Poll},

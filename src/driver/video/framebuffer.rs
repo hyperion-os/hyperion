@@ -1,8 +1,7 @@
 use super::{color::Color, font::FONT};
-use crate::{boot, debug};
-use alloc::{boxed::Box, vec};
+use crate::boot;
 use core::{
-    fmt, mem,
+    fmt,
     ops::{Deref, DerefMut, Range},
     sync::atomic::{AtomicBool, Ordering},
 };

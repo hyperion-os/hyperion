@@ -22,8 +22,8 @@
 use futures_util::StreamExt;
 
 use crate::{
-    driver::acpi,
-    task::{executor::Executor, keyboard::KeyboardEvents},
+    driver::{acpi, rtc},
+    task::keyboard::KeyboardEvents,
     util::fmt::NumberPostfix,
 };
 
@@ -63,14 +63,6 @@ fn kernel_main() -> ! {
 
     arch::early_boot_cpu();
 
-    task::spawn(async move {
-        let mut ev = KeyboardEvents::new();
-        while let Some(ev) = ev.next().await {
-            let lapic_id = acpi::apic::apic_regs().lapic_id.read();
-            print!("[key:{ev} LAPIC:{lapic_id}]");
-        }
-    });
-
     debug!("Cmdline: {:?}", boot::args::get());
 
     debug!(
@@ -92,8 +84,26 @@ fn kernel_main() -> ! {
     #[cfg(test)]
     test_main();
 
-    debug!("RNG Seed {}", arch::rng_seed());
+    if let Some(time) = rtc::RTC.now() {
+        debug!("RTC time: {time:?}");
+    }
 
+    rtc::RTC.enable_ints();
+    debug!(
+        "ints enabled?: {}",
+        x86_64::instructions::interrupts::are_enabled()
+    );
+
+    // main task(s)
+    task::spawn(async move {
+        let mut ev = KeyboardEvents::new();
+        while let Some(ev) = ev.next().await {
+            let lapic_id = acpi::apic::apic_regs().lapic_id.read();
+            print!("[key:{ev} LAPIC:{lapic_id}]");
+        }
+    });
+
+    // jumps to [smp_main] right bellow + wakes up other threads to jump there
     smp::init()
 }
 

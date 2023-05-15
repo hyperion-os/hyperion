@@ -8,7 +8,7 @@ use bit_field::BitField;
 use chrono::Duration;
 use spin::Lazy;
 
-use crate::{debug, println, trace};
+use crate::{debug, trace};
 
 use super::{rsdt::RSDT, SdtError};
 
@@ -22,8 +22,7 @@ pub static HPET: Lazy<Hpet> = Lazy::new(Hpet::init);
 pub struct Hpet {
     addr: u64,
 
-    minimum_tick: u16,
-
+    // minimum_tick: u16,
     /// HPET period in femtoseconds
     period: u32,
     // vendor_id: u16,
@@ -74,7 +73,7 @@ impl Hpet {
 
         let mut res = Self {
             addr: hpet.address.address,
-            minimum_tick: hpet.minimum_tick,
+            // minimum_tick: hpet.minimum_tick,
             period: 0,
             timers: 0,
         };

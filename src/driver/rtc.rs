@@ -2,7 +2,7 @@ use crate::{debug, error};
 use chrono::{DateTime, TimeZone, Utc};
 use core::sync::atomic::{AtomicU8, Ordering};
 use spin::Mutex;
-use x86_64::instructions::port::Port;
+use x86_64::instructions::{interrupts::without_interrupts, port::Port};
 
 //
 
@@ -27,6 +27,27 @@ impl Rtc {
                 cmos_data: Port::new(0x71),
             }),
             time: Time::new(),
+        }
+    }
+
+    pub fn enable_ints(&self) {
+        without_interrupts(|| {
+            let mut ports = self.ports.lock();
+            unsafe {
+                ports.cmos_addr.write(0x8B);
+                let prev = ports.cmos_data.read();
+                ports.cmos_addr.write(0x8B);
+                ports.cmos_data.write(prev | 0x40);
+            }
+        });
+    }
+
+    pub fn int_ack(&self) {
+        let mut ports = self.ports.lock();
+        unsafe {
+            ports.cmos_addr.write(0x0C);
+            // throw away
+            _ = ports.cmos_data.read();
         }
     }
 
