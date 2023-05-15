@@ -3,17 +3,19 @@
 #![no_std]
 #![no_main]
 //
-#![feature(format_args_nl)]
-#![feature(abi_x86_interrupt)]
-#![feature(allocator_api)]
-#![feature(pointer_is_aligned)]
-#![feature(int_roundings)]
-#![feature(array_chunks)]
-#![feature(cfg_target_has_atomic)]
-#![feature(slice_as_chunks)]
-#![feature(core_intrinsics)]
-//
-#![feature(custom_test_frameworks)]
+#![feature(
+    format_args_nl,
+    abi_x86_interrupt,
+    allocator_api,
+    pointer_is_aligned,
+    int_roundings,
+    array_chunks,
+    cfg_target_has_atomic,
+    slice_as_chunks,
+    core_intrinsics,
+    custom_test_frameworks,
+    panic_can_unwind
+)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
@@ -27,6 +29,7 @@ extern crate alloc;
 
 #[path = "arch/x86_64/mod.rs"]
 pub mod arch;
+pub mod backtrace;
 pub mod boot;
 pub mod driver;
 pub mod log;
@@ -69,6 +72,9 @@ fn kernel_main() -> ! {
 
     // ofc. every kernel has to have this cringy ascii name splash
     info!("\n{}\n", include_str!("./splash"));
+
+    backtrace::print_backtrace();
+    panic!("test panic");
 
     if let Some(bl) = boot::BOOT_NAME.get() {
         debug!("{KERNEL_NAME} {KERNEL_VERSION} was booted with {bl}");

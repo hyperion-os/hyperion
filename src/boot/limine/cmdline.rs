@@ -1,9 +1,8 @@
-use limine::LimineKernelFileRequest;
+use super::kernel::REQ;
 
 //
 
 pub fn cmdline() -> Option<&'static str> {
-    static REQ: LimineKernelFileRequest = LimineKernelFileRequest::new(0);
     REQ.get_response()
         .get()
         .and_then(|resp| resp.kernel_file.get())
