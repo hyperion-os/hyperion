@@ -19,7 +19,7 @@
 
 //
 
-use crate::util::fmt::NumberPostfix;
+use crate::{task::executor::Executor, util::fmt::NumberPostfix};
 
 extern crate alloc;
 
@@ -33,6 +33,7 @@ pub mod log;
 pub mod mem;
 pub mod panic;
 pub mod smp;
+pub mod task;
 pub mod term;
 #[cfg(test)]
 pub mod testfw;
@@ -55,6 +56,15 @@ fn kernel_main() -> ! {
     debug!("Entering kernel_main");
 
     arch::early_boot_cpu();
+
+    let exec = Executor::new();
+    exec.add_task(async {
+        let v = async { 20 + 22 }.await;
+        println!("expensive calculation: {v}")
+    });
+    loop {
+        exec.run();
+    }
 
     debug!("Cmdline: {:?}", boot::args::get());
 
