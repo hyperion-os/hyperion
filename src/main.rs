@@ -19,7 +19,13 @@
 
 //
 
-use crate::{task::executor::Executor, util::fmt::NumberPostfix};
+use alloc::sync::Arc;
+use futures_util::StreamExt;
+
+use crate::{
+    task::{executor::Executor, keyboard::KeyboardEvents},
+    util::fmt::NumberPostfix,
+};
 
 extern crate alloc;
 
@@ -59,8 +65,10 @@ fn kernel_main() -> ! {
 
     let exec = Executor::new();
     exec.add_task(async {
-        let v = async { 20 + 22 }.await;
-        println!("expensive calculation: {v}")
+        let mut ev = KeyboardEvents::new();
+        while let Some(ev) = ev.next().await {
+            print!("{ev}");
+        }
     });
     loop {
         exec.run();

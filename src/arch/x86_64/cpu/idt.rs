@@ -90,15 +90,14 @@ impl Idt {
 //
 
 pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
-    info!("pit int");
+    /*     info!("pit int"); */
     PICS.lock().end_of_interrupt(Irq::PicTimer as _);
 }
 
 pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
     let scancode: u8 = unsafe { Port::new(0x60).read() };
-    if let Some(ch) = driver::ps2::keyboard::process(scancode) {
-        info!("{ch}");
-    }
+    driver::ps2::keyboard::process(scancode);
+    /*     info!("keyboard input"); */
 
     PICS.lock().end_of_interrupt(Irq::PicKeyboard as _);
 }

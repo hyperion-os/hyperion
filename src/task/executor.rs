@@ -1,8 +1,10 @@
-use super::task::{Task, TaskId};
+use crate::debug;
+
+use super::task::{IntoTask, Task, TaskId};
 use alloc::{boxed::Box, sync::Arc};
 use core::task::{Context, Poll, RawWaker, RawWakerVTable};
 use crossbeam_queue::{ArrayQueue, SegQueue};
-use spin::Mutex;
+use spin::{Mutex, MutexGuard};
 
 //
 
@@ -41,27 +43,46 @@ impl Waker {
     }
 }
 
-#[derive(Default)]
 pub struct Executor {
-    /* free_task_ids: ArrayQueue<TaskId>,
-    task_ids: ArrayQueue<TaskId>,
-    tasks: [Mutex<Task>; 256], */
-    tasks: SegQueue<Task>,
+    free_task_ids: Arc<ArrayQueue<TaskId>>,
+    task_ids: Arc<ArrayQueue<TaskId>>,
+    tasks: Arc<[Mutex<Option<Task>>]>,
 }
 
 impl Executor {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
+        let free_task_ids = Arc::new(ArrayQueue::new(256));
+        for i in 0..=255 {
+            _ = free_task_ids.push(TaskId(i));
+        }
+
         Self {
-            tasks: SegQueue::new(),
+            free_task_ids,
+            task_ids: Arc::new(ArrayQueue::new(256)),
+            tasks: (0..=255).map(|_| Mutex::new(None)).collect::<Arc<_>>(),
         }
     }
 
-    pub fn add_task(&self, task: impl Into<Task>) {
-        self.tasks.push(task.into())
+    pub fn next_task_id(&self) -> TaskId {
+        self.free_task_ids.pop().expect("task queue full")
+    }
+
+    pub fn free_task_id(&self, task: TaskId) {
+        self.free_task_ids.push(task).expect("task queue full");
+    }
+
+    pub fn add_task(&self, task: impl IntoTask) {
+        let task = task.into_task(self);
+        let id = task.id;
+        // this lock should never block
+        *self.tasks[id.0 as usize].lock() = Some(task);
+        self.task_ids.push(id).unwrap();
     }
 
     pub fn take_task(&self) -> Option<Task> {
-        self.tasks.pop()
+        let id = self.task_ids.pop()?;
+        // this lock should never block
+        self.tasks[id.0 as usize].lock().take()
     }
 
     pub fn run(&self) {
@@ -69,10 +90,17 @@ impl Executor {
             let waker = Waker::new();
             let waker = waker.waker();
             let mut ctx = Context::from_waker(&waker);
+
             match task.poll(&mut ctx) {
-                Poll::Ready(()) => break,
+                Poll::Ready(()) => self.free_task_id(task.id),
                 Poll::Pending => self.add_task(task),
             }
         }
+    }
+}
+
+impl Default for Executor {
+    fn default() -> Self {
+        Self::new()
     }
 }
