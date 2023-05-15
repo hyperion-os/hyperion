@@ -102,6 +102,11 @@ objdump : ${KERNEL}
 readelf : ${KERNEL}
 	readelf --all ${KERNEL}
 
-.PHONY : build iso reset-cargo-deps run test gdb objdump readelf
+src:
+	@echo -e "\n\033[32m--[[ Hyperion source files ]]--\033[0m"
+	@echo "from: ${CARGO_DIR}/hyperion.d"
+	@echo "${KERNEL_SRC}" | tr " " "\n" | sort
+
+.PHONY : build iso reset-cargo-deps run test gdb objdump readelf src
 
 # end

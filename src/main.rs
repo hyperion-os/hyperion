@@ -44,6 +44,7 @@ pub mod term;
 #[cfg(test)]
 pub mod testfw;
 pub mod util;
+pub mod vfs;
 
 //
 
