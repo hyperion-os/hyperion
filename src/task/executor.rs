@@ -47,6 +47,7 @@ pub struct Executor {
     free_task_ids: Arc<ArrayQueue<TaskId>>,
     task_ids: Arc<ArrayQueue<TaskId>>,
     tasks: Arc<[Mutex<Option<Task>>]>,
+    task_waiters: Arc<[Mutex<Option<Task>>]>,
 }
 
 impl Executor {
