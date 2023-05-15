@@ -143,7 +143,7 @@ impl Framebuffer {
         static FBO_BUFFERED: AtomicBool = AtomicBool::new(true);
 
         if FBO_BUFFERED.swap(false, Ordering::SeqCst) {
-            // get the allocation size and unlock the fbo
+            /* // get the allocation size and unlock the fbo
             let len = FBO.as_ref()?.lock().buf.len();
             // this alloc could trigger a deadlock in the
             // framebuffer logger if the fbo isnt unlocked before
@@ -155,7 +155,7 @@ impl Framebuffer {
             this.buf = Box::leak(buf);
             drop(this);
 
-            debug!("FBO backbuffer initialized");
+            debug!("FBO backbuffer initialized"); */
         }
 
         Some(())

@@ -19,10 +19,10 @@
 
 //
 
-use alloc::sync::Arc;
 use futures_util::StreamExt;
 
 use crate::{
+    driver::acpi,
     task::{executor::Executor, keyboard::KeyboardEvents},
     util::fmt::NumberPostfix,
 };
@@ -63,16 +63,13 @@ fn kernel_main() -> ! {
 
     arch::early_boot_cpu();
 
-    let exec = Executor::new();
-    exec.add_task(async {
+    task::spawn(async move {
         let mut ev = KeyboardEvents::new();
         while let Some(ev) = ev.next().await {
-            print!("{ev}");
+            let lapic_id = acpi::apic::apic_regs().lapic_id.read();
+            print!("[key:{ev} LAPIC:{lapic_id}]");
         }
     });
-    loop {
-        exec.run();
-    }
 
     debug!("Cmdline: {:?}", boot::args::get());
 
@@ -105,6 +102,5 @@ fn smp_main(cpu: smp::Cpu) -> ! {
 
     arch::early_per_cpu(&cpu);
 
-    debug!("{cpu} halt");
-    arch::done();
+    task::run_tasks();
 }

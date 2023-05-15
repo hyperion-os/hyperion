@@ -37,10 +37,10 @@ pub fn early_per_cpu(cpu: &Cpu) {
 
     int::enable();
 
-    if cfg!(debug_assertions) {
+    /* if cfg!(debug_assertions) {
         warn!("[debug_assertions] {cpu} throwing a debug interrupt exception");
         debug_interrupt();
-    }
+    } */
 }
 
 pub fn debug_interrupt() {

@@ -223,9 +223,9 @@ pub unsafe fn read_unaligned_volatile<T: Copy>(ptr: *const T) -> T {
 //
 
 #[repr(C)]
-pub struct Reg<const PAD: usize = 3, A = (), T = u32> {
+pub struct Reg<A = (), T = u32> {
     val: T,
-    _pad: [T; PAD],
+    _pad: [T; 3],
     _p: PhantomData<A>,
 }
 
@@ -235,13 +235,13 @@ pub struct WriteOnly;
 
 //
 
-impl<const PAD: usize, T: Copy> Reg<PAD, ReadOnly, T> {
+impl<T: Copy> Reg<ReadOnly, T> {
     pub fn read(&self) -> T {
         unsafe { ptr::read_volatile(&self.val as _) }
     }
 }
 
-impl<const PAD: usize, T: Copy> Reg<PAD, ReadWrite, T> {
+impl<T: Copy> Reg<ReadWrite, T> {
     pub fn read(&self) -> T {
         unsafe { ptr::read_volatile(&self.val as _) }
     }
@@ -251,31 +251,31 @@ impl<const PAD: usize, T: Copy> Reg<PAD, ReadWrite, T> {
     }
 }
 
-impl<const PAD: usize, T: Copy> Reg<PAD, WriteOnly, T> {
+impl<T: Copy> Reg<WriteOnly, T> {
     pub fn write(&mut self, val: T) {
         unsafe { ptr::write_volatile(&mut self.val as _, val) }
     }
 }
 
-impl<const PAD: usize, T: fmt::Debug + Copy> fmt::Debug for Reg<PAD, ReadOnly, T> {
+impl<T: fmt::Debug + Copy> fmt::Debug for Reg<ReadOnly, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.read(), f)
     }
 }
 
-impl<const PAD: usize, T: fmt::Debug + Copy> fmt::Debug for Reg<PAD, ReadWrite, T> {
+impl<T: fmt::Debug + Copy> fmt::Debug for Reg<ReadWrite, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.read(), f)
     }
 }
 
-impl<const PAD: usize, T: fmt::Debug + Copy> fmt::Debug for Reg<PAD, WriteOnly, T> {
+impl<T: fmt::Debug + Copy> fmt::Debug for Reg<WriteOnly, T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt("<NO READS>", f)
     }
 }
 
-impl<const PAD: usize, T: fmt::Debug + Copy> fmt::Debug for Reg<PAD, (), T> {
+impl<T: fmt::Debug + Copy> fmt::Debug for Reg<(), T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt("<NO READS>", f)
     }
