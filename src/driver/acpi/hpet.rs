@@ -5,9 +5,10 @@
 use core::ptr::{read_volatile, write_volatile};
 
 use bit_field::BitField;
+use chrono::Duration;
 use spin::Lazy;
 
-use crate::debug;
+use crate::{debug, println, trace};
 
 use super::{rsdt::RSDT, SdtError};
 
@@ -20,6 +21,8 @@ pub static HPET: Lazy<Hpet> = Lazy::new(Hpet::init);
 #[derive(Debug)]
 pub struct Hpet {
     addr: u64,
+
+    minimum_tick: u16,
 
     /// HPET period in femtoseconds
     period: u32,
@@ -67,26 +70,16 @@ impl Hpet {
 
         let hpet: RawHpet = u.unpack(true)?;
 
-        debug!("HPET initialized {hpet:#x?}");
-
-        let addr = hpet.address.address;
-        debug!("HPET address {addr:#x}");
-
-        /* let mut regs = Mutex::new(unsafe { &mut *(addr as *mut HpetRegs) });
-
-        debug!("{:#?}", regs.get_mut());
-
-        regs.get_mut().general_config.read(); */
+        trace!("HPET initialized {hpet:#x?}");
 
         let mut res = Self {
-            addr,
+            addr: hpet.address.address,
+            minimum_tick: hpet.minimum_tick,
             period: 0,
             timers: 0,
         };
 
-        let caps = res.caps();
-        res.period = caps.period() as u32;
-        res.timers = caps.num_tim_cap() as u8;
+        res.init_self();
 
         Ok(res)
     }
@@ -141,15 +134,39 @@ impl Hpet {
         unsafe { write_volatile((self.addr + reg) as *mut u64, val) }
     }
 
+    fn init_self(&mut self) {
+        let caps = self.caps();
+        self.period = caps.period() as u32;
+        self.timers = caps.num_tim_cap() as u8;
+
+        // enable cnf => enable hpet
+        let mut config = self.config();
+        config.set_enable_cnf(1);
+        self.set_config(config);
+
+        debug!("HPET freq: {}", Self::freq(self.period));
+
+        /* loop {
+            println!("main counter: {}", self.main_counter_value());
+        } */
+    }
+
     #[allow(unused)]
-    const fn freq() -> u32 {
-        const SECOND: u64 = 10u64.pow(15);
+    const fn freq(period: u32) -> u32 {
+        (10u64.pow(15) / period as u64) as _
+        /* const SECOND: u64 = 10u64.pow(15);
         const _100_NANOS: u32 = (SECOND / 10_000_000) as u32;
-        _100_NANOS
+        _100_NANOS */
     }
 }
 
 impl TimerN<'_> {
+    pub fn sleep(&mut self, dur: Duration) {
+        dur.num_nanoseconds();
+    }
+
+    //
+
     pub fn config_and_caps(&mut self) -> TimerNConfigAndCaps {
         TimerNConfigAndCaps(self.hpet.read_reg(self.offs))
     }

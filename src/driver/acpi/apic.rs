@@ -1,5 +1,5 @@
 use super::{ReadOnly, ReadWrite, Reg, WriteOnly, LOCAL_APIC};
-use crate::{arch::cpu::idt::Irq, debug, driver::acpi::hpet::HPET};
+use crate::{arch::cpu::idt::Irq, debug, driver::acpi::hpet::HPET, trace};
 use spin::{Lazy, Mutex, MutexGuard};
 
 //
@@ -44,9 +44,7 @@ pub fn enable() {
     );
 
     let apic_regs = unsafe { &mut *(*LOCAL_APIC as *mut ApicRegs) };
-    debug!("Apic regs: {apic_regs:#?}");
-
-    let _hpet = &*HPET;
+    trace!("Apic regs: {apic_regs:#?}");
 
     // reset to well-known state
     apic_regs.destination_format.write(0xFFFF_FFFF);
@@ -75,6 +73,8 @@ pub fn enable() {
 
     // buggy HW fix:
     apic_regs.timer_divide.write(APIC_TIMER_DIV);
+
+    let _hpet = &*HPET;
 
     // loop { /* debug!("APIC TIMER {}", apic_regs.timer_current.read()); */ }
 }
