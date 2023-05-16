@@ -54,7 +54,7 @@ rustup toolchain install nightly
 
 ## Demo image(s)
 
-![image](https://user-images.githubusercontent.com/42496863/214513691-41c9a83a-73aa-487c-98b4-2072b39647c6.png)
+![image](https://github.com/xor-bits/hyperion/assets/42496863/cde71ecf-825f-4e5b-9a32-f204ffbef6e7)
 
 ## Font
 
