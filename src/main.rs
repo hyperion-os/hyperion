@@ -25,7 +25,7 @@ use futures_util::StreamExt;
 
 use crate::{driver::rtc, task::keyboard::KeyboardEvents, util::fmt::NumberPostfix};
 
-use self::vfs::IoResult;
+use self::{mem::pmm::PageFrameAllocator, vfs::IoResult};
 
 extern crate alloc;
 
@@ -176,6 +176,9 @@ async fn run_line(line: &str) -> IoResult<()> {
             let date = Utc.timestamp_nanos(i64::from_le_bytes(timestamp));
 
             println!("{date:?}");
+        }
+        "mem" => {
+            println!("{}", PageFrameAllocator::get());
         }
         other => {
             println!("unknown command {other}");
