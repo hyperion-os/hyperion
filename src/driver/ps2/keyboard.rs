@@ -1,4 +1,4 @@
-use crate::{debug, task::keyboard::provide_keyboard_event};
+use crate::task::keyboard::provide_keyboard_event;
 use pc_keyboard::{layouts::Us104Key, DecodedKey, HandleControl, KeyEvent, Keyboard, ScancodeSet1};
 use spin::Mutex;
 
@@ -19,8 +19,8 @@ pub fn process(scancode: u8) -> Option<char> {
         .and_then(|ev: KeyEvent| kb.process_keyevent(ev))
         .and_then(|key| match key {
             DecodedKey::Unicode(ch) => Some(ch),
-            DecodedKey::RawKey(key) => {
-                debug!("{key:?}");
+            DecodedKey::RawKey(_key) => {
+                // debug!("{key:?}");
                 None
             }
         })

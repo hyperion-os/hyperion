@@ -1,6 +1,13 @@
-use crate::{debug, error};
+use crate::{
+    debug, error,
+    vfs::{self, FileDevice},
+};
+use alloc::sync::Arc;
 use chrono::{DateTime, TimeZone, Utc};
-use core::sync::atomic::{AtomicU8, Ordering};
+use core::{
+    mem,
+    sync::atomic::{AtomicU8, Ordering},
+};
 use spin::Mutex;
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
 
@@ -28,6 +35,10 @@ impl Rtc {
             }),
             time: Time::new(),
         }
+    }
+
+    pub fn install_device() {
+        _ = vfs::create_device("/dev/rtc", true, Arc::new(Mutex::new(RtcDevice)) as _);
     }
 
     pub fn enable_ints(&self) {
@@ -59,7 +70,8 @@ impl Rtc {
 
             debug!("RTC time is {now}");
 
-            self.time.store(now.timestamp_nanos());
+            // Self::now already stored it
+            // self.time.store(now.timestamp_nanos());
             return;
         }
 
@@ -71,16 +83,74 @@ impl Rtc {
 
     pub fn now(&self) -> Option<DateTime<Utc>> {
         let time = self.ports.lock().read();
+        let time = Utc
+            .with_ymd_and_hms(
+                time.full_year as _,
+                time.month as _,
+                time.day as _,
+                time.hour as _,
+                time.min as _,
+                time.sec as _,
+            )
+            .single();
 
-        Utc.with_ymd_and_hms(
-            time.full_year as _,
-            time.month as _,
-            time.day as _,
-            time.hour as _,
-            time.min as _,
-            time.sec as _,
-        )
-        .single()
+        if let Some(time) = time {
+            self.time.store(time.timestamp_nanos());
+        }
+
+        time
+    }
+
+    pub fn now_bytes(&self) -> [u8; 8] {
+        _ = self.now();
+        let timestamp = self.time.load();
+        timestamp.to_le_bytes()
+    }
+}
+
+struct RtcDevice;
+
+impl FileDevice for RtcDevice {
+    fn len(&mut self) -> usize {
+        mem::size_of::<i64>()
+    }
+
+    fn read(&mut self, offset: usize, buf: &mut [u8]) -> vfs::IoResult<usize> {
+        let bytes = RTC.now_bytes();
+
+        let len = self
+            .len()
+            .checked_sub(offset)
+            .ok_or(vfs::IoError::UnexpectedEOF)?
+            .min(buf.len());
+
+        buf[..len].copy_from_slice(
+            bytes
+                .get(offset..offset + len)
+                .ok_or(vfs::IoError::UnexpectedEOF)?,
+        );
+
+        Ok(len)
+    }
+
+    fn read_exact(&mut self, offset: usize, buf: &mut [u8]) -> vfs::IoResult<()> {
+        let bytes = RTC.now_bytes();
+
+        buf.copy_from_slice(
+            bytes
+                .get(offset..offset + buf.len())
+                .ok_or(vfs::IoError::UnexpectedEOF)?,
+        );
+
+        Ok(())
+    }
+
+    fn write(&mut self, _: usize, _: &mut [u8]) -> vfs::IoResult<usize> {
+        Err(vfs::IoError::PermissionDenied)
+    }
+
+    fn write_exact(&mut self, _: usize, _: &mut [u8]) -> vfs::IoResult<()> {
+        Err(vfs::IoError::PermissionDenied)
     }
 }
 
@@ -145,7 +215,7 @@ impl Time {
         }
     }
 
-    /* fn load(&self) -> i64 {
+    fn load(&self) -> i64 {
         #[cfg(target_has_atomic_load_store = "64")]
         {
             self.store_a.load(Ordering::SeqCst)
@@ -154,7 +224,7 @@ impl Time {
         {
             *self.store_b.read()
         }
-    } */
+    }
 }
 
 impl RtcPorts {

@@ -19,13 +19,13 @@
 
 //
 
+use alloc::string::String;
+use chrono::{TimeZone, Utc};
 use futures_util::StreamExt;
 
-use crate::{
-    driver::{acpi, rtc},
-    task::keyboard::KeyboardEvents,
-    util::fmt::NumberPostfix,
-};
+use crate::{driver::rtc, task::keyboard::KeyboardEvents, util::fmt::NumberPostfix};
+
+use self::vfs::IoResult;
 
 extern crate alloc;
 
@@ -90,19 +90,14 @@ fn kernel_main() -> ! {
     }
 
     rtc::RTC.enable_ints();
+    rtc::Rtc::install_device();
     debug!(
         "ints enabled?: {}",
         x86_64::instructions::interrupts::are_enabled()
     );
 
     // main task(s)
-    task::spawn(async move {
-        let mut ev = KeyboardEvents::new();
-        while let Some(ev) = ev.next().await {
-            let lapic_id = acpi::apic::apic_regs().lapic_id.read();
-            print!("[key:{ev} LAPIC:{lapic_id}]");
-        }
-    });
+    task::spawn(shell());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     smp::init()
@@ -114,4 +109,78 @@ fn smp_main(cpu: smp::Cpu) -> ! {
     arch::early_per_cpu(&cpu);
 
     task::run_tasks();
+}
+
+async fn shell() {
+    let mut ev = KeyboardEvents::new();
+    let mut cmdbuf = String::new();
+    print!("\n[shell] > ");
+    while let Some(ev) = ev.next().await {
+        if ev == '\n' {
+            println!();
+            if let Err(err) = run_line(&cmdbuf).await {
+                println!("err: {err:?}");
+            };
+            cmdbuf.clear();
+            print!("\n[shell] > ");
+        } else if ev == '\u{8}' {
+            cmdbuf.pop();
+            print!("\n[shell] > {cmdbuf}");
+        } else {
+            print!("{ev}");
+            cmdbuf.push(ev);
+        }
+    }
+}
+
+async fn run_line(line: &str) -> IoResult<()> {
+    let (cmd, args) = line
+        .split_once(' ')
+        .map(|(cmd, args)| (cmd, Some(args)))
+        .unwrap_or((line, None));
+
+    match cmd {
+        "ls" => {
+            let dir = vfs::get_dir(args.unwrap_or("/"), false)?;
+            let mut dir = dir.lock();
+            for entry in dir.nodes()? {
+                println!("{entry}");
+            }
+        }
+        "cat" => {
+            let file = vfs::get_file(args.unwrap_or("/"), false, false)?;
+            let mut file = file.lock();
+
+            let mut at = 0usize;
+            let mut buf = [0u8; 16];
+            loop {
+                let read = file.read(at, &mut buf)?;
+                if read == 0 {
+                    break;
+                }
+                at += read;
+
+                for byte in buf {
+                    print!("{byte:#02} ");
+                }
+                println!();
+            }
+        }
+        "date" => {
+            let file = vfs::get_file("/dev/rtc", false, false)?;
+            let mut file = file.lock();
+
+            let mut timestamp = [0u8; 8];
+            file.read_exact(0, &mut timestamp)?;
+
+            let date = Utc.timestamp_nanos(i64::from_le_bytes(timestamp));
+
+            println!("{date:?}");
+        }
+        other => {
+            println!("unknown command {other}");
+        }
+    }
+
+    Ok(())
 }
