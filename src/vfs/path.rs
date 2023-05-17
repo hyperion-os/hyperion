@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::{format, string::String};
 use core::{fmt, ops::Deref};
 
 //
@@ -35,11 +35,34 @@ impl Path {
             .split('/')
             .filter(|p| !p.is_empty())
     }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> &'_ Self {
+        s.as_ref()
+    }
+
+    pub fn join(&self, p: &str) -> PathBuf {
+        PathBuf(format!("{}/{p}", &self.0))
+    }
+}
+
+impl<'a> From<&'a str> for &'a Path {
+    fn from(value: &'a str) -> Self {
+        value.as_ref()
+    }
 }
 
 impl fmt::Debug for Path {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl PathBuf {
+    pub fn join(&mut self, p: &str) -> &mut PathBuf {
+        use core::fmt::Write;
+        _ = write!(self.0, "/{p}");
+        self
     }
 }
 

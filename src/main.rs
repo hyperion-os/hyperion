@@ -19,13 +19,7 @@
 
 //
 
-use alloc::string::String;
-use chrono::{TimeZone, Utc};
-use futures_util::StreamExt;
-
-use crate::{driver::rtc, task::keyboard::KeyboardEvents, util::fmt::NumberPostfix};
-
-use self::{mem::pmm::PageFrameAllocator, vfs::IoResult};
+use crate::{driver::rtc, scheduler::kshell::kshell, util::fmt::NumberPostfix};
 
 extern crate alloc;
 
@@ -38,8 +32,8 @@ pub mod driver;
 pub mod log;
 pub mod mem;
 pub mod panic;
+pub mod scheduler;
 pub mod smp;
-pub mod task;
 pub mod term;
 #[cfg(test)]
 pub mod testfw;
@@ -55,6 +49,13 @@ pub static KERNEL_NAME: &str = if cfg!(test) {
 };
 
 pub static KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// ofc. every kernel has to have this cringy ascii name splash
+pub static KERNEL_SPLASH: &str = include_str!("./splash");
+
+pub static KERNEL_BUILD_TIME: &str = env!("HYPERION_BUILD_TIME");
+
+pub static KERNEL_BUILD_REV: &str = env!("HYPERION_BUILD_REV");
 
 //
 
@@ -75,8 +76,7 @@ fn kernel_main() -> ! {
     );
     debug!("HHDM Offset: {:#0X?}", boot::hhdm_offset());
 
-    // ofc. every kernel has to have this cringy ascii name splash
-    info!("\n{}\n", include_str!("./splash"));
+    info!("\n{KERNEL_SPLASH}");
 
     if let Some(bl) = boot::BOOT_NAME.get() {
         debug!("{KERNEL_NAME} {KERNEL_VERSION} was booted with {bl}");
@@ -97,7 +97,7 @@ fn kernel_main() -> ! {
     );
 
     // main task(s)
-    task::spawn(shell());
+    scheduler::spawn(kshell());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     smp::init()
@@ -108,82 +108,5 @@ fn smp_main(cpu: smp::Cpu) -> ! {
 
     arch::early_per_cpu(&cpu);
 
-    task::run_tasks();
-}
-
-async fn shell() {
-    let mut ev = KeyboardEvents::new();
-    let mut cmdbuf = String::new();
-    print!("\n[shell] > ");
-    while let Some(ev) = ev.next().await {
-        if ev == '\n' {
-            println!();
-            if let Err(err) = run_line(&cmdbuf).await {
-                println!("err: {err:?}");
-            };
-            cmdbuf.clear();
-            print!("\n[shell] > ");
-        } else if ev == '\u{8}' {
-            cmdbuf.pop();
-            print!("\n[shell] > {cmdbuf}");
-        } else {
-            print!("{ev}");
-            cmdbuf.push(ev);
-        }
-    }
-}
-
-async fn run_line(line: &str) -> IoResult<()> {
-    let (cmd, args) = line
-        .split_once(' ')
-        .map(|(cmd, args)| (cmd, Some(args)))
-        .unwrap_or((line, None));
-
-    match cmd {
-        "ls" => {
-            let dir = vfs::get_dir(args.unwrap_or("/"), false)?;
-            let mut dir = dir.lock();
-            for entry in dir.nodes()? {
-                println!("{entry}");
-            }
-        }
-        "cat" => {
-            let file = vfs::get_file(args.unwrap_or("/"), false, false)?;
-            let mut file = file.lock();
-
-            let mut at = 0usize;
-            let mut buf = [0u8; 16];
-            loop {
-                let read = file.read(at, &mut buf)?;
-                if read == 0 {
-                    break;
-                }
-                at += read;
-
-                for byte in buf {
-                    print!("{byte:#02} ");
-                }
-                println!();
-            }
-        }
-        "date" => {
-            let file = vfs::get_file("/dev/rtc", false, false)?;
-            let mut file = file.lock();
-
-            let mut timestamp = [0u8; 8];
-            file.read_exact(0, &mut timestamp)?;
-
-            let date = Utc.timestamp_nanos(i64::from_le_bytes(timestamp));
-
-            println!("{date:?}");
-        }
-        "mem" => {
-            println!("{}", PageFrameAllocator::get());
-        }
-        other => {
-            println!("unknown command {other}");
-        }
-    }
-
-    Ok(())
+    scheduler::run_tasks();
 }

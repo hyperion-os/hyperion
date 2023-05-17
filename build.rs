@@ -3,6 +3,7 @@ use std::{
     error::Error,
     fs::{self, File},
     io::Write,
+    process::Command,
 };
 
 use chrono::{Datelike, Utc};
@@ -101,6 +102,27 @@ fn main() -> Result<(), Box<dyn Error>> {
         .open("./src/driver/rtc.year")
         .unwrap();
     write!(generated_date, "{}", Utc::now().date_naive().year()).unwrap();
+
+    /* println!(
+        "cargo:rustc-env=HYPERION_RTC_YEAR={}",
+        Utc::now().date_naive().year()
+    ); */
+
+    println!(
+        "cargo:rustc-env=HYPERION_BUILD_TIME={}",
+        Utc::now().naive_local().format("%Y-%m-%d %H:%M:%S")
+    );
+
+    let rev = Command::new("git")
+        .arg("rev-parse")
+        .arg("HEAD")
+        .output()
+        .unwrap()
+        .stdout;
+    println!(
+        "cargo:rustc-env=HYPERION_BUILD_REV={}",
+        std::str::from_utf8(&rev).unwrap()
+    );
 
     Ok(())
 }

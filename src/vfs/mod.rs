@@ -4,6 +4,7 @@ use alloc::{
     sync::{Arc, Weak},
     vec::Vec,
 };
+use snafu::Snafu;
 use spin::{Lazy, Mutex};
 
 use crate::{debug, error};
@@ -142,14 +143,27 @@ pub trait DirectoryDevice {
     fn nodes(&mut self) -> IoResult<Vec<String>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Snafu)]
 pub enum IoError {
+    #[snafu(display("not found"))]
     NotFound,
+
+    #[snafu(display("already exists"))]
     AlreadyExists,
+
+    #[snafu(display("not a directory"))]
     NotADirectory,
+
+    #[snafu(display("is a directory"))]
     IsADirectory,
+
+    #[snafu(display("internal filesystem error"))]
     FilesystemError,
+
+    #[snafu(display("permission denied"))]
     PermissionDenied,
+
+    #[snafu(display("unexpected end of file"))]
     UnexpectedEOF,
 }
 
@@ -188,6 +202,20 @@ impl Directory {
             children: BTreeMap::new(),
             parent: None,
         })) as _
+    }
+}
+
+impl IoError {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            IoError::NotFound => "not found",
+            IoError::AlreadyExists => "already exists",
+            IoError::NotADirectory => "not a directory",
+            IoError::IsADirectory => "is a directory",
+            IoError::FilesystemError => "filesystem error",
+            IoError::PermissionDenied => "permission denied",
+            IoError::UnexpectedEOF => "unexpected eof",
+        }
     }
 }
 

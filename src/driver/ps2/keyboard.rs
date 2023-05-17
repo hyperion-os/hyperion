@@ -1,4 +1,4 @@
-use crate::task::keyboard::provide_keyboard_event;
+use crate::scheduler::keyboard::provide_keyboard_event;
 use pc_keyboard::{layouts::Us104Key, DecodedKey, HandleControl, KeyEvent, Keyboard, ScancodeSet1};
 use spin::Mutex;
 

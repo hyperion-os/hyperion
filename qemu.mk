@@ -23,6 +23,8 @@ QEMU_OVMF       ?= /usr/share/ovmf/x64/OVMF.fd
 ifeq (${UEFI},true)
 QEMU_FLAGS      += -bios ${QEMU_OVMF}
 endif
+# QEMU_FLAGS      += -vga virtio
+QEMU_FLAGS      += -vga std
 
 QEMU_RUN_FLAGS  ?=
 QEMU_RUN_FLAGS  += ${QEMU_FLAGS}
