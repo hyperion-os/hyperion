@@ -20,7 +20,7 @@ pub fn process(scancode: u8) -> Option<char> {
         .and_then(|key| match key {
             DecodedKey::Unicode(ch) => Some(ch),
             DecodedKey::RawKey(_key) => {
-                // debug!("{key:?}");
+                // crate::debug!("{_key:?}");
                 None
             }
         })
