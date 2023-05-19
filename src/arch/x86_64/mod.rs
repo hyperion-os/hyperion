@@ -1,5 +1,5 @@
-use crate::{driver, error, smp::Cpu};
-use x86_64::instructions::{self as ins, interrupts as int, random::RdRand};
+use crate::{driver, error, smp::Cpu, warn};
+use x86_64::instructions::{self as ins, random::RdRand};
 
 //
 
@@ -37,12 +37,8 @@ pub fn early_per_cpu(cpu: &Cpu) {
 
     /* if cfg!(debug_assertions) {
         warn!("[debug_assertions] {cpu} throwing a debug interrupt exception");
-        debug_interrupt();
+        int::debug();
     } */
-}
-
-pub fn debug_interrupt() {
-    int::int3();
 }
 
 pub fn rng_seed() -> u64 {
@@ -52,12 +48,36 @@ pub fn rng_seed() -> u64 {
     })
 }
 
-pub fn wait_interrupt() {
-    ins::hlt()
+pub mod int {
+    use x86_64::instructions::interrupts as int;
+
+    pub fn debug() {
+        int::int3();
+    }
+
+    pub fn disable() {
+        int::disable()
+    }
+
+    pub fn enable() {
+        int::enable()
+    }
+
+    pub fn are_enabled() -> bool {
+        int::are_enabled()
+    }
+
+    pub fn without<T>(f: impl FnOnce() -> T) -> T {
+        int::without_interrupts(f)
+    }
+
+    pub fn wait() {
+        int::enable_and_hlt()
+    }
 }
 
 pub fn done() -> ! {
     loop {
-        wait_interrupt()
+        int::wait()
     }
 }
