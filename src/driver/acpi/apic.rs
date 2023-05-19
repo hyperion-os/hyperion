@@ -1,4 +1,4 @@
-use super::{ReadOnly, ReadWrite, Reg, WriteOnly, LOCAL_APIC};
+use super::{ReadOnly, ReadWrite, Reg, RegRead, RegWrite, WriteOnly, LOCAL_APIC};
 use crate::{arch::cpu::idt::Irq, debug, driver::acpi::hpet::HPET, trace};
 use spin::{Lazy, Mutex, MutexGuard};
 
@@ -42,22 +42,36 @@ pub fn enable() {
         IA32_APIC_BASE,
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
     );
+    trace!("LAPIC: {:#0b}", read_msr(IA32_APIC_BASE));
 
     let apic_regs = unsafe { &mut *(*LOCAL_APIC as *mut ApicRegs) };
-    trace!("Apic regs: {apic_regs:#?}");
+    trace!("APIC regs: {apic_regs:#?}");
 
     // reset to well-known state
+    // TODO: fix this bug in rust-analyzer:
+    // both next lines work with rustc, but only the commented line works in rust-analyzer
+    // Reg::<ReadWrite>::write(&mut apic_regs.destination_format, 0xFFFF_FFFF);
     apic_regs.destination_format.write(0xFFFF_FFFF);
+    apic_regs
+        .logical_destination
+        .write(apic_regs.logical_destination.read() & 0x00FF_FFFF);
     apic_regs.lvt_timer.write(APIC_DISABLE);
     apic_regs.lvt_perf_mon_counters.write(APIC_NMI);
     apic_regs.lvt_lint_0.write(APIC_DISABLE);
     apic_regs.lvt_lint_1.write(APIC_DISABLE);
     apic_regs.task_priority.write(0);
 
+    // enable APIC
+    write_msr(0x2B, read_msr(0x1B) | (0x1 << 11));
     debug!("Writing ENABLE SIVR");
+    /* apic_regs
+    .spurious_interrupt_vector
+    .write(apic_regs.spurious_interrupt_vector.read() | APIC_SW_ENABLE); */
     apic_regs
         .spurious_interrupt_vector
-        .write(apic_regs.spurious_interrupt_vector.read() | APIC_SW_ENABLE);
+        .write(39 + APIC_SW_ENABLE);
+    apic_regs.lvt_timer.write(32);
+    apic_regs.timer_divide.write(APIC_TIMER_DIV);
 
     /*     let apic_period = 1000000; */
     let apic_period = u32::MAX;

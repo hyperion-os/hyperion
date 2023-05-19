@@ -1,4 +1,4 @@
-use futures_util::StreamExt;
+use futures_util::{stream::select, StreamExt};
 use snafu::Snafu;
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 
 use self::{shell::Shell, term::Term};
 
-use super::keyboard::KeyboardEvents;
+use super::{keyboard::KeyboardEvents, tick::Ticks};
 
 //
 
@@ -27,11 +27,17 @@ pub async fn kshell() {
 
     let term = Term::new(&mut vbo);
     let mut shell = Shell::new(term);
-    let mut ev = KeyboardEvents::new();
+    let ev = KeyboardEvents::new();
+    let tick = Ticks::new();
+    let mut stream = select(ev.map(Some), tick.map(|_| None));
 
     shell.init();
-    while let Some(ev) = ev.next().await {
-        shell.input(ev)
+    while let Some(ev) = stream.next().await {
+        if let Some(char) = ev {
+            shell.input(char);
+        } else {
+            shell.tick();
+        }
     }
 }
 

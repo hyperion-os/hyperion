@@ -8,6 +8,7 @@ use spin::Once;
 
 pub mod gdt;
 pub mod idt;
+pub mod ints;
 pub mod tss;
 
 //

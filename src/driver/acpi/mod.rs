@@ -233,26 +233,36 @@ pub struct ReadOnly;
 pub struct ReadWrite;
 pub struct WriteOnly;
 
+pub trait RegRead<T> {
+    fn read(&self) -> T;
+}
+
+pub trait RegWrite<T> {
+    fn write(&mut self, val: T);
+}
+
 //
 
-impl<T: Copy> Reg<ReadOnly, T> {
-    pub fn read(&self) -> T {
+impl<T: Copy> RegRead<T> for Reg<ReadOnly, T> {
+    fn read(&self) -> T {
         unsafe { ptr::read_volatile(&self.val as _) }
     }
 }
 
-impl<T: Copy> Reg<ReadWrite, T> {
-    pub fn read(&self) -> T {
+impl<T: Copy> RegRead<T> for Reg<ReadWrite, T> {
+    fn read(&self) -> T {
         unsafe { ptr::read_volatile(&self.val as _) }
     }
+}
 
-    pub fn write(&mut self, val: T) {
+impl<T: Copy> RegWrite<T> for Reg<ReadWrite, T> {
+    fn write(&mut self, val: T) {
         unsafe { ptr::write_volatile(&mut self.val as _, val) }
     }
 }
 
-impl<T: Copy> Reg<WriteOnly, T> {
-    pub fn write(&mut self, val: T) {
+impl<T: Copy> RegWrite<T> for Reg<WriteOnly, T> {
+    fn write(&mut self, val: T) {
         unsafe { ptr::write_volatile(&mut self.val as _, val) }
     }
 }

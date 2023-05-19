@@ -19,7 +19,11 @@
 
 //
 
-use crate::{driver::rtc, scheduler::kshell::kshell, util::fmt::NumberPostfix};
+use crate::{
+    driver::{pit::PIT, rtc},
+    scheduler::kshell::kshell,
+    util::fmt::NumberPostfix,
+};
 
 extern crate alloc;
 

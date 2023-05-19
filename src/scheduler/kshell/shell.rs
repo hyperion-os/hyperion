@@ -67,6 +67,8 @@ impl<'fbo> Shell<'fbo> {
         self.term.flush();
     }
 
+    pub fn tick(&mut self) {}
+
     fn prompt(&mut self) {
         _ = write!(self.term, "\n[kshell {}]# ", self.current_dir.as_str());
     }
