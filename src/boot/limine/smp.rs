@@ -1,4 +1,8 @@
-use crate::{debug, error, smp::Cpu, smp_main};
+use crate::{
+    debug, error,
+    smp::{Cpu, CPU_COUNT},
+    smp_main,
+};
 use limine::{LimineSmpInfo, LimineSmpRequest};
 use spin::Lazy;
 
@@ -7,6 +11,7 @@ use spin::Lazy;
 pub fn init() -> Cpu {
     let boot = boot_cpu();
 
+    let mut cpu_count = 1usize;
     for cpu in REQ
         .get_response()
         .get_mut()
@@ -14,8 +19,11 @@ pub fn init() -> Cpu {
         .flat_map(|resp| resp.cpus().iter_mut())
         .filter(|cpu| boot.processor_id != cpu.processor_id)
     {
+        cpu_count += 1;
         cpu.goto_address = smp_start;
     }
+
+    CPU_COUNT.call_once(|| cpu_count);
 
     boot
 }

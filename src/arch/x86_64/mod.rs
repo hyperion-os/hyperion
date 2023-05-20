@@ -1,5 +1,9 @@
-use crate::{driver, error, smp::Cpu, warn};
-use x86_64::instructions::{self as ins, random::RdRand};
+use crate::{
+    debug, driver, error,
+    smp::{Cpu, CPU_COUNT},
+};
+use spin::{Barrier, Once};
+use x86_64::instructions::random::RdRand;
 
 //
 
@@ -22,16 +26,33 @@ pub fn early_boot_cpu() {
         pics.lock().enable();
     }
 
-    driver::acpi::init();
-
     int::enable();
 }
 
+/// every LAPIC is initialized after any CPU can exit this function call
 pub fn early_per_cpu(cpu: &Cpu) {
     int::disable();
+
+    macro_rules! barrier {
+        ($print:expr, $name:ident) => {
+            if $print {
+                debug!("waiting: {}", stringify!($name));
+            }
+            static $name: Once<Barrier> = Once::new();
+            $name.call_once(|| Barrier::new(*CPU_COUNT.wait())).wait();
+            if $print {
+                debug!("done waiting: {}", stringify!($name));
+            }
+        };
+    }
+
+    barrier!(cpu.is_boot(), PRE_APIC);
+
     cpu::init(cpu);
 
-    // driver::acpi::init();
+    driver::acpi::init();
+
+    barrier!(cpu.is_boot(), POST_APIC);
 
     int::enable();
 
@@ -78,6 +99,7 @@ pub mod int {
 
 pub fn done() -> ! {
     loop {
+        // spin_loop();
         int::wait()
     }
 }

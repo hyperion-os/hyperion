@@ -102,6 +102,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2801af0d36612ae591caa9568261fddce32ce6e08a7275ea334a06a4ad021a2c"
+dependencies = [
+ "cfg-if",
+ "crossbeam-epoch",
+ "crossbeam-queue",
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -309,6 +321,7 @@ version = "0.1.0"
 dependencies = [
  "bit_field",
  "chrono",
+ "crossbeam",
  "crossbeam-queue",
  "elf",
  "futures-util",
@@ -316,6 +329,7 @@ dependencies = [
  "limine",
  "paste",
  "pc-keyboard",
+ "rustc-demangle",
  "snafu",
  "spin",
  "uart_16550",
@@ -608,6 +622,12 @@ dependencies = [
  "crossbeam-utils",
  "num_cpus",
 ]
+
+[[package]]
+name = "rustc-demangle"
+version = "0.1.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
 
 [[package]]
 name = "rustversion"

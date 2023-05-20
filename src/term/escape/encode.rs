@@ -108,7 +108,7 @@ impl<T> fmt::Display for EncodedPart<'_, T>
 where
     T: fmt::Display,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}{}", self.code, self.data)?;
         self.write_end(f)
     }
@@ -118,7 +118,18 @@ impl<T> fmt::Debug for EncodedPart<'_, T>
 where
     T: fmt::Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.code)?;
+        self.data.fmt(f)?;
+        self.write_end(f)
+    }
+}
+
+impl<T> fmt::LowerHex for EncodedPart<'_, T>
+where
+    T: fmt::LowerHex,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.code)?;
         self.data.fmt(f)?;
         self.write_end(f)

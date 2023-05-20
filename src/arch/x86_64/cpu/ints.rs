@@ -1,3 +1,4 @@
+use crossbeam::atomic::AtomicCell;
 use x86_64::{
     instructions::port::Port,
     registers::control::Cr2,
@@ -5,9 +6,10 @@ use x86_64::{
 };
 
 use crate::{
+    backtrace::print_backtrace_from,
     driver::{
         self,
-        acpi::{apic::apic_regs, RegWrite},
+        acpi::apic::{self, Lapic},
         pic::PICS,
         rtc::RTC,
     },
@@ -19,42 +21,82 @@ use super::idt::Irq;
 
 //
 
-pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
-    /*     info!("pit int"); */
-    provide_tick();
-    PICS.lock().end_of_interrupt(Irq::PicTimer as _);
+pub static INT_CONTROLLER: AtomicCell<IntController> = AtomicCell::new(IntController::Pic);
+
+//
+
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum IntController {
+    Pic,
+    Apic,
 }
 
-pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
-    let scancode: u8 = unsafe { Port::new(0x60).read() };
-    driver::ps2::keyboard::process(scancode);
-    /*     info!("keyboard input"); */
+//
 
-    PICS.lock().end_of_interrupt(Irq::PicKeyboard as _);
+pub extern "x86-interrupt" fn divide_error(stack: InterruptStackFrame) {
+    error!("INT: Divide Error\n{stack:#?}");
+    panic!();
 }
 
-pub extern "x86-interrupt" fn rtc_tick(_: InterruptStackFrame) {
-    info!("RTC tick");
-    provide_tick();
-    RTC.int_ack();
-    PICS.lock().end_of_interrupt(Irq::PicRtc as _);
+pub extern "x86-interrupt" fn debug(stack: InterruptStackFrame) {
+    info!("INT: Debug\n{stack:#?}");
 }
 
-pub extern "x86-interrupt" fn apic_timer(_: InterruptStackFrame) {
-    provide_tick();
-    apic_regs().eoi.write(0);
-}
-
-pub extern "x86-interrupt" fn apic_spurious(_: InterruptStackFrame) {
-    provide_tick();
+pub extern "x86-interrupt" fn non_maskable_interrupt(stack: InterruptStackFrame) {
+    error!("INT: Non Maskable Interrupt\n{stack:#?}");
+    panic!();
 }
 
 pub extern "x86-interrupt" fn breakpoint(stack: InterruptStackFrame) {
     info!("INT: Breakpoint\n{stack:#?}")
 }
 
+pub extern "x86-interrupt" fn overflow(stack: InterruptStackFrame) {
+    error!("INT: Overflow\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn bound_range_exceeded(stack: InterruptStackFrame) {
+    error!("INT: Bound Range Exceeded\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn invalid_opcode(stack: InterruptStackFrame) {
+    error!("INT: Invalid OpCode\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn device_not_available(stack: InterruptStackFrame) {
+    error!("INT: Device Not Available\n{stack:#?}");
+    panic!();
+}
+
 pub extern "x86-interrupt" fn double_fault(stack: InterruptStackFrame, ec: u64) -> ! {
     error!("INT: Double fault ({ec})\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn invalid_tss(stack: InterruptStackFrame, ec: u64) {
+    error!("INT: Invalid TSS ({ec})\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn segment_not_present(stack: InterruptStackFrame, ec: u64) {
+    error!("INT: Segment Not Present ({ec})\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn stack_segment_fault(stack: InterruptStackFrame, ec: u64) {
+    error!("INT: Stack Segment Fault ({ec})\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFrame, e: u64) {
+    let addr = Cr2::read();
+
+    error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
+    unsafe { print_backtrace_from(stack.instruction_pointer) };
 
     panic!();
 }
@@ -63,13 +105,94 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
     let addr = Cr2::read();
 
     error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+    unsafe { print_backtrace_from(stack.instruction_pointer) };
 
     panic!();
 }
 
-pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFrame, e: u64) {
-    let addr = Cr2::read();
-    error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
-
+pub extern "x86-interrupt" fn x87_floating_point(stack: InterruptStackFrame) {
+    error!("INT: x87 Floating Point\n{stack:#?}");
     panic!();
 }
+
+pub extern "x86-interrupt" fn alignment_check(stack: InterruptStackFrame, ec: u64) {
+    error!("INT: Alignment Check ({ec})\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn machine_check(stack: InterruptStackFrame) -> ! {
+    error!("INT: Machine Check\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn simd_floating_point(stack: InterruptStackFrame) {
+    error!("INT: SIMD Floating Point\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn virtualization(stack: InterruptStackFrame) {
+    error!("INT: Virtualization\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn vmm_communication_exception(stack: InterruptStackFrame, ec: u64) {
+    error!("INT: VMM Communication Exception ({ec})\n{stack:#?}");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn security_exception(stack: InterruptStackFrame, ec: u64) {
+    error!("INT: Security Exception ({ec})\n{stack:#?}");
+    panic!();
+}
+
+// other ints
+
+pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
+    /*     info!("pit int"); */
+    provide_tick();
+    eoi_irq(Irq::PicTimer as _);
+}
+
+pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
+    let scancode: u8 = unsafe { Port::new(0x60).read() };
+    driver::ps2::keyboard::process(scancode);
+    eoi_irq(Irq::PicKeyboard as _);
+}
+
+pub extern "x86-interrupt" fn rtc_tick(_: InterruptStackFrame) {
+    provide_tick();
+    RTC.int_ack();
+    eoi_irq(Irq::PicRtc as _);
+}
+
+pub extern "x86-interrupt" fn apic_timer(_: InterruptStackFrame) {
+    provide_tick();
+    eoi();
+}
+
+pub extern "x86-interrupt" fn apic_spurious(_: InterruptStackFrame) {
+    provide_tick();
+    eoi();
+}
+
+//
+
+fn eoi_irq(irq: u8) {
+    match INT_CONTROLLER.load() {
+        IntController::Pic => PICS.lock().end_of_interrupt(irq),
+        IntController::Apic => {
+            Lapic::current_mut().eoi();
+        }
+    }
+}
+
+fn eoi() {
+    match INT_CONTROLLER.load() {
+        IntController::Pic => unreachable!(),
+        IntController::Apic => {
+            Lapic::current_mut().eoi();
+        }
+    }
+}
+
+const _: () = assert!(AtomicCell::<IntController>::is_lock_free());

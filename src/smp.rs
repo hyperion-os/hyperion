@@ -1,9 +1,11 @@
+use spin::Once;
+
 use crate::{boot, debug};
 use core::fmt::{self, Display, Formatter};
 
 //
 
-// pub static STORAGE: Once<Vec<ThreadLocal>> = Once::new();
+pub static CPU_COUNT: Once<usize> = Once::new();
 
 //
 

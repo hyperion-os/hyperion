@@ -1,4 +1,4 @@
-use crate::term::escape::encode::EscapeEncoder;
+use crate::term::escape::encode::{EncodedPart, EscapeEncoder};
 use core::{
     fmt::Arguments,
     sync::atomic::{AtomicBool, AtomicU8, Ordering},
@@ -100,11 +100,17 @@ pub fn test_log_level(level: LogLevel) -> bool {
     LOGGER.level.load(Ordering::SeqCst) >= level as u8
 }
 
+pub fn print_log_splash(level: EncodedPart<'_, &str>, module: &str, args: Arguments) {
+    print!(
+        "{}{level} {} {}: {args}",
+        '['.true_grey(),
+        module.true_grey().with_reset(false),
+        ']'.reset_after(),
+    )
+}
+
 #[doc(hidden)]
 pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
-    // if !LOGGER.color.load(Ordering::SeqCst) {
-    //     print!("[{level:?}]: ")
-    // } else {
     let level = match level {
         LogLevel::None => " NONE  ".into(),
         LogLevel::Error => " ERROR ".true_red(),
@@ -114,14 +120,7 @@ pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
         LogLevel::Trace => " TRACE ".true_magenta(),
     }
     .with_reset(false);
-
-    print!(
-        "{}{level} {} {}: {args}",
-        '['.true_grey(),
-        module.true_grey().with_reset(false),
-        ']'.reset_after(),
-    )
-    // }
+    print_log_splash(level, module, args)
 }
 
 #[doc(hidden)]

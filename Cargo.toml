@@ -19,9 +19,10 @@ volatile = "0.4"
 x86_64 = "0.14"
 uart_16550 = "0.2"
 pc-keyboard = "0.7"
-paste = "1.0"       # macro ident concat
+paste = "1.0"                                       # macro ident concat
 bit_field = "0.10"
 elf = { version = "0.7", default-features = false }
+rustc-demangle = "0.1"
 # bitvec = "1.0.1"
 #tracing = { version = "0.1.37", default-features = false }
 
@@ -41,6 +42,11 @@ default-features = false
 
 [dependencies.crossbeam-queue]
 version = "0.3"
+default-features = false
+features = ["alloc"]
+
+[dependencies.crossbeam]
+version = "0.8"
 default-features = false
 features = ["alloc"]
 

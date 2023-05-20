@@ -1,19 +1,107 @@
-use super::{ReadOnly, ReadWrite, Reg, RegRead, RegWrite, WriteOnly, LOCAL_APIC};
-use crate::{arch::cpu::idt::Irq, debug, driver::acpi::hpet::HPET, trace};
-use spin::{Lazy, Mutex, MutexGuard};
+use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+use super::{ReadOnly, ReadWrite, Reserved, WriteOnly};
+use crate::{
+    arch::cpu::{
+        idt::Irq,
+        ints::{IntController, INT_CONTROLLER},
+    },
+    driver::{acpi::madt::MADT, pit::PIT},
+    util::atomic_map::AtomicMap,
+};
 
 //
 
-pub fn apic_regs() -> MutexGuard<'static, &'static mut ApicRegs> {
-    pub static APIC_REGS: Lazy<Mutex<&'static mut ApicRegs>> =
-        Lazy::new(|| Mutex::new(unsafe { &mut *(*LOCAL_APIC as *mut ApicRegs) }));
+// enable APIC for this processor
+pub fn enable() {
+    crate::debug!("Initializing {:?}", ApicId::current());
+    write_msr(
+        IA32_APIC_BASE,
+        read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
+    );
 
-    APIC_REGS.lock()
+    let regs = unsafe { &mut *(MADT.local_apic_addr as *mut ApicRegs) };
+    LAPICS.insert(ApicId::current(), RwLock::new(Lapic { regs }));
+    let mut lapic = LAPICS.get(&ApicId::current()).unwrap().write();
+
+    reset(lapic.regs);
+    init_lvt_timer(lapic.regs);
+    crate::debug!("Done Initializing {:?}", ApicId::current());
+    // trace!("APIC regs: {:#?}", lapic.regs);
+
+    INT_CONTROLLER.store(IntController::Apic);
 }
 
 //
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ApicId(u32);
+
+pub struct Lapic {
+    regs: &'static mut ApicRegs,
+}
+
+//
+
+impl ApicId {
+    pub fn iter() -> impl Iterator<Item = ApicId> {
+        LAPICS.keys().copied()
+    }
+
+    pub fn inner(&self) -> u32 {
+        self.0
+    }
+
+    /// apic id of this processor
+    pub fn current() -> Self {
+        let regs = unsafe { &*(MADT.local_apic_addr as *const ApicRegs) };
+        Self(regs.lapic_id.read())
+        // Self(read_msr(...) as u32)
+    }
+
+    pub fn lapic(&self) -> RwLockReadGuard<'static, Lapic> {
+        LAPICS
+            .get(self)
+            .expect("Invalid ApicID or LAPICS not setup")
+            .read()
+    }
+
+    pub fn lapic_mut(&self) -> RwLockWriteGuard<'static, Lapic> {
+        LAPICS
+            .get(self)
+            .expect("Invalid ApicID or LAPICS not setup")
+            .write()
+    }
+}
+
+impl Lapic {
+    pub fn current() -> RwLockReadGuard<'static, Lapic> {
+        ApicId::current().lapic()
+    }
+
+    pub fn current_mut() -> RwLockWriteGuard<'static, Lapic> {
+        ApicId::current().lapic_mut()
+    }
+
+    pub fn regs(&self) -> &ApicRegs {
+        self.regs
+    }
+
+    pub fn regs_mut(&mut self) -> &mut ApicRegs {
+        self.regs
+    }
+
+    pub fn eoi(&mut self) {
+        self.regs.eoi.write(0);
+    }
+}
+
+//
+
+static LAPICS: AtomicMap<ApicId, RwLock<Lapic>> = AtomicMap::new();
+
 const IA32_APIC_BASE: u32 = 0x1B;
+
 const IA32_APIC_XAPIC_ENABLE: u64 = 1 << 11;
 const _IA32_APIC_X2APIC_ENABLE: u64 = 1 << 10;
 
@@ -36,70 +124,56 @@ const _APIC_TIMER_DIV_BY_64: u32 = 0b1001;
 const _APIC_TIMER_DIV_BY_128: u32 = 0b1010;
 const APIC_TIMER_DIV: u32 = APIC_TIMER_DIV_BY_16;
 
-pub fn enable() {
-    debug!("Writing ENABLE APIC");
-    write_msr(
-        IA32_APIC_BASE,
-        read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
-    );
-    trace!("LAPIC: {:#0b}", read_msr(IA32_APIC_BASE));
+//
 
-    let apic_regs = unsafe { &mut *(*LOCAL_APIC as *mut ApicRegs) };
-    trace!("APIC regs: {apic_regs:#?}");
-
+fn reset(regs: &mut ApicRegs) {
     // reset to well-known state
     // TODO: fix this bug in rust-analyzer:
     // both next lines work with rustc, but only the commented line works in rust-analyzer
     // Reg::<ReadWrite>::write(&mut apic_regs.destination_format, 0xFFFF_FFFF);
-    apic_regs.destination_format.write(0xFFFF_FFFF);
-    apic_regs
-        .logical_destination
-        .write(apic_regs.logical_destination.read() & 0x00FF_FFFF);
-    apic_regs.lvt_timer.write(APIC_DISABLE);
-    apic_regs.lvt_perf_mon_counters.write(APIC_NMI);
-    apic_regs.lvt_lint_0.write(APIC_DISABLE);
-    apic_regs.lvt_lint_1.write(APIC_DISABLE);
-    apic_regs.task_priority.write(0);
+    regs.destination_format.write(0xFFFF_FFFF);
+    regs.logical_destination
+        .write(regs.logical_destination.read() & 0x00FF_FFFF);
+    regs.lvt_timer.write(APIC_DISABLE);
+    regs.lvt_perf_mon_counters.write(APIC_NMI);
+    regs.lvt_lint_0.write(APIC_DISABLE);
+    regs.lvt_lint_1.write(APIC_DISABLE);
+    regs.task_priority.write(0);
 
-    // enable APIC
-    write_msr(0x2B, read_msr(0x1B) | (0x1 << 11));
-    debug!("Writing ENABLE SIVR");
-    /* apic_regs
-    .spurious_interrupt_vector
-    .write(apic_regs.spurious_interrupt_vector.read() | APIC_SW_ENABLE); */
-    apic_regs
-        .spurious_interrupt_vector
-        .write(39 + APIC_SW_ENABLE);
-    apic_regs.lvt_timer.write(32);
-    apic_regs.timer_divide.write(APIC_TIMER_DIV);
+    // enable interrupts
+    regs.spurious_interrupt_vector
+        .write(Irq::ApicSpurious as u32 + APIC_SW_ENABLE);
+}
 
-    /*     let apic_period = 1000000; */
-    let apic_period = u32::MAX;
+fn init_lvt_timer(regs: &mut ApicRegs) {
+    // let apic_period = 1_000_000;
+    let apic_period = calibrate(regs);
 
-    apic_regs.timer_divide.write(APIC_TIMER_DIV);
-    apic_regs
-        .lvt_timer
+    regs.timer_divide.write(APIC_TIMER_DIV);
+    regs.lvt_timer
         .write(Irq::ApicTimer as u32 | APIC_TIMER_MODE_PERIODIC);
-    apic_regs.timer_init.write(apic_period);
+    regs.timer_init.write(apic_period);
 
-    apic_regs.lvt_thermal_sensor.write(0);
-    apic_regs.lvt_error.write(0);
+    regs.lvt_thermal_sensor.write(0);
+    regs.lvt_error.write(0);
 
     // buggy HW fix:
-    apic_regs.timer_divide.write(APIC_TIMER_DIV);
-
-    let _hpet = &*HPET;
-
-    // loop { /* debug!("APIC TIMER {}", apic_regs.timer_current.read()); */ }
+    regs.timer_divide.write(APIC_TIMER_DIV);
 }
 
-/* fn read_apic_reg(reg: usize) -> u32 {
-    unsafe { ptr::read_volatile((*LOCAL_APIC + reg) as _) }
-}
+fn calibrate(regs: &mut ApicRegs) -> u32 {
+    const INITIAL_COUNT: u32 = 0xFFFF_FFFF;
 
-fn write_apic_reg(reg: usize, val: u32) {
-    unsafe { ptr::write_volatile((*LOCAL_APIC + reg) as _, val) }
-} */
+    regs.timer_divide.write(APIC_TIMER_DIV);
+
+    PIT.lock()._apic_simple_pit_wait(10_000, || {
+        // reset right before PIT sleeping
+        regs.timer_init.write(INITIAL_COUNT);
+    });
+
+    regs.lvt_timer.write(APIC_DISABLE);
+    INITIAL_COUNT - regs.timer_current.read()
+}
 
 fn read_msr(msr: u32) -> u64 {
     unsafe { x86_64::registers::model_specific::Msr::new(msr).read() }
@@ -111,6 +185,8 @@ fn write_msr(msr: u32, val: u64) {
 
 //
 
+type Skip<const N: usize> = Reserved<[u32; N]>;
+
 /// Table 10-1 Local APIC Register Address Map
 ///
 /// https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf
@@ -119,27 +195,34 @@ fn write_msr(msr: u32, val: u64) {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ApicRegs {
-    pub _res0: Reg<(), [u32; 2]>,
-    pub lapic_id: Reg<ReadWrite>,
-    pub lapic_ver: Reg<ReadOnly>,
-    pub _res1: Reg<(), [u32; 4]>,
-    pub task_priority: Reg<ReadWrite>,
-    pub arbitration_priority: Reg<ReadOnly>,
-    pub processor_priority: Reg<ReadOnly>,
-    pub eoi: Reg<WriteOnly>,
-    pub remote_read: Reg<ReadOnly>,
-    pub logical_destination: Reg<ReadWrite>,
-    pub destination_format: Reg<ReadWrite>,
-    pub spurious_interrupt_vector: Reg<ReadWrite>,
-    pub _pad2: Reg<(), [u32; 34]>,
-    pub lvt_timer: Reg<ReadWrite>,
-    pub lvt_thermal_sensor: Reg<ReadWrite>,
-    pub lvt_perf_mon_counters: Reg<ReadWrite>,
-    pub lvt_lint_0: Reg<ReadWrite>,
-    pub lvt_lint_1: Reg<ReadWrite>,
-    pub lvt_error: Reg<ReadWrite>,
-    pub timer_init: Reg<ReadWrite>,
-    pub timer_current: Reg<ReadOnly>,
-    pub _res2: Reg,
-    pub timer_divide: Reg<ReadWrite>,
+    _res0: Skip<2>,
+    pub lapic_id: ReadWrite,
+    pub lapic_ver: ReadOnly,
+    _res1: Skip<4>,
+    pub task_priority: ReadWrite,
+    pub arbitration_priority: ReadOnly,
+    pub processor_priority: ReadOnly,
+    pub eoi: WriteOnly,
+    pub remote_read: ReadOnly,
+    pub logical_destination: ReadWrite,
+    pub destination_format: ReadWrite,
+    pub spurious_interrupt_vector: ReadWrite,
+    /* pub in_service: ReadOnly<[u32; 8]>,
+    pub trigger_mode: ReadOnly<[u32; 8]>,
+    pub interrupt_request: ReadOnly<[u32; 8]>,
+    pub error_status: ReadOnly,
+    _pad2: Skip<6>,
+    pub lvt_corrected_machine_check_interrupt: ReadWrite,
+    pub interrupt_cmd: ReadWrite<[u32; 2]>, */
+    _pad2: Skip<34>,
+    pub lvt_timer: ReadWrite,
+    pub lvt_thermal_sensor: ReadWrite,
+    pub lvt_perf_mon_counters: ReadWrite,
+    pub lvt_lint_0: ReadWrite,
+    pub lvt_lint_1: ReadWrite,
+    pub lvt_error: ReadWrite,
+    pub timer_init: ReadWrite,
+    pub timer_current: ReadOnly,
+    _res2: Skip<1>,
+    pub timer_divide: ReadWrite,
 }

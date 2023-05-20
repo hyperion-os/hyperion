@@ -21,9 +21,19 @@
 
 //
 
+use core::sync::atomic::{AtomicUsize, Ordering};
+
 use crate::{
-    driver::{pit::PIT, rtc},
+    arch::cpu::idt::Irq,
+    driver::{
+        acpi::{
+            apic::ApicId,
+            ioapic::{IoApic, IO_APICS},
+        },
+        rtc,
+    },
     scheduler::kshell::kshell,
+    smp::CPU_COUNT,
     util::fmt::NumberPostfix,
 };
 
@@ -85,9 +95,6 @@ fn kernel_main() -> ! {
 
     info!("\n{KERNEL_SPLASH}");
 
-    backtrace::print_backtrace();
-    panic!("test panic");
-
     if let Some(bl) = boot::BOOT_NAME.get() {
         debug!("{KERNEL_NAME} {KERNEL_VERSION} was booted with {bl}");
     }
@@ -117,6 +124,16 @@ fn smp_main(cpu: smp::Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
     arch::early_per_cpu(&cpu);
+
+    static CPU_COUNT_AFTER_INIT: AtomicUsize = AtomicUsize::new(0);
+    if Some(CPU_COUNT_AFTER_INIT.fetch_add(1, Ordering::SeqCst) + 1) == CPU_COUNT.get().copied() {
+        if let Some(mut io_apic) = IoApic::any() {
+            let io_apic_irq_router = ApicId::iter().find(|id| id.inner() < 0xFF).unwrap();
+
+            io_apic.set_irq(1, io_apic_irq_router, Irq::PicKeyboard as _);
+            debug!("keyboard initialized");
+        }
+    }
 
     scheduler::run_tasks();
 }

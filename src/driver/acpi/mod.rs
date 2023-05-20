@@ -1,16 +1,12 @@
 use crate::driver::pic::PICS;
-use crate::{debug, util::stack_str::StackStr};
-use core::{fmt, marker::PhantomData, mem, ptr, slice, str::Utf8Error};
-
-//
-
-pub use madt::IO_APIC;
-pub use madt::LOCAL_APIC;
+use crate::util::stack_str::StackStr;
+use core::{fmt, mem, ptr, slice, str::Utf8Error};
 
 //
 
 pub mod apic;
 pub mod hpet;
+pub mod ioapic;
 pub mod madt;
 pub mod rsdp;
 pub mod rsdt;
@@ -19,9 +15,6 @@ pub mod rsdt;
 
 pub fn init() {
     PICS.lock().disable();
-
-    debug!("{:018x?}", *IO_APIC);
-    debug!("{:018x?}", *LOCAL_APIC);
 
     apic::enable();
 }
@@ -223,17 +216,81 @@ pub unsafe fn read_unaligned_volatile<T: Copy>(ptr: *const T) -> T {
 //
 
 #[repr(C)]
-pub struct Reg<A = (), T = u32> {
+pub struct ReadOnly<T = u32> {
     val: T,
     _pad: [T; 3],
-    _p: PhantomData<A>,
 }
 
-pub struct ReadOnly;
-pub struct ReadWrite;
-pub struct WriteOnly;
+#[repr(C)]
+pub struct ReadWrite<T = u32> {
+    val: T,
+    _pad: [T; 3],
+}
 
-pub trait RegRead<T> {
+#[repr(C)]
+pub struct WriteOnly<T = u32> {
+    val: T,
+    _pad: [T; 3],
+}
+
+#[repr(C)]
+pub struct Reserved<T = u32> {
+    val: T,
+    _pad: [T; 3],
+}
+
+//
+
+// TODO: should be <T: Copy> but it breaks rust-analyzer
+impl<T> ReadOnly<T> {
+    fn read(&self) -> T {
+        unsafe { ptr::read_volatile(&self.val as _) }
+    }
+}
+
+// TODO: should be <T: Copy> but it breaks rust-analyzer
+impl<T> ReadWrite<T> {
+    fn read(&self) -> T {
+        unsafe { ptr::read_volatile(&self.val as _) }
+    }
+
+    fn write(&mut self, val: T) {
+        unsafe { ptr::write_volatile(&mut self.val as _, val) }
+    }
+}
+
+// TODO: should be <T: Copy> but it breaks rust-analyzer
+impl<T> WriteOnly<T> {
+    fn write(&mut self, val: T) {
+        unsafe { ptr::write_volatile(&mut self.val as _, val) }
+    }
+}
+
+impl<T: fmt::Debug + Copy> fmt::Debug for ReadOnly<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.read(), f)
+    }
+}
+
+impl<T: fmt::Debug + Copy> fmt::Debug for ReadWrite<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.read(), f)
+    }
+}
+
+impl<T: fmt::Debug + Copy> fmt::Debug for WriteOnly<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt("<NO READS>", f)
+    }
+}
+
+impl<T: fmt::Debug + Copy> fmt::Debug for Reserved<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt("<NO READS>", f)
+    }
+}
+
+/* pub trait RegRead<T> {
     fn read(&self) -> T;
 }
 
@@ -289,4 +346,4 @@ impl<T: fmt::Debug + Copy> fmt::Debug for Reg<(), T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt("<NO READS>", f)
     }
-}
+} */

@@ -3,22 +3,21 @@
 //! https://wiki.osdev.org/MADT
 
 use super::{rsdt::RSDT, SdtError};
-use crate::{trace, warn};
+use crate::{driver::acpi::ioapic::IoApicInfo, trace, warn};
+use alloc::{vec, vec::Vec};
 use core::mem;
 use spin::Lazy;
 
 //
 
 pub static MADT: Lazy<Madt> = Lazy::new(Madt::init);
-pub static LOCAL_APIC: Lazy<usize> = Lazy::new(|| MADT.local_apic_addr);
-pub static IO_APIC: Lazy<Option<usize>> = Lazy::new(|| MADT.io_apic_addr);
 
 //
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Madt {
-    local_apic_addr: usize,
-    io_apic_addr: Option<usize>,
+    pub local_apic_addr: usize,
+    pub io_apics: Vec<IoApicInfo>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,10 +29,6 @@ pub enum MadtError {
 //
 
 impl Madt {
-    pub fn get() -> Self {
-        *MADT
-    }
-
     pub fn init() -> Self {
         Self::try_init().expect("MADT should be valid")
     }
@@ -47,7 +42,7 @@ impl Madt {
         trace!("{madt:#x?}");
 
         let mut local_apic_addr = madt.local_apic_addr as usize;
-        let mut io_apic_addr = None;
+        let mut io_apics = vec![];
 
         while let Ok(header) = u.unpack::<RawEntryHeader>(true) {
             // trace!("MADT Entry {header:?}");
@@ -66,7 +61,11 @@ impl Madt {
                     let data: IoApic = u.unpack(false)?;
                     trace!("{data:#x?}");
 
-                    io_apic_addr = Some(data.io_apic_addr as usize);
+                    io_apics.push(IoApicInfo {
+                        addr: data.io_apic_addr,
+                        id: data.io_apic_id,
+                        gsi_base: data.global_system_interrupt_base,
+                    });
                 }
                 2 => {
                     assert_eq!(data_len, mem::size_of::<InterruptSourceOverride>());
@@ -88,7 +87,7 @@ impl Madt {
                     let data: LocalApicAddressOverride = u.unpack(false)?;
                     trace!("{data:#x?}");
 
-                    local_apic_addr = data.local_apic_addr as usize;
+                    local_apic_addr = data.local_apic_addr as _;
                 }
                 9 => {
                     assert_eq!(data_len, mem::size_of::<ProcessorLocalx2Apic>());
@@ -107,7 +106,7 @@ impl Madt {
 
         Ok(Self {
             local_apic_addr,
-            io_apic_addr,
+            io_apics,
         })
     }
 }
