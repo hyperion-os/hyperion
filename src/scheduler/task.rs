@@ -27,10 +27,12 @@ impl Task {
         let waker = waker(self.clone());
         let mut ctx = Context::from_waker(&waker);
 
-        let mut future = self
+        let Some(mut future) = self
             .future
-            .try_lock()
-            .expect("this lock should never actually lock");
+            .try_lock() else {
+                // another CPU is already working on this task
+                return;
+            };
 
         _ = future.as_mut().poll(&mut ctx);
     }
