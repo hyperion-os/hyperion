@@ -26,10 +26,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use crate::{
     arch::cpu::idt::Irq,
     driver::{
-        acpi::{
-            apic::ApicId,
-            ioapic::{IoApic, IO_APICS},
-        },
+        acpi::{apic::ApicId, ioapic::IoApic},
         rtc,
     },
     scheduler::kshell::kshell,
@@ -101,17 +98,6 @@ fn kernel_main() -> ! {
 
     #[cfg(test)]
     test_main();
-
-    if let Some(time) = rtc::RTC.now() {
-        debug!("RTC time: {time:?}");
-    }
-
-    rtc::RTC.enable_ints();
-    rtc::Rtc::install_device();
-    debug!(
-        "ints enabled?: {}",
-        x86_64::instructions::interrupts::are_enabled()
-    );
 
     // main task(s)
     scheduler::spawn(kshell());

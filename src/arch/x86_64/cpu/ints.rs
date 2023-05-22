@@ -160,7 +160,6 @@ pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
 }
 
 pub extern "x86-interrupt" fn rtc_tick(_: InterruptStackFrame) {
-    provide_tick();
     RTC.int_ack();
     eoi_irq(Irq::PicRtc as _);
 }
@@ -171,7 +170,7 @@ pub extern "x86-interrupt" fn apic_timer(_: InterruptStackFrame) {
 }
 
 pub extern "x86-interrupt" fn apic_spurious(_: InterruptStackFrame) {
-    provide_tick();
+    // spurdo spärde keskeytys
     eoi();
 }
 

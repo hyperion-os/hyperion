@@ -2,7 +2,6 @@ use crate::{
     debug, error,
     vfs::{self, FileDevice},
 };
-use alloc::sync::Arc;
 use chrono::{DateTime, TimeZone, Utc};
 use core::{
     mem,
@@ -35,10 +34,6 @@ impl Rtc {
             }),
             time: Time::new(),
         }
-    }
-
-    pub fn install_device() {
-        _ = vfs::create_device("/dev/rtc", true, Arc::new(Mutex::new(RtcDevice)) as _);
     }
 
     pub fn enable_ints(&self) {
@@ -108,49 +103,21 @@ impl Rtc {
     }
 }
 
-struct RtcDevice;
+pub struct RtcDevice;
 
 impl FileDevice for RtcDevice {
-    fn len(&mut self) -> usize {
+    fn len(&self) -> usize {
         mem::size_of::<i64>()
     }
 
-    fn read(&mut self, offset: usize, buf: &mut [u8]) -> vfs::IoResult<usize> {
-        let bytes = RTC.now_bytes();
-
-        let len = self
-            .len()
-            .checked_sub(offset)
-            .ok_or(vfs::IoError::UnexpectedEOF)?
-            .min(buf.len());
-
-        buf[..len].copy_from_slice(
-            bytes
-                .get(offset..offset + len)
-                .ok_or(vfs::IoError::UnexpectedEOF)?,
-        );
-
-        Ok(len)
+    fn read(&self, offset: usize, buf: &mut [u8]) -> vfs::IoResult<usize> {
+        let bytes = &RTC.now_bytes()[..];
+        bytes.read(offset, buf)
     }
 
-    fn read_exact(&mut self, offset: usize, buf: &mut [u8]) -> vfs::IoResult<()> {
-        let bytes = RTC.now_bytes();
-
-        buf.copy_from_slice(
-            bytes
-                .get(offset..offset + buf.len())
-                .ok_or(vfs::IoError::UnexpectedEOF)?,
-        );
-
-        Ok(())
-    }
-
-    fn write(&mut self, _: usize, _: &mut [u8]) -> vfs::IoResult<usize> {
-        Err(vfs::IoError::PermissionDenied)
-    }
-
-    fn write_exact(&mut self, _: usize, _: &mut [u8]) -> vfs::IoResult<()> {
-        Err(vfs::IoError::PermissionDenied)
+    fn write(&mut self, offset: usize, buf: &[u8]) -> vfs::IoResult<usize> {
+        let mut bytes = &RTC.now_bytes()[..];
+        bytes.write(offset, buf)
     }
 }
 

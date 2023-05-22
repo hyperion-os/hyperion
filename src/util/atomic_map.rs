@@ -65,6 +65,10 @@ impl<K, V> AtomicMap<K, V> {
         self.len.load(Ordering::Acquire)
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
         let mut cur = &self.head;
         core::iter::from_fn(move || {

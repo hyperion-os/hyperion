@@ -6,15 +6,18 @@ use core::ptr::{read_volatile, write_volatile};
 
 use bit_field::BitField;
 use chrono::Duration;
-use spin::Lazy;
+use spin::{Lazy, Mutex};
 
-use crate::{debug, trace};
+use crate::{
+    debug, trace,
+    vfs::{FileDevice, IoResult},
+};
 
 use super::{rsdt::RSDT, SdtError};
 
 //
 
-pub static HPET: Lazy<Hpet> = Lazy::new(Hpet::init);
+pub static HPET: Lazy<Mutex<Hpet>> = Lazy::new(|| Mutex::new(Hpet::init()));
 
 //
 
@@ -55,12 +58,8 @@ pub enum HpetError {
 //
 
 impl Hpet {
-    pub fn get() -> &'static Self {
-        &HPET
-    }
-
     pub fn init() -> Self {
-        Self::try_init().expect("MADT should be valid")
+        Self::try_init().expect("HPET should be valid")
     }
 
     pub fn try_init() -> Result<Self, HpetError> {
@@ -116,11 +115,45 @@ impl Hpet {
     }
 
     pub fn main_counter_value(&mut self) -> CounterValue {
-        self.read_reg(0x030)
+        self.read_reg(0x0F0)
     }
 
     pub fn set_main_counter_value(&mut self, val: CounterValue) {
         self.write_reg(0x0F0, val)
+    }
+
+    //
+
+    pub fn femtos(&mut self) -> u128 {
+        self.period as u128 * self.main_counter_value() as u128
+    }
+
+    pub fn picos(&mut self) -> u128 {
+        self.femtos() / 1_000
+    }
+
+    pub fn nanos(&mut self) -> u128 {
+        self.picos() / 1_000
+    }
+
+    pub fn micros(&mut self) -> u128 {
+        self.nanos() / 1_000
+    }
+
+    pub fn millis(&mut self) -> u128 {
+        self.micros() / 1_000
+    }
+
+    pub fn seconds(&mut self) -> u128 {
+        self.millis() / 1_000
+    }
+
+    pub fn minutes(&mut self) -> u128 {
+        self.millis() / 60
+    }
+
+    pub fn now_bytes(&mut self) -> [u8; 16] {
+        self.femtos().to_le_bytes()
     }
 
     //
@@ -143,11 +176,10 @@ impl Hpet {
         config.set_enable_cnf(1);
         self.set_config(config);
 
+        debug!("HPET caps: {:#x?}", self.caps());
+        debug!("HPET config: {:#x?}", self.config());
+        debug!("HPET int status: {:#x?}", self.interrupt_status());
         debug!("HPET freq: {}", Self::freq(self.period));
-
-        /* loop {
-            println!("main counter: {}", self.main_counter_value());
-        } */
     }
 
     #[allow(unused)]
@@ -191,6 +223,28 @@ impl From<SdtError> for HpetError {
 
 //
 
+pub struct HpetDevice;
+
+//
+
+impl FileDevice for HpetDevice {
+    fn len(&self) -> usize {
+        core::mem::size_of::<i64>()
+    }
+
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        let bytes = &HPET.lock().now_bytes()[..];
+        bytes.read(offset, buf)
+    }
+
+    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+        let mut bytes = &HPET.lock().now_bytes()[..];
+        bytes.write(offset, buf)
+    }
+}
+
+//
+
 macro_rules! bitfield {
     ($name:ident = $t:ty { $($field:ident : $range:expr),* $(,)? }) => {
         ::paste::paste! {
@@ -211,7 +265,7 @@ macro_rules! bitfield {
 
             impl ::core::fmt::Debug for $name {
                 fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                    f.debug_struct("GeneralCaps")
+                    f.debug_struct(stringify!($name))
                         $(
                             .field(stringify!($field), &self.$field())
                          )*

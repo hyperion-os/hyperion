@@ -14,20 +14,24 @@ use crate::{
 
 // enable APIC for this processor
 pub fn enable() {
-    crate::debug!("Initializing {:?}", ApicId::current());
     write_msr(
         IA32_APIC_BASE,
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
     );
 
     let regs = unsafe { &mut *(MADT.local_apic_addr as *mut ApicRegs) };
-    LAPICS.insert(ApicId::current(), RwLock::new(Lapic { regs }));
-    let mut lapic = LAPICS.get(&ApicId::current()).unwrap().write();
+    let apic_id = ApicId(regs.lapic_id.read());
+
+    crate::debug!("Initializing {apic_id:?}");
+    LAPICS.insert(apic_id, RwLock::new(Lapic { regs }));
+    let mut lapic = LAPICS.get(&apic_id).unwrap().write();
 
     reset(lapic.regs);
     init_lvt_timer(lapic.regs);
-    crate::debug!("Done Initializing {:?}", ApicId::current());
+    crate::debug!("Done Initializing {apic_id:?}");
     // trace!("APIC regs: {:#?}", lapic.regs);
+
+    // write_msr(IA32_TSC_AUX, apic_id.inner() as _);
 
     INT_CONTROLLER.store(IntController::Apic);
 }
@@ -56,7 +60,7 @@ impl ApicId {
     pub fn current() -> Self {
         let regs = unsafe { &*(MADT.local_apic_addr as *const ApicRegs) };
         Self(regs.lapic_id.read())
-        // Self(read_msr(...) as u32)
+        /* Self(read_msr(IA32_TSC_AUX) as u32) */
     }
 
     pub fn lapic(&self) -> RwLockReadGuard<'static, Lapic> {
@@ -101,6 +105,7 @@ impl Lapic {
 static LAPICS: AtomicMap<ApicId, RwLock<Lapic>> = AtomicMap::new();
 
 const IA32_APIC_BASE: u32 = 0x1B;
+const IA32_TSC_AUX: u32 = 0xC0000103; // lapic id storage - same as in Theseus
 
 const IA32_APIC_XAPIC_ENABLE: u64 = 1 << 11;
 const _IA32_APIC_X2APIC_ENABLE: u64 = 1 << 10;

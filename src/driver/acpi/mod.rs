@@ -243,25 +243,25 @@ pub struct Reserved<T = u32> {
 
 // TODO: should be <T: Copy> but it breaks rust-analyzer
 impl<T> ReadOnly<T> {
-    fn read(&self) -> T {
+    pub fn read(&self) -> T {
         unsafe { ptr::read_volatile(&self.val as _) }
     }
 }
 
 // TODO: should be <T: Copy> but it breaks rust-analyzer
 impl<T> ReadWrite<T> {
-    fn read(&self) -> T {
+    pub fn read(&self) -> T {
         unsafe { ptr::read_volatile(&self.val as _) }
     }
 
-    fn write(&mut self, val: T) {
+    pub fn write(&mut self, val: T) {
         unsafe { ptr::write_volatile(&mut self.val as _, val) }
     }
 }
 
 // TODO: should be <T: Copy> but it breaks rust-analyzer
 impl<T> WriteOnly<T> {
-    fn write(&mut self, val: T) {
+    pub fn write(&mut self, val: T) {
         unsafe { ptr::write_volatile(&mut self.val as _, val) }
     }
 }

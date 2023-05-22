@@ -13,11 +13,17 @@ use self::path::Path;
 
 //
 
+pub mod devices;
 pub mod path;
 
 //
 
-pub static ROOT: Lazy<Root> = Lazy::new(|| Directory::from(""));
+static _ROOT_NODE: Lazy<Root> = Lazy::new(|| Directory::from(""));
+pub static ROOT: Lazy<Root> = Lazy::new(|| {
+    debug!("Initializing VFS");
+    devices::install();
+    _ROOT_NODE.clone()
+});
 
 //
 
@@ -120,19 +126,51 @@ pub struct Directory {
 }
 
 pub trait FileDevice {
-    fn len(&mut self) -> usize;
+    fn len(&self) -> usize;
 
-    fn is_empty(&mut self) -> bool {
+    fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    fn read(&mut self, offset: usize, buf: &mut [u8]) -> IoResult<usize>;
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize>;
 
-    fn read_exact(&mut self, offset: usize, buf: &mut [u8]) -> IoResult<()>;
+    fn read_exact(&self, mut offset: usize, mut buf: &mut [u8]) -> IoResult<()> {
+        while !buf.is_empty() {
+            match self.read(offset, buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    offset += n;
+                    let tmp = buf;
+                    buf = &mut tmp[n..];
+                }
+                Err(IoError::Interrupted) => {}
+                Err(err) => return Err(err),
+            }
+        }
 
-    fn write(&mut self, offset: usize, bytes: &mut [u8]) -> IoResult<usize>;
+        if !buf.is_empty() {
+            Err(IoError::UnexpectedEOF)
+        } else {
+            Ok(())
+        }
+    }
 
-    fn write_exact(&mut self, offset: usize, bytes: &mut [u8]) -> IoResult<()>;
+    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize>;
+
+    fn write_exact(&mut self, mut offset: usize, mut buf: &[u8]) -> IoResult<()> {
+        while !buf.is_empty() {
+            match self.write(offset, buf) {
+                Ok(0) => return Err(IoError::WriteZero),
+                Ok(n) => {
+                    offset += n;
+                    buf = &buf[n..];
+                }
+                Err(IoError::Interrupted) => {}
+                Err(err) => return Err(err),
+            }
+        }
+        Ok(())
+    }
 }
 
 pub trait DirectoryDevice {
@@ -165,6 +203,12 @@ pub enum IoError {
 
     #[snafu(display("unexpected end of file"))]
     UnexpectedEOF,
+
+    #[snafu(display("interrupted"))]
+    Interrupted,
+
+    #[snafu(display("wrote nothing"))]
+    WriteZero,
 }
 
 pub type IoResult<T> = Result<T, IoError>;
@@ -215,12 +259,94 @@ impl IoError {
             IoError::FilesystemError => "filesystem error",
             IoError::PermissionDenied => "permission denied",
             IoError::UnexpectedEOF => "unexpected eof",
+            IoError::Interrupted => "interrupted",
+            IoError::WriteZero => "wrote nothing",
         }
     }
 }
 
 //
 
+fn get_node_with(mut node: Node, path: impl AsRef<Path>, make_dirs: bool) -> IoResult<Node> {
+    for part in path.as_ref().iter() {
+        match node {
+            Node::File(_) => return Err(IoError::NotADirectory),
+            Node::Directory(_dir) => {
+                let mut dir = _dir.lock();
+                // TODO: only Node::Directory should be cloned
+
+                node = if let Ok(node) = dir.get_node(part) {
+                    node
+                } else if make_dirs {
+                    let node = Node::Directory(Directory::from(part));
+                    dir.create_node(part, node.clone())?;
+                    node
+                } else {
+                    return Err(IoError::NotFound);
+                };
+            }
+        }
+    }
+
+    Ok(node)
+}
+
+fn get_dir_with(node: Node, path: impl AsRef<Path>, make_dirs: bool) -> IoResult<DirRef> {
+    let node = get_node_with(node, path, make_dirs)?;
+    match node {
+        Node::File(_) => Err(IoError::NotADirectory),
+        Node::Directory(dir) => Ok(dir),
+    }
+}
+
+fn get_file_with(
+    node: Node,
+    path: impl AsRef<Path>,
+    make_dirs: bool,
+    _create: bool,
+) -> IoResult<FileRef> {
+    let node = get_node_with(node, path, make_dirs)?;
+    match node {
+        Node::File(file) => Ok(file),
+        Node::Directory(_) => Err(IoError::IsADirectory),
+    }
+}
+
+fn create_device_with(
+    node: Node,
+    path: impl AsRef<Path>,
+    make_dirs: bool,
+    dev: FileRef,
+) -> IoResult<()> {
+    create_node_with(node, path, make_dirs, Node::File(dev))
+}
+
+fn install_dev_with(
+    node: Node,
+    path: impl AsRef<Path>,
+    dev: impl FileDevice + Send + Sync + 'static,
+) {
+    let path = path.as_ref();
+    debug!("installing VFS device at {path:?}");
+    if let Err(err) = create_device_with(node, path, true, Arc::new(Mutex::new(dev)) as _) {
+        error!("failed to install VFS device at {path:?} : {err:?}");
+    }
+}
+
+fn create_node_with(
+    node: Node,
+    path: impl AsRef<Path>,
+    make_dirs: bool,
+    node: Node,
+) -> IoResult<()> {
+    let (parent_dir, file_name) = path.as_ref().split().ok_or(IoError::NotFound)?;
+    let parent_dir = get_dir(parent_dir, make_dirs)?;
+
+    let mut parent_dir = parent_dir.lock();
+    parent_dir.create_node_with(node, file_name, node)?;
+
+    Ok(())
+}
 fn create_node(path: impl AsRef<Path>, make_dirs: bool, node: Node) -> IoResult<()> {
     let (parent_dir, file_name) = path.as_ref().split().ok_or(IoError::NotFound)?;
     let parent_dir = get_dir(parent_dir, make_dirs)?;

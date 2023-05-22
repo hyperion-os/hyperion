@@ -1,4 +1,5 @@
 use crate::{
+    driver::acpi::hpet::HPET,
     mem::pmm::PageFrameAllocator,
     util::fmt::NumberPostfix,
     vfs::{
@@ -67,7 +68,9 @@ impl<'fbo> Shell<'fbo> {
         self.term.flush();
     }
 
-    pub fn tick(&mut self) {}
+    pub fn tick(&mut self) {
+        // crate::debug!("tick : {}", HPET.lock().main_counter_value());
+    }
 
     fn prompt(&mut self) {
         _ = write!(self.term, "\n[kshell {}]# ", self.current_dir.as_str());
