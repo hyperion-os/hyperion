@@ -340,7 +340,7 @@ impl PageFrame {
         // Alignment of addr is checked
         //
         // TODO: safety incomplete
-        unsafe { slice::from_raw_parts_mut(addr, self.byte_len()) }
+        unsafe { slice::from_raw_parts_mut(addr, self.byte_len() / core::mem::size_of::<T>()) }
     }
 
     pub fn as_slice<T>(&self) -> &[T] {
@@ -352,7 +352,7 @@ impl PageFrame {
         // Alignment of addr is checked
         //
         // TODO: safety incomplete
-        unsafe { slice::from_raw_parts(addr, self.byte_len()) }
+        unsafe { slice::from_raw_parts(addr, self.byte_len() / core::mem::size_of::<T>()) }
     }
 }
 
