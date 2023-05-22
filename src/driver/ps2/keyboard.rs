@@ -1,4 +1,7 @@
-use pc_keyboard::{layouts::Us104Key, DecodedKey, HandleControl, KeyEvent, Keyboard, ScancodeSet1};
+use pc_keyboard::{
+    layouts::{AnyLayout, DVP104Key, De105Key, Dvorak104Key, Uk105Key, Us104Key},
+    DecodedKey, HandleControl, KeyEvent, Keyboard, ScancodeSet1,
+};
 use spin::Mutex;
 
 use crate::scheduler::keyboard::provide_keyboard_event;
@@ -6,12 +9,6 @@ use crate::scheduler::keyboard::provide_keyboard_event;
 //
 
 pub fn process(scancode: u8) -> Option<char> {
-    static KEYBOARD: Mutex<Keyboard<Us104Key, ScancodeSet1>> = Mutex::new(Keyboard::new(
-        ScancodeSet1::new(),
-        Us104Key,
-        HandleControl::Ignore,
-    ));
-
     let mut kb = KEYBOARD.lock();
 
     kb.add_byte(scancode)
@@ -30,3 +27,23 @@ pub fn process(scancode: u8) -> Option<char> {
             c
         })
 }
+
+pub fn set_layout(name: &str) -> Option<()> {
+    let layout = match name {
+        "us" => AnyLayout::Us104Key(Us104Key),
+        "uk" => AnyLayout::Uk105Key(Uk105Key),
+        "de" => AnyLayout::De105Key(De105Key),
+        "dvorak" => AnyLayout::Dvorak104Key(Dvorak104Key),
+        "dvp" => AnyLayout::DVP104Key(DVP104Key),
+        _ => return None,
+    };
+
+    *KEYBOARD.lock() = Keyboard::new(ScancodeSet1::new(), layout, HandleControl::Ignore);
+    Some(())
+}
+
+static KEYBOARD: Mutex<Keyboard<AnyLayout, ScancodeSet1>> = Mutex::new(Keyboard::new(
+    ScancodeSet1::new(),
+    AnyLayout::Us104Key(Us104Key),
+    HandleControl::Ignore,
+));

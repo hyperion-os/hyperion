@@ -8,7 +8,7 @@ use spin::Mutex;
 use super::{term::Term, *};
 use crate::{
     arch,
-    driver::{acpi::hpet::HPET, video::color::Color},
+    driver::{acpi::hpet::HPET, ps2::keyboard::set_layout, video::color::Color},
     mem::pmm::PageFrameAllocator,
     util::fmt::NumberPostfix,
     vfs::{
@@ -112,6 +112,7 @@ impl Shell {
             "mem" => self.mem_cmd(args)?,
             "sleep" => self.sleep_cmd(args)?,
             "draw" => self.draw_cmd(args)?,
+            "kbl" => self.kbl_cmd(args)?,
             "clear" => {
                 self.term.clear();
             }
@@ -328,5 +329,14 @@ impl Shell {
                 Ok(())
             }
         }
+    }
+
+    fn kbl_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        let name = args.unwrap_or("us");
+        if set_layout(name).is_none() {
+            _ = writeln!(self.term, "invalid layout `{name}`");
+        }
+
+        Ok(())
     }
 }
