@@ -97,6 +97,10 @@ pub mod int {
     }
 }
 
+pub fn spin_loop() {
+    core::hint::spin_loop()
+}
+
 pub fn done() -> ! {
     loop {
         // spin_loop();

@@ -14,7 +14,8 @@ pub fn get() -> Arguments {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Arguments {
-    pub log_level: LogLevel,
+    pub serial_log_level: LogLevel,
+    pub video_log_level: LogLevel,
     // log_color: bool,
     pub had_unrecognized: bool,
 
@@ -25,21 +26,49 @@ pub struct Arguments {
 
 impl Arguments {
     pub fn parse(s: &'static str) -> Self {
-        let mut iter = s.split(|c: char| c.is_whitespace() || c == '=');
+        let mut iter = s.split(|c: char| c.is_whitespace());
         let mut result = Arguments {
             cmdline: s,
             ..<_>::default()
         };
 
         while let Some(item) = iter.next() {
+            let (item, value) = item
+                .split_once('=')
+                .map(|(item, value)| (item, Some(value)))
+                .unwrap_or((item, None));
+
             match item {
                 "log" => {
-                    if let Some(level) = iter.next() {
-                        if let Some(l) = LogLevel::parse(level) {
-                            result.log_level = l
+                    let Some(mut values) = value else {
+                        result.had_unrecognized = true;
+                        continue;
+                    };
+
+                    for level_or_kvp in values.split(',') {
+                        if let Some((dev, level)) = level_or_kvp.split_once('=') {
+                            let dev = match dev {
+                                "serial" => &mut result.serial_log_level,
+                                "video" => &mut result.video_log_level,
+                                other => {
+                                    result.had_unrecognized = true;
+                                    continue;
+                                }
+                            };
+                            let Some(level) = LogLevel::parse(level) else {
+                            result.had_unrecognized = true;
+                            continue;
+                        };
+
+                            *dev = level;
                         } else {
-                            result.had_unrecognized = true
-                        }
+                            let Some(level) = LogLevel::parse(level_or_kvp) else {
+                            result.had_unrecognized = true;
+                            continue;
+                        };
+                            result.serial_log_level = level;
+                            result.video_log_level = level;
+                        };
                     }
                 }
                 _ => result.had_unrecognized = true,
@@ -59,7 +88,7 @@ impl Arguments {
     }
 
     pub fn apply(&self) {
-        log::set_log_level(self.log_level);
-        // log::set_log_color(self.log_color);
+        log::set_fbo(self.video_log_level);
+        log::set_qemu(self.serial_log_level);
     }
 }

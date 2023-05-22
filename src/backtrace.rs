@@ -3,7 +3,9 @@ use core::{arch::asm, ffi::c_void, mem, ptr};
 use crate::{
     arch,
     boot::{self, hhdm_offset, virt_addr},
-    info, println,
+    info,
+    log::LogLevel,
+    println,
     term::escape::encode::EscapeEncoder,
 };
 use elf::{
@@ -148,7 +150,12 @@ pub fn unwind_stack(f: impl FnMut(FrameInfo)) {
 /// caller must ensure that `ip` points to a valid stack frame
 /// and that stackframes end with a NULL
 pub unsafe fn print_backtrace_from(ip: VirtAddr) {
-    crate::log::print_log_splash(" BACKTRACE".true_yellow(), "begin", format_args_nl!(""));
+    crate::log::print_log_splash(
+        LogLevel::Info,
+        " BACKTRACE".true_yellow(),
+        "begin",
+        format_args_nl!(""),
+    );
     let mut i = 0usize;
     unwind_stack_from(
         ip,
@@ -170,7 +177,12 @@ pub unsafe fn print_backtrace_from(ip: VirtAddr) {
             i += 1;
         },
     );
-    crate::log::print_log_splash(" BACKTRACE".true_yellow(), "end", format_args_nl!(""));
+    crate::log::print_log_splash(
+        LogLevel::Info,
+        " BACKTRACE".true_yellow(),
+        "end",
+        format_args_nl!(""),
+    );
 }
 
 pub fn print_backtrace() {

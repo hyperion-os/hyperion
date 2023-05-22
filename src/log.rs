@@ -1,28 +1,25 @@
+use crossbeam::atomic::AtomicCell;
+
 use crate::term::escape::encode::{EncodedPart, EscapeEncoder};
-use core::{
-    fmt::Arguments,
-    sync::atomic::{AtomicBool, AtomicU8, Ordering},
-};
+use core::fmt::Arguments;
 
 //
 
 #[macro_export]
 macro_rules! print {
-    ($($t:tt)*) => { $crate::log::_print(format_args!($($t)*)) };
+    ($($t:tt)*) => { $crate::log::_print($crate::log::LogLevel::Info, format_args!($($t)*)) };
 }
 
 #[macro_export]
 macro_rules! println {
-    ()          => { $crate::log::_print(format_args!("\n")) };
-    ($($t:tt)*) => { $crate::log::_print(format_args_nl!($($t)*)) };
+    ()          => { $crate::log::_print($crate::log::LogLevel::Info, format_args!("\n")) };
+    ($($t:tt)*) => { $crate::log::_print($crate::log::LogLevel::Info, format_args_nl!($($t)*)) };
 }
 
 #[macro_export]
 macro_rules! log {
     ($level:expr, $($t:tt)*) => {
-        if $crate::log::test_log_level($level) {
-            $crate::log::_print_log($level, module_path!(), format_args_nl!($($t)*));
-        }
+        $crate::log::_print_log($level, module_path!(), format_args_nl!($($t)*));
     };
 }
 
@@ -53,7 +50,15 @@ macro_rules! trace {
 
 //
 
-// pub fn enable_term() {
+pub fn set_fbo(level: LogLevel) {
+    LOGGER.fbo.store(level)
+}
+
+pub fn set_qemu(level: LogLevel) {
+    LOGGER.qemu.store(level)
+}
+
+/* // pub fn enable_term() {
 //     LOGGER.term.store(true, Ordering::SeqCst);
 // }
 //
@@ -98,20 +103,28 @@ pub fn get_log_level() -> LogLevel {
 
 pub fn test_log_level(level: LogLevel) -> bool {
     LOGGER.level.load(Ordering::SeqCst) >= level as u8
-}
+} */
 
-pub fn print_log_splash(level: EncodedPart<'_, &str>, module: &str, args: Arguments) {
-    print!(
-        "{}{level} {} {}: {args}",
-        '['.true_grey(),
-        module.true_grey().with_reset(false),
-        ']'.reset_after(),
+pub fn print_log_splash(
+    level: LogLevel,
+    pre: EncodedPart<'_, &str>,
+    module: &str,
+    args: Arguments,
+) {
+    crate::log::_print(
+        level,
+        format_args!(
+            "{}{pre} {} {}: {args}",
+            '['.true_grey(),
+            module.true_grey().with_reset(false),
+            ']'.reset_after(),
+        ),
     )
 }
 
 #[doc(hidden)]
 pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
-    let level = match level {
+    let pre = match level {
         LogLevel::None => " NONE  ".into(),
         LogLevel::Error => " ERROR ".true_red(),
         LogLevel::Warn => " WARN  ".true_yellow(),
@@ -120,12 +133,12 @@ pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
         LogLevel::Trace => " TRACE ".true_magenta(),
     }
     .with_reset(false);
-    print_log_splash(level, module, args)
+    print_log_splash(level, pre, module, args)
 }
 
 #[doc(hidden)]
-pub fn _print(args: Arguments) {
-    LOGGER.print(args)
+pub fn _print(level: LogLevel, args: Arguments) {
+    LOGGER.print(level, args)
 }
 
 //
@@ -178,41 +191,26 @@ impl Default for LogLevel {
 static LOGGER: Logger = Logger::init();
 
 struct Logger {
-    // Log to a bootloader given terminal
-    // term: AtomicBool,
-
     // Log to a framebuffer
-    fbo: AtomicBool,
+    fbo: AtomicCell<LogLevel>,
 
     // Log to a QEMU serial
-    qemu: AtomicBool,
-
-    // [`LogLevel`] in u8 form
-    level: AtomicU8,
-    // print logs with colors
-    // color: AtomicBool,
+    qemu: AtomicCell<LogLevel>,
 }
 
 impl Logger {
     const fn init() -> Self {
         Logger {
-            // term: false.into(),
-            fbo: AtomicBool::new(true),
-            qemu: AtomicBool::new(true),
-
-            level: AtomicU8::new(LogLevel::DEFAULT as u8),
-            // color: AtomicBool::new(true),
+            fbo: AtomicCell::new(LogLevel::DEFAULT),
+            qemu: AtomicCell::new(LogLevel::DEFAULT),
         }
     }
 
-    fn print(&self, args: Arguments) {
-        // if self.term.load(Ordering::SeqCst) {
-        //     crate::arch::boot::_print(args);
-        // }
-        if self.qemu.load(Ordering::SeqCst) {
+    fn print(&self, level: LogLevel, args: Arguments) {
+        if self.qemu.load() >= level {
             crate::driver::qemu::_print(args);
         }
-        if self.fbo.load(Ordering::SeqCst) {
+        if self.fbo.load() >= level {
             crate::driver::video::logger::_print(args);
         }
     }

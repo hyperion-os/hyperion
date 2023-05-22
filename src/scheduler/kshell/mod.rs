@@ -1,9 +1,11 @@
+use core::num::ParseIntError;
+
 use futures_util::{stream::select, StreamExt};
 use snafu::Snafu;
 
 use crate::{
     driver::video::framebuffer::Framebuffer,
-    log,
+    log::{self, LogLevel},
     vfs::{path::PathBuf, IoError},
 };
 
@@ -19,7 +21,7 @@ pub mod term;
 //
 
 pub async fn kshell() {
-    log::disable_fbo();
+    log::set_fbo(LogLevel::None);
     let Some(mut vbo) = Framebuffer::get() else {
         // TODO: serial only
         panic!("cannot run kshell without a framebuffer");
@@ -58,6 +60,9 @@ pub enum Error {
 
     #[snafu(display("VFS error: Nameless file"))]
     NamelessFile,
+
+    #[snafu(display("Parse error: {source}"))]
+    ParseError { source: ParseIntError },
 }
 
 pub type Result<T> = core::result::Result<T, Error>;

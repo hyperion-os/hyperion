@@ -1,4 +1,5 @@
 use crate::{
+    arch,
     driver::acpi::hpet::HPET,
     mem::{from_higher_half, pmm::PageFrameAllocator},
     util::fmt::NumberPostfix,
@@ -16,7 +17,7 @@ use snafu::ResultExt;
 use spin::{Mutex, MutexGuard};
 use x86_64::VirtAddr;
 
-use super::{term::Term, Error, IoSnafu, Result};
+use super::{term::Term, *};
 
 //
 
@@ -91,6 +92,7 @@ impl<'fbo> Shell<'fbo> {
             "cat" => self.cat_cmd(args)?,
             "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
+            "sleep" => self.sleep_cmd(args)?,
             "clear" => {
                 self.term.clear();
             }
@@ -213,6 +215,21 @@ impl<'fbo> Shell<'fbo> {
             used.postfix_binary(),
             used as f64 / usable as f64 * 100.0
         );
+
+        Ok(())
+    }
+
+    fn sleep_cmd(&mut self, seconds: Option<&str>) -> Result<()> {
+        let seconds = seconds
+            .map(|s| s.parse::<u8>())
+            .transpose()
+            .context(ParseSnafu {})?
+            .unwrap_or(1);
+
+        let now = HPET.lock().millis();
+        while now + 1_000 * seconds as u128 >= HPET.lock().millis() {
+            arch::spin_loop();
+        }
 
         Ok(())
     }
