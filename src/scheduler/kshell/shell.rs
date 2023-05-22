@@ -1,21 +1,21 @@
 use crate::{
     arch,
     driver::acpi::hpet::HPET,
-    mem::{from_higher_half, pmm::PageFrameAllocator},
+    mem::{pmm::PageFrameAllocator},
     util::fmt::NumberPostfix,
     vfs::{
         self,
         path::{Path, PathBuf},
         Node,
     },
-    KERNEL_BUILD_REV, KERNEL_BUILD_TIME, KERNEL_NAME, KERNEL_SPLASH, KERNEL_VERSION,
+    KERNEL_BUILD_REV, KERNEL_BUILD_TIME, KERNEL_NAME, KERNEL_VERSION,
 };
 use alloc::{borrow::ToOwned, string::String, sync::Arc};
 use chrono::{TimeZone, Utc};
 use core::fmt::Write;
 use snafu::ResultExt;
-use spin::{Mutex, MutexGuard};
-use x86_64::VirtAddr;
+use spin::{Mutex};
+
 
 use super::{term::Term, *};
 
@@ -164,7 +164,7 @@ impl<'fbo> Shell<'fbo> {
         let mut at = 0usize;
         let mut buf = [0u8; 16];
         loop {
-            let addr = (&*file) as *const _ as *const () as u64;
+            let _addr = (&*file) as *const _ as *const () as u64;
             let read = file.read(at, &mut buf).with_context(|_| IoSnafu {
                 resource: resource.to_owned(),
             })?;
@@ -189,7 +189,7 @@ impl<'fbo> Shell<'fbo> {
         let file = vfs::get_file(resource, false, false).with_context(|_| IoSnafu {
             resource: resource.to_owned(),
         })?;
-        let mut file = file.lock();
+        let file = file.lock();
 
         let mut timestamp = [0u8; 8];
         file.read_exact(0, &mut timestamp)

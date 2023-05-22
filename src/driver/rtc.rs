@@ -1,7 +1,7 @@
 use crate::{
     debug, error,
     util::slice_read::slice_read,
-    vfs::{self, FileDevice, IoError, IoResult},
+    vfs::{FileDevice, IoError, IoResult},
 };
 use chrono::{DateTime, TimeZone, Utc};
 use core::{

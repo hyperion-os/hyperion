@@ -318,6 +318,6 @@ fn create_node_with(
     Ok(())
 }
 
-fn create_node(path: impl AsRef<Path>, make_dirs: bool, node: Node) -> IoResult<()> {
+/* fn create_node(path: impl AsRef<Path>, make_dirs: bool, node: Node) -> IoResult<()> {
     create_node_with(Node::Directory(ROOT.clone()), path, make_dirs, node)
-}
+} */

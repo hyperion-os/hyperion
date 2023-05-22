@@ -1,7 +1,7 @@
-use alloc::collections::BinaryHeap;
-use spin::Mutex;
 
-use crate::{driver::acpi::apic::ApicId, util::atomic_map::AtomicMap};
+
+
+use crate::{driver::acpi::apic::ApicId};
 
 //
 

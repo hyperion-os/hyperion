@@ -1,9 +1,8 @@
-use core::{arch::asm, ffi::c_void, mem, ptr};
+use core::{arch::asm, ffi::c_void, ptr};
 
 use crate::{
     arch,
-    boot::{self, hhdm_offset, virt_addr},
-    info,
+    boot::{self, virt_addr},
     log::LogLevel,
     println,
     term::escape::encode::EscapeEncoder,
@@ -11,7 +10,7 @@ use crate::{
 use elf::{
     endian::AnyEndian, string_table::StringTable, symbol::SymbolTable, ElfBytes, ParseError,
 };
-use rustc_demangle::{demangle, Demangle};
+use rustc_demangle::{demangle};
 use spin::Lazy;
 use x86_64::VirtAddr;
 

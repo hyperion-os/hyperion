@@ -1,4 +1,4 @@
-use crate::vfs::{FileDevice, IoError, IoResult};
+use crate::vfs::{IoError, IoResult};
 
 //
 

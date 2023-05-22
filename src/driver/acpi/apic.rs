@@ -105,7 +105,7 @@ impl Lapic {
 static LAPICS: AtomicMap<ApicId, RwLock<Lapic>> = AtomicMap::new();
 
 const IA32_APIC_BASE: u32 = 0x1B;
-const IA32_TSC_AUX: u32 = 0xC0000103; // lapic id storage - same as in Theseus
+// const IA32_TSC_AUX: u32 = 0xC0000103; // lapic id storage - same as in Theseus
 
 const IA32_APIC_XAPIC_ENABLE: u64 = 1 << 11;
 const _IA32_APIC_X2APIC_ENABLE: u64 = 1 << 10;

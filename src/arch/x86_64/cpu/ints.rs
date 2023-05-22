@@ -9,7 +9,7 @@ use crate::{
     backtrace::print_backtrace_from,
     driver::{
         self,
-        acpi::apic::{self, Lapic},
+        acpi::apic::{Lapic},
         pic::PICS,
         rtc::RTC,
     },

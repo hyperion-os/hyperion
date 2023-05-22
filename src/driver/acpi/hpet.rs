@@ -10,7 +10,7 @@ use spin::{Lazy, Mutex};
 
 use crate::{
     debug, trace,
-    util::slice_read::{self, slice_read, slice_write},
+    util::slice_read::{slice_read},
     vfs::{FileDevice, IoError, IoResult},
 };
 

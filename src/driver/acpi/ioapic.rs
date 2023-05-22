@@ -7,7 +7,7 @@ use super::{apic::ApicId, madt::MADT, ReadWrite};
 //
 
 pub static IO_APICS: Lazy<AtomicMap<u8, Mutex<IoApic>>> = Lazy::new(|| {
-    let mut io_apics = AtomicMap::new();
+    let io_apics = AtomicMap::new();
     for &info in MADT.io_apics.iter() {
         io_apics.insert(info.id, Mutex::new(IoApic::init(info)));
     }
@@ -18,8 +18,8 @@ pub static IO_APICS: Lazy<AtomicMap<u8, Mutex<IoApic>>> = Lazy::new(|| {
 
 pub struct IoApic {
     regs: &'static mut IoApicRegs,
-    id: u8,
-    gsi_base: u32,
+    // id: u8,
+    // gsi_base: u32,
 }
 
 #[derive(Debug)]
@@ -49,11 +49,11 @@ impl IoApic {
         IO_APICS.values().next().map(Mutex::lock)
     }
 
-    pub fn init(IoApicInfo { addr, id, gsi_base }: IoApicInfo) -> Self {
+    pub fn init(IoApicInfo { addr, .. }: IoApicInfo) -> Self {
         Self {
             regs: unsafe { &mut *(addr as *mut IoApicRegs) },
-            id,
-            gsi_base,
+            // id,
+            // gsi_base,
         }
     }
 

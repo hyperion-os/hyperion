@@ -19,7 +19,7 @@ macro_rules! println {
 #[macro_export]
 macro_rules! log {
     ($level:expr, $($t:tt)*) => {
-        $crate::log::_print_log($level, module_path!(), format_args_nl!($($t)*));
+        $crate::log::_print_log($level, module_path!(), format_args_nl!($($t)*))
     };
 }
 

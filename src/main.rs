@@ -24,15 +24,13 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{
-    arch::{cpu::idt::Irq, int},
+    arch::{cpu::idt::Irq},
     driver::{
         acpi::{apic::ApicId, ioapic::IoApic},
-        rtc::{self, RtcDevice, RTC},
     },
     scheduler::kshell::kshell,
     smp::CPU_COUNT,
     util::fmt::NumberPostfix,
-    vfs::FileDevice,
 };
 
 extern crate alloc;

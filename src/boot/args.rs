@@ -26,13 +26,13 @@ pub struct Arguments {
 
 impl Arguments {
     pub fn parse(s: &'static str) -> Self {
-        let mut iter = s.split(|c: char| c.is_whitespace());
+        let iter = s.split(|c: char| c.is_whitespace());
         let mut result = Arguments {
             cmdline: s,
             ..<_>::default()
         };
 
-        while let Some(item) = iter.next() {
+        for item in iter {
             let (item, value) = item
                 .split_once('=')
                 .map(|(item, value)| (item, Some(value)))
@@ -40,7 +40,7 @@ impl Arguments {
 
             match item {
                 "log" => {
-                    let Some(mut values) = value else {
+                    let Some(values) = value else {
                         result.had_unrecognized = true;
                         continue;
                     };
@@ -50,7 +50,7 @@ impl Arguments {
                             let dev = match dev {
                                 "serial" => &mut result.serial_log_level,
                                 "video" => &mut result.video_log_level,
-                                other => {
+                                _other => {
                                     result.had_unrecognized = true;
                                     continue;
                                 }
