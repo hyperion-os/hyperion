@@ -1,7 +1,3 @@
-use crate::{
-    boot::hhdm_offset,
-    mem::{pmm, to_higher_half, vmm::PageMapImpl},
-};
 use spin::RwLock;
 use x86_64::{
     registers::control::Cr3,
@@ -9,6 +5,11 @@ use x86_64::{
         Mapper, OffsetPageTable, Page, PageTable, PageTableFlags, PhysFrame, Size4KiB, Translate,
     },
     PhysAddr, VirtAddr,
+};
+
+use crate::{
+    boot::hhdm_offset,
+    mem::{pmm, to_higher_half, vmm::PageMapImpl},
 };
 
 //

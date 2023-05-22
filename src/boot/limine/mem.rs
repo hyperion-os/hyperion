@@ -1,10 +1,12 @@
+use core::sync::atomic::{AtomicBool, Ordering};
+
+use limine::{LimineMemmapEntry, LimineMemmapRequest, LimineMemoryMapEntryType, NonNullPtr};
+use x86_64::PhysAddr;
+
 use crate::{
     mem::map::{Memmap, Memtype},
     trace,
 };
-use core::sync::atomic::{AtomicBool, Ordering};
-use limine::{LimineMemmapEntry, LimineMemmapRequest, LimineMemoryMapEntryType, NonNullPtr};
-use x86_64::PhysAddr;
 
 //
 

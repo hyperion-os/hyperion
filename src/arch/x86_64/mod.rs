@@ -1,9 +1,10 @@
+use spin::{Barrier, Once};
+use x86_64::instructions::random::RdRand;
+
 use crate::{
     debug, driver, error,
     smp::{Cpu, CPU_COUNT},
 };
-use spin::{Barrier, Once};
-use x86_64::instructions::random::RdRand;
 
 //
 

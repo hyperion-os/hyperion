@@ -1,8 +1,9 @@
+use spin::Lazy;
+
 use crate::{
     boot,
     log::{self, LogLevel},
 };
-use spin::Lazy;
 
 //
 

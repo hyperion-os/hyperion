@@ -1,4 +1,5 @@
 use core::fmt::{Arguments, Write};
+
 use spin::{Lazy, Mutex};
 use uart_16550::SerialPort;
 use x86_64::instructions::interrupts::without_interrupts;

@@ -5,19 +5,13 @@ use x86_64::{
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
 };
 
+use super::idt::Irq;
 use crate::{
     backtrace::print_backtrace_from,
-    driver::{
-        self,
-        acpi::apic::{Lapic},
-        pic::PICS,
-        rtc::RTC,
-    },
+    driver::{self, acpi::apic::Lapic, pic::PICS, rtc::RTC},
     error, info,
     scheduler::tick::provide_tick,
 };
-
-use super::idt::Irq;
 
 //
 

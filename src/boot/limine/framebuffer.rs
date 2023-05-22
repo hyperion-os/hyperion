@@ -1,6 +1,8 @@
-use crate::driver::video::framebuffer::{Framebuffer, FramebufferInfo};
 use core::slice;
+
 use limine::LimineFramebufferRequest;
+
+use crate::driver::video::framebuffer::{Framebuffer, FramebufferInfo};
 
 //
 

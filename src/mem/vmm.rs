@@ -1,6 +1,7 @@
-pub use crate::arch::vmm::PageMap;
 use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
+
+pub use crate::arch::vmm::PageMap;
 
 //
 
@@ -20,9 +21,10 @@ pub trait PageMapImpl {
 
 #[cfg(test)]
 mod tests {
+    use x86_64::VirtAddr;
+
     use super::{PageMap, PageMapImpl};
     use crate::mem::pmm::PageFrameAllocator;
-    use x86_64::VirtAddr;
 
     #[test_case]
     fn two_virt_to_one_phys() {

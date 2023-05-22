@@ -2,11 +2,13 @@
 //!
 //! https://wiki.osdev.org/MADT
 
-use super::{rsdt::RSDT, SdtError};
-use crate::{driver::acpi::ioapic::IoApicInfo, trace, warn};
 use alloc::{vec, vec::Vec};
 use core::mem;
+
 use spin::Lazy;
+
+use super::{rsdt::RSDT, SdtError};
+use crate::{driver::acpi::ioapic::IoApicInfo, trace, warn};
 
 //
 

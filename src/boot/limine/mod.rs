@@ -1,11 +1,6 @@
-use super::{args, BOOT_NAME};
-use crate::kernel_main;
-
 //
-
 pub use addr::hhdm_offset;
-pub use addr::phys_addr;
-pub use addr::virt_addr;
+pub use addr::{phys_addr, virt_addr};
 pub use cmdline::cmdline;
 pub use framebuffer::framebuffer;
 pub use kernel::kernel_file;
@@ -13,6 +8,9 @@ pub use mem::memmap;
 pub use rsdp::rsdp;
 pub use smp::{boot_cpu, init as smp_init};
 pub use term::_print;
+
+use super::{args, BOOT_NAME};
+use crate::kernel_main;
 
 //
 

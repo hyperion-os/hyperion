@@ -1,8 +1,9 @@
+use core::panic::PanicInfo;
+
 use crate::{
     arch::{done, int},
     backtrace,
 };
-use core::panic::PanicInfo;
 
 //
 

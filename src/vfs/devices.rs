@@ -1,9 +1,8 @@
+use super::Node;
 use crate::{
     driver::{acpi::hpet::HpetDevice, rtc::RtcDevice},
     vfs,
 };
-
-use super::Node;
 
 //
 

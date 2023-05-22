@@ -1,3 +1,11 @@
+use alloc::{borrow::ToOwned, string::String, sync::Arc};
+use core::fmt::Write;
+
+use chrono::{TimeZone, Utc};
+use snafu::ResultExt;
+use spin::Mutex;
+
+use super::{term::Term, *};
 use crate::{
     arch,
     driver::{acpi::hpet::HPET, video::color::Color},
@@ -10,13 +18,6 @@ use crate::{
     },
     KERNEL_BUILD_REV, KERNEL_BUILD_TIME, KERNEL_NAME, KERNEL_VERSION,
 };
-use alloc::{borrow::ToOwned, string::String, sync::Arc};
-use chrono::{TimeZone, Utc};
-use core::fmt::Write;
-use snafu::ResultExt;
-use spin::Mutex;
-
-use super::{term::Term, *};
 
 //
 

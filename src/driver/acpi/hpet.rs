@@ -8,13 +8,12 @@ use bit_field::BitField;
 use chrono::Duration;
 use spin::{Lazy, Mutex};
 
+use super::{rsdt::RSDT, SdtError};
 use crate::{
     debug, trace,
-    util::slice_read::{slice_read},
+    util::slice_read::slice_read,
     vfs::{FileDevice, IoError, IoResult},
 };
-
-use super::{rsdt::RSDT, SdtError};
 
 //
 

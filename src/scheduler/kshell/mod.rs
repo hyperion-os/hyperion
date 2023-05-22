@@ -1,17 +1,15 @@
+use alloc::string::String;
 use core::num::ParseIntError;
 
-use alloc::string::String;
 use futures_util::{stream::select, StreamExt};
 use snafu::Snafu;
 
+use self::{shell::Shell, term::Term};
+use super::{keyboard::KeyboardEvents, tick::Ticks};
 use crate::{
     driver::video::framebuffer::Framebuffer,
     vfs::{path::PathBuf, IoError},
 };
-
-use self::{shell::Shell, term::Term};
-
-use super::{keyboard::KeyboardEvents, tick::Ticks};
 
 //
 

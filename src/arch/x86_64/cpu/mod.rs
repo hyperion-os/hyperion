@@ -1,8 +1,10 @@
-use self::{gdt::Gdt, idt::Idt, tss::Tss};
-use crate::{smp::Cpu, trace};
 use alloc::boxed::Box;
 use core::sync::atomic::{AtomicBool, Ordering};
+
 use spin::Once;
+
+use self::{gdt::Gdt, idt::Idt, tss::Tss};
+use crate::{smp::Cpu, trace};
 
 //
 

@@ -1,10 +1,11 @@
+use alloc::boxed::Box;
+use core::fmt;
+
 use super::CHAR_SIZE;
 use crate::{
     driver::video::{color::Color, framebuffer::Framebuffer},
     log::{self, LogLevel},
 };
-use alloc::boxed::Box;
-use core::fmt;
 
 //
 

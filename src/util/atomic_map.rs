@@ -1,9 +1,8 @@
+use alloc::boxed::Box;
 use core::{
     ptr,
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
-
-use alloc::boxed::Box;
 
 //
 

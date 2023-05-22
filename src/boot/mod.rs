@@ -1,8 +1,6 @@
-use spin::Once;
-
 //
-
 pub use boot::*;
+use spin::Once;
 
 //
 

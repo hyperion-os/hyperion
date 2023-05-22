@@ -1,6 +1,6 @@
-use crate::driver::pic::PICS;
-use crate::util::stack_str::StackStr;
 use core::{fmt, mem, ptr, slice, str::Utf8Error};
+
+use crate::{driver::pic::PICS, util::stack_str::StackStr};
 
 //
 

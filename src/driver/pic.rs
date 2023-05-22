@@ -1,6 +1,7 @@
-use crate::{arch::cpu::idt::Irq, debug};
 use spin::{Lazy, Mutex};
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
+
+use crate::{arch::cpu::idt::Irq, debug};
 
 //
 

@@ -1,5 +1,12 @@
 use core::{arch::asm, ffi::c_void, ptr};
 
+use elf::{
+    endian::AnyEndian, string_table::StringTable, symbol::SymbolTable, ElfBytes, ParseError,
+};
+use rustc_demangle::demangle;
+use spin::Lazy;
+use x86_64::VirtAddr;
+
 use crate::{
     arch,
     boot::{self, virt_addr},
@@ -7,12 +14,6 @@ use crate::{
     println,
     term::escape::encode::EscapeEncoder,
 };
-use elf::{
-    endian::AnyEndian, string_table::StringTable, symbol::SymbolTable, ElfBytes, ParseError,
-};
-use rustc_demangle::{demangle};
-use spin::Lazy;
-use x86_64::VirtAddr;
 
 //
 

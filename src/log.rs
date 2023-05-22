@@ -1,7 +1,8 @@
+use core::fmt::Arguments;
+
 use crossbeam::atomic::AtomicCell;
 
 use crate::term::escape::encode::{EncodedPart, EscapeEncoder};
-use core::fmt::Arguments;
 
 //
 

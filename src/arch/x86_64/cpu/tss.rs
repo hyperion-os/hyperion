@@ -1,4 +1,5 @@
 use core::sync::atomic::{AtomicBool, Ordering};
+
 use x86_64::{structures::tss::TaskStateSegment, VirtAddr};
 
 //

@@ -2,11 +2,6 @@
 //!
 //! Page frame allocating
 
-use super::{from_higher_half, map::Memmap, to_higher_half};
-use crate::{
-    boot, debug,
-    util::{bitmap::Bitmap, fmt::NumberPostfix},
-};
 use core::{
     alloc::{AllocError, Allocator, Layout},
     fmt,
@@ -14,8 +9,15 @@ use core::{
     slice,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
+
 use spin::{Lazy, Mutex};
 use x86_64::{align_up, PhysAddr, VirtAddr};
+
+use super::{from_higher_half, map::Memmap, to_higher_half};
+use crate::{
+    boot, debug,
+    util::{bitmap::Bitmap, fmt::NumberPostfix},
+};
 
 //
 

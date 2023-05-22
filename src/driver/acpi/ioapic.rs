@@ -1,8 +1,7 @@
 use spin::{Lazy, Mutex, MutexGuard};
 
-use crate::util::atomic_map::AtomicMap;
-
 use super::{apic::ApicId, madt::MADT, ReadWrite};
+use crate::util::atomic_map::AtomicMap;
 
 //
 

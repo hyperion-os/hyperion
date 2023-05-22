@@ -1,13 +1,15 @@
 //! Tests should only be ran on a single thread at the moment
 
-use crate::{log, print, println};
 use core::{
     any::type_name,
     panic::PanicInfo,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
+
 use spin::Once;
 use x86_64::instructions::port::Port;
+
+use crate::{log, print, println};
 
 //
 

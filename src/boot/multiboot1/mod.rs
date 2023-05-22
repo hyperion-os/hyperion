@@ -1,11 +1,13 @@
 //! https://www.gnu.org/software/grub/manual/multiboot/multiboot.html
 
-use crate::println;
 use core::{ffi::CStr, mem::transmute, slice};
+
 use spin::Lazy;
 use uart_16550::SerialPort;
 use volatile::Volatile;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+
+use crate::println;
 
 //
 

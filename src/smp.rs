@@ -1,7 +1,8 @@
+use core::fmt::{self, Display, Formatter};
+
 use spin::Once;
 
 use crate::{boot, debug};
-use core::fmt::{self, Display, Formatter};
 
 //
 

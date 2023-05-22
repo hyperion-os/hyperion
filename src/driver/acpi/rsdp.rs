@@ -4,10 +4,12 @@
 //!
 //! This module finds the pointer to the Root/eXtended System Descriptor Table [`super::rsdt`]
 
+use core::str::Utf8Error;
+
+use spin::Lazy;
+
 use super::{checksum_of, AcpiOem, AcpiVersion};
 use crate::{boot, debug, driver::acpi::StructUnpacker, util::stack_str::StackStr};
-use core::str::Utf8Error;
-use spin::Lazy;
 
 //
 

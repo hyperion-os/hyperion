@@ -4,12 +4,12 @@ use alloc::{
     sync::{Arc, Weak},
     vec::Vec,
 };
+
 use snafu::Snafu;
 use spin::{Lazy, Mutex};
 
-use crate::{debug, error};
-
 use self::path::Path;
+use crate::{debug, error};
 
 //
 
@@ -52,7 +52,8 @@ pub fn install_dev(path: impl AsRef<Path>, dev: impl FileDevice + Send + Sync + 
     install_dev_with(get_root(), path, dev)
 }
 
-pub use {get_dir as read_dir, get_file as open};
+pub use get_dir as read_dir;
+pub use get_file as open;
 
 //
 

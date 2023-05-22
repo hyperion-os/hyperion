@@ -1,7 +1,4 @@
-
-
-
-use crate::{driver::acpi::apic::ApicId};
+use crate::driver::acpi::apic::ApicId;
 
 //
 

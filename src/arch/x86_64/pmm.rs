@@ -1,5 +1,6 @@
-use crate::mem::pmm::PageFrameAllocator;
 use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
+
+use crate::mem::pmm::PageFrameAllocator;
 
 //
 

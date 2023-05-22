@@ -1,10 +1,11 @@
+use limine::{LimineSmpInfo, LimineSmpRequest};
+use spin::Lazy;
+
 use crate::{
     debug, error,
     smp::{Cpu, CPU_COUNT},
     smp_main,
 };
-use limine::{LimineSmpInfo, LimineSmpRequest};
-use spin::Lazy;
 
 //
 

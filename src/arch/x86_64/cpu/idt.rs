@@ -1,5 +1,6 @@
-use super::{ints::*, tss::Tss};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+
+use super::{ints::*, tss::Tss};
 
 //
 

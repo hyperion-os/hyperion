@@ -1,4 +1,5 @@
 use core::fmt::{self, Arguments, Write};
+
 use limine::{LimineTerminalRequest, LimineTerminalResponse};
 use spin::{Mutex, MutexGuard, Once};
 

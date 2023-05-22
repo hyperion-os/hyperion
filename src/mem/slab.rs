@@ -14,18 +14,20 @@
 
 //
 
+use core::{
+    slice,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
+use spin::RwLock;
+use volatile::Volatile;
+use x86_64::VirtAddr;
+
 use super::{
     from_higher_half,
     pmm::{self, PageFrame},
     to_higher_half,
 };
-use core::{
-    slice,
-    sync::atomic::{AtomicUsize, Ordering},
-};
-use spin::RwLock;
-use volatile::Volatile;
-use x86_64::VirtAddr;
 
 //
 

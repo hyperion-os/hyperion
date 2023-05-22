@@ -1,11 +1,13 @@
-use super::{color::Color, font::FONT};
-use crate::boot;
 use core::{
     fmt,
     ops::{Deref, DerefMut, Range},
     sync::atomic::{AtomicBool, Ordering},
 };
+
 use spin::{Lazy, Mutex, MutexGuard};
+
+use super::{color::Color, font::FONT};
+use crate::boot;
 
 //
 

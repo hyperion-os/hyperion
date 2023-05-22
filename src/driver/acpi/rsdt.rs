@@ -2,14 +2,15 @@
 //!
 //! https://wiki.osdev.org/RSDT
 
-use crate::debug;
-
-use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
 use core::{
     str::Utf8Error,
     sync::atomic::{AtomicBool, Ordering},
 };
+
 use spin::Lazy;
+
+use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
+use crate::debug;
 
 //
 

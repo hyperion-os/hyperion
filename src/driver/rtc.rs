@@ -1,15 +1,17 @@
+use core::{
+    mem,
+    sync::atomic::{AtomicU8, Ordering},
+};
+
+use chrono::{DateTime, TimeZone, Utc};
+use spin::Mutex;
+use x86_64::instructions::{interrupts::without_interrupts, port::Port};
+
 use crate::{
     debug, error,
     util::slice_read::slice_read,
     vfs::{FileDevice, IoError, IoResult},
 };
-use chrono::{DateTime, TimeZone, Utc};
-use core::{
-    mem,
-    sync::atomic::{AtomicU8, Ordering},
-};
-use spin::Mutex;
-use x86_64::instructions::{interrupts::without_interrupts, port::Port};
 
 //
 
@@ -131,6 +133,7 @@ impl Default for Rtc {
 
 #[cfg(target_has_atomic_load_store = "64")]
 use core::sync::atomic::AtomicI64;
+
 #[cfg(not(target_has_atomic_load_store = "64"))]
 use spin::RwLock;
 
