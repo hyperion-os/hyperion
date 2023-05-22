@@ -131,8 +131,6 @@ impl PageFrameAllocator {
         self.used
             .fetch_add(count as u64 * PAGE_SIZE, Ordering::SeqCst);
 
-        // trace!("allocating pages first={first_page} count={}", count);
-
         PageFrame { first: addr, count }
     }
 

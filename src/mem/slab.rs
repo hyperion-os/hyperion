@@ -90,6 +90,7 @@ impl SlabAllocator {
     }
 
     pub fn alloc(&self, size: usize) -> VirtAddr {
+        // crate::println!("alloc {size}");
         if let Some(slab) = self.get_slab(size) {
             slab.write().alloc(&self.stats)
         } else {

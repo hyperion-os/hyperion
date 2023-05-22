@@ -3,9 +3,11 @@ use crate::{
     vfs,
 };
 
+use super::Node;
+
 //
 
-pub fn install() {
-    vfs::install_dev("/dev/rtc", RtcDevice);
-    vfs::install_dev("/dev/hpet", HpetDevice);
+pub fn install(root: Node) {
+    vfs::install_dev_with(root.clone(), "/dev/rtc", RtcDevice);
+    vfs::install_dev_with(root, "/dev/hpet", HpetDevice);
 }

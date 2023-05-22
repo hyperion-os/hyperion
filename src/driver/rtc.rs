@@ -1,6 +1,7 @@
 use crate::{
     debug, error,
-    vfs::{self, FileDevice},
+    util::slice_read::slice_read,
+    vfs::{self, FileDevice, IoError, IoResult},
 };
 use chrono::{DateTime, TimeZone, Utc};
 use core::{
@@ -110,14 +111,13 @@ impl FileDevice for RtcDevice {
         mem::size_of::<i64>()
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> vfs::IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
         let bytes = &RTC.now_bytes()[..];
-        bytes.read(offset, buf)
+        slice_read(bytes, offset, buf)
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> vfs::IoResult<usize> {
-        let mut bytes = &RTC.now_bytes()[..];
-        bytes.write(offset, buf)
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
     }
 }
 

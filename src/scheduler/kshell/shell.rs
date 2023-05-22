@@ -1,6 +1,6 @@
 use crate::{
     driver::acpi::hpet::HPET,
-    mem::pmm::PageFrameAllocator,
+    mem::{from_higher_half, pmm::PageFrameAllocator},
     util::fmt::NumberPostfix,
     vfs::{
         self,
@@ -13,7 +13,8 @@ use alloc::{borrow::ToOwned, string::String, sync::Arc};
 use chrono::{TimeZone, Utc};
 use core::fmt::Write;
 use snafu::ResultExt;
-use spin::Mutex;
+use spin::{Mutex, MutexGuard};
+use x86_64::VirtAddr;
 
 use super::{term::Term, Error, IoSnafu, Result};
 
@@ -103,7 +104,7 @@ impl<'fbo> Shell<'fbo> {
     }
 
     fn splash_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "{KERNEL_SPLASH}");
+        // _ = writeln!(self.term, "{KERNEL_SPLASH}");
         _ = writeln!(self.term, "Welcome to {KERNEL_NAME} - {KERNEL_VERSION} (built {KERNEL_BUILD_TIME} build [{KERNEL_BUILD_REV}])");
         Ok(())
     }
@@ -156,14 +157,16 @@ impl<'fbo> Shell<'fbo> {
         let file = vfs::get_file(resource, false, false).with_context(|_| IoSnafu {
             resource: resource.to_owned(),
         })?;
-        let mut file = file.lock();
+        let file = file.lock();
 
         let mut at = 0usize;
         let mut buf = [0u8; 16];
         loop {
+            let addr = (&*file) as *const _ as *const () as u64;
             let read = file.read(at, &mut buf).with_context(|_| IoSnafu {
                 resource: resource.to_owned(),
             })?;
+
             if read == 0 {
                 break;
             }

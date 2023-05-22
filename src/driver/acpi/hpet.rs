@@ -10,7 +10,8 @@ use spin::{Lazy, Mutex};
 
 use crate::{
     debug, trace,
-    vfs::{FileDevice, IoResult},
+    util::slice_read::{self, slice_read, slice_write},
+    vfs::{FileDevice, IoError, IoResult},
 };
 
 use super::{rsdt::RSDT, SdtError};
@@ -234,12 +235,11 @@ impl FileDevice for HpetDevice {
 
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
         let bytes = &HPET.lock().now_bytes()[..];
-        bytes.read(offset, buf)
+        slice_read(bytes, offset, buf)
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
-        let mut bytes = &HPET.lock().now_bytes()[..];
-        bytes.write(offset, buf)
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
     }
 }
 
