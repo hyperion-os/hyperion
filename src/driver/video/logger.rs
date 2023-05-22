@@ -106,8 +106,8 @@ impl Writer {
         fbo.ascii_char(x, y, byte, self.fg_color, self.bg_color);
     }
 
-    const FG_COLOR: Color = Color::from_hex("#bbbbbb");
-    const BG_COLOR: Color = Color::from_hex("#000000");
+    const FG_COLOR: Color = Color::from_hex("#bbbbbb").unwrap();
+    const BG_COLOR: Color = Color::from_hex("#000000").unwrap();
 
     const fn new() -> Self {
         Self {

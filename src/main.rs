@@ -4,6 +4,7 @@
 #![no_main]
 //
 #![feature(
+    const_option,
     format_args_nl,
     abi_x86_interrupt,
     allocator_api,
@@ -108,6 +109,7 @@ fn smp_main(cpu: smp::Cpu) -> ! {
 
     static CPU_COUNT_AFTER_INIT: AtomicUsize = AtomicUsize::new(0);
     if Some(CPU_COUNT_AFTER_INIT.fetch_add(1, Ordering::SeqCst) + 1) == CPU_COUNT.get().copied() {
+        // code after every CPU and APIC has been initialized
         if let Some(mut io_apic) = IoApic::any() {
             let io_apic_irq_router = ApicId::iter().find(|id| id.inner() < 0xFF).unwrap();
 

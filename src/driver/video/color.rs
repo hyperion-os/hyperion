@@ -22,21 +22,19 @@ impl Color {
         Self::new(r, g, b)
     }
 
-    pub const fn from_hex(hex_code: &str) -> Self {
+    pub const fn from_hex(hex_code: &str) -> Option<Self> {
         Self::from_hex_bytes(hex_code.as_bytes())
     }
 
-    pub const fn from_hex_bytes(hex_code: &[u8]) -> Self {
+    pub const fn from_hex_bytes(hex_code: &[u8]) -> Option<Self> {
         match hex_code {
             [r0, r1, g0, g1, b0, b1, _, _]
             | [r0, r1, g0, g1, b0, b1]
             | [b'#', r0, r1, g0, g1, b0, b1, _, _]
             | [b'#', r0, r1, g0, g1, b0, b1] => {
-                Self::from_hex_bytes_2([*r0, *r1, *g0, *g1, *b0, *b1])
+                Some(Self::from_hex_bytes_2([*r0, *r1, *g0, *g1, *b0, *b1]))
             }
-            _ => {
-                panic!("Invalid color hex code")
-            }
+            _ => None,
         }
     }
 

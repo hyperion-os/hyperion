@@ -1,22 +1,32 @@
 use super::CHAR_SIZE;
-use crate::driver::video::{color::Color, framebuffer::Framebuffer};
+use crate::{
+    driver::video::{color::Color, framebuffer::Framebuffer},
+    log::{self, LogLevel},
+};
 use alloc::boxed::Box;
 use core::fmt;
 
 //
 
-pub struct Term<'fbo> {
+pub struct Term {
     pub cursor: (usize, usize),
     size: (usize, usize),
     buf: Box<[u8]>,
     old_buf: Box<[u8]>,
-    vbo: &'fbo mut Framebuffer,
 }
 
 //
 
-impl<'fbo> Term<'fbo> {
-    pub fn new(vbo: &'fbo mut Framebuffer) -> Self {
+impl Term {
+    pub fn new() -> Self {
+        log::set_fbo(LogLevel::None);
+        let Some(mut vbo) = Framebuffer::get_manual_flush() else {
+            // TODO: serial only
+            panic!("cannot run kshell without a framebuffer");
+        };
+        vbo.clear();
+        vbo.flush();
+
         let vbo_info = vbo.info();
 
         let cursor = (0, 0);
@@ -34,12 +44,11 @@ impl<'fbo> Term<'fbo> {
             size,
             buf,
             old_buf,
-            vbo,
         }
     }
 
     pub fn flush(&mut self) {
-        // let positions = (0..self.size.1).flat_map(|y| (0..self.size.0).map(move |x| (x, y)));
+        let mut vbo = Framebuffer::get_manual_flush().unwrap();
 
         // let mut updates = 0u32;
         for ((idx, ch), _) in self
@@ -53,7 +62,7 @@ impl<'fbo> Term<'fbo> {
             let y = (idx / self.size.0) * CHAR_SIZE.1 as usize;
 
             // updates += 1;
-            self.vbo.ascii_char(x, y, *ch, Color::WHITE, Color::BLACK);
+            vbo.ascii_char(x, y, *ch, Color::WHITE, Color::BLACK);
         }
         // debug!("updates: {updates}");
         self.old_buf.copy_from_slice(&self.buf);
@@ -117,7 +126,13 @@ impl<'fbo> Term<'fbo> {
     }
 }
 
-impl<'fbo> fmt::Write for Term<'fbo> {
+impl Default for Term {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Write for Term {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write_bytes(s.as_bytes());
         Ok(())

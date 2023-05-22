@@ -1,11 +1,11 @@
 use core::num::ParseIntError;
 
+use alloc::string::String;
 use futures_util::{stream::select, StreamExt};
 use snafu::Snafu;
 
 use crate::{
     driver::video::framebuffer::Framebuffer,
-    log::{self, LogLevel},
     vfs::{path::PathBuf, IoError},
 };
 
@@ -21,13 +21,7 @@ pub mod term;
 //
 
 pub async fn kshell() {
-    log::set_fbo(LogLevel::None);
-    let Some(mut vbo) = Framebuffer::get() else {
-        // TODO: serial only
-        panic!("cannot run kshell without a framebuffer");
-    };
-
-    let term = Term::new(&mut vbo);
+    let term = Term::new();
     let mut shell = Shell::new(term);
     let ev = KeyboardEvents::new();
     let tick = Ticks::new();
@@ -62,7 +56,10 @@ pub enum Error {
     NamelessFile,
 
     #[snafu(display("Parse error: {source}"))]
-    ParseError { source: ParseIntError },
+    Parse { source: ParseIntError },
+
+    #[snafu(display("{msg}"))]
+    Other { msg: String },
 }
 
 pub type Result<T> = core::result::Result<T, Error>;
