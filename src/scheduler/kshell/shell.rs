@@ -1,7 +1,7 @@
 use crate::{
     arch,
     driver::acpi::hpet::HPET,
-    mem::{pmm::PageFrameAllocator},
+    mem::pmm::PageFrameAllocator,
     util::fmt::NumberPostfix,
     vfs::{
         self,
@@ -14,8 +14,7 @@ use alloc::{borrow::ToOwned, string::String, sync::Arc};
 use chrono::{TimeZone, Utc};
 use core::fmt::Write;
 use snafu::ResultExt;
-use spin::{Mutex};
-
+use spin::Mutex;
 
 use super::{term::Term, *};
 
@@ -55,6 +54,16 @@ impl<'fbo> Shell<'fbo> {
             };
             cmdbuf.clear();
             self.prompt();
+        } else if ev == '\t' {
+            let skip = if self.term.cursor.0 % 4 == 0 {
+                4
+            } else {
+                self.term.cursor.0 % 4
+            };
+            for _ in 0..skip {
+                self.term.write_byte(b' ');
+                cmdbuf.push(' ');
+            }
         } else if ev == '\u{8}' {
             if cmdbuf.pop().is_some() {
                 self.term.cursor_prev();
