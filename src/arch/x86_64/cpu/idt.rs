@@ -75,6 +75,7 @@ impl Idt {
         idt.stack_segment_fault.set_handler_fn(stack_segment_fault);
         idt.general_protection_fault
             .set_handler_fn(general_protection_fault);
+        idt.page_fault.set_handler_fn(page_fault);
         idt.x87_floating_point.set_handler_fn(x87_floating_point);
         idt.alignment_check.set_handler_fn(alignment_check);
         idt.machine_check.set_handler_fn(machine_check);

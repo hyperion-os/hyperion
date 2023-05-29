@@ -24,9 +24,12 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+use x86_64::VirtAddr;
+
 use crate::{
     arch::cpu::idt::Irq,
     driver::acpi::{apic::ApicId, ioapic::IoApic},
+    mem::from_higher_half,
     scheduler::kshell::kshell,
     smp::CPU_COUNT,
     util::fmt::NumberPostfix,
@@ -87,6 +90,10 @@ fn kernel_main() -> ! {
         boot::phys_addr().as_u64().postfix_binary(),
     );
     debug!("HHDM Offset: {:#0X?}", boot::hhdm_offset());
+    debug!(
+        "Kernel Stack: {:#0X?}",
+        from_higher_half(VirtAddr::new(boot::stack().start as u64))
+    );
 
     if let Some(bl) = boot::BOOT_NAME.get() {
         debug!("{KERNEL_NAME} {KERNEL_VERSION} was booted with {bl}");

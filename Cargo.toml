@@ -21,10 +21,10 @@ uart_16550 = "0.2"
 pc-keyboard = "0.7"
 paste = "1.0"                                       # macro ident concat
 bit_field = "0.10"
-elf = { version = "0.7", default-features = false }
-rustc-demangle = "0.1"
+elf = { version = "0.7", default-features = false } # backtrace symbol lookup
+rustc-demangle = "0.1"                              # backtrace demangling
 # bitvec = "1.0.1"
-#tracing = { version = "0.1.37", default-features = false }
+# tracing = { version = "0.1.37", default-features = false }
 
 [dependencies.limine]
 # git = "https://github.com/limine-bootloader/limine-rs"
@@ -60,6 +60,12 @@ features = ["alloc"]
 version = "0.7"
 default-features = false
 features = ["rust_1_46"]
+
+# backtracing with DWARF
+# [dependencies.gimli]
+# version = "0.27"
+# default-features = false
+# features = ["read", "write"]
 
 [build-dependencies]
 image = "0.24"

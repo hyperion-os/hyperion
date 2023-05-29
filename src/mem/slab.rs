@@ -142,7 +142,7 @@ impl SlabAllocator {
         // pmm already zeroed the memory
         //
         // the returned memory is the next page, because this page contains the metadata
-        to_higher_half(pages.addr()) + 0x1000u64
+        to_higher_half(pages.physical_addr()) + 0x1000u64
     }
 
     fn big_free(&self, mut v_addr: VirtAddr) {

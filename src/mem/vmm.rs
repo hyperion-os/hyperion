@@ -2,6 +2,17 @@ use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
 pub use crate::arch::vmm::PageMap;
+use crate::boot;
+
+//
+
+// unmap the page at the bottom of the stack
+pub fn protect_stack_bottom() {
+    let bottom = boot::stack().start - 0x1000;
+    crate::println!("unmapping");
+    PAGE_MAP.unmap(VirtAddr::new(bottom as _), 1);
+    crate::println!("unmapped");
+}
 
 //
 
@@ -31,8 +42,8 @@ mod tests {
         let map = PageMap::init();
         let frame = PageFrameAllocator::get().alloc(1);
         map.unmap(VirtAddr::new(0x1000), 1);
-        map.map(VirtAddr::new(0x0), frame.addr(), 1);
-        map.map(VirtAddr::new(0x1000), frame.addr(), 1);
+        map.map(VirtAddr::new(0x0), frame.physical_addr(), 1);
+        map.map(VirtAddr::new(0x1000), frame.physical_addr(), 1);
 
         let a1 = unsafe { &mut *(0x1 as *mut u8) };
         let a2 = unsafe { &mut *(0x1001 as *mut u8) };

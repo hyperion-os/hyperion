@@ -8,6 +8,6 @@ unsafe impl<'a> FrameAllocator<Size4KiB> for &'a PageFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
         let f = self.alloc(1);
 
-        PhysFrame::from_start_address(f.addr()).ok()
+        PhysFrame::from_start_address(f.physical_addr()).ok()
     }
 }

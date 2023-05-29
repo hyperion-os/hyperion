@@ -124,31 +124,38 @@ impl Hpet {
 
     //
 
+    /// theoretical max u96 sized output
     pub fn femtos(&mut self) -> u128 {
         self.period as u128 * self.main_counter_value() as u128
     }
 
+    /// theoretical max u87 sized output
     pub fn picos(&mut self) -> u128 {
         self.femtos() / 1_000
     }
 
+    /// theoretical max u77 sized output
     pub fn nanos(&mut self) -> u128 {
         self.picos() / 1_000
     }
 
+    /// theoretical max u67 sized output
     pub fn micros(&mut self) -> u128 {
         self.nanos() / 1_000
     }
 
-    pub fn millis(&mut self) -> u128 {
-        self.micros() / 1_000
+    /// theoretical max u57 sized output
+    pub fn millis(&mut self) -> u64 {
+        (self.micros() / 1_000) as u64
     }
 
-    pub fn seconds(&mut self) -> u128 {
+    /// theoretical max u47 sized output
+    pub fn seconds(&mut self) -> u64 {
         self.millis() / 1_000
     }
 
-    pub fn minutes(&mut self) -> u128 {
+    /// theoretical max u41 sized output
+    pub fn minutes(&mut self) -> u64 {
         self.millis() / 60
     }
 
@@ -173,7 +180,7 @@ impl Hpet {
 
         // enable cnf => enable hpet
         let mut config = self.config();
-        config.set_enable_cnf(1);
+        config.set_enable(1);
         self.set_config(config);
 
         debug!("HPET caps: {:#x?}", self.caps());
@@ -192,8 +199,12 @@ impl Hpet {
 }
 
 impl TimerN<'_> {
-    pub fn sleep(&mut self, dur: Duration) {
-        dur.num_nanoseconds();
+    pub fn sleep(&mut self, dur: Duration) {}
+
+    pub fn init(&mut self) {
+        let mut config = self.config_and_caps();
+        config.set_int_enable(1);
+        self.set_config_and_caps(config);
     }
 
     //
@@ -206,11 +217,11 @@ impl TimerN<'_> {
         self.hpet.write_reg(self.offs, val.0)
     }
 
-    pub fn counter_value(&mut self) -> CounterValue {
+    pub fn comparator_value(&mut self) -> CounterValue {
         self.hpet.read_reg(self.offs + 0x8)
     }
 
-    pub fn set_counter_value(&mut self, val: CounterValue) {
+    pub fn set_comparator_value(&mut self, val: CounterValue) {
         self.hpet.write_reg(self.offs + 0x8, val)
     }
 }
@@ -294,12 +305,21 @@ bitfield! {
     }
 
     GeneralConfig = u64 {
-        leg_rt_cnf: 1..2,
-        enable_cnf: 0..1,
+        leg_rt: 1..2,
+        enable: 0..1,
     }
 
     TimerNConfigAndCaps = u64 {
-
+        int_route_cap: 32..64,
+        fsb_int_del_cap: 15..16,
+        fsb_enable: 14..15,
+        int_route: 9..14,
+        value_set: 6..7,
+        size_cap: 5..6,
+        per_int_cap: 4..5,
+        mode: 3..4,
+        int_enable: 2..3,
+        int_trigger: 1..2,
     }
 }
 

@@ -1,4 +1,4 @@
-use alloc::{borrow::ToOwned, string::String, sync::Arc};
+use alloc::{string::String, sync::Arc};
 use core::fmt::Write;
 
 use chrono::{TimeZone, Utc};
@@ -113,6 +113,7 @@ impl Shell {
             "sleep" => self.sleep_cmd(args)?,
             "draw" => self.draw_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
+            "touch" => self.touch_cmd(args)?,
             "clear" => {
                 self.term.clear();
             }
@@ -147,9 +148,7 @@ impl Shell {
         let resource = Path::from_str(args.unwrap_or(".")).to_absolute(&self.current_dir);
         let resource = resource.as_ref();
 
-        let dir = vfs::get_node(resource, false).with_context(|_| IoSnafu {
-            resource: resource.to_owned(),
-        })?;
+        let dir = vfs::get_node(resource, false).context(IoSnafu { resource })?;
 
         match dir {
             Node::File(_) => {
@@ -161,9 +160,7 @@ impl Shell {
             }
             Node::Directory(dir) => {
                 let mut dir = dir.lock();
-                for entry in dir.nodes().with_context(|_| IoSnafu {
-                    resource: resource.to_owned(),
-                })? {
+                for entry in dir.nodes().context(IoSnafu { resource })? {
                     _ = writeln!(self.term, "{entry}");
                 }
             }
@@ -176,18 +173,14 @@ impl Shell {
         let resource = Path::from_str(args.unwrap_or(".")).to_absolute(&self.current_dir);
         let resource = resource.as_ref();
 
-        let file = vfs::get_file(resource, false, false).with_context(|_| IoSnafu {
-            resource: resource.to_owned(),
-        })?;
+        let file = vfs::get_file(resource, false, false).context(IoSnafu { resource })?;
         let file = file.lock();
 
         let mut at = 0usize;
         let mut buf = [0u8; 16];
         loop {
             let _addr = (&*file) as *const _ as *const () as u64;
-            let read = file.read(at, &mut buf).with_context(|_| IoSnafu {
-                resource: resource.to_owned(),
-            })?;
+            let read = file.read(at, &mut buf).context(IoSnafu { resource })?;
 
             if read == 0 {
                 break;
@@ -206,16 +199,12 @@ impl Shell {
     fn date_cmd(&mut self, _: Option<&str>) -> Result<()> {
         let resource = Path::from_str("/dev/rtc");
 
-        let file = vfs::get_file(resource, false, false).with_context(|_| IoSnafu {
-            resource: resource.to_owned(),
-        })?;
+        let file = vfs::get_file(resource, false, false).context(IoSnafu { resource })?;
         let file = file.lock();
 
         let mut timestamp = [0u8; 8];
         file.read_exact(0, &mut timestamp)
-            .with_context(|_| IoSnafu {
-                resource: resource.to_owned(),
-            })?;
+            .context(IoSnafu { resource })?;
 
         let date = Utc.timestamp_nanos(i64::from_le_bytes(timestamp));
 
@@ -240,15 +229,15 @@ impl Shell {
     }
 
     fn sleep_cmd(&mut self, seconds: Option<&str>) -> Result<()> {
-        let seconds = seconds
+        let seconds: u64 = seconds
             .map(|s| s.parse::<u8>())
             .transpose()
             .context(ParseSnafu {})?
-            .unwrap_or(1);
+            .unwrap_or(1) as _;
 
         // TODO: interrupt sleep
         let now = HPET.lock().millis();
-        while now + 1_000 * seconds as u128 >= HPET.lock().millis() {
+        while now + 1_000 * seconds >= HPET.lock().millis() {
             arch::spin_loop();
         }
 
@@ -336,6 +325,23 @@ impl Shell {
         if set_layout(name).is_none() {
             _ = writeln!(self.term, "invalid layout `{name}`");
         }
+
+        Ok(())
+    }
+
+    fn touch_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        let Some(file) = args else {
+            _ = writeln!(
+                self.term,
+                "missing file arg"
+                );
+            return Ok(())
+        };
+
+        let resource = Path::from_str(file).to_absolute(&self.current_dir);
+        let resource = resource.as_ref();
+
+        vfs::get_file(file, true, true).context(IoSnafu { resource })?;
 
         Ok(())
     }

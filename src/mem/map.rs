@@ -14,6 +14,7 @@ pub enum Memtype {
     Usable,
     BootloaderReclaimable,
     KernelAndModules,
+    Framebuffer,
 }
 
 //
@@ -42,6 +43,14 @@ impl Memmap {
     pub fn is_kernel_and_modules(&self) -> bool {
         self.ty.is_kernel_and_modules()
     }
+
+    /// Returns `true` if the memtype is [`Framebuffer`].
+    ///
+    /// [`Framebuffer`]: Memtype::Framebuffer
+    #[must_use]
+    pub fn is_framebuffer(&self) -> bool {
+        self.ty.is_framebuffer()
+    }
 }
 
 impl Memtype {
@@ -67,6 +76,14 @@ impl Memtype {
     #[must_use]
     pub fn is_kernel_and_modules(&self) -> bool {
         matches!(self, Self::KernelAndModules)
+    }
+
+    /// Returns `true` if the memtype is [`Framebuffer`].
+    ///
+    /// [`Framebuffer`]: Memtype::Framebuffer
+    #[must_use]
+    pub fn is_framebuffer(&self) -> bool {
+        matches!(self, Self::Framebuffer)
     }
 }
 

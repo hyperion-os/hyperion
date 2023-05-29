@@ -95,11 +95,14 @@ clippy:
 gdb:
 	gdb ${GDB_FLAGS}
 
+kernel: ${KERNEL}
+	@echo "${KERNEL}"
+
 # objdump
-objdump : ${KERNEL}
+objdump: ${KERNEL}
 	objdump -D ${KERNEL}
 
-readelf : ${KERNEL}
+readelf: ${KERNEL}
 	readelf --all ${KERNEL}
 
 src:
@@ -107,6 +110,6 @@ src:
 	@echo "from: ${CARGO_DIR}/hyperion.d"
 	@echo "${KERNEL_SRC}" | tr " " "\n" | sort
 
-.PHONY : build iso reset-cargo-deps run test gdb objdump readelf src
+.PHONY : build iso reset-cargo-deps run test gdb kernel objdump readelf src
 
 # end

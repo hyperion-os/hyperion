@@ -257,7 +257,7 @@ unsafe impl Allocator for PageFrameAllocator {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         let frame = self.alloc(layout.size() / PAGE_SIZE as usize);
 
-        NonNull::new(to_higher_half(frame.addr()).as_mut_ptr())
+        NonNull::new(to_higher_half(frame.physical_addr()).as_mut_ptr())
             .map(|first| NonNull::slice_from_raw_parts(first, frame.byte_len()))
             .ok_or(AllocError)
     }
@@ -312,8 +312,12 @@ impl PageFrame {
     }
 
     /// physical address of the first page
-    pub fn addr(&self) -> PhysAddr {
+    pub fn physical_addr(&self) -> PhysAddr {
         self.first
+    }
+
+    pub fn virtual_addr(&self) -> VirtAddr {
+        to_higher_half(self.first)
     }
 
     /// number of pages
@@ -367,21 +371,21 @@ mod tests {
         let pfa = PageFrameAllocator::get();
 
         let a = pfa.alloc(1);
-        assert_ne!(a.addr().as_u64(), 0);
+        assert_ne!(a.physical_addr().as_u64(), 0);
 
         let b = pfa.alloc(1);
-        assert_ne!(b.addr().as_u64(), 0);
-        assert_ne!(a.addr().as_u64(), b.addr().as_u64());
+        assert_ne!(b.physical_addr().as_u64(), 0);
+        assert_ne!(a.physical_addr().as_u64(), b.physical_addr().as_u64());
 
         pfa.free(a);
         pfa.alloc_from(0);
         let c = pfa.alloc(1);
-        assert_ne!(c.addr().as_u64(), 0);
-        assert_ne!(b.addr().as_u64(), c.addr().as_u64());
+        assert_ne!(c.physical_addr().as_u64(), 0);
+        assert_ne!(b.physical_addr().as_u64(), c.physical_addr().as_u64());
 
         let d = pfa.alloc(1);
-        assert_ne!(d.addr().as_u64(), 0);
-        assert_ne!(c.addr().as_u64(), d.addr().as_u64());
+        assert_ne!(d.physical_addr().as_u64(), 0);
+        assert_ne!(c.physical_addr().as_u64(), d.physical_addr().as_u64());
 
         // pfa.free(a); // <- compile error as expected
         pfa.free(b);

@@ -185,6 +185,12 @@ impl From<&Path> for PathBuf {
     }
 }
 
+impl From<&Path> for Option<PathBuf> {
+    fn from(val: &Path) -> Self {
+        Some(val.into())
+    }
+}
+
 //
 
 #[cfg(test)]
