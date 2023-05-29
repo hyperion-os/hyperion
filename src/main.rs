@@ -27,12 +27,8 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use x86_64::VirtAddr;
 
 use crate::{
-    arch::cpu::idt::Irq,
-    driver::acpi::{apic::ApicId, ioapic::IoApic},
-    mem::from_higher_half,
-    scheduler::kshell::kshell,
-    smp::CPU_COUNT,
-    util::fmt::NumberPostfix,
+    arch::cpu::idt::Irq, driver::acpi::ioapic::IoApic, mem::from_higher_half,
+    scheduler::kshell::kshell, smp::CPU_COUNT, util::fmt::NumberPostfix,
 };
 
 extern crate alloc;
@@ -118,9 +114,7 @@ fn smp_main(cpu: smp::Cpu) -> ! {
     if Some(CPU_COUNT_AFTER_INIT.fetch_add(1, Ordering::SeqCst) + 1) == CPU_COUNT.get().copied() {
         // code after every CPU and APIC has been initialized
         if let Some(mut io_apic) = IoApic::any() {
-            let io_apic_irq_router = ApicId::iter().find(|id| id.inner() < 0xFF).unwrap();
-
-            io_apic.set_irq(1, io_apic_irq_router, Irq::PicKeyboard as _);
+            io_apic.set_irq_any(1, Irq::PicKeyboard as _);
             debug!("keyboard initialized");
         }
     }

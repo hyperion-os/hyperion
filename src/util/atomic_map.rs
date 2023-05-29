@@ -29,6 +29,7 @@ impl<K, V> AtomicMap<K, V> {
     }
 
     pub fn insert(&self, key: K, value: V) {
+        // TODO: stop if the key is already there
         let new = Box::into_raw(Box::new(AtomicMapNode {
             key,
             value,
@@ -52,6 +53,8 @@ impl<K, V> AtomicMap<K, V> {
             }
         }
     }
+
+    // TODO: get_or_insert
 
     pub fn get(&self, key: &K) -> Option<&V>
     where

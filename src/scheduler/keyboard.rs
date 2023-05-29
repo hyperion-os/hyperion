@@ -23,14 +23,19 @@ pub fn provide_keyboard_event(c: char) {
     WAKER.wake()
 }
 
+pub const fn keyboard_events() -> KeyboardEvents {
+    KeyboardEvents::new()
+}
+
 //
 
 #[derive(Debug, Clone, Copy, Default)]
+#[must_use]
 pub struct KeyboardEvents {}
 
 impl KeyboardEvents {
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self {}
     }
 }
 

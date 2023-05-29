@@ -1,15 +1,15 @@
 use alloc::{string::String, sync::Arc};
 use core::fmt::Write;
 
-use chrono::{TimeZone, Utc};
+use chrono::{Duration, TimeZone, Utc};
 use snafu::ResultExt;
 use spin::Mutex;
 
 use super::{term::Term, *};
 use crate::{
-    arch,
-    driver::{acpi::hpet::HPET, ps2::keyboard::set_layout, video::color::Color},
+    driver::{ps2::keyboard::set_layout, video::color::Color},
     mem::pmm::PageFrameAllocator,
+    scheduler::timer::sleep,
     util::fmt::NumberPostfix,
     vfs::{
         self,
@@ -46,13 +46,13 @@ impl Shell {
         self.term.flush();
     }
 
-    pub fn input(&mut self, ev: char) {
+    pub async fn input(&mut self, ev: char) {
         let cmdbuf = self.cmdbuf.clone();
         let mut cmdbuf = cmdbuf.lock();
 
         if ev == '\n' {
             _ = writeln!(self.term);
-            if let Err(err) = self.run_line(&cmdbuf) {
+            if let Err(err) = self.run_line(&cmdbuf).await {
                 _ = writeln!(self.term, "{err}");
             };
             self.last.clear();
@@ -96,7 +96,7 @@ impl Shell {
         _ = write!(self.term, "\n[kshell {}]# ", self.current_dir.as_str());
     }
 
-    fn run_line(&mut self, line: &str) -> Result<()> {
+    async fn run_line(&mut self, line: &str) -> Result<()> {
         let (cmd, args) = line
             .split_once(' ')
             .map(|(cmd, args)| (cmd, Some(args)))
@@ -110,7 +110,7 @@ impl Shell {
             "cat" => self.cat_cmd(args)?,
             "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
-            "sleep" => self.sleep_cmd(args)?,
+            "sleep" => self.sleep_cmd(args).await?,
             "draw" => self.draw_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
             "touch" => self.touch_cmd(args)?,
@@ -228,18 +228,14 @@ impl Shell {
         Ok(())
     }
 
-    fn sleep_cmd(&mut self, seconds: Option<&str>) -> Result<()> {
+    async fn sleep_cmd(&mut self, seconds: Option<&str>) -> Result<()> {
         let seconds: u64 = seconds
             .map(|s| s.parse::<u8>())
             .transpose()
             .context(ParseSnafu {})?
             .unwrap_or(1) as _;
 
-        // TODO: interrupt sleep
-        let now = HPET.lock().millis();
-        while now + 1_000 * seconds >= HPET.lock().millis() {
-            arch::spin_loop();
-        }
+        sleep(Duration::seconds(seconds as _)).await;
 
         Ok(())
     }

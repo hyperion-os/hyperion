@@ -14,6 +14,7 @@ pub enum Irq {
     // END: 0x20..0x30 PIC space
     // BEG: 0x30..0xFF APIC space
     ApicTimer = 0x32,
+    HpetSleep = 0x33,
     ApicSpurious = 0xFF,
     // END: 0x30..0xFF APIC space
 }
@@ -31,6 +32,7 @@ impl Irq {
             Self::PicKeyboard,
             Self::PicRtc,
             Self::ApicTimer,
+            Self::HpetSleep,
             Self::ApicSpurious,
         ]
         .into_iter()
@@ -42,6 +44,7 @@ impl Irq {
             Irq::PicKeyboard => keyboard,
             Irq::PicRtc => rtc_tick,
             Irq::ApicTimer => apic_timer,
+            Irq::HpetSleep => hpet_sleep,
             Irq::ApicSpurious => apic_spurious,
         }
     }

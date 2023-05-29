@@ -56,6 +56,14 @@ impl IoApic {
         }
     }
 
+    pub fn set_irq_any(&mut self, io_apic_irq: u8, irq: u8) -> ApicId {
+        let io_apic_irq_router = ApicId::iter()
+            .find(|id| id.inner() < 0xFF)
+            .expect("No suitable APICs for handling I/O APIC interrupts");
+        self.set_irq(io_apic_irq, io_apic_irq_router, irq);
+        io_apic_irq_router
+    }
+
     // https://wiki.osdev.org/APIC#IO_APIC_Registers
     pub fn set_irq(&mut self, io_apic_irq: u8, apic: ApicId, irq: u8) {
         if apic.inner() > 0xFF {

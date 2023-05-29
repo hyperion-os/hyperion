@@ -8,7 +8,12 @@ use x86_64::{
 use super::idt::Irq;
 use crate::{
     backtrace::print_backtrace_from,
-    driver::{self, acpi::apic::Lapic, pic::PICS, rtc::RTC},
+    driver::{
+        self,
+        acpi::{apic::Lapic, hpet::HPET},
+        pic::PICS,
+        rtc::RTC,
+    },
     error, info,
     scheduler::tick::provide_tick,
 };
@@ -160,6 +165,11 @@ pub extern "x86-interrupt" fn rtc_tick(_: InterruptStackFrame) {
 
 pub extern "x86-interrupt" fn apic_timer(_: InterruptStackFrame) {
     provide_tick();
+    eoi();
+}
+
+pub extern "x86-interrupt" fn hpet_sleep(_: InterruptStackFrame) {
+    HPET.int_ack();
     eoi();
 }
 

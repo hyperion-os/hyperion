@@ -28,7 +28,7 @@ pub async fn kshell() {
     shell.init();
     while let Some(ev) = stream.next().await {
         if let Some(char) = ev {
-            shell.input(char);
+            shell.input(char).await;
         } else {
             shell.tick();
         }
