@@ -330,6 +330,7 @@ dependencies = [
  "paste",
  "pc-keyboard",
  "rustc-demangle",
+ "smallvec",
  "snafu",
  "spin",
  "uart_16550",

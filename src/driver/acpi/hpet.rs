@@ -6,7 +6,8 @@ use core::ptr::{read_volatile, write_volatile};
 
 use bit_field::BitField;
 use chrono::Duration;
-use spin::{Lazy, Mutex};
+use smallvec::SmallVec;
+use spin::{Lazy, Mutex, MutexGuard};
 
 use super::{rsdt::RSDT, SdtError};
 use crate::{
@@ -31,8 +32,9 @@ pub struct Hpet {
     // vendor_id: u16,
     // leg_rt_cap: bool,
     // count_size_cap: bool,
-    timers: u8,
     // rev_id: u8,
+    next_timer: u8,
+    timers: SmallVec<[Mutex<TimerN>; 34]>,
 }
 
 #[derive(Debug)]
@@ -44,9 +46,8 @@ pub struct HpetRegs {
 }
 
 #[derive(Debug)]
-pub struct TimerN<'a> {
-    hpet: &'a mut Hpet,
-    offs: u64,
+pub struct TimerN {
+    addr: u64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -74,7 +75,8 @@ impl Hpet {
             addr: hpet.address.address,
             // minimum_tick: hpet.minimum_tick,
             period: 0,
-            timers: 0,
+            next_timer: 0,
+            timers: <_>::default(),
         };
 
         res.init_self();
@@ -85,41 +87,52 @@ impl Hpet {
     //
 
     pub fn timer(&mut self, n: u8) -> TimerN {
-        assert!(n <= self.timers);
+        todo!()
+        /* assert!(n <= self.timers);
         TimerN {
             hpet: self,
             offs: 0x100 + 0x20 * n as u64,
-        }
+        } */
+    }
+
+    pub fn next_timer(&self) -> MutexGuard<'_, TimerN> {
+        self.timers
+            .iter()
+            .cycle()
+            .skip(self.next_timer as _)
+            // .take(self.timers.len())
+            .find_map(|timer| timer.try_lock())
+            .unwrap()
     }
 
     //
 
     pub fn caps(&mut self) -> GeneralCaps {
-        GeneralCaps(self.read_reg(0x000))
+        GeneralCaps(Hpet::read_reg(self.addr, 0x000))
     }
 
     pub fn config(&mut self) -> GeneralConfig {
-        GeneralConfig(self.read_reg(0x010))
+        GeneralConfig(Hpet::read_reg(self.addr, 0x010))
     }
 
     pub fn set_config(&mut self, config: GeneralConfig) {
-        self.write_reg(0x010, config.0)
+        Hpet::write_reg(self.addr, 0x010, config.0)
     }
 
     pub fn interrupt_status(&mut self) -> GeneralInterruptStatus {
-        GeneralInterruptStatus(self.read_reg(0x020))
+        GeneralInterruptStatus(Hpet::read_reg(self.addr, 0x020))
     }
 
     pub fn set_interrupt_status(&mut self, status: GeneralInterruptStatus) {
-        self.write_reg(0x020, status.0)
+        Hpet::write_reg(self.addr, 0x020, status.0)
     }
 
     pub fn main_counter_value(&mut self) -> CounterValue {
-        self.read_reg(0x0F0)
+        Hpet::read_reg(self.addr, 0x0F0)
     }
 
     pub fn set_main_counter_value(&mut self, val: CounterValue) {
-        self.write_reg(0x0F0, val)
+        Hpet::write_reg(self.addr, 0x0F0, val)
     }
 
     //
@@ -165,18 +178,27 @@ impl Hpet {
 
     //
 
-    fn read_reg(&mut self, reg: u64) -> u64 {
-        unsafe { read_volatile((self.addr + reg) as *const u64) }
+    fn read_reg(addr: u64, reg: u64) -> u64 {
+        unsafe { read_volatile((addr + reg) as *const u64) }
     }
 
-    fn write_reg(&mut self, reg: u64, val: u64) {
-        unsafe { write_volatile((self.addr + reg) as *mut u64, val) }
+    fn write_reg(addr: u64, reg: u64, val: u64) {
+        unsafe { write_volatile((addr + reg) as *mut u64, val) }
     }
 
     fn init_self(&mut self) {
         let caps = self.caps();
         self.period = caps.period() as u32;
-        self.timers = caps.num_tim_cap() as u8;
+
+        let timers = caps.num_tim_cap();
+        debug!("HPET comparator count: {timers}");
+        for timer in 0..timers {
+            let mut timer = TimerN {
+                addr: self.addr + 0x100 + 0x20 * timer,
+            };
+            timer.init();
+            self.timers.push(Mutex::new(timer));
+        }
 
         // enable cnf => enable hpet
         let mut config = self.config();
@@ -198,7 +220,8 @@ impl Hpet {
     }
 }
 
-impl TimerN<'_> {
+impl TimerN {
+    /// non blocking sleep, this triggers an interrupt after `dur`
     pub fn sleep(&mut self, dur: Duration) {}
 
     pub fn init(&mut self) {
@@ -210,19 +233,19 @@ impl TimerN<'_> {
     //
 
     pub fn config_and_caps(&mut self) -> TimerNConfigAndCaps {
-        TimerNConfigAndCaps(self.hpet.read_reg(self.offs))
+        TimerNConfigAndCaps(Hpet::read_reg(self.addr, 0x0))
     }
 
     pub fn set_config_and_caps(&mut self, val: TimerNConfigAndCaps) {
-        self.hpet.write_reg(self.offs, val.0)
+        Hpet::write_reg(self.addr, 0x0, val.0)
     }
 
     pub fn comparator_value(&mut self) -> CounterValue {
-        self.hpet.read_reg(self.offs + 0x8)
+        Hpet::read_reg(self.addr, 0x8)
     }
 
     pub fn set_comparator_value(&mut self, val: CounterValue) {
-        self.hpet.write_reg(self.offs + 0x8, val)
+        Hpet::write_reg(self.addr, 0x8, val)
     }
 }
 
