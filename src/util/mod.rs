@@ -1,5 +1,7 @@
 pub mod atomic_map;
 pub mod bitmap;
+pub mod checked;
+pub mod defer;
 pub mod fmt;
 pub mod instant;
 pub mod int_safe_lazy;

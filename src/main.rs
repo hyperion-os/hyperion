@@ -34,15 +34,11 @@ use self::{
         acpi::hpet::HPET,
         video::{color::Color, framebuffer::Framebuffer},
     },
-    scheduler::timer::sleep,
+    scheduler::timer::{sleep, ticks},
 };
 use crate::{
-    arch::cpu::idt::Irq,
-    driver::acpi::ioapic::IoApic,
-    mem::from_higher_half,
-    scheduler::{kshell::kshell, tick::Ticks},
-    smp::CPU_COUNT,
-    util::fmt::NumberPostfix,
+    arch::cpu::idt::Irq, driver::acpi::ioapic::IoApic, mem::from_higher_half,
+    scheduler::kshell::kshell, smp::CPU_COUNT, util::fmt::NumberPostfix,
 };
 
 extern crate alloc;
@@ -140,7 +136,9 @@ fn smp_main(cpu: smp::Cpu) -> ! {
 }
 
 async fn spinner() {
-    loop {
+    let mut ticks = ticks(Duration::milliseconds(100));
+
+    while ticks.next().await.is_some() {
         sleep(Duration::milliseconds(100)).await;
         let Some(mut fbo) = Framebuffer::get_manual_flush() else {
             crate::warn!("failed to get fbo");

@@ -7,7 +7,7 @@ use x86_64::{
 
 use super::idt::Irq;
 use crate::{
-    backtrace::print_backtrace_from,
+    backtrace::{self, print_backtrace_from},
     driver::{
         self,
         acpi::{apic::Lapic, hpet::HPET},
@@ -15,7 +15,6 @@ use crate::{
         rtc::RTC,
     },
     error, info,
-    scheduler::tick::provide_tick,
 };
 
 //
@@ -96,7 +95,7 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
         let addr = Cr2::read();
 
         error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
-        unsafe { print_backtrace_from(stack.instruction_pointer) };
+        unsafe { print_backtrace_from(stack.stack_pointer) };
 
         panic!();
     });
@@ -107,7 +106,7 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
         let addr = Cr2::read();
 
         error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
-        unsafe { print_backtrace_from(stack.instruction_pointer) };
+        unsafe { print_backtrace_from(stack.stack_pointer) };
 
         panic!();
     });
@@ -158,13 +157,17 @@ pub extern "x86-interrupt" fn security_exception(stack: InterruptStackFrame, ec:
 
 pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
     /*     info!("pit int"); */
-    provide_tick();
     eoi_irq(Irq::PicTimer as _);
 }
 
 pub extern "x86-interrupt" fn keyboard(f: InterruptStackFrame) {
     let scancode: u8 = unsafe { Port::new(0x60).read() };
     driver::ps2::keyboard::process(scancode);
+
+    if driver::ps2::keyboard::debug_key() {
+        unsafe { backtrace::print_backtrace_from(f.stack_pointer) };
+    }
+
     eoi_irq(Irq::PicKeyboard as _);
 }
 
@@ -174,7 +177,6 @@ pub extern "x86-interrupt" fn rtc_tick(_: InterruptStackFrame) {
 }
 
 pub extern "x86-interrupt" fn apic_timer(_: InterruptStackFrame) {
-    provide_tick();
     eoi();
 }
 

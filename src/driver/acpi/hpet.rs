@@ -7,7 +7,7 @@ use core::{
     cmp::Reverse,
     ops::{Deref, DerefMut},
     ptr::{read_volatile, write_volatile},
-    sync::atomic::{AtomicBool, AtomicU8, Ordering},
+    sync::atomic::{AtomicU8, Ordering},
 };
 
 use bit_field::BitField;
@@ -143,11 +143,20 @@ impl Hpet {
         TimerNHandle { lock }
     }
 
-    pub fn to_deadline(&self, nanos: u64) -> u64 {
+    /// `nanos` is nanos from now
+    pub fn nanos_to_deadline(&self, nanos: u64) -> u64 {
         let main = self.main_counter_value();
         // TODO: integer overflow
-        let ticks = nanos * 1_000_000 / HPET.period as u64;
+        let ticks = nanos * 1_000_000 / self.period as u64;
         main + ticks
+    }
+
+    pub fn nanos_to_ticks(&self, nanos: i64) -> i64 {
+        (nanos as i128 * 1_000_000 / self.period as i128) as i64
+    }
+
+    pub fn ticks_to_nanos(&self, ticks: i64) -> i64 {
+        (ticks as i128 * self.period as i128 / 1_000_000) as i64
     }
 
     //
@@ -182,9 +191,14 @@ impl Hpet {
 
     //
 
+    /// HPET counter period in femtoseconds
+    pub fn period(&self) -> u32 {
+        self.period
+    }
+
     /// theoretical max u96 sized output
     pub fn femtos(&self) -> u128 {
-        self.period as u128 * self.main_counter_value() as u128
+        self.period() as u128 * self.main_counter_value() as u128
     }
 
     /// theoretical max u87 sized output
@@ -313,7 +327,7 @@ impl TimerN {
             }
 
             // calculate tick deadline
-            let deadline = HPET.to_deadline(nanos as _);
+            let deadline = HPET.nanos_to_deadline(nanos as _);
             self.sleep_until(deadline);
         } else {
             todo!();

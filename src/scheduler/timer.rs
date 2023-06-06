@@ -1,68 +1,143 @@
-use alloc::collections::{BTreeMap, BinaryHeap};
+use alloc::{
+    collections::{BTreeMap, BinaryHeap},
+    sync::Arc,
+};
 use core::{
     pin::Pin,
     task::{Context, Poll},
 };
 
 use chrono::Duration;
-use futures_util::{task::AtomicWaker, Future};
-use spin::{Lazy, Mutex, MutexGuard};
+use futures_util::{task::AtomicWaker, Future, FutureExt, Stream};
+use spin::Mutex;
 
 use crate::{
-    arch::int,
-    driver::acpi::{
-        apic::ApicId,
-        hpet::{TimerN, TimerNHandle, HPET},
-    },
-    util::int_safe_lazy::IntSafeLazy,
+    driver::acpi::{apic::ApicId, hpet::HPET},
+    util::{instant::Instant, int_safe_lazy::IntSafeLazy},
 };
 
 //
 
+/// interrupt provided wakeup to a sleep
 pub fn provide_sleep_wake() {
     let Some(deadlines) = DEADLINES.get() else {
         return
     };
 
-    let now = HPET.main_counter_value();
     let mut timers = deadlines.get(&ApicId::current()).unwrap().lock();
 
     if let Some(TimerWaker { deadline, .. }) = timers.peek() {
-        if now < *deadline {
+        if Instant::now() < *deadline {
             return;
         }
     }
 
-    if let Some(TimerWaker { deadline, waker }) = timers.pop() {
+    if let Some(TimerWaker { waker, .. }) = timers.pop() {
         // assert!(now >= deadline, "{now} < {deadline}");
-        // crate::debug!("wakeup call {deadline} {now}");
         waker.wake();
-        // crate::debug!("wakeup call done");
     } else {
         crate::warn!("Timer interrupt without active timers")
     }
 }
 
-pub const fn sleep(dur: Duration) -> Sleep {
+/// async sleep until deadline
+pub const fn sleep_until(deadline: Instant) -> SleepUntil {
+    SleepUntil::new(deadline)
+}
+
+/// async sleep duration
+pub fn sleep(dur: Duration) -> Sleep {
     Sleep::new(dur)
+}
+
+/// async sleep repeat
+///
+/// does not get desynced from the previous ticks
+pub fn ticks(interval: Duration) -> Ticks {
+    Ticks {
+        interval,
+        next: sleep_until(Instant::now() + interval),
+    }
 }
 
 //
 
 #[must_use]
-pub struct Sleep {
-    dur: Duration,
-    inner: Option<SleepLazy>,
+pub struct SleepUntil {
+    deadline: Instant,
+    handler: Option<ApicId>,
 }
 
-/* #[must_use]
-pub struct SleepUntil {} */
+#[must_use]
+pub struct Sleep {
+    inner: SleepUntil,
+}
+
+#[must_use]
+pub struct Ticks {
+    interval: Duration,
+    next: SleepUntil,
+}
 
 //
 
+impl SleepUntil {
+    pub const fn new(deadline: Instant) -> Self {
+        Self {
+            deadline,
+            handler: None,
+        }
+    }
+}
+
 impl Sleep {
-    pub const fn new(dur: Duration) -> Self {
-        Self { dur, inner: None }
+    pub fn new(dur: Duration) -> Self {
+        Self {
+            inner: SleepUntil::new(Instant::now() + dur),
+        }
+    }
+}
+
+impl Future for SleepUntil {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        let deadline = self.deadline;
+
+        let mut defer_timer_sleep = None;
+        let handler = self.handler.get_or_insert_with(|| {
+            let timer = HPET.next_timer();
+            let handler = timer.handler();
+            defer_timer_sleep = Some(timer);
+            handler
+        });
+
+        if Instant::now() >= deadline {
+            return Poll::Ready(());
+        }
+
+        // insert the new deadline before invoking sleep,
+        // so that the waker is there before the interrupt happens
+        let waker = Arc::new(AtomicWaker::new());
+        let waker2 = waker.clone();
+        waker.register(cx.waker());
+        DEADLINES
+            .get_force()
+            .get(handler)
+            .expect("TIMERS not initialized")
+            .lock()
+            .push(TimerWaker { deadline, waker });
+
+        if let Some(mut timer) = defer_timer_sleep {
+            timer.sleep_until(deadline.ticks());
+        }
+
+        if Instant::now() >= deadline {
+            waker2.take();
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
     }
 }
 
@@ -70,46 +145,18 @@ impl Future for Sleep {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        let deadlines = DEADLINES.get_force();
+        self.inner.poll_unpin(cx)
+    }
+}
 
-        let dur = self.dur;
-        let mut timer = None;
-        let SleepLazy { deadline, handler } = *self.inner.get_or_insert_with(|| {
-            let (inner, _timer) = SleepLazy::new(dur);
-            timer = Some(_timer);
-            inner
-        });
+impl Stream for Ticks {
+    type Item = ();
 
-        // crate::debug!("poll deadline test");
-        if HPET.main_counter_value() >= deadline {
-            // crate::debug!("poll stops with ready");
-            return Poll::Ready(());
-        }
-
-        // insert the new deadline before invoking sleep,
-        // so that the waker is there before the interrupt happens
-        let waker = AtomicWaker::new();
-        waker.register(cx.waker());
-        {
-            deadlines
-                .get(&handler)
-                .expect("TIMERS not initialized")
-                .lock()
-                .push(TimerWaker { deadline, waker });
-        }
-
-        if let Some(mut timer) = timer {
-            timer.sleep_until(deadline);
-        }
-
-        // crate::debug!("poll stops with pending");
-        Poll::Pending
-        /* if HPET.main_counter_value() >= deadline {
-            waker2.take();
-            Poll::Ready(())
-        } else {
-            Poll::Pending
-        } */
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.next.poll_unpin(cx).map(|_| {
+            self.next = sleep_until(self.next.deadline + self.interval);
+            Some(())
+        })
     }
 }
 
@@ -122,8 +169,8 @@ static DEADLINES: IntSafeLazy<BTreeMap<ApicId, Mutex<BinaryHeap<TimerWaker>>>> =
 
 #[derive(Debug)]
 struct TimerWaker {
-    deadline: u64,
-    waker: AtomicWaker,
+    deadline: Instant,
+    waker: Arc<AtomicWaker>,
 }
 
 //
@@ -145,27 +192,5 @@ impl PartialOrd for TimerWaker {
 impl Ord for TimerWaker {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         other.deadline.cmp(&self.deadline)
-    }
-}
-
-//
-
-#[derive(Debug, Clone, Copy)]
-struct SleepLazy {
-    deadline: u64,
-    handler: ApicId,
-}
-
-//
-
-impl SleepLazy {
-    fn new(dur: Duration) -> (Self, TimerNHandle) {
-        let hpet = Lazy::force(&HPET);
-
-        let timer = hpet.next_timer();
-        let deadline = hpet.to_deadline(dur.num_nanoseconds().expect("Sleep is too long") as _);
-        let handler = timer.handler();
-
-        (Self { deadline, handler }, timer)
     }
 }

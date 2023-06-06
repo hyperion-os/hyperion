@@ -1,6 +1,8 @@
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use pc_keyboard::{
     layouts::{AnyLayout, DVP104Key, De105Key, Dvorak104Key, Uk105Key, Us104Key},
-    DecodedKey, HandleControl, KeyEvent, Keyboard, ScancodeSet1,
+    DecodedKey, HandleControl, KeyCode, KeyEvent, Keyboard, ScancodeSet1,
 };
 use spin::Mutex;
 
@@ -11,16 +13,19 @@ use crate::scheduler::keyboard::provide_keyboard_event;
 pub fn process(scancode: u8) -> Option<char> {
     let mut kb = KEYBOARD.lock();
 
+    DEBUG_KEY.store(false, Ordering::SeqCst);
+
     kb.add_byte(scancode)
         .ok()
         .flatten()
         .and_then(|ev: KeyEvent| kb.process_keyevent(ev))
         .and_then(|key| match key {
             DecodedKey::Unicode(ch) => Some(ch),
-            DecodedKey::RawKey(_key) => {
-                // crate::debug!("{_key:?}");
+            DecodedKey::RawKey(KeyCode::Home) => {
+                DEBUG_KEY.store(true, Ordering::SeqCst);
                 None
             }
+            DecodedKey::RawKey(_key) => None,
         })
         .map(|c| {
             provide_keyboard_event(c);
@@ -41,6 +46,12 @@ pub fn set_layout(name: &str) -> Option<()> {
     *KEYBOARD.lock() = Keyboard::new(ScancodeSet1::new(), layout, HandleControl::Ignore);
     Some(())
 }
+
+pub fn debug_key() -> bool {
+    DEBUG_KEY.load(Ordering::SeqCst)
+}
+
+static DEBUG_KEY: AtomicBool = AtomicBool::new(false);
 
 static KEYBOARD: Mutex<Keyboard<AnyLayout, ScancodeSet1>> = Mutex::new(Keyboard::new(
     ScancodeSet1::new(),
