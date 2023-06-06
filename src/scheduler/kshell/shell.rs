@@ -88,10 +88,6 @@ impl Shell {
         self.term.flush();
     }
 
-    pub fn tick(&mut self) {
-        // crate::debug!("tick : {}", HPET.lock().main_counter_value());
-    }
-
     fn prompt(&mut self) {
         _ = write!(self.term, "\n[kshell {}]# ", self.current_dir.as_str());
     }
@@ -117,6 +113,7 @@ impl Shell {
             "clear" => {
                 self.term.clear();
             }
+            "t" => sleep(Duration::milliseconds(500)).await,
             "" => self.term.write_byte(b'\n'),
             other => {
                 _ = writeln!(self.term, "unknown command {other}");

@@ -24,11 +24,25 @@
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+use chrono::Duration;
+use futures_util::StreamExt;
 use x86_64::VirtAddr;
 
+use self::{
+    arch::rng_seed,
+    driver::{
+        acpi::hpet::HPET,
+        video::{color::Color, framebuffer::Framebuffer},
+    },
+    scheduler::timer::sleep,
+};
 use crate::{
-    arch::cpu::idt::Irq, driver::acpi::ioapic::IoApic, mem::from_higher_half,
-    scheduler::kshell::kshell, smp::CPU_COUNT, util::fmt::NumberPostfix,
+    arch::cpu::idt::Irq,
+    driver::acpi::ioapic::IoApic,
+    mem::from_higher_half,
+    scheduler::{kshell::kshell, tick::Ticks},
+    smp::CPU_COUNT,
+    util::fmt::NumberPostfix,
 };
 
 extern crate alloc;
@@ -100,6 +114,7 @@ fn kernel_main() -> ! {
 
     // main task(s)
     scheduler::spawn(kshell());
+    scheduler::spawn(spinner());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     smp::init()
@@ -109,6 +124,8 @@ fn smp_main(cpu: smp::Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
     arch::early_per_cpu(&cpu);
+
+    spin::Lazy::force(&HPET);
 
     static CPU_COUNT_AFTER_INIT: AtomicUsize = AtomicUsize::new(0);
     if Some(CPU_COUNT_AFTER_INIT.fetch_add(1, Ordering::SeqCst) + 1) == CPU_COUNT.get().copied() {
@@ -120,4 +137,21 @@ fn smp_main(cpu: smp::Cpu) -> ! {
     }
 
     scheduler::run_tasks();
+}
+
+async fn spinner() {
+    loop {
+        sleep(Duration::milliseconds(100)).await;
+        let Some(mut fbo) = Framebuffer::get_manual_flush() else {
+            crate::warn!("failed to get fbo");
+            break;
+        };
+
+        let r = (rng_seed() % 0xFF) as u8;
+        let g = (rng_seed() % 0xFF) as u8;
+        let b = (rng_seed() % 0xFF) as u8;
+        let x = fbo.width - 60;
+        let y = fbo.height - 60;
+        fbo.fill(x, y, 50, 50, Color::new(r, g, b));
+    }
 }

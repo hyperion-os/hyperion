@@ -2,9 +2,12 @@
 //!
 //! https://wiki.osdev.org/HPET
 
+use alloc::collections::BinaryHeap;
 use core::{
+    cmp::Reverse,
+    ops::{Deref, DerefMut},
     ptr::{read_volatile, write_volatile},
-    sync::atomic::{AtomicU8, Ordering},
+    sync::atomic::{AtomicBool, AtomicU8, Ordering},
 };
 
 use bit_field::BitField;
@@ -58,6 +61,13 @@ pub struct TimerN {
     addr: u64,
     offs: u64,
     handler: Option<ApicId>,
+    deadlines: BinaryHeap<Reverse<u64>>,
+    current: u64, // current is also stored in the comparator value register but this is faster
+}
+
+#[derive(Debug)]
+pub struct TimerNHandle {
+    lock: MutexGuard<'static, TimerN>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -99,23 +109,38 @@ impl Hpet {
 
     /// handles a timer interrupt
     pub fn int_ack(&self) {
-        provide_sleep_wake()
+        // an interrupt is generated before and after the comparator value
+        /* static WRAP_AROUND: AtomicBool = AtomicBool::new(false);
+        if WRAP_AROUND.fetch_xor(true, Ordering::SeqCst) {
+            return;
+        } */
+
+        let now = self.main_counter_value();
+        for mut timer in self.timers.iter().flat_map(|lock| lock.try_lock()) {
+            timer.update(now);
+        }
+
+        provide_sleep_wake();
     }
 
     //
 
-    pub fn next_timer(&self) -> MutexGuard<'_, TimerN> {
-        self.timers
+    pub fn next_timer(&'static self) -> TimerNHandle {
+        let nth = self.next_timer.load(Ordering::Relaxed) as usize % self.timers.len();
+        let lock = self
+            .timers
             .iter()
             .cycle()
-            .skip(self.next_timer.load(Ordering::Relaxed) as usize % self.timers.len())
+            .skip(nth)
             .map(|t| {
                 self.next_timer.fetch_add(1, Ordering::Relaxed);
                 t
             })
             // .take(self.timers.len())
             .find_map(|timer| timer.try_lock())
-            .unwrap()
+            .unwrap_or_else(|| self.timers[nth].lock());
+
+        TimerNHandle { lock }
     }
 
     pub fn to_deadline(&self, nanos: u64) -> u64 {
@@ -211,26 +236,30 @@ impl Hpet {
         self.period = caps.period() as u32;
 
         let timers = (caps.num_tim_cap() - 1).min(cmp_count);
-        debug!("HPET timer count: {timers}");
+        trace!("HPET timer count: {timers}");
         for timer in 0..timers {
             let mut timer = TimerN {
                 addr: self.addr,
                 offs: 0x100 + 0x20 * timer,
                 handler: None,
+                deadlines: <_>::default(),
+                current: 0,
             };
             timer.init();
             self.timers.push(Mutex::new(timer));
         }
+
+        debug!("Enabling HPET");
 
         // enable cnf => enable hpet
         let mut config = self.config();
         config.set_enable(true);
         self.set_config(config);
 
-        debug!("HPET caps: {:#x?}", self.caps());
-        debug!("HPET config: {:#x?}", self.config());
-        debug!("HPET int status: {:#x?}", self.interrupt_status());
-        debug!("HPET freq: {}", Self::freq(self.period));
+        trace!("HPET caps: {:#x?}", self.caps());
+        trace!("HPET config: {:#x?}", self.config());
+        trace!("HPET int status: {:#x?}", self.interrupt_status());
+        trace!("HPET freq: {}", Self::freq(self.period));
     }
 
     #[allow(unused)]
@@ -258,8 +287,22 @@ impl TimerN {
         config.set_int_enable(true);
         self.set_config_and_caps(config);
 
-        // start counting
-        self.set_comparator_value(deadline);
+        /* self.set_current(deadline) */
+        let now = HPET.main_counter_value();
+        let current = self.current;
+        if current > deadline {
+            // crate::debug!("current happens after the new deadline");
+            self.deadlines.push(Reverse(current));
+            self.set_current(deadline);
+        } else if current > now {
+            // crate::debug!("current happens before the new deadline and is still valid");
+            self.deadlines.push(Reverse(deadline));
+        } else if deadline > now {
+            // crate::debug!("new deadline happens next");
+            self.set_current(deadline);
+        } else {
+            // crate::debug!("new deadline already happened");
+        }
     }
 
     /// non blocking sleep, this triggers an interrupt after `dur`
@@ -279,13 +322,14 @@ impl TimerN {
 
     pub fn init(&mut self) {
         let mut config = self.config_and_caps();
-        config.set_int_route(20); // TODO:
+        config.set_int_route(10); // TODO:
         config.set_int_enable(false);
+        // config.set_int_trigger(false);
         self.set_config_and_caps(config);
         self.set_comparator_value(0);
 
         if let Some(mut ioapic) = IoApic::any() {
-            let apic = ioapic.set_irq_any(20, Irq::HpetSleep as _);
+            let apic = ioapic.set_irq_any(10, Irq::HpetSleep as _);
             self.handler = Some(apic);
         } else {
             warn!("HPET: no I/O APIC");
@@ -308,6 +352,47 @@ impl TimerN {
 
     pub fn set_comparator_value(&mut self, val: CounterValue) {
         Hpet::write_reg(self.addr, self.offs + 0x8, val)
+    }
+
+    //
+
+    fn set_current(&mut self, new: u64) {
+        self.current = new;
+        self.set_comparator_value(new);
+    }
+
+    fn update(&mut self, now: u64) {
+        let current = self.current;
+        if current <= now {
+            let Some(Reverse(next_deadline)) = self.deadlines.pop() else {
+                let mut config = self.config_and_caps();
+                config.set_int_enable(false);
+                self.set_config_and_caps(config);
+                return
+            };
+
+            self.set_current(next_deadline);
+        }
+    }
+}
+
+impl Deref for TimerNHandle {
+    type Target = TimerN;
+
+    fn deref(&self) -> &Self::Target {
+        self.lock.deref()
+    }
+}
+
+impl DerefMut for TimerNHandle {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.lock.deref_mut()
+    }
+}
+
+impl Drop for TimerNHandle {
+    fn drop(&mut self) {
+        self.update(HPET.main_counter_value());
     }
 }
 

@@ -1,11 +1,11 @@
 use alloc::string::String;
 use core::num::ParseIntError;
 
-use futures_util::{stream::select, StreamExt};
+use futures_util::StreamExt;
 use snafu::Snafu;
 
 use self::{shell::Shell, term::Term};
-use super::{keyboard::KeyboardEvents, tick::Ticks};
+use super::keyboard::KeyboardEvents;
 use crate::{
     driver::video::framebuffer::Framebuffer,
     vfs::{path::PathBuf, IoError},
@@ -21,17 +21,11 @@ pub mod term;
 pub async fn kshell() {
     let term = Term::new();
     let mut shell = Shell::new(term);
-    let ev = KeyboardEvents::new();
-    let tick = Ticks::new();
-    let mut stream = select(ev.map(Some), tick.map(|_| None));
+    let mut stream = KeyboardEvents::new();
 
     shell.init();
     while let Some(ev) = stream.next().await {
-        if let Some(char) = ev {
-            shell.input(char).await;
-        } else {
-            shell.tick();
-        }
+        shell.input(ev).await;
     }
 }
 

@@ -1,5 +1,9 @@
 use alloc::{boxed::Box, sync::Arc};
-use core::{pin::Pin, task::Context};
+use core::{
+    pin::Pin,
+    sync::atomic::{AtomicBool, Ordering},
+    task::Context,
+};
 
 use futures_util::{
     task::{waker, ArcWake},
@@ -14,6 +18,7 @@ use super::executor::Executor;
 pub struct Task {
     executor: Arc<Executor>,
     future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
+    complete: AtomicBool,
     // future: Mutex<Pin<dyn Future<Output = ()>>>,
 }
 
@@ -26,6 +31,11 @@ impl Task {
     }
 
     pub fn poll(self: Arc<Self>) {
+        if self.complete.load(Ordering::SeqCst) {
+            crate::warn!("already complete");
+            return;
+        }
+
         let waker = waker(self.clone());
         let mut ctx = Context::from_waker(&waker);
 
@@ -36,7 +46,9 @@ impl Task {
                 return;
             };
 
-        _ = future.as_mut().poll(&mut ctx);
+        if future.as_mut().poll(&mut ctx).is_ready() {
+            self.complete.store(true, Ordering::SeqCst);
+        }
     }
 
     pub fn schedule(self: &Arc<Self>) {
@@ -47,6 +59,7 @@ impl Task {
         Self {
             future: Mutex::new(Box::pin(fut)),
             executor,
+            complete: AtomicBool::new(false),
         }
     }
 }

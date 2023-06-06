@@ -23,8 +23,8 @@ pub struct Ticks {
 }
 
 impl Ticks {
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self { waiting: false }
     }
 }
 

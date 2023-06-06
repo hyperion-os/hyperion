@@ -18,12 +18,18 @@ pub mod slab;
 
 //
 
+pub fn force_init_allocator() {
+    Lazy::force(&ALLOCATOR.slab);
+}
+
+//
+
 struct KAlloc {
     slab: Lazy<SlabAllocator>,
 }
 
 #[global_allocator]
-static ALLOC: KAlloc = KAlloc {
+static ALLOCATOR: KAlloc = KAlloc {
     slab: Lazy::new(SlabAllocator::new),
 };
 

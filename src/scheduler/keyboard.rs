@@ -5,21 +5,26 @@ use core::{
 
 use crossbeam_queue::ArrayQueue;
 use futures_util::{task::AtomicWaker, Stream};
-use spin::Lazy;
 
-use crate::warn;
+use crate::{util::int_safe_lazy::IntSafeLazy, warn};
 
 //
 
-pub static KEYBOARD_EVENT_Q: Lazy<ArrayQueue<char>> = Lazy::new(|| ArrayQueue::new(256));
+pub static KEYBOARD_EVENT_Q: IntSafeLazy<ArrayQueue<char>> =
+    IntSafeLazy::new(|| ArrayQueue::new(256));
 pub static WAKER: AtomicWaker = AtomicWaker::new();
 
 //
 
 pub fn provide_keyboard_event(c: char) {
-    if let Some(old) = KEYBOARD_EVENT_Q.force_push(c) {
+    let Some(queue) = KEYBOARD_EVENT_Q.get() else {
+        return
+    };
+
+    if let Some(old) = queue.force_push(c) {
         warn!("Keyboard event queue full! Lost '{old}'");
     }
+
     WAKER.wake()
 }
 
@@ -57,7 +62,9 @@ impl Stream for KeyboardEvents {
     type Item = char;
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
-        if let Some(ev) = KEYBOARD_EVENT_Q.pop() {
+        let queue = KEYBOARD_EVENT_Q.get_force();
+
+        if let Some(ev) = queue.pop() {
             return Poll::Ready(Some(ev));
         }
 
@@ -66,7 +73,7 @@ impl Stream for KeyboardEvents {
         WAKER.register(ctx.waker());
 
         // .. with this
-        if let Some(ev) = KEYBOARD_EVENT_Q.pop() {
+        if let Some(ev) = queue.pop() {
             WAKER.take();
             Poll::Ready(Some(ev))
         } else {

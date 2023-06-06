@@ -92,21 +92,31 @@ pub extern "x86-interrupt" fn stack_segment_fault(stack: InterruptStackFrame, ec
 }
 
 pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFrame, e: u64) {
-    let addr = Cr2::read();
+    no_inline(|| {
+        let addr = Cr2::read();
 
-    error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
-    unsafe { print_backtrace_from(stack.instruction_pointer) };
+        error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
+        unsafe { print_backtrace_from(stack.instruction_pointer) };
 
-    panic!();
+        panic!();
+    });
 }
 
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
-    let addr = Cr2::read();
+    no_inline(|| {
+        let addr = Cr2::read();
 
-    error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
-    unsafe { print_backtrace_from(stack.instruction_pointer) };
+        error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+        unsafe { print_backtrace_from(stack.instruction_pointer) };
 
-    panic!();
+        panic!();
+    });
+}
+
+// emitting stack frames causes issues without this, SOMEHOW.. HOW.. WHAT
+#[inline(never)]
+pub fn no_inline(f: impl Fn()) {
+    f()
 }
 
 pub extern "x86-interrupt" fn x87_floating_point(stack: InterruptStackFrame) {
@@ -152,7 +162,7 @@ pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
     eoi_irq(Irq::PicTimer as _);
 }
 
-pub extern "x86-interrupt" fn keyboard(_: InterruptStackFrame) {
+pub extern "x86-interrupt" fn keyboard(f: InterruptStackFrame) {
     let scancode: u8 = unsafe { Port::new(0x60).read() };
     driver::ps2::keyboard::process(scancode);
     eoi_irq(Irq::PicKeyboard as _);
@@ -169,6 +179,7 @@ pub extern "x86-interrupt" fn apic_timer(_: InterruptStackFrame) {
 }
 
 pub extern "x86-interrupt" fn hpet_sleep(_: InterruptStackFrame) {
+    // crate::debug!("woke up at {}", HPET.main_counter_value());
     HPET.int_ack();
     eoi();
 }

@@ -25,15 +25,15 @@ pub fn run_tasks() -> ! {
 
 //
 
-#[derive(Default)]
 pub struct Executor {
     tasks: SegQueue<Arc<Task>>,
 }
 
 impl Executor {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
+        crate::mem::force_init_allocator();
         Self {
-            tasks: SegQueue::new(),
+            tasks: <_>::default(),
         }
     }
 
@@ -49,5 +49,11 @@ impl Executor {
         while let Some(task) = self.take_task() {
             task.poll();
         }
+    }
+}
+
+impl Default for Executor {
+    fn default() -> Self {
+        Self::new()
     }
 }

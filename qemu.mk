@@ -1,4 +1,5 @@
 MEMORY          ?= 256m
+CPUS            ?= 4
 
 QEMU_FLAGS      ?=
 ifeq (${KVM},true)
@@ -9,7 +10,7 @@ QEMU_FLAGS      += -s -S
 endif
 QEMU_FLAGS      += -machine q35
 QEMU_FLAGS      += -cpu qemu64,+rdrand,+rdseed
-QEMU_FLAGS      += -smp 4
+QEMU_FLAGS      += -smp ${CPUS}
 QEMU_FLAGS      += -m ${MEMORY}
 QEMU_FLAGS      += -M smm=off,accel=kvm
 # QEMU_FLAGS      += -M smm=off
