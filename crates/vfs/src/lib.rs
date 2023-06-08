@@ -20,7 +20,6 @@ use self::path::Path;
 
 //
 
-// pub mod devices;
 pub mod path;
 
 //
