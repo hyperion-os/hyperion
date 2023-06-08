@@ -1,63 +1,59 @@
-[package]
-name = "hyperion"
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-default = ["limine"]
-limine = ["dep:limine"]
-bootboot = []
-multiboot1 = []
-multiboot2 = []
-# Pick limine OR bootboot OR multiboot1 OR multiboot2, they conflict with eachother
+[workspace]
+members = ["crates/*"]
 
-[dependencies]
+[workspace.dependencies]
 spin = "0.9"
 volatile = "0.4"
 x86_64 = "0.14"
 uart_16550 = "0.2"
 pc-keyboard = "0.7"
-paste = "1.0"                                                  # macro ident concat
+paste = "1.0"          # macro ident concat
 bit_field = "0.10"
-elf = { version = "0.7", default-features = false }            # backtrace symbol lookup
-rustc-demangle = "0.1"                                         # backtrace demangling
-smallvec = { version = "1.10", features = ["const_generics"] }
+rustc-demangle = "0.1" # backtrace demangling
+# image = "0.24"
 # bitvec = "1.0.1"
 # tracing = { version = "0.1.37", default-features = false }
 
-[dependencies.limine]
-# git = "https://github.com/limine-bootloader/limine-rs"
-# rev = "c2fbc349419d4330b80e053019ad2fe504a61764"
-version = "0.1"
-optional = true
+# backtrace symbol lookup
+[workspace.dependencies.elf]
+version = "0.7"
+default-features = false
+
+[workspace.dependencies.smallvec]
+version = "1.10"
+features = ["const_generics"]
 
 #[dependencies.itertools]
 #version = "0.10.5"
 #default-features = false
 
-[dependencies.chrono]
+[workspace.dependencies.chrono]
 version = "0.4"
 default-features = false
 
-[dependencies.crossbeam-queue]
+[workspace.dependencies.crossbeam-queue]
 version = "0.3"
 default-features = false
 features = ["alloc"]
 
-[dependencies.crossbeam]
+[workspace.dependencies.crossbeam]
 version = "0.8"
 default-features = false
 features = ["alloc"]
 
-[dependencies.futures-util]
+[workspace.dependencies.futures-util]
 version = "0.3"
 default-features = false
 features = ["alloc"]
 
 # no_std thiserrror alternative
-[dependencies.snafu]
+[workspace.dependencies.snafu]
 version = "0.7"
 default-features = false
 features = ["rust_1_46"]
@@ -67,7 +63,3 @@ features = ["rust_1_46"]
 # version = "0.27"
 # default-features = false
 # features = ["read", "write"]
-
-[build-dependencies]
-image = "0.24"
-chrono = "0.4"

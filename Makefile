@@ -34,8 +34,8 @@ ifeq (${TARGET_DIR},)
 TARGET_DIR       := target
 endif
 HYPER_DIR        := ${TARGET_DIR}/hyperion/${BOOTLOADER}/${ARCH}
-ARCH_DIR         := src/arch/${ARCH}
-BOOT_DIR         := src/boot
+ARCH_DIR         := crates/kernel/src/arch/${ARCH}
+BOOT_DIR         := crates/kernel/src/boot
 CARGO_DIR        := ${TARGET_DIR}/${RUST_T_${ARCH}}/${PROFILE}
 ISO_DIR          := ${HYPER_DIR}/iso
 ISO_TESTING_DIR  := ${HYPER_DIR}/iso-testing
@@ -50,8 +50,8 @@ RUST_F_release   := --release
 CARGO_FLAGS      ?=
 CARGO_FLAGS      += ${RUST_F_${PROFILE}}
 CARGO_FLAGS      += --target=${RUST_T_${ARCH}}
-CARGO_FLAGS      += --package=hyperion
-KERNEL           := ${CARGO_DIR}/hyperion
+CARGO_FLAGS      += --package=hyperion-kernel
+KERNEL           := ${CARGO_DIR}/hyperion-kernel
 KERNEL_TESTING   := ${KERNEL}-testing
 KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion.d)) src/testfw.rs
 

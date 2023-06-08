@@ -1,0 +1,62 @@
+[package]
+name = "hyperion-kernel"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["limine"]
+limine = ["dep:limine"]
+bootboot = []
+multiboot1 = []
+multiboot2 = []
+# Pick limine OR bootboot OR multiboot1 OR multiboot2, they conflict with eachother
+
+[dependencies]
+spin.workspace = true
+volatile.workspace = true
+x86_64.workspace = true
+uart_16550.workspace = true
+pc-keyboard.workspace = true
+paste.workspace = true
+bit_field.workspace = true
+rustc-demangle.workspace = true
+elf.workspace = true
+smallvec.workspace = true
+chrono.workspace = true
+crossbeam-queue.workspace = true
+crossbeam.workspace = true
+futures-util.workspace = true
+snafu.workspace = true
+hyperion-macros.path = "../macros"
+
+# [dependencies.crossbeam-queue]
+# version = "0.3"
+# default-features = false
+# features = ["alloc"]
+#
+# [dependencies.crossbeam]
+# version = "0.8"
+# default-features = false
+# features = ["alloc"]
+
+[dependencies.limine]
+version = "0.1"
+optional = true
+
+[build-dependencies]
+# adding crates here triggers a bug in cargo that makes the crossbeam force to use std somehow
+# so im moving things to a proc macro
+# image = "0.24"
+# chrono = "0.4"
+#image.workspace = true
+#chrono.workspace = true
+
+# [build-dependencies.image]
+# version = "0.9"
+# default-features = true
+
+# [build-dependencies.chrono]
+# version = "0.1"
+# default-features = true

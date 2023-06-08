@@ -1,4 +1,4 @@
-#![doc = include_str!("../README.md")]
+#![doc = include_str!("../../../README.md")]
 //
 #![no_std]
 #![no_main]
@@ -26,6 +26,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use chrono::Duration;
 use futures_util::StreamExt;
+use hyperion_macros::{build_rev, build_time};
 use x86_64::VirtAddr;
 
 use self::{
@@ -74,9 +75,9 @@ pub static KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 // ofc. every kernel has to have this cringy ascii name splash
 pub static KERNEL_SPLASH: &str = include_str!("./splash");
 
-pub static KERNEL_BUILD_TIME: &str = env!("HYPERION_BUILD_TIME");
+pub static KERNEL_BUILD_TIME: &str = build_time!();
 
-pub static KERNEL_BUILD_REV: &str = env!("HYPERION_BUILD_REV");
+pub static KERNEL_BUILD_REV: &str = build_rev!();
 
 //
 
