@@ -1,6 +1,4 @@
-use std::{
-    process::Command,
-};
+use std::process::Command;
 
 // use chrono::{Datelike, Utc};
 use proc_macro2::TokenStream;
@@ -53,7 +51,7 @@ pub fn build_rev(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .output()
         .unwrap()
         .stdout;
-    let rev = std::str::from_utf8(&res).unwrap();
+    let rev = std::str::from_utf8(&res).unwrap().trim();
 
     (quote! {
         #rev
