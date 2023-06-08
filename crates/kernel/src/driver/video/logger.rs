@@ -1,10 +1,10 @@
 use core::fmt::{self, Arguments, Write};
 
+use hyperion_color::Color;
 use spin::{Mutex, MutexGuard};
 use x86_64::instructions::interrupts::without_interrupts;
 
 use super::{
-    color::Color,
     font::FONT,
     framebuffer::{Framebuffer, FramebufferRaiiFlush},
 };

@@ -26,15 +26,13 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use chrono::Duration;
 use futures_util::StreamExt;
+use hyperion_color::Color;
 use hyperion_macros::{build_rev, build_time};
 use x86_64::VirtAddr;
 
 use self::{
     arch::rng_seed,
-    driver::{
-        acpi::hpet::HPET,
-        video::{color::Color, framebuffer::Framebuffer},
-    },
+    driver::{acpi::hpet::HPET, video::framebuffer::Framebuffer},
     scheduler::timer::{sleep, ticks},
 };
 use crate::{

@@ -1,9 +1,15 @@
+#![no_std]
+
+//
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Color {
     r: u8,
     g: u8,
     b: u8,
 }
+
+//
 
 impl Color {
     pub const WHITE: Color = Color::new(0xff, 0xff, 0xff);

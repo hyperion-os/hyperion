@@ -1,9 +1,11 @@
 use alloc::boxed::Box;
 use core::fmt;
 
+use hyperion_color::Color;
+
 use super::CHAR_SIZE;
 use crate::{
-    driver::video::{color::Color, framebuffer::Framebuffer},
+    driver::video::framebuffer::Framebuffer,
     log::{self, LogLevel},
 };
 

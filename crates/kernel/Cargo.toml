@@ -29,6 +29,7 @@ crossbeam-queue.workspace = true
 crossbeam.workspace = true
 futures-util.workspace = true
 snafu.workspace = true
+hyperion-color.path = "../color"
 hyperion-macros.path = "../macros"
 
 # [dependencies.crossbeam-queue]

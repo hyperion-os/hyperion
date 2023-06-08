@@ -1,4 +1,4 @@
-use crate::driver::video::color::Color;
+use hyperion_color::Color;
 
 /// foreground color can be changed like this: `"\x1B[38;2;<r>;<g>;<b>m"`
 /// background color can be changed like this: `"\x1B[48;2;<r>;<g>;<b>m"`

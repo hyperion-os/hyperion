@@ -4,9 +4,10 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+use hyperion_color::Color;
 use spin::{Lazy, Mutex, MutexGuard};
 
-use super::{color::Color, font::FONT};
+use super::font::FONT;
 use crate::boot;
 
 //

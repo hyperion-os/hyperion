@@ -2,12 +2,13 @@ use alloc::{string::String, sync::Arc};
 use core::fmt::Write;
 
 use chrono::{Duration, TimeZone, Utc};
+use hyperion_color::Color;
 use snafu::ResultExt;
 use spin::Mutex;
 
 use super::{term::Term, *};
 use crate::{
-    driver::{ps2::keyboard::set_layout, video::color::Color},
+    driver::ps2::keyboard::set_layout,
     mem::pmm::PageFrameAllocator,
     scheduler::timer::sleep,
     util::fmt::NumberPostfix,
