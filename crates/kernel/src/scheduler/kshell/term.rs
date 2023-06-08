@@ -7,6 +7,8 @@ use hyperion_log::LogLevel;
 use super::CHAR_SIZE;
 use crate::driver::video::framebuffer::Framebuffer;
 
+// use hyperion_boot_interface::Framebuffer;
+
 //
 
 pub struct Term {
@@ -21,12 +23,12 @@ pub struct Term {
 impl Term {
     pub fn new() -> Self {
         hyperion_log_multi::set_fbo(LogLevel::None);
-        let Some(mut vbo) = Framebuffer::get_manual_flush() else {
+        let Some( vbo) = Framebuffer::get() else {
             // TODO: serial only
             panic!("cannot run kshell without a framebuffer");
         };
+        let mut vbo = vbo.lock();
         vbo.clear();
-        vbo.flush();
 
         let vbo_info = vbo.info();
 
@@ -49,7 +51,8 @@ impl Term {
     }
 
     pub fn flush(&mut self) {
-        let mut vbo = Framebuffer::get_manual_flush().unwrap();
+        // framebuffer is already proven to be Some
+        let mut vbo = Framebuffer::get().unwrap().lock();
 
         // let mut updates = 0u32;
         for ((idx, ch), _) in self

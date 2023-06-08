@@ -138,10 +138,11 @@ async fn spinner() {
 
     while ticks.next().await.is_some() {
         sleep(Duration::milliseconds(100)).await;
-        let Some(mut fbo) = Framebuffer::get_manual_flush() else {
+        let Some( fbo) = Framebuffer::get() else {
             warn!("failed to get fbo");
             break;
         };
+        let mut fbo = fbo.lock();
 
         let r = (rng_seed() % 0xFF) as u8;
         let g = (rng_seed() % 0xFF) as u8;

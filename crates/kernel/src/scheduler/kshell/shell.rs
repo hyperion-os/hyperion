@@ -282,7 +282,7 @@ impl Shell {
                 let Some(mut h) = next_int(&mut self.term, &mut args) else { return Ok(()) };
                 let Some(col) = next_color(&mut self.term, &mut args) else { return Ok(()) };
 
-                let mut fbo = Framebuffer::get().unwrap();
+                let mut fbo = Framebuffer::get().unwrap().lock();
                 if x > fbo.width || y > fbo.height || w == 0 || h == 0 {
                     return Ok(());
                 }

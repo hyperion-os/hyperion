@@ -129,6 +129,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
+name = "hyperion-boot-interface"
+version = "0.1.0"
+dependencies = [
+ "spin",
+]
+
+[[package]]
 name = "hyperion-color"
 version = "0.1.0"
 
@@ -149,6 +156,7 @@ dependencies = [
  "crossbeam-queue",
  "elf",
  "futures-util",
+ "hyperion-boot-interface",
  "hyperion-color",
  "hyperion-escape",
  "hyperion-log",
@@ -165,6 +173,16 @@ dependencies = [
  "uart_16550",
  "volatile",
  "x86_64",
+]
+
+[[package]]
+name = "hyperion-kshell"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "hyperion-scheduler",
+ "hyperion-vfs",
+ "snafu",
 ]
 
 [[package]]
@@ -191,6 +209,10 @@ dependencies = [
  "quote",
  "syn 2.0.18",
 ]
+
+[[package]]
+name = "hyperion-scheduler"
+version = "0.1.0"
 
 [[package]]
 name = "hyperion-vfs"

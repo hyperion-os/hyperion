@@ -1,31 +1,23 @@
 use core::{
     fmt,
     ops::{Deref, DerefMut, Range},
-    sync::atomic::{AtomicBool, Ordering},
 };
 
+use hyperion_boot_interface::{boot, FramebufferCreateInfo};
 use hyperion_color::Color;
-use spin::{Lazy, Mutex, MutexGuard};
+use spin::{Mutex, Once};
 
 use super::font::FONT;
-use crate::boot;
 
 //
 
 pub struct Framebuffer {
-    /// video memory
-    vmem: Option<&'static mut [u8]>,
-    /// video memory / backbuffer
     buf: &'static mut [u8],
 
     flush_first: usize,
     flush_last: usize,
 
     pub info: FramebufferInfo,
-}
-
-pub struct FramebufferRaiiFlush {
-    lock: MutexGuard<'static, Framebuffer>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -38,11 +30,9 @@ pub struct FramebufferInfo {
 //
 
 impl Framebuffer {
-    pub fn new(vmem: &'static mut [u8], info: FramebufferInfo) -> Self {
+    pub fn new(buf: &'static mut [u8], info: FramebufferInfo) -> Self {
         Self {
-            // buf: Box::leak(vec![0; vmem.len()].into_boxed_slice()),
-            buf: vmem,
-            vmem: None,
+            buf,
 
             flush_first: 0,
             flush_last: 0,
@@ -51,28 +41,29 @@ impl Framebuffer {
         }
     }
 
-    pub fn get() -> Option<FramebufferRaiiFlush> {
-        Some(FramebufferRaiiFlush {
-            lock: Self::get_manual_flush()?,
+    pub fn get() -> Option<&'static Mutex<Framebuffer>> {
+        static FBO: Once<Option<Mutex<Framebuffer>>> = Once::new();
+
+        FBO.call_once(|| {
+            let FramebufferCreateInfo {
+                buf,
+                width,
+                height,
+                pitch,
+            } = boot().framebuffer()?;
+            let mut fbo = Framebuffer::new(
+                buf,
+                FramebufferInfo {
+                    width,
+                    height,
+                    pitch,
+                },
+            );
+
+            fbo.clear();
+            Some(Mutex::new(fbo))
         })
-    }
-
-    pub fn get_manual_flush() -> Option<MutexGuard<'static, Framebuffer>> {
-        _ = Self::init_backbuffer();
-
-        FBO.as_ref().map(|mtx| mtx.lock())
-    }
-
-    pub fn flush(&mut self) {
-        if let Some(vmem) = &mut self.vmem {
-            let from = &self.buf[self.flush_first..self.flush_last];
-            let to = &mut vmem[self.flush_first..self.flush_last];
-
-            unsafe {
-                // https://doc.rust-lang.org/stable/core/intrinsics/fn.volatile_copy_nonoverlapping_memory.html
-                core::ptr::copy_nonoverlapping(from.as_ptr(), to.as_mut_ptr(), to.len());
-            }
-        }
+        .as_ref()
     }
 
     pub fn pixel(&mut self, x: usize, y: usize, color: Color) {
@@ -140,28 +131,6 @@ impl Framebuffer {
         self.flush_first = self.flush_first.min(area.start);
         self.flush_last = self.flush_last.max(area.end);
     }
-
-    fn init_backbuffer() -> Option<()> {
-        static FBO_BUFFERED: AtomicBool = AtomicBool::new(true);
-
-        if FBO_BUFFERED.swap(false, Ordering::SeqCst) {
-            /* // get the allocation size and unlock the fbo
-            let len = FBO.as_ref()?.lock().buf.len();
-            // this alloc could trigger a deadlock in the
-            // framebuffer logger if the fbo isnt unlocked before
-            let mut buf = vec![0; len].into_boxed_slice();
-
-            let mut this = FBO.as_ref()?.lock();
-            buf.copy_from_slice(this.buf);
-            this.vmem = Some(mem::take(&mut this.buf));
-            this.buf = Box::leak(buf);
-            drop(this);
-
-            debug!("FBO backbuffer initialized"); */
-        }
-
-        Some(())
-    }
 }
 
 impl Deref for Framebuffer {
@@ -186,47 +155,20 @@ impl fmt::Debug for Framebuffer {
     }
 }
 
-impl Deref for FramebufferRaiiFlush {
-    type Target = Framebuffer;
-
-    fn deref(&self) -> &Self::Target {
-        &self.lock
-    }
-}
-
-impl DerefMut for FramebufferRaiiFlush {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.lock
-    }
-}
-
-impl Drop for FramebufferRaiiFlush {
-    fn drop(&mut self) {
-        self.flush();
-    }
-}
-
-//
-
-static FBO: Lazy<Option<Mutex<Framebuffer>>> = Lazy::new(|| {
-    let mut fbo = boot::framebuffer()?;
-    fbo.clear();
-    fbo.flush();
-    Some(Mutex::new(fbo))
-});
-
 //
 
 #[cfg(test)]
 mod tests {
+    use hyperion_color::Color;
+
     use super::Framebuffer;
-    use crate::driver::video::color::Color;
 
     //
 
     #[test_case]
     fn fbo_draw() {
-        if let Some(mut fbo) = Framebuffer::get() {
+        if let Some(fbo) = Framebuffer::get() {
+            let mut fbo = fbo.lock();
             fbo.fill(440, 340, 40, 40, Color::RED);
             fbo.fill(450, 350, 60, 40, Color::GREEN);
             fbo.fill(405, 315, 80, 20, Color::BLUE);

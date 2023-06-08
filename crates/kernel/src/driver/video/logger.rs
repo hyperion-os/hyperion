@@ -5,16 +5,14 @@ use hyperion_escape::decode::{DecodedPart, EscapeDecoder};
 use spin::{Mutex, MutexGuard};
 use x86_64::instructions::interrupts::without_interrupts;
 
-use super::{
-    font::FONT,
-    framebuffer::{Framebuffer, FramebufferRaiiFlush},
-};
+use super::{font::FONT, framebuffer::Framebuffer};
 
 //
 
 pub fn _print(args: Arguments) {
     without_interrupts(|| {
         if let Some(fbo) = Framebuffer::get() {
+            let fbo = fbo.lock();
             _ = WriterLock {
                 lock: WRITER.lock(),
                 fbo,
@@ -40,19 +38,19 @@ struct Writer {
 
 struct WriterLock {
     lock: MutexGuard<'static, Writer>,
-    fbo: FramebufferRaiiFlush,
+    fbo: MutexGuard<'static, Framebuffer>,
 }
 
 //
 
 impl Writer {
-    fn write_bytes(&mut self, bytes: &[u8], fbo: &mut FramebufferRaiiFlush) {
+    fn write_bytes(&mut self, bytes: &[u8], fbo: &mut Framebuffer) {
         for byte in bytes {
             self.write_byte(*byte, fbo);
         }
     }
 
-    fn write_byte(&mut self, byte: u8, fbo: &mut FramebufferRaiiFlush) {
+    fn write_byte(&mut self, byte: u8, fbo: &mut Framebuffer) {
         match self.escapes.next(byte) {
             DecodedPart::Byte(b'\n') => {
                 #[cfg(debug_assertions)]
@@ -89,7 +87,7 @@ impl Writer {
         }
     }
 
-    fn write_byte_raw(&mut self, byte: u8, fbo: &mut FramebufferRaiiFlush) {
+    fn write_byte_raw(&mut self, byte: u8, fbo: &mut Framebuffer) {
         let size = Self::size(fbo);
         if size[0] == 0 || size[1] == 0 {
             return;
@@ -121,7 +119,7 @@ impl Writer {
         }
     }
 
-    fn new_line(&mut self, count: u16, fbo: &mut FramebufferRaiiFlush) {
+    fn new_line(&mut self, count: u16, fbo: &mut Framebuffer) {
         self.cursor[0] = 0;
         self.cursor[1] += 1;
         if self.cursor[1] >= Self::size(fbo)[1] {
@@ -131,7 +129,7 @@ impl Writer {
         }
     }
 
-    fn size(fbo: &mut FramebufferRaiiFlush) -> [u16; 2] {
+    fn size(fbo: &mut Framebuffer) -> [u16; 2] {
         [(fbo.width / 8) as _, (fbo.height / 16) as _]
     }
 }

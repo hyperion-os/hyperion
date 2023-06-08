@@ -1,12 +1,11 @@
 use core::slice;
 
+use hyperion_boot_interface::FramebufferCreateInfo;
 use limine::LimineFramebufferRequest;
-
-use crate::driver::video::framebuffer::{Framebuffer, FramebufferInfo};
 
 //
 
-pub fn framebuffer() -> Option<Framebuffer> {
+pub fn framebuffer() -> Option<FramebufferCreateInfo> {
     static FB_REQ: LimineFramebufferRequest = LimineFramebufferRequest::new(0);
 
     FB_REQ
@@ -14,20 +13,15 @@ pub fn framebuffer() -> Option<Framebuffer> {
         .get()
         .into_iter()
         .flat_map(|resp| resp.framebuffers().iter())
+        .filter(|fb| fb.bpp == 32)
         .find_map(|fb| {
-            if fb.bpp != 32 {
-                return None;
-            }
-
             let buf = unsafe { slice::from_raw_parts_mut(fb.address.as_ptr()?, fb.size()) };
 
-            Some(Framebuffer::new(
+            Some(FramebufferCreateInfo {
                 buf,
-                FramebufferInfo {
-                    width: fb.width as _,
-                    height: fb.height as _,
-                    pitch: fb.pitch as _,
-                },
-            ))
+                width: fb.width as _,
+                height: fb.height as _,
+                pitch: fb.pitch as _,
+            })
         })
 }
