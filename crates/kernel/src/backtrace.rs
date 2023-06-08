@@ -153,7 +153,7 @@ pub unsafe fn print_backtrace_from(ip: VirtAddr) {
         LogLevel::Info,
         " BACKTRACE".true_yellow(),
         "begin",
-        format_args_nl!(""),
+        format_args!("\n"),
     );
     let mut i = 0usize;
     unwind_stack_from(
@@ -180,7 +180,7 @@ pub unsafe fn print_backtrace_from(ip: VirtAddr) {
         LogLevel::Info,
         " BACKTRACE".true_yellow(),
         "end",
-        format_args_nl!(""),
+        format_args!("\n"),
     );
 }
 

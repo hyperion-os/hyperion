@@ -5,7 +5,6 @@
 //
 #![feature(
     const_option,
-    format_args_nl,
     abi_x86_interrupt,
     allocator_api,
     pointer_is_aligned,
