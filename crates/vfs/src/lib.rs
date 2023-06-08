@@ -1,11 +1,18 @@
+#![no_std]
+
+//
+
+extern crate alloc;
+
 use alloc::{
     collections::{btree_map::Entry, BTreeMap},
     string::{String, ToString},
     sync::{Arc, Weak},
     vec::Vec,
 };
+use core::sync::atomic::{AtomicBool, Ordering};
 
-use hyperion_log::{debug, error};
+use hyperion_log::{debug, error, warn};
 use snafu::Snafu;
 use spin::{Lazy, Mutex};
 
@@ -13,22 +20,26 @@ use self::path::Path;
 
 //
 
-pub mod devices;
+// pub mod devices;
 pub mod path;
 
 //
 
-static _ROOT_NODE: Lazy<Root> = Lazy::new(|| Directory::from(""));
-pub static ROOT: Lazy<Root> = Lazy::new(|| {
-    debug!("Initializing VFS");
-    devices::install(Node::Directory(_ROOT_NODE.clone()));
-    _ROOT_NODE.clone()
-});
+pub static IO_DEVICES: Mutex<fn()> = Mutex::new(|| warn!("Device provicer wasn't given to VFS"));
 
 //
 
 pub fn get_root() -> Node {
-    Node::Directory(ROOT.clone())
+    pub static ROOT: Lazy<Root> = Lazy::new(|| Directory::from(""));
+    let root = ROOT.clone();
+
+    static IO_DEVICES_ONCE: AtomicBool = AtomicBool::new(true);
+    if IO_DEVICES_ONCE.swap(false, Ordering::Release) {
+        debug!("Initializing VFS");
+        (IO_DEVICES.lock())()
+    }
+
+    Node::Directory(root)
 }
 
 pub fn get_node(path: impl AsRef<Path>, make_dirs: bool) -> IoResult<Node> {

@@ -5,13 +5,11 @@ use core::{
 
 use chrono::{DateTime, TimeZone, Utc};
 use hyperion_log::{debug, error};
+use hyperion_vfs::{FileDevice, IoError, IoResult};
 use spin::Mutex;
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
 
-use crate::{
-    util::slice_read::slice_read,
-    vfs::{FileDevice, IoError, IoResult},
-};
+use crate::util::slice_read::slice_read;
 
 //
 

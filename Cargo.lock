@@ -154,6 +154,7 @@ dependencies = [
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",
+ "hyperion-vfs",
  "limine",
  "paste",
  "pc-keyboard",
@@ -189,6 +190,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.18",
+]
+
+[[package]]
+name = "hyperion-vfs"
+version = "0.1.0"
+dependencies = [
+ "hyperion-log",
+ "snafu",
+ "spin",
 ]
 
 [[package]]

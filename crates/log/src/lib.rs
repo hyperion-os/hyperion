@@ -22,14 +22,14 @@ macro_rules! println {
         $crate::_print($crate::LogLevel::Info, format_args!("\n"))
     };
     ($($t:tt)*) => {
-        $crate::_print($crate::LogLevel::Info, format_args!("{}\n", format_args_nl!($($t)*)))
+        $crate::_print($crate::LogLevel::Info, format_args!("{}\n", format_args!($($t)*)))
     };
 }
 
 #[macro_export]
 macro_rules! log {
     ($level:expr, $($t:tt)*) => {
-        $crate::_print_log($level, module_path!(), format_args!("{}\n", format_args_nl!($($t)*)))
+        $crate::_print_log($level, module_path!(), format_args!("{}\n", format_args!($($t)*)))
     };
 }
 

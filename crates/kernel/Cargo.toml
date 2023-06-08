@@ -34,6 +34,7 @@ hyperion-color.path = "../color"
 hyperion-escape.path = "../escape"
 hyperion-log.path = "../log"
 hyperion-log-multi.path = "../log-multi"
+hyperion-vfs.path = "../vfs"
 hyperion-macros.path = "../macros"
 
 # [dependencies.crossbeam-queue]

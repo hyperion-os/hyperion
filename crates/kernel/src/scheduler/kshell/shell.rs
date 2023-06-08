@@ -3,21 +3,18 @@ use core::fmt::Write;
 
 use chrono::{Duration, TimeZone, Utc};
 use hyperion_color::Color;
+use hyperion_vfs::{
+    self,
+    path::{Path, PathBuf},
+    Node,
+};
 use snafu::ResultExt;
 use spin::Mutex;
 
 use super::{term::Term, *};
 use crate::{
-    driver::ps2::keyboard::set_layout,
-    mem::pmm::PageFrameAllocator,
-    scheduler::timer::sleep,
-    util::fmt::NumberPostfix,
-    vfs::{
-        self,
-        path::{Path, PathBuf},
-        Node,
-    },
-    KERNEL_BUILD_REV, KERNEL_BUILD_TIME, KERNEL_NAME, KERNEL_VERSION,
+    driver::ps2::keyboard::set_layout, mem::pmm::PageFrameAllocator, scheduler::timer::sleep,
+    util::fmt::NumberPostfix, KERNEL_BUILD_REV, KERNEL_BUILD_TIME, KERNEL_NAME, KERNEL_VERSION,
 };
 
 //
@@ -146,7 +143,7 @@ impl Shell {
         let resource = Path::from_str(args.unwrap_or(".")).to_absolute(&self.current_dir);
         let resource = resource.as_ref();
 
-        let dir = vfs::get_node(resource, false).context(IoSnafu { resource })?;
+        let dir = hyperion_vfs::get_node(resource, false).context(IoSnafu { resource })?;
 
         match dir {
             Node::File(_) => {
@@ -171,7 +168,7 @@ impl Shell {
         let resource = Path::from_str(args.unwrap_or(".")).to_absolute(&self.current_dir);
         let resource = resource.as_ref();
 
-        let file = vfs::get_file(resource, false, false).context(IoSnafu { resource })?;
+        let file = hyperion_vfs::get_file(resource, false, false).context(IoSnafu { resource })?;
         let file = file.lock();
 
         let mut at = 0usize;
@@ -197,7 +194,7 @@ impl Shell {
     fn date_cmd(&mut self, _: Option<&str>) -> Result<()> {
         let resource = Path::from_str("/dev/rtc");
 
-        let file = vfs::get_file(resource, false, false).context(IoSnafu { resource })?;
+        let file = hyperion_vfs::get_file(resource, false, false).context(IoSnafu { resource })?;
         let file = file.lock();
 
         let mut timestamp = [0u8; 8];
@@ -335,7 +332,7 @@ impl Shell {
         let resource = Path::from_str(file).to_absolute(&self.current_dir);
         let resource = resource.as_ref();
 
-        vfs::get_file(file, true, true).context(IoSnafu { resource })?;
+        hyperion_vfs::get_file(file, true, true).context(IoSnafu { resource })?;
 
         Ok(())
     }

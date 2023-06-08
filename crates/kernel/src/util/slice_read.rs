@@ -1,4 +1,4 @@
-use crate::vfs::{IoError, IoResult};
+use hyperion_vfs::{IoError, IoResult};
 
 //
 

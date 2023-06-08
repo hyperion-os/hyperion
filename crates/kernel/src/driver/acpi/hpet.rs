@@ -13,6 +13,7 @@ use core::{
 use bit_field::BitField;
 use chrono::Duration;
 use hyperion_log::{debug, trace, warn};
+use hyperion_vfs::{FileDevice, IoError, IoResult};
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
 
@@ -22,7 +23,6 @@ use crate::{
     driver::acpi::{apic::ApicId, ioapic::IoApic},
     scheduler::timer::provide_sleep_wake,
     util::slice_read::slice_read,
-    vfs::{FileDevice, IoError, IoResult},
 };
 
 //
