@@ -83,6 +83,8 @@ fn kernel_main() -> ! {
 
     arch::early_boot_cpu();
 
+    driver::lazy_install_io_drivers();
+
     debug!("Cmdline: {:?}", boot::args::get());
 
     debug!(
