@@ -73,7 +73,7 @@ pub static KERNEL_NAME: &str = if cfg!(test) {
 pub static KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // ofc. every kernel has to have this cringy ascii name splash
-pub static KERNEL_SPLASH: &str = include_str!("./splash");
+pub static KERNEL_SPLASH: &str = include_str!("../../../asset/splash");
 
 pub static KERNEL_BUILD_TIME: &str = build_time!();
 
