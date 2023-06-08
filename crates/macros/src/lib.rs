@@ -13,7 +13,7 @@ pub fn rtc_year(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     // hardcoding to workaround a cargo bug
-    let year = 23; // Utc::now().date_naive().year();
+    let year = 2023u32; // Utc::now().date_naive().year();
 
     (quote! {
         #year

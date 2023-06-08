@@ -15,7 +15,7 @@ use crate::util::slice_read::slice_read;
 
 pub static RTC: Rtc = Rtc::new();
 pub static RTC_CENTURY_REG: AtomicU8 = AtomicU8::new(0);
-pub const CUR_YEAR: u32 = include!("./rtc.year");
+pub const CUR_YEAR: u32 = hyperion_macros::rtc_year!();
 
 //
 
