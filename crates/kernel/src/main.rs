@@ -54,7 +54,6 @@ pub mod mem;
 pub mod panic;
 pub mod scheduler;
 pub mod smp;
-pub mod term;
 #[cfg(test)]
 pub mod testfw;
 pub mod util;

@@ -1,6 +1,7 @@
 use core::fmt::{self, Arguments, Write};
 
 use hyperion_color::Color;
+use hyperion_escape::decode::{DecodedPart, EscapeDecoder};
 use spin::{Mutex, MutexGuard};
 use x86_64::instructions::interrupts::without_interrupts;
 
@@ -8,7 +9,6 @@ use super::{
     font::FONT,
     framebuffer::{Framebuffer, FramebufferRaiiFlush},
 };
-use crate::term::escape::decode::{DecodedPart, EscapeDecoder};
 
 //
 

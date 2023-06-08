@@ -133,6 +133,13 @@ name = "hyperion-color"
 version = "0.1.0"
 
 [[package]]
+name = "hyperion-escape"
+version = "0.1.0"
+dependencies = [
+ "hyperion-color",
+]
+
+[[package]]
 name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
@@ -143,6 +150,7 @@ dependencies = [
  "elf",
  "futures-util",
  "hyperion-color",
+ "hyperion-escape",
  "hyperion-macros",
  "limine",
  "paste",

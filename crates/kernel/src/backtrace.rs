@@ -3,6 +3,7 @@ use core::{arch::asm, ffi::c_void, ptr};
 use elf::{
     endian::AnyEndian, string_table::StringTable, symbol::SymbolTable, ElfBytes, ParseError,
 };
+use hyperion_escape::encode::EscapeEncoder;
 use rustc_demangle::demangle;
 use spin::Lazy;
 use x86_64::VirtAddr;
@@ -12,7 +13,6 @@ use crate::{
     boot::{self, virt_addr},
     log::LogLevel,
     println,
-    term::escape::encode::EscapeEncoder,
 };
 
 //
