@@ -27,6 +27,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use chrono::Duration;
 use futures_util::StreamExt;
 use hyperion_color::Color;
+use hyperion_log::{debug, warn};
 use hyperion_macros::{build_rev, build_time};
 use x86_64::VirtAddr;
 
@@ -49,7 +50,6 @@ pub mod arch;
 pub mod backtrace;
 pub mod boot;
 pub mod driver;
-pub mod log;
 pub mod mem;
 pub mod panic;
 pub mod scheduler;
@@ -139,7 +139,7 @@ async fn spinner() {
     while ticks.next().await.is_some() {
         sleep(Duration::milliseconds(100)).await;
         let Some(mut fbo) = Framebuffer::get_manual_flush() else {
-            crate::warn!("failed to get fbo");
+            warn!("failed to get fbo");
             break;
         };
 

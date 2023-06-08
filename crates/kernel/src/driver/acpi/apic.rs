@@ -1,3 +1,4 @@
+use hyperion_log::debug;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use super::{ReadOnly, ReadWrite, Reserved, WriteOnly};
@@ -22,13 +23,13 @@ pub fn enable() {
     let regs = unsafe { &mut *(MADT.local_apic_addr as *mut ApicRegs) };
     let apic_id = ApicId(regs.lapic_id.read());
 
-    crate::debug!("Initializing {apic_id:?}");
+    debug!("Initializing {apic_id:?}");
     LAPICS.insert(apic_id, RwLock::new(Lapic { regs }));
     let mut lapic = LAPICS.get(&apic_id).unwrap().write();
 
     reset(lapic.regs);
     init_lvt_timer(lapic.regs);
-    crate::debug!("Done Initializing {apic_id:?}");
+    debug!("Done Initializing {apic_id:?}");
     // trace!("APIC regs: {:#?}", lapic.regs);
 
     // write_msr(IA32_TSC_AUX, apic_id.inner() as _);

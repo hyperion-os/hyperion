@@ -5,10 +5,11 @@
 use alloc::{vec, vec::Vec};
 use core::mem;
 
+use hyperion_log::{trace, warn};
 use spin::Lazy;
 
 use super::{rsdt::RSDT, SdtError};
-use crate::{driver::acpi::ioapic::IoApicInfo, trace, warn};
+use crate::driver::acpi::ioapic::IoApicInfo;
 
 //
 

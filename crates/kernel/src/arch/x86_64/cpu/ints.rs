@@ -1,4 +1,5 @@
 use crossbeam::atomic::AtomicCell;
+use hyperion_log::{error, info};
 use x86_64::{
     instructions::port::Port,
     registers::control::Cr2,
@@ -14,7 +15,6 @@ use crate::{
         pic::PICS,
         rtc::RTC,
     },
-    error, info,
 };
 
 //

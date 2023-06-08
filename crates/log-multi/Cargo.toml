@@ -1,0 +1,11 @@
+[package]
+name = "hyperion-log-multi"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crossbeam.workspace = true
+
+hyperion-log.path = "../log"

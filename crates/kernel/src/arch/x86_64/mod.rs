@@ -1,8 +1,9 @@
+use hyperion_log::{debug, error};
 use spin::{Barrier, Once};
 use x86_64::instructions::random::RdRand;
 
 use crate::{
-    debug, driver, error,
+    driver,
     smp::{Cpu, CPU_COUNT},
 };
 

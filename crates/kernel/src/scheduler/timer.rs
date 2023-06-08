@@ -9,6 +9,7 @@ use core::{
 
 use chrono::Duration;
 use futures_util::{task::AtomicWaker, Future, FutureExt, Stream};
+use hyperion_log::warn;
 use spin::Mutex;
 
 use crate::{
@@ -36,7 +37,7 @@ pub fn provide_sleep_wake() {
         // assert!(now >= deadline, "{now} < {deadline}");
         waker.wake();
     } else {
-        crate::warn!("Timer interrupt without active timers")
+        warn!("Timer interrupt without active timers")
     }
 }
 

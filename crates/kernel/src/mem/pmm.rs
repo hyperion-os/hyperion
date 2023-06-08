@@ -10,12 +10,13 @@ use core::{
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
+use hyperion_log::debug;
 use spin::{Lazy, Mutex};
 use x86_64::{align_up, PhysAddr, VirtAddr};
 
 use super::{from_higher_half, map::Memmap, to_higher_half};
 use crate::{
-    boot, debug,
+    boot,
     util::{bitmap::Bitmap, fmt::NumberPostfix},
 };
 

@@ -9,6 +9,7 @@ use futures_util::{
     task::{waker, ArcWake},
     Future,
 };
+use hyperion_log::warn;
 use spin::Mutex;
 
 use super::executor::Executor;
@@ -32,7 +33,7 @@ impl Task {
 
     pub fn poll(self: Arc<Self>) {
         if self.complete.load(Ordering::SeqCst) {
-            crate::warn!("already complete");
+            warn!("already complete");
             return;
         }
 

@@ -4,11 +4,11 @@ use core::{
 };
 
 use chrono::{DateTime, TimeZone, Utc};
+use hyperion_log::{debug, error};
 use spin::Mutex;
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
 
 use crate::{
-    debug, error,
     util::slice_read::slice_read,
     vfs::{FileDevice, IoError, IoResult},
 };

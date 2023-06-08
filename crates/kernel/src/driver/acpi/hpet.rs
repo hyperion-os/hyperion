@@ -12,19 +12,17 @@ use core::{
 
 use bit_field::BitField;
 use chrono::Duration;
+use hyperion_log::{debug, trace, warn};
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
 
 use super::{rsdt::RSDT, SdtError};
 use crate::{
     arch::cpu::idt::Irq,
-    debug,
     driver::acpi::{apic::ApicId, ioapic::IoApic},
     scheduler::timer::provide_sleep_wake,
-    trace,
     util::slice_read::slice_read,
     vfs::{FileDevice, IoError, IoResult},
-    warn,
 };
 
 //

@@ -4,6 +4,7 @@ use elf::{
     endian::AnyEndian, string_table::StringTable, symbol::SymbolTable, ElfBytes, ParseError,
 };
 use hyperion_escape::encode::EscapeEncoder;
+use hyperion_log::{println, LogLevel};
 use rustc_demangle::demangle;
 use spin::Lazy;
 use x86_64::VirtAddr;
@@ -11,8 +12,6 @@ use x86_64::VirtAddr;
 use crate::{
     arch,
     boot::{self, virt_addr},
-    log::LogLevel,
-    println,
 };
 
 //
@@ -150,7 +149,7 @@ pub fn unwind_stack(f: impl FnMut(FrameInfo)) {
 /// caller must ensure that `ip` points to a valid stack frame
 /// and that stackframes end with a NULL
 pub unsafe fn print_backtrace_from(ip: VirtAddr) {
-    crate::log::print_log_splash(
+    hyperion_log::_print_log_custom(
         LogLevel::Info,
         " BACKTRACE".true_yellow(),
         "begin",
@@ -177,7 +176,7 @@ pub unsafe fn print_backtrace_from(ip: VirtAddr) {
             i += 1;
         },
     );
-    crate::log::print_log_splash(
+    hyperion_log::_print_log_custom(
         LogLevel::Info,
         " BACKTRACE".true_yellow(),
         "end",

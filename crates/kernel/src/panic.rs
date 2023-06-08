@@ -1,5 +1,7 @@
 use core::panic::PanicInfo;
 
+use hyperion_log::println;
+
 use crate::{
     arch::{done, int},
     backtrace,
@@ -25,6 +27,6 @@ fn panic_handler(info: &PanicInfo) -> ! {
 }
 
 fn panic_unwind(info: &PanicInfo) {
-    crate::println!("Kernel CPU {info} {}", info.can_unwind());
+    println!("Kernel CPU {info} {}", info.can_unwind());
     backtrace::print_backtrace();
 }

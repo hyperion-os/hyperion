@@ -151,6 +151,8 @@ dependencies = [
  "futures-util",
  "hyperion-color",
  "hyperion-escape",
+ "hyperion-log",
+ "hyperion-log-multi",
  "hyperion-macros",
  "limine",
  "paste",
@@ -162,6 +164,22 @@ dependencies = [
  "uart_16550",
  "volatile",
  "x86_64",
+]
+
+[[package]]
+name = "hyperion-log"
+version = "0.1.0"
+dependencies = [
+ "hyperion-escape",
+ "spin",
+]
+
+[[package]]
+name = "hyperion-log-multi"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "hyperion-log",
 ]
 
 [[package]]

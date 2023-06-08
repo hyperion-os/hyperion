@@ -2,12 +2,10 @@ use alloc::boxed::Box;
 use core::fmt;
 
 use hyperion_color::Color;
+use hyperion_log::LogLevel;
 
 use super::CHAR_SIZE;
-use crate::{
-    driver::video::framebuffer::Framebuffer,
-    log::{self, LogLevel},
-};
+use crate::driver::video::framebuffer::Framebuffer;
 
 //
 
@@ -22,7 +20,7 @@ pub struct Term {
 
 impl Term {
     pub fn new() -> Self {
-        log::set_fbo(LogLevel::None);
+        hyperion_log_multi::set_fbo(LogLevel::None);
         let Some(mut vbo) = Framebuffer::get_manual_flush() else {
             // TODO: serial only
             panic!("cannot run kshell without a framebuffer");

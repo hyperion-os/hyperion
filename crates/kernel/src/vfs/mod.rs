@@ -5,11 +5,11 @@ use alloc::{
     vec::Vec,
 };
 
+use hyperion_log::{debug, error};
 use snafu::Snafu;
 use spin::{Lazy, Mutex};
 
 use self::path::Path;
-use crate::{debug, error};
 
 //
 

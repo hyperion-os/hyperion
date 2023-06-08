@@ -1,9 +1,7 @@
+use hyperion_log::LogLevel;
 use spin::Lazy;
 
-use crate::{
-    boot,
-    log::{self, LogLevel},
-};
+use crate::boot;
 
 //
 
@@ -89,7 +87,7 @@ impl Arguments {
     }
 
     pub fn apply(&self) {
-        log::set_fbo(self.video_log_level);
-        log::set_qemu(self.serial_log_level);
+        hyperion_log_multi::set_fbo(self.video_log_level);
+        hyperion_log_multi::set_qemu(self.serial_log_level);
     }
 }

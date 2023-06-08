@@ -7,10 +7,10 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+use hyperion_log::debug;
 use spin::Lazy;
 
 use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
-use crate::debug;
 
 //
 

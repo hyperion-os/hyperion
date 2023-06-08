@@ -6,10 +6,11 @@
 
 use core::str::Utf8Error;
 
+use hyperion_log::debug;
 use spin::Lazy;
 
 use super::{checksum_of, AcpiOem, AcpiVersion};
-use crate::{boot, debug, driver::acpi::StructUnpacker, util::stack_str::StackStr};
+use crate::{boot, driver::acpi::StructUnpacker, util::stack_str::StackStr};
 
 //
 

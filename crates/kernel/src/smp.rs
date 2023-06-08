@@ -1,8 +1,9 @@
 use core::fmt::{self, Display, Formatter};
 
+use hyperion_log::debug;
 use spin::Once;
 
-use crate::{boot, debug};
+use crate::boot;
 
 //
 

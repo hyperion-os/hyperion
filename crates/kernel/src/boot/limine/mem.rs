@@ -4,13 +4,11 @@ use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
+use hyperion_log::trace;
 use limine::{LimineMemmapEntry, LimineMemmapRequest, LimineMemoryMapEntryType, NonNullPtr};
 use x86_64::PhysAddr;
 
-use crate::{
-    mem::map::{Memmap, Memtype},
-    trace,
-};
+use crate::mem::map::{Memmap, Memtype};
 
 //
 
