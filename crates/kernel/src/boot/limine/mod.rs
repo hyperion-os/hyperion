@@ -41,6 +41,6 @@ impl Bootloader for LimineBoot {
     }
 
     fn name(&self) -> &'static str {
-        todo!()
+        "Limine"
     }
 }

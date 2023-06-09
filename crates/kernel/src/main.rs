@@ -24,6 +24,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use chrono::Duration;
 use futures_util::StreamExt;
+use hyperion_boot_interface::boot;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_log::{debug, warn};
@@ -99,9 +100,10 @@ fn kernel_main() -> ! {
         from_higher_half(VirtAddr::new(boot::stack().start as u64))
     );
 
-    if let Some(bl) = boot::BOOT_NAME.get() {
-        debug!("{KERNEL_NAME} {KERNEL_VERSION} was booted with {bl}");
-    }
+    debug!(
+        "{KERNEL_NAME} {KERNEL_VERSION} was booted with {}",
+        boot().name()
+    );
 
     #[cfg(test)]
     test_main();

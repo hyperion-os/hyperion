@@ -1,6 +1,4 @@
-//
 pub use boot::*;
-use spin::Once;
 
 //
 
@@ -22,8 +20,3 @@ mod boot;
 mod boot;
 
 pub mod args;
-
-//
-
-/// Name of the detected bootloader
-pub static BOOT_NAME: Once<&'static str> = Once::new();
