@@ -1,54 +1,14 @@
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use x86_64::structures::idt::InterruptDescriptorTable;
 
 use super::{ints::*, tss::Tss};
 
 //
-
-#[derive(Debug, Clone, Copy)]
-#[repr(u8)]
-pub enum Irq {
-    // BEG: 0x20..0x30 PIC space
-    PicTimer = 0x20, // aka. the PIT (Programmable Interrupt Timer)
-    PicKeyboard = 0x21,
-    PicRtc = 0x28,
-    // END: 0x20..0x30 PIC space
-    // BEG: 0x30..0xFF APIC space
-    ApicTimer = 0x32,
-    HpetSleep = 0x33,
-    ApicSpurious = 0xFF,
-    // END: 0x30..0xFF APIC space
-}
 
 pub struct Idt {
     inner: InterruptDescriptorTable,
 }
 
 //
-
-impl Irq {
-    pub fn iter() -> impl DoubleEndedIterator + ExactSizeIterator<Item = Self> {
-        [
-            Self::PicTimer,
-            Self::PicKeyboard,
-            Self::PicRtc,
-            Self::ApicTimer,
-            Self::HpetSleep,
-            Self::ApicSpurious,
-        ]
-        .into_iter()
-    }
-
-    pub fn handler(self) -> extern "x86-interrupt" fn(InterruptStackFrame) {
-        match self {
-            Irq::PicTimer => pic_timer,
-            Irq::PicKeyboard => keyboard,
-            Irq::PicRtc => rtc_tick,
-            Irq::ApicTimer => apic_timer,
-            Irq::HpetSleep => hpet_sleep,
-            Irq::ApicSpurious => apic_spurious,
-        }
-    }
-}
 
 impl Idt {
     pub fn new(tss: &Tss) -> Self {
@@ -88,8 +48,9 @@ impl Idt {
             .set_handler_fn(vmm_communication_exception);
         idt.security_exception.set_handler_fn(security_exception);
 
-        for irq in Irq::iter() {
-            idt[irq as _].set_handler_fn(irq.handler());
+        use super::ints::other::*;
+        for (irq, handler) in hyperion_macros::get_int_handlers!() {
+            idt[irq as usize].set_handler_fn(handler);
         }
 
         Self { inner: idt }

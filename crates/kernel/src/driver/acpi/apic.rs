@@ -1,18 +1,32 @@
 use hyperion_atomic_map::AtomicMap;
-use hyperion_interrupts::{IntController, INT_CONTROLLER};
+use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::debug;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use super::{ReadOnly, ReadWrite, Reserved, WriteOnly};
-use crate::{
-    arch::cpu::idt::Irq,
-    driver::{acpi::madt::MADT, pit::PIT},
-};
+use crate::driver::{acpi::madt::MADT, pit::PIT};
+
+//
+
+pub const IRQ_APIC_SPURIOUS: u8 = 0xFF;
 
 //
 
 // enable APIC for this processor
 pub fn enable() {
+    hyperion_interrupts::set_interrupt_handler(IRQ_APIC_SPURIOUS, || {
+        // apic spurious interrupt
+        // spurdo spärde keskeytys
+    });
+
+    let timer_irq = hyperion_interrupts::set_any_interrupt_handler(
+        |irq| (0x30..=0xFF).contains(&irq),
+        || {
+            // apic timer interrupt
+        },
+    )
+    .expect("No avail APIC timer IRQ");
+
     write_msr(
         IA32_APIC_BASE,
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
@@ -26,12 +40,15 @@ pub fn enable() {
     let mut lapic = LAPICS.get(&apic_id).unwrap().write();
 
     reset(lapic.regs);
-    init_lvt_timer(lapic.regs);
+    init_lvt_timer(timer_irq, lapic.regs);
     debug!("Done Initializing {apic_id:?}");
     // trace!("APIC regs: {:#?}", lapic.regs);
 
     // write_msr(IA32_TSC_AUX, apic_id.inner() as _);
 
+    INT_EOI_HANDLER.store(|_| {
+        Lapic::current_mut().eoi();
+    });
     INT_CONTROLLER.store(IntController::Apic);
 }
 
@@ -145,17 +162,16 @@ fn reset(regs: &mut ApicRegs) {
     regs.task_priority.write(0);
 
     // enable interrupts
-    regs.spurious_interrupt_vector
-        .write(Irq::ApicSpurious as u32 + APIC_SW_ENABLE);
+    regs.spurious_interrupt_vector.write(0xFF + APIC_SW_ENABLE);
 }
 
-fn init_lvt_timer(regs: &mut ApicRegs) {
+fn init_lvt_timer(timer_irq: u8, regs: &mut ApicRegs) {
     // let apic_period = 1_000_000;
     let apic_period = calibrate(regs);
 
     regs.timer_divide.write(APIC_TIMER_DIV);
     regs.lvt_timer
-        .write(Irq::ApicTimer as u32 | APIC_TIMER_MODE_PERIODIC);
+        .write(timer_irq as u32 | APIC_TIMER_MODE_PERIODIC);
     regs.timer_init.write(apic_period);
 
     regs.lvt_thermal_sensor.write(0);

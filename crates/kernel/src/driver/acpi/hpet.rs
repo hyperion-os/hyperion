@@ -20,7 +20,6 @@ use spin::{Lazy, Mutex, MutexGuard};
 
 use super::{rsdt::RSDT, SdtError};
 use crate::{
-    arch::cpu::idt::Irq,
     driver::acpi::{apic::ApicId, ioapic::IoApic},
     scheduler::timer::provide_sleep_wake,
     util::slice_read::slice_read,
@@ -349,7 +348,16 @@ impl TimerN {
         self.set_comparator_value(0);
 
         if let Some(mut ioapic) = IoApic::any() {
-            let apic = ioapic.set_irq_any(10, Irq::HpetSleep as _);
+            let hpet_irq = hyperion_interrupts::set_any_interrupt_handler(
+                |irq| (0x30..=0xFF).contains(&irq),
+                || {
+                    // HPET interrupt
+                    HPET.int_ack();
+                },
+            )
+            .expect("No avail HPET IRQ");
+
+            let apic = ioapic.set_irq_any(10, hpet_irq);
             self.handler = Some(apic);
         } else {
             warn!("HPET: no I/O APIC");

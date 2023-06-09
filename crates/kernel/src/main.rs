@@ -27,9 +27,10 @@ use futures_util::StreamExt;
 use hyperion_boot_interface::boot;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
+use hyperion_interrupts::set_interrupt_handler;
 use hyperion_log::{debug, warn};
 use hyperion_macros::{build_rev, build_time};
-use x86_64::VirtAddr;
+use x86_64::{instructions::port::Port, VirtAddr};
 
 use self::{
     arch::rng_seed,
@@ -37,8 +38,8 @@ use self::{
     scheduler::timer::{sleep, ticks},
 };
 use crate::{
-    arch::cpu::idt::Irq, driver::acpi::ioapic::IoApic, mem::from_higher_half,
-    scheduler::kshell::kshell, smp::CPU_COUNT, util::fmt::NumberPostfix,
+    driver::acpi::ioapic::IoApic, mem::from_higher_half, scheduler::kshell::kshell, smp::CPU_COUNT,
+    util::fmt::NumberPostfix,
 };
 
 extern crate alloc;
@@ -129,7 +130,16 @@ fn smp_main(cpu: smp::Cpu) -> ! {
     if Some(CPU_COUNT_AFTER_INIT.fetch_add(1, Ordering::SeqCst) + 1) == CPU_COUNT.get().copied() {
         // code after every CPU and APIC has been initialized
         if let Some(mut io_apic) = IoApic::any() {
-            io_apic.set_irq_any(1, Irq::PicKeyboard as _);
+            set_interrupt_handler(33, || {
+                let scancode: u8 = unsafe { Port::new(0x60).read() };
+                driver::ps2::keyboard::process(scancode);
+
+                /* if driver::ps2::keyboard::debug_key() {
+                    unsafe { backtrace::print_backtrace_from(f.stack_pointer) };
+                } */
+            });
+
+            io_apic.set_irq_any(1, 33);
             debug!("keyboard initialized");
         }
     }

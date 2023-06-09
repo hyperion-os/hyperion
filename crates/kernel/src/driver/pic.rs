@@ -1,8 +1,7 @@
+use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::debug;
 use spin::{Lazy, Mutex};
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
-
-use crate::arch::cpu::idt::Irq;
 
 //
 
@@ -37,7 +36,7 @@ pub struct Pic {
 
 impl Pics {
     pub const fn new() -> Self {
-        let offs = Irq::PicTimer as u8;
+        let offs = 0x20;
         Self {
             master: Pic {
                 offs,
@@ -53,9 +52,11 @@ impl Pics {
     }
 
     pub fn init(&mut self) {
-        // save masks
+        self.disable();
+
+        /* // save masks
         let original_masks = [self.master.read_mask(), self.slave.read_mask()];
-        debug!("masks {:?}", original_masks);
+        debug!("masks {:?}", original_masks); */
 
         // ICW1: init
         // (ICW = Initialization Command Word)
@@ -75,10 +76,14 @@ impl Pics {
         self.slave.data(ICW4_8086);
 
         debug!("8086 PIC initialized");
+        INT_EOI_HANDLER.store(|irq| PICS.lock().end_of_interrupt(irq));
+        INT_CONTROLLER.store(IntController::Pic);
 
-        // restore masks
+        self.enable();
+
+        /* // restore masks
         self.master.write_mask(original_masks[0]);
-        self.slave.write_mask(original_masks[1]);
+        self.slave.write_mask(original_masks[1]); */
     }
 
     pub fn mask(&mut self, irq: u8) {

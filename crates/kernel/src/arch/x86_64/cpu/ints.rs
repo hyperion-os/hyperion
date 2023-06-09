@@ -1,21 +1,10 @@
-use hyperion_interrupts::{IntController, INT_CONTROLLER};
 use hyperion_log::{error, info};
 use x86_64::{
-    instructions::port::Port,
     registers::control::Cr2,
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
 };
 
-use super::idt::Irq;
-use crate::{
-    backtrace::{self, print_backtrace_from},
-    driver::{
-        self,
-        acpi::{apic::Lapic, hpet::HPET},
-        pic::PICS,
-        rtc::RTC,
-    },
-};
+use crate::backtrace::print_backtrace_from;
 
 //
 
@@ -142,58 +131,9 @@ pub extern "x86-interrupt" fn security_exception(stack: InterruptStackFrame, ec:
 
 // other ints
 
-pub extern "x86-interrupt" fn pic_timer(_: InterruptStackFrame) {
-    /*     info!("pit int"); */
-    eoi_irq(Irq::PicTimer as _);
-}
+pub mod other {
+    use hyperion_interrupts::interrupt_handler;
+    use x86_64::structures::idt::InterruptStackFrame;
 
-pub extern "x86-interrupt" fn keyboard(f: InterruptStackFrame) {
-    let scancode: u8 = unsafe { Port::new(0x60).read() };
-    driver::ps2::keyboard::process(scancode);
-
-    if driver::ps2::keyboard::debug_key() {
-        unsafe { backtrace::print_backtrace_from(f.stack_pointer) };
-    }
-
-    eoi_irq(Irq::PicKeyboard as _);
-}
-
-pub extern "x86-interrupt" fn rtc_tick(_: InterruptStackFrame) {
-    RTC.int_ack();
-    eoi_irq(Irq::PicRtc as _);
-}
-
-pub extern "x86-interrupt" fn apic_timer(_: InterruptStackFrame) {
-    eoi();
-}
-
-pub extern "x86-interrupt" fn hpet_sleep(_: InterruptStackFrame) {
-    // crate::debug!("woke up at {}", HPET.main_counter_value());
-    HPET.int_ack();
-    eoi();
-}
-
-pub extern "x86-interrupt" fn apic_spurious(_: InterruptStackFrame) {
-    // spurdo spärde keskeytys
-    eoi();
-}
-
-//
-
-fn eoi_irq(irq: u8) {
-    match INT_CONTROLLER.load() {
-        IntController::Pic => PICS.lock().end_of_interrupt(irq),
-        IntController::Apic => {
-            Lapic::current_mut().eoi();
-        }
-    }
-}
-
-fn eoi() {
-    match INT_CONTROLLER.load() {
-        IntController::Pic => unreachable!(),
-        IntController::Apic => {
-            Lapic::current_mut().eoi();
-        }
-    }
+    hyperion_macros::gen_int_handlers!("x86-interrupt");
 }

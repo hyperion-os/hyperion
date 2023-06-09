@@ -155,6 +155,15 @@ name = "hyperion-color"
 version = "0.1.0"
 
 [[package]]
+name = "hyperion-driver-qemu"
+version = "0.1.0"
+dependencies = [
+ "spin",
+ "uart_16550",
+ "x86_64",
+]
+
+[[package]]
 name = "hyperion-escape"
 version = "0.1.0"
 dependencies = [
@@ -193,6 +202,8 @@ name = "hyperion-interrupts"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
+ "hyperion-log",
+ "hyperion-macros",
 ]
 
 [[package]]
@@ -254,6 +265,7 @@ name = "hyperion-log-multi"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
+ "hyperion-driver-qemu",
  "hyperion-log",
 ]
 
