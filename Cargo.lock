@@ -178,6 +178,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-int-safe-lazy"
+version = "0.1.0"
+dependencies = [
+ "spin",
+]
+
+[[package]]
 name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
@@ -194,6 +201,7 @@ dependencies = [
  "hyperion-escape",
  "hyperion-framebuffer",
  "hyperion-instant",
+ "hyperion-int-safe-lazy",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",

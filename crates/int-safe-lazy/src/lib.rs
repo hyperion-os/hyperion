@@ -1,5 +1,9 @@
 //! Lazy initialized value that doesn't get initialized with int_* calls
 
+#![no_std]
+
+//
+
 use core::{cell::Cell, fmt};
 
 use spin::Once;

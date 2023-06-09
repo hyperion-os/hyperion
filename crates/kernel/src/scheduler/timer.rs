@@ -10,13 +10,11 @@ use core::{
 use chrono::Duration;
 use futures_util::{task::AtomicWaker, Future, FutureExt, Stream};
 use hyperion_instant::Instant;
+use hyperion_int_safe_lazy::IntSafeLazy;
 use hyperion_log::warn;
 use spin::Mutex;
 
-use crate::{
-    driver::acpi::{apic::ApicId, hpet::HPET},
-    util::int_safe_lazy::IntSafeLazy,
-};
+use crate::driver::acpi::{apic::ApicId, hpet::HPET};
 
 //
 

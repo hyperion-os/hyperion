@@ -5,9 +5,8 @@ use core::{
 
 use crossbeam_queue::ArrayQueue;
 use futures_util::{task::AtomicWaker, Stream};
+use hyperion_int_safe_lazy::IntSafeLazy;
 use hyperion_log::warn;
-
-use crate::util::int_safe_lazy::IntSafeLazy;
 
 //
 
