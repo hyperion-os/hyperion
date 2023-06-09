@@ -27,20 +27,27 @@ pub struct FramebufferCreateInfo {
 }
 
 pub trait Bootloader {
+    fn name(&self) -> &'static str;
+
     fn framebuffer(&self) -> Option<FramebufferCreateInfo>;
 
-    fn name(&self) -> &'static str;
+    /// root system descriptor pointer
+    fn rsdp(&self) -> Option<*const ()>;
 }
 
 pub struct NopBootloader;
 
 impl Bootloader for NopBootloader {
+    fn name(&self) -> &'static str {
+        "none"
+    }
+
     fn framebuffer(&self) -> Option<FramebufferCreateInfo> {
         None
     }
 
-    fn name(&self) -> &'static str {
-        "none"
+    fn rsdp(&self) -> Option<*const ()> {
+        None
     }
 }
 

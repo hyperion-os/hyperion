@@ -33,6 +33,7 @@ pub enum RsdpError {
     InvalidSignature,
     InvalidRevision(u8),
     InvalidChecksum,
+    NoRsdp,
 }
 
 //
@@ -47,8 +48,9 @@ impl Rsdp {
     }
 
     pub fn try_init() -> Result<Self, RsdpError> {
-        let mut unpacker =
-            unsafe { StructUnpacker::from(boot::rsdp() as *const RawRsdpDescriptor) };
+        let rsdp = boot().rsdp().ok_or(RsdpError::NoRsdp)?;
+
+        let mut unpacker = unsafe { StructUnpacker::from(rsdp as *const RawRsdpDescriptor) };
 
         let rsdp: RawRsdpDescriptor = unsafe { unpacker.next_unchecked(true) };
 

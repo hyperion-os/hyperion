@@ -36,11 +36,15 @@ pub extern "C" fn _start() -> ! {
 struct LimineBoot;
 
 impl Bootloader for LimineBoot {
+    fn name(&self) -> &'static str {
+        "Limine"
+    }
+
     fn framebuffer(&self) -> Option<FramebufferCreateInfo> {
         framebuffer()
     }
 
-    fn name(&self) -> &'static str {
-        "Limine"
+    fn rsdp(&self) -> Option<*const ()> {
+        Some(rsdp())
     }
 }
