@@ -79,6 +79,8 @@ pub static KERNEL_BUILD_REV: &str = build_rev!();
 
 // the actual entry exists in [´crate::boot::boot´]
 fn kernel_main() -> ! {
+    hyperion_log_multi::init_logger();
+
     debug!("Entering kernel_main");
 
     arch::early_boot_cpu();
