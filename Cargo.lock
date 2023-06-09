@@ -136,6 +136,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-checked"
+version = "0.1.0"
+
+[[package]]
 name = "hyperion-color"
 version = "0.1.0"
 
@@ -168,6 +172,7 @@ dependencies = [
  "elf",
  "futures-util",
  "hyperion-boot-interface",
+ "hyperion-checked",
  "hyperion-color",
  "hyperion-escape",
  "hyperion-framebuffer",
@@ -225,6 +230,18 @@ dependencies = [
 [[package]]
 name = "hyperion-scheduler"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "crossbeam-queue",
+ "futures-util",
+ "hyperion-color",
+ "hyperion-framebuffer",
+ "hyperion-log",
+ "hyperion-log-multi",
+ "hyperion-vfs",
+ "snafu",
+ "spin",
+]
 
 [[package]]
 name = "hyperion-vfs"

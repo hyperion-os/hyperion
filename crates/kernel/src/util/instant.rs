@@ -1,8 +1,8 @@
 use core::ops::{Add, Sub};
 
 use chrono::Duration;
+use hyperion_checked::{CheckedAdd, CheckedSub};
 
-use super::checked::{CheckedAdd, CheckedSub};
 use crate::driver::acpi::hpet::HPET;
 
 //

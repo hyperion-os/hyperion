@@ -32,6 +32,7 @@ snafu.workspace = true
 
 hyperion-boot-interface.path = "../boot-interface"
 hyperion-color.path = "../color"
+hyperion-checked.path = "../checked"
 hyperion-escape.path = "../escape"
 hyperion-framebuffer.path = "../framebuffer"
 hyperion-log.path = "../log"

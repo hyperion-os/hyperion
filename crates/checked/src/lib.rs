@@ -1,3 +1,7 @@
+#![no_std]
+
+//
+
 pub trait CheckedAdd<Rhs = Self> {
     type Output;
 
