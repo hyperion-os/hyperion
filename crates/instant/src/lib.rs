@@ -1,9 +1,12 @@
+#![no_std]
+
+//
+
 use core::ops::{Add, Sub};
 
 use chrono::Duration;
 use hyperion_checked::{CheckedAdd, CheckedSub};
-
-use crate::driver::acpi::hpet::HPET;
+use hyperion_clock::CLOCK_SOURCE;
 
 //
 
@@ -25,7 +28,7 @@ impl Instant {
 
     pub fn now() -> Self {
         Self {
-            inner: HPET.main_counter_value(),
+            inner: CLOCK_SOURCE.tick_now(),
         }
     }
 
@@ -49,7 +52,7 @@ impl CheckedAdd<Duration> for Instant {
 
     fn checked_add(mut self, rhs: Duration) -> Option<Self::Output> {
         let nanos = rhs.num_nanoseconds()?;
-        let ticks = HPET.nanos_to_ticks(nanos);
+        let ticks = CLOCK_SOURCE.nanos_to_ticks_i(nanos);
         self.inner = self.inner.checked_add_signed(ticks)?;
 
         Some(self)
@@ -61,7 +64,7 @@ impl CheckedSub<Duration> for Instant {
 
     fn checked_sub(mut self, rhs: Duration) -> Option<Self::Output> {
         let nanos = rhs.num_nanoseconds()?;
-        let ticks = HPET.nanos_to_ticks(nanos);
+        let ticks = CLOCK_SOURCE.nanos_to_ticks_i(nanos);
         self.inner = self.inner.checked_add_signed(-ticks)?;
 
         Some(self)
@@ -73,7 +76,8 @@ impl CheckedSub for Instant {
 
     fn checked_sub(self, rhs: Self) -> Option<Self::Output> {
         let ticks = (self.inner as i64).checked_sub(rhs.inner as i64)?;
-        Some(Duration::nanoseconds(HPET.ticks_to_nanos(ticks)))
+        let nanos = CLOCK_SOURCE.ticks_to_nanos_i(ticks);
+        Some(Duration::nanoseconds(nanos))
     }
 }
 

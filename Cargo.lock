@@ -169,6 +169,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-instant"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hyperion-checked",
+ "hyperion-clock",
+]
+
+[[package]]
 name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
@@ -184,6 +193,7 @@ dependencies = [
  "hyperion-color",
  "hyperion-escape",
  "hyperion-framebuffer",
+ "hyperion-instant",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",
