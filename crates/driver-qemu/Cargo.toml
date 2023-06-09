@@ -1,0 +1,11 @@
+[package]
+name = "hyperion-driver-qemu"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spin.workspace = true
+uart_16550.workspace = true
+x86_64.workspace = true
