@@ -2,12 +2,10 @@ use alloc::boxed::Box;
 use core::fmt;
 
 use hyperion_color::Color;
+use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_log::LogLevel;
 
 use super::CHAR_SIZE;
-use crate::driver::video::framebuffer::Framebuffer;
-
-// use hyperion_boot_interface::Framebuffer;
 
 //
 

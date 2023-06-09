@@ -1,0 +1,14 @@
+[package]
+name = "hyperion-framebuffer"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spin.workspace = true
+
+hyperion-boot-interface.path = "../boot-interface"
+hyperion-color.path = "../color"
+hyperion-escape.path = "../escape"
+hyperion-macros.path = "../macros"

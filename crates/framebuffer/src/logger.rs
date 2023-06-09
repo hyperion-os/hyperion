@@ -3,23 +3,23 @@ use core::fmt::{self, Arguments, Write};
 use hyperion_color::Color;
 use hyperion_escape::decode::{DecodedPart, EscapeDecoder};
 use spin::{Mutex, MutexGuard};
-use x86_64::instructions::interrupts::without_interrupts;
 
 use super::{font::FONT, framebuffer::Framebuffer};
 
 //
 
 pub fn _print(args: Arguments) {
-    without_interrupts(|| {
-        if let Some(fbo) = Framebuffer::get() {
-            let fbo = fbo.lock();
-            _ = WriterLock {
-                lock: WRITER.lock(),
-                fbo,
-            }
-            .write_fmt(args)
+    // TODO: without ints
+    // without_interrupts(|| {
+    if let Some(fbo) = Framebuffer::get() {
+        let fbo = fbo.lock();
+        _ = WriterLock {
+            lock: WRITER.lock(),
+            fbo,
         }
-    });
+        .write_fmt(args)
+    }
+    // });
 }
 
 //

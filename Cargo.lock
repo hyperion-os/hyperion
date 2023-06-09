@@ -147,6 +147,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-framebuffer"
+version = "0.1.0"
+dependencies = [
+ "hyperion-boot-interface",
+ "hyperion-color",
+ "hyperion-escape",
+ "hyperion-macros",
+ "spin",
+]
+
+[[package]]
 name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
@@ -159,6 +170,7 @@ dependencies = [
  "hyperion-boot-interface",
  "hyperion-color",
  "hyperion-escape",
+ "hyperion-framebuffer",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",

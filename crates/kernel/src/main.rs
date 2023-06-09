@@ -11,7 +11,6 @@
     int_roundings,
     array_chunks,
     cfg_target_has_atomic,
-    slice_as_chunks,
     core_intrinsics,
     custom_test_frameworks,
     panic_can_unwind
@@ -26,13 +25,14 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use chrono::Duration;
 use futures_util::StreamExt;
 use hyperion_color::Color;
+use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_log::{debug, warn};
 use hyperion_macros::{build_rev, build_time};
 use x86_64::VirtAddr;
 
 use self::{
     arch::rng_seed,
-    driver::{acpi::hpet::HPET, video::framebuffer::Framebuffer},
+    driver::acpi::hpet::HPET,
     scheduler::timer::{sleep, ticks},
 };
 use crate::{
