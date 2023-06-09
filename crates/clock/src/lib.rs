@@ -2,17 +2,26 @@
 
 //
 
-use spin::Lazy;
+use spin::{Lazy, Mutex};
 
 //
 
-pub trait ClockSource {
+pub static CLOCK_SOURCE: Lazy<&'static dyn ClockSource> = Lazy::new(|| {
+    let picker = PICK_CLOCK_SOURCE.lock();
+    picker().unwrap_or(&NopClock)
+});
+
+pub static PICK_CLOCK_SOURCE: Mutex<fn() -> Option<&'static dyn ClockSource>> = Mutex::new(|| None);
+
+//
+
+pub trait ClockSource: Send + Sync {
     fn tick_now(&self) -> u64;
 
     fn femtos_per_tick(&self) -> u64;
 }
 
-impl dyn ClockSource + Send + Sync {
+impl dyn ClockSource {
     /// `nanos` is nanos from now
     pub fn nanos_to_deadline(&self, nanos: u64) -> u64 {
         self.tick_now() + self.nanos_to_ticks_u(nanos)
@@ -35,14 +44,14 @@ impl dyn ClockSource + Send + Sync {
     }
 }
 
-//
+pub struct NopClock;
 
-pub static CLOCK_SOURCE: Lazy<&'static (dyn ClockSource + Send + Sync)> = Lazy::new(|| {
-    // hyperion_pick_clock_source is safe to call if linked with hyperion-kernel
-    // hyperion-kernel has `hyperion_pick_clock_source` correctly defined
-    unsafe { hyperion_pick_clock_source() }
-});
+impl ClockSource for NopClock {
+    fn tick_now(&self) -> u64 {
+        0
+    }
 
-extern "Rust" {
-    fn hyperion_pick_clock_source() -> &'static (dyn ClockSource + Send + Sync);
+    fn femtos_per_tick(&self) -> u64 {
+        u64::MAX
+    }
 }
