@@ -8,4 +8,5 @@ edition.workspace = true
 [dependencies]
 crossbeam.workspace = true
 
+hyperion-driver-qemu.path = "../driver-qemu"
 hyperion-log.path = "../log"

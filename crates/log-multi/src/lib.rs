@@ -44,7 +44,7 @@ impl Logger for MultiLogger {
         self.qemu.load() <= level
     }
 
-    fn print(&self, _level: LogLevel, _args: Arguments) {
-        // crate::driver::qemu::_print(args);
+    fn print(&self, _level: LogLevel, args: Arguments) {
+        hyperion_driver_qemu::_print(args);
     }
 }
