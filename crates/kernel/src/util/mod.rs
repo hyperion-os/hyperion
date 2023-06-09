@@ -1,4 +1,3 @@
-pub mod atomic_map;
 pub mod bitmap;
 pub mod defer;
 pub mod fmt;

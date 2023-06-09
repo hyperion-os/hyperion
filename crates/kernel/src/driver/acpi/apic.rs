@@ -1,3 +1,4 @@
+use hyperion_atomic_map::AtomicMap;
 use hyperion_log::debug;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
@@ -8,7 +9,6 @@ use crate::{
         ints::{IntController, INT_CONTROLLER},
     },
     driver::{acpi::madt::MADT, pit::PIT},
-    util::atomic_map::AtomicMap,
 };
 
 //

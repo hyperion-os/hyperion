@@ -1,7 +1,7 @@
+use hyperion_atomic_map::AtomicMap;
 use spin::{Lazy, Mutex, MutexGuard};
 
 use super::{apic::ApicId, madt::MADT, ReadWrite};
-use crate::util::atomic_map::AtomicMap;
 
 //
 

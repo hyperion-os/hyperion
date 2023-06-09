@@ -30,6 +30,7 @@ crossbeam.workspace = true
 futures-util.workspace = true
 snafu.workspace = true
 
+hyperion-atomic-map.path = "../atomic-map"
 hyperion-boot-interface.path = "../boot-interface"
 hyperion-checked.path = "../checked"
 hyperion-clock.path = "../clock"
