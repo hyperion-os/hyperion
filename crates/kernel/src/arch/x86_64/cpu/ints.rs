@@ -1,4 +1,4 @@
-use crossbeam::atomic::AtomicCell;
+use hyperion_interrupts::{IntController, INT_CONTROLLER};
 use hyperion_log::{error, info};
 use x86_64::{
     instructions::port::Port,
@@ -16,19 +16,6 @@ use crate::{
         rtc::RTC,
     },
 };
-
-//
-
-pub static INT_CONTROLLER: AtomicCell<IntController> = AtomicCell::new(IntController::Pic);
-
-//
-
-#[derive(Debug, Clone, Copy)]
-#[repr(u8)]
-pub enum IntController {
-    Pic,
-    Apic,
-}
 
 //
 
@@ -210,5 +197,3 @@ fn eoi() {
         }
     }
 }
-
-const _: () = assert!(AtomicCell::<IntController>::is_lock_free());

@@ -189,6 +189,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-interrupts"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+]
+
+[[package]]
 name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
@@ -207,6 +214,7 @@ dependencies = [
  "hyperion-framebuffer",
  "hyperion-instant",
  "hyperion-int-safe-lazy",
+ "hyperion-interrupts",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",

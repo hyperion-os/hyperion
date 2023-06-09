@@ -1,13 +1,11 @@
 use hyperion_atomic_map::AtomicMap;
+use hyperion_interrupts::{IntController, INT_CONTROLLER};
 use hyperion_log::debug;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use super::{ReadOnly, ReadWrite, Reserved, WriteOnly};
 use crate::{
-    arch::cpu::{
-        idt::Irq,
-        ints::{IntController, INT_CONTROLLER},
-    },
+    arch::cpu::idt::Irq,
     driver::{acpi::madt::MADT, pit::PIT},
 };
 
