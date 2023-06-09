@@ -140,6 +140,13 @@ name = "hyperion-checked"
 version = "0.1.0"
 
 [[package]]
+name = "hyperion-clock"
+version = "0.1.0"
+dependencies = [
+ "spin",
+]
+
+[[package]]
 name = "hyperion-color"
 version = "0.1.0"
 
@@ -173,6 +180,7 @@ dependencies = [
  "futures-util",
  "hyperion-boot-interface",
  "hyperion-checked",
+ "hyperion-clock",
  "hyperion-color",
  "hyperion-escape",
  "hyperion-framebuffer",

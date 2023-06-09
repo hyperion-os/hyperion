@@ -12,6 +12,7 @@ use core::{
 
 use bit_field::BitField;
 use chrono::Duration;
+use hyperion_clock::ClockSource;
 use hyperion_log::{debug, trace, warn};
 use hyperion_vfs::{FileDevice, IoError, IoResult};
 use smallvec::SmallVec;
@@ -141,20 +142,27 @@ impl Hpet {
         TimerNHandle { lock }
     }
 
+    //
+
     /// `nanos` is nanos from now
     pub fn nanos_to_deadline(&self, nanos: u64) -> u64 {
-        let main = self.main_counter_value();
-        // TODO: integer overflow
-        let ticks = nanos * 1_000_000 / self.period as u64;
-        main + ticks
+        self.main_counter_value() + self.nanos_to_ticks_u(nanos)
     }
 
-    pub fn nanos_to_ticks(&self, nanos: i64) -> i64 {
-        (nanos as i128 * 1_000_000 / self.period as i128) as i64
+    pub fn nanos_to_ticks_u(&self, nanos: u64) -> u64 {
+        (nanos as u128 * 1_000_000 / self.period() as u128) as u64
     }
 
-    pub fn ticks_to_nanos(&self, ticks: i64) -> i64 {
-        (ticks as i128 * self.period as i128 / 1_000_000) as i64
+    pub fn nanos_to_ticks_i(&self, nanos: i64) -> i64 {
+        (nanos as i128 * 1_000_000 / self.period() as i128) as i64
+    }
+
+    pub fn ticks_to_nanos_u(&self, ticks: u64) -> u64 {
+        (ticks as u128 * self.period() as u128 / 1_000_000) as u64
+    }
+
+    pub fn ticks_to_nanos_i(&self, ticks: i64) -> i64 {
+        (ticks as i128 * self.period() as i128 / 1_000_000) as i64
     }
 
     //
@@ -432,6 +440,18 @@ impl FileDevice for HpetDevice {
 
     fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
         Err(IoError::PermissionDenied)
+    }
+}
+
+//
+
+impl ClockSource for Hpet {
+    fn tick_now(&self) -> u64 {
+        self.main_counter_value()
+    }
+
+    fn femtos_per_tick(&self) -> u64 {
+        self.period() as _
     }
 }
 
