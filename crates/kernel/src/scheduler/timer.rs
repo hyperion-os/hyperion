@@ -65,7 +65,7 @@ pub fn ticks(interval: Duration) -> Ticks {
 #[must_use]
 pub struct SleepUntil {
     deadline: Instant,
-    handler: Option<ApicId>,
+    sleeping: bool,
 }
 
 #[must_use]
@@ -85,7 +85,7 @@ impl SleepUntil {
     pub const fn new(deadline: Instant) -> Self {
         Self {
             deadline,
-            handler: None,
+            sleeping: false,
         }
     }
 }
@@ -104,17 +104,16 @@ impl Future for SleepUntil {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let deadline = self.deadline;
 
-        let mut defer_timer_sleep = None;
-        let handler = self.handler.get_or_insert_with(|| {
-            let timer = HPET.next_timer();
-            let handler = timer.handler();
-            defer_timer_sleep = Some(timer);
-            handler
-        });
-
         if Instant::now() >= deadline {
             return Poll::Ready(());
         }
+
+        if self.sleeping {
+            return Poll::Pending;
+        }
+        self.sleeping = true;
+
+        let mut timer = HPET.next_timer();
 
         // insert the new deadline before invoking sleep,
         // so that the waker is there before the interrupt happens
@@ -126,9 +125,7 @@ impl Future for SleepUntil {
             .lock()
             .push(TimerWaker { deadline, waker });
 
-        if let Some(mut timer) = defer_timer_sleep {
-            timer.sleep_until(deadline.ticks());
-        }
+        timer.sleep_until(deadline.ticks());
 
         if Instant::now() >= deadline {
             waker2.take();
