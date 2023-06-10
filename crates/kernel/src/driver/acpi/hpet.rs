@@ -60,8 +60,8 @@ pub struct TimerN {
 }
 
 #[derive(Debug)]
-pub struct TimerNHandle {
-    lock: MutexGuard<'static, TimerN>,
+pub struct TimerNHandle<'a> {
+    lock: MutexGuard<'a, TimerN>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -119,7 +119,7 @@ impl Hpet {
 
     //
 
-    pub fn next_timer(&'static self) -> TimerNHandle {
+    pub fn next_timer(&self) -> TimerNHandle {
         let nth = self.next_timer.load(Ordering::Relaxed) as usize % self.timers.len();
         let lock = self
             .timers
@@ -400,7 +400,7 @@ impl TimerN {
     }
 }
 
-impl Deref for TimerNHandle {
+impl Deref for TimerNHandle<'_> {
     type Target = TimerN;
 
     fn deref(&self) -> &Self::Target {
@@ -408,13 +408,13 @@ impl Deref for TimerNHandle {
     }
 }
 
-impl DerefMut for TimerNHandle {
+impl DerefMut for TimerNHandle<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.lock.deref_mut()
     }
 }
 
-impl Drop for TimerNHandle {
+impl Drop for TimerNHandle<'_> {
     fn drop(&mut self) {
         self.update(HPET.main_counter_value());
     }
@@ -456,6 +456,10 @@ impl ClockSource for Hpet {
 
     fn femtos_per_tick(&self) -> u64 {
         self.period() as _
+    }
+
+    fn trigger_interrupt_at(&self, deadline: u64) {
+        self.next_timer().sleep_until(deadline)
     }
 
     fn _apic_sleep_simple_blocking(&self, micros: u16, pre: &mut dyn FnMut()) {

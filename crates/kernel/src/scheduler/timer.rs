@@ -9,12 +9,11 @@ use core::{
 
 use chrono::Duration;
 use futures_util::{task::AtomicWaker, Future, FutureExt, Stream};
+use hyperion_clock::CLOCK_SOURCE;
 use hyperion_instant::Instant;
 use hyperion_int_safe_lazy::IntSafeLazy;
 use hyperion_log::warn;
 use spin::{Lazy, Mutex};
-
-use crate::driver::acpi::{apic::ApicId, hpet::HPET};
 
 //
 
@@ -113,8 +112,6 @@ impl Future for SleepUntil {
         }
         self.sleeping = true;
 
-        let mut timer = HPET.next_timer();
-
         // insert the new deadline before invoking sleep,
         // so that the waker is there before the interrupt happens
         let waker = Arc::new(AtomicWaker::new());
@@ -125,7 +122,7 @@ impl Future for SleepUntil {
             .lock()
             .push(TimerWaker { deadline, waker });
 
-        timer.sleep_until(deadline.ticks());
+        CLOCK_SOURCE.trigger_interrupt_at(deadline.ticks());
 
         if Instant::now() >= deadline {
             waker2.take();

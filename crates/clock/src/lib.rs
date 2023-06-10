@@ -24,6 +24,8 @@ pub trait ClockSource: Send + Sync {
 
     fn femtos_per_tick(&self) -> u64;
 
+    fn trigger_interrupt_at(&self, deadline: u64);
+
     fn _apic_sleep_simple_blocking(&self, micros: u16, pre: &mut dyn FnMut());
 }
 
@@ -60,6 +62,8 @@ impl ClockSource for NopClock {
     fn femtos_per_tick(&self) -> u64 {
         u64::MAX
     }
+
+    fn trigger_interrupt_at(&self, _: u64) {}
 
     fn _apic_sleep_simple_blocking(&self, _: u16, pre: &mut dyn FnMut()) {
         pre();
