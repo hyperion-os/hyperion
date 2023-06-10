@@ -1,6 +1,9 @@
+use alloc::boxed::Box;
+
 use hyperion_atomic_map::AtomicMap;
+use hyperion_clock::CLOCK_SOURCE;
 use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
-use hyperion_log::debug;
+use hyperion_log::trace;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use super::{ReadOnly, ReadWrite, Reserved, WriteOnly};
@@ -19,14 +22,6 @@ pub fn enable() {
         // spurdo spärde keskeytys
     });
 
-    let timer_irq = hyperion_interrupts::set_any_interrupt_handler(
-        |irq| (0x30..=0xFF).contains(&irq),
-        || {
-            // apic timer interrupt
-        },
-    )
-    .expect("No avail APIC timer IRQ");
-
     write_msr(
         IA32_APIC_BASE,
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
@@ -35,21 +30,33 @@ pub fn enable() {
     let regs = unsafe { &mut *(MADT.local_apic_addr as *mut ApicRegs) };
     let apic_id = ApicId(regs.lapic_id.read());
 
-    debug!("Initializing {apic_id:?}");
+    trace!("Initializing {apic_id:?}");
     LAPICS.insert(apic_id, RwLock::new(Lapic { regs }));
     let mut lapic = LAPICS.get(&apic_id).unwrap().write();
 
     reset(lapic.regs);
-    init_lvt_timer(timer_irq, lapic.regs);
-    debug!("Done Initializing {apic_id:?}");
-    // trace!("APIC regs: {:#?}", lapic.regs);
-
-    // write_msr(IA32_TSC_AUX, apic_id.inner() as _);
+    // init_lvt_timer(timer_irq, lapic.regs);
+    trace!("Done Initializing {apic_id:?}");
 
     INT_EOI_HANDLER.store(|_| {
         Lapic::current_mut().eoi();
     });
     INT_CONTROLLER.store(IntController::Apic);
+}
+
+pub fn enable_timer() {
+    let timer_irq = hyperion_interrupts::set_any_interrupt_handler(
+        |irq| (0x30..=0xFF).contains(&irq),
+        || {
+            // apic timer interrupt
+        },
+    )
+    .expect("No avail APIC timer IRQ");
+
+    let mut lapic = Lapic::current_mut();
+
+    reset(lapic.regs);
+    init_lvt_timer(timer_irq, lapic.regs);
 }
 
 //
@@ -186,7 +193,7 @@ fn calibrate(regs: &mut ApicRegs) -> u32 {
 
     regs.timer_divide.write(APIC_TIMER_DIV);
 
-    PIT.lock()._apic_simple_pit_wait(10_000, || {
+    CLOCK_SOURCE._apic_sleep_simple_blocking(10_000, &mut || {
         // reset right before PIT sleeping
         regs.timer_init.write(INITIAL_COUNT);
     });

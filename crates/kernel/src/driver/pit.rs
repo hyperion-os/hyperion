@@ -1,3 +1,6 @@
+use alloc::boxed::Box;
+
+use hyperion_clock::ClockSource;
 use spin::{Lazy, Mutex};
 use x86_64::instructions::port::Port;
 
@@ -5,11 +8,10 @@ use super::pic::PICS;
 
 //
 
-pub static PIT: Lazy<Mutex<Pit>> = Lazy::new(|| {
+pub static PIT: Lazy<Pit> = Lazy::new(|| {
     // dependencies
     Lazy::force(&PICS);
-
-    Mutex::new(Pit::new())
+    Pit::new()
 });
 
 // static PIT_CLOCK: AtomicUsize = AtomicUsize::new(0);
@@ -20,6 +22,10 @@ const PIT_HZ_NUMERATOR: u32 = 1193182;
 //
 
 pub struct Pit {
+    ports: Mutex<Ports>,
+}
+
+struct Ports {
     ch: [Port<u8>; 3],
     cmd: Port<u8>,
     delay: Port<u8>, // ?
@@ -31,14 +37,18 @@ pub struct Pit {
 impl Pit {
     pub const fn new() -> Self {
         Self {
-            ch: [Port::new(0x40), Port::new(0x41), Port::new(0x42)],
-            cmd: Port::new(0x43),
-            delay: Port::new(0x60),
-            ch2_gate: Port::new(0x61),
+            ports: Mutex::new(Ports {
+                ch: [Port::new(0x40), Port::new(0x41), Port::new(0x42)],
+                cmd: Port::new(0x43),
+                delay: Port::new(0x60),
+                ch2_gate: Port::new(0x61),
+            }),
         }
     }
 
-    pub fn _apic_simple_pit_wait(&mut self, micro_seconds: u32, pre: impl FnOnce()) {
+    pub fn _apic_simple_pit_wait(&self, micro_seconds: u32, pre: impl FnOnce()) {
+        let mut ports = self.ports.lock();
+
         let divisor = PIT_HZ_NUMERATOR / (1_000_000 / micro_seconds);
         if divisor > 0x10000 {
             panic!("sleep time too long");
@@ -46,32 +56,31 @@ impl Pit {
 
         unsafe {
             // speaker channel 2 => controlled by PIT
-            let gv = self.ch2_gate.read() & 0xFD;
-            self.ch2_gate.write(gv | 0x1);
+            let gv = ports.ch2_gate.read() & 0xFD;
+            ports.ch2_gate.write(gv | 0x1);
 
             // one shot cmd
-            self.cmd.write(0b10110010);
+            ports.cmd.write(0b10110010);
 
             // write lower byte
-            self.ch[2].write(divisor as u8);
+            ports.ch[2].write(divisor as u8);
             // wait for ack
-            self.iowait();
+            Self::iowait(&mut ports);
             // write higher byte
-            self.ch[2].write((divisor >> 8) as u8);
+            ports.ch[2].write((divisor >> 8) as u8);
 
+            let gv = ports.ch2_gate.read() & 0xFE;
             pre();
-
-            let gv = self.ch2_gate.read() & 0xFE;
-            self.ch2_gate.write(gv);
-            self.ch2_gate.write(gv | 0x1);
+            ports.ch2_gate.write(gv);
+            ports.ch2_gate.write(gv | 0x1);
 
             // waiting has started
-            while self.ch2_gate.read() & 0x20 != 0 {}
+            while ports.ch2_gate.read() & 0x20 != 0 {}
         }
     }
 
-    fn iowait(&mut self) {
-        unsafe { _ = self.delay.read() }
+    fn iowait(ports: &mut Ports) {
+        unsafe { _ = ports.delay.read() }
     }
 
     /* pub fn init(&mut self) {
@@ -89,4 +98,18 @@ impl Pit {
 
         let x = (unsafe { self.ch2_gate.read() } & 0xfd) | 1;
     } */
+}
+
+impl ClockSource for Pit {
+    fn tick_now(&self) -> u64 {
+        0
+    }
+
+    fn femtos_per_tick(&self) -> u64 {
+        u64::MAX
+    }
+
+    fn _apic_sleep_simple_blocking(&self, micros: u16, pre: &mut dyn FnMut()) {
+        self._apic_simple_pit_wait(micros as u32 * 1_000, pre);
+    }
 }

@@ -2,6 +2,10 @@
 
 //
 
+extern crate alloc;
+
+use alloc::boxed::Box;
+
 use spin::{Lazy, Mutex};
 
 //
@@ -19,6 +23,8 @@ pub trait ClockSource: Send + Sync {
     fn tick_now(&self) -> u64;
 
     fn femtos_per_tick(&self) -> u64;
+
+    fn _apic_sleep_simple_blocking(&self, micros: u16, pre: &mut dyn FnMut());
 }
 
 impl dyn ClockSource {
@@ -53,5 +59,9 @@ impl ClockSource for NopClock {
 
     fn femtos_per_tick(&self) -> u64 {
         u64::MAX
+    }
+
+    fn _apic_sleep_simple_blocking(&self, _: u16, pre: &mut dyn FnMut()) {
+        pre();
     }
 }

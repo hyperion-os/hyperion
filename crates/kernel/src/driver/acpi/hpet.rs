@@ -2,7 +2,7 @@
 //!
 //! https://wiki.osdev.org/HPET
 
-use alloc::collections::BinaryHeap;
+use alloc::{boxed::Box, collections::BinaryHeap};
 use core::{
     cmp::Reverse,
     ops::{Deref, DerefMut},
@@ -460,6 +460,14 @@ impl ClockSource for Hpet {
 
     fn femtos_per_tick(&self) -> u64 {
         self.period() as _
+    }
+
+    fn _apic_sleep_simple_blocking(&self, micros: u16, pre: &mut dyn FnMut()) {
+        let deadline = self.nanos_to_deadline(micros as u64 * 1_000);
+
+        pre();
+
+        while self.main_counter_value() < deadline {}
     }
 }
 
