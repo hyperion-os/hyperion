@@ -1,6 +1,6 @@
 use core::{fmt, mem, ptr, slice, str::Utf8Error};
 
-use crate::{driver::pic::PICS, util::stack_str::StackStr};
+use crate::{driver::pic::PICS, util::static_str::StaticStr};
 
 //
 
@@ -42,7 +42,7 @@ pub fn checksum_of_slice<T>(value: &[T]) -> u8 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AcpiOem {
     Bochs,
-    Other(StackStr<6>),
+    Other(StaticStr<6>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,14 +55,14 @@ pub enum AcpiVersion {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(packed, C)]
 pub struct RawSdtHeader {
-    signature: StackStr<4>,
+    signature: StaticStr<4>,
     length: u32,
     revision: u8,
     checksum: u8,
-    oem_id: StackStr<6>,
-    oem_table_id: StackStr<8>,
+    oem_id: StaticStr<6>,
+    oem_table_id: StaticStr<8>,
     oem_revision: u32,
-    creator_id: StackStr<4>,
+    creator_id: StaticStr<4>,
     creator_revision: u32,
 }
 
@@ -122,8 +122,8 @@ impl From<Utf8Error> for SdtError {
     }
 }
 
-impl From<StackStr<6>> for AcpiOem {
-    fn from(v: StackStr<6>) -> Self {
+impl From<StaticStr<6>> for AcpiOem {
+    fn from(v: StaticStr<6>) -> Self {
         match v.as_str() {
             "BOCHS " => Self::Bochs,
             _ => Self::Other(v),

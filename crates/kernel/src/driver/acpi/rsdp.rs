@@ -10,7 +10,7 @@ use hyperion_log::debug;
 use spin::Lazy;
 
 use super::{checksum_of, AcpiOem, AcpiVersion};
-use crate::{boot, driver::acpi::StructUnpacker, util::stack_str::StackStr};
+use crate::{driver::acpi::StructUnpacker, util::static_str::StaticStr};
 
 //
 
@@ -48,7 +48,9 @@ impl Rsdp {
     }
 
     pub fn try_init() -> Result<Self, RsdpError> {
-        let rsdp = boot().rsdp().ok_or(RsdpError::NoRsdp)?;
+        let rsdp = hyperion_boot_interface::boot()
+            .rsdp()
+            .ok_or(RsdpError::NoRsdp)?;
 
         let mut unpacker = unsafe { StructUnpacker::from(rsdp as *const RawRsdpDescriptor) };
 
@@ -58,7 +60,7 @@ impl Rsdp {
             return Err(RsdpError::InvalidSignature);
         }
 
-        let oem: AcpiOem = StackStr::from_utf8(rsdp.oem_id)?.into();
+        let oem: AcpiOem = StaticStr::from_utf8(rsdp.oem_id)?.into();
         debug!("ACPI Oem: {oem:?}");
 
         let version: AcpiVersion = rsdp.revision.try_into()?;

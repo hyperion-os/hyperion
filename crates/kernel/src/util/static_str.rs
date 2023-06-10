@@ -5,13 +5,13 @@ use core::{fmt, ops::Deref, str::Utf8Error};
 // invariant:
 //  - self.bytes is always valid utf8
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct StackStr<const SIZE: usize> {
+pub struct StaticStr<const SIZE: usize> {
     bytes: [u8; SIZE],
 }
 
 //
 
-impl<const SIZE: usize> StackStr<SIZE> {
+impl<const SIZE: usize> StaticStr<SIZE> {
     pub fn from_utf8(bytes: [u8; SIZE]) -> Result<Self, Utf8Error> {
         _ = core::str::from_utf8(zero_limited(&bytes))?;
         Ok(unsafe { Self::from_utf8_unchecked(bytes) })
@@ -37,7 +37,7 @@ impl<const SIZE: usize> StackStr<SIZE> {
     }
 }
 
-impl<const SIZE: usize> Deref for StackStr<SIZE> {
+impl<const SIZE: usize> Deref for StaticStr<SIZE> {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
@@ -45,13 +45,13 @@ impl<const SIZE: usize> Deref for StackStr<SIZE> {
     }
 }
 
-impl<const SIZE: usize> fmt::Debug for StackStr<SIZE> {
+impl<const SIZE: usize> fmt::Debug for StaticStr<SIZE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self.as_str(), f)
     }
 }
 
-impl<const SIZE: usize> fmt::Display for StackStr<SIZE> {
+impl<const SIZE: usize> fmt::Display for StaticStr<SIZE> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(self.as_str(), f)
     }
