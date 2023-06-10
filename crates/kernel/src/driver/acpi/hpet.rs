@@ -14,12 +14,13 @@ use bit_field::BitField;
 use chrono::Duration;
 use hyperion_clock::ClockSource;
 use hyperion_log::{debug, trace, warn};
+use hyperion_timer::provide_sleep_wake;
 use hyperion_vfs::{FileDevice, IoError, IoResult};
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
 
 use super::{apic::ApicId, ioapic::IoApic, rsdt::RSDT, SdtError};
-use crate::{scheduler::timer::provide_sleep_wake, util::slice_read::slice_read};
+use crate::util::slice_read::slice_read;
 
 //
 

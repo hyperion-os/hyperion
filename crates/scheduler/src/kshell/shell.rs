@@ -12,10 +12,11 @@ use snafu::ResultExt;
 use spin::Mutex;
 
 use super::{term::Term, *};
-use crate::{
+use crate::timer::sleep;
+/* use crate::{
     driver::ps2::keyboard::set_layout, mem::pmm::PageFrameAllocator, scheduler::timer::sleep,
     util::fmt::NumberPostfix, KERNEL_BUILD_REV, KERNEL_BUILD_TIME, KERNEL_NAME, KERNEL_VERSION,
-};
+}; */
 
 //
 
@@ -123,7 +124,8 @@ impl Shell {
 
     fn splash_cmd(&mut self, _: Option<&str>) -> Result<()> {
         // _ = writeln!(self.term, "{KERNEL_SPLASH}");
-        _ = writeln!(self.term, "Welcome to {KERNEL_NAME} - {KERNEL_VERSION} (built {KERNEL_BUILD_TIME} build [{KERNEL_BUILD_REV}])");
+        // TODO:
+        // _ = writeln!(self.term, "Welcome to {KERNEL_NAME} - {KERNEL_VERSION} (built {KERNEL_BUILD_TIME} build [{KERNEL_BUILD_REV}])");
         Ok(())
     }
 
@@ -209,7 +211,8 @@ impl Shell {
     }
 
     fn mem_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        let pfa = PageFrameAllocator::get();
+        todo!();
+        /* let pfa = PageFrameAllocator::get();
         let used = pfa.used_mem();
         let usable = pfa.usable_mem();
         _ = writeln!(
@@ -218,7 +221,7 @@ impl Shell {
             usable.postfix_binary(),
             used.postfix_binary(),
             used as f64 / usable as f64 * 100.0
-        );
+        ); */
 
         Ok(())
     }
@@ -312,10 +315,11 @@ impl Shell {
     }
 
     fn kbl_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let name = args.unwrap_or("us");
+        todo!();
+        /* let name = args.unwrap_or("us");
         if set_layout(name).is_none() {
             _ = writeln!(self.term, "invalid layout `{name}`");
-        }
+        } */
 
         Ok(())
     }

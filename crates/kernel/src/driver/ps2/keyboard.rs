@@ -1,12 +1,11 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use hyperion_keyboard::provide_keyboard_event;
 use pc_keyboard::{
     layouts::{AnyLayout, DVP104Key, De105Key, Dvorak104Key, Uk105Key, Us104Key},
     DecodedKey, HandleControl, KeyCode, KeyEvent, Keyboard, ScancodeSet1,
 };
 use spin::Mutex;
-
-use crate::scheduler::keyboard::provide_keyboard_event;
 
 //
 

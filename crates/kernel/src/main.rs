@@ -30,16 +30,12 @@ use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_interrupts::set_interrupt_handler;
 use hyperion_log::{debug, warn};
 use hyperion_macros::{build_rev, build_time};
+use hyperion_scheduler::{kshell::kshell, timer::ticks};
 use x86_64::{instructions::port::Port, VirtAddr};
 
-use self::{
-    arch::rng_seed,
-    driver::acpi::hpet::HPET,
-    scheduler::timer::{sleep, ticks},
-};
+use self::{arch::rng_seed, driver::acpi::hpet::HPET};
 use crate::{
-    driver::acpi::ioapic::IoApic, mem::from_higher_half, scheduler::kshell::kshell, smp::CPU_COUNT,
-    util::fmt::NumberPostfix,
+    driver::acpi::ioapic::IoApic, mem::from_higher_half, smp::CPU_COUNT, util::fmt::NumberPostfix,
 };
 
 extern crate alloc;
@@ -53,7 +49,6 @@ pub mod boot;
 pub mod driver;
 pub mod mem;
 pub mod panic;
-pub mod scheduler;
 pub mod smp;
 #[cfg(test)]
 pub mod testfw;
@@ -112,8 +107,8 @@ fn kernel_main() -> ! {
     test_main();
 
     // main task(s)
-    scheduler::spawn(kshell());
-    scheduler::spawn(spinner());
+    hyperion_scheduler::spawn(kshell());
+    hyperion_scheduler::spawn(spinner());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     smp::init()
@@ -144,14 +139,13 @@ fn smp_main(cpu: smp::Cpu) -> ! {
         }
     }
 
-    scheduler::run_tasks();
+    hyperion_scheduler::run_tasks();
 }
 
 async fn spinner() {
     let mut ticks = ticks(Duration::milliseconds(100));
 
     while ticks.next().await.is_some() {
-        sleep(Duration::milliseconds(100)).await;
         let Some( fbo) = Framebuffer::get() else {
             warn!("failed to get fbo");
             break;

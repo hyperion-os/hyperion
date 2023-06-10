@@ -4,8 +4,6 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
-
 use spin::{Lazy, Mutex};
 
 //

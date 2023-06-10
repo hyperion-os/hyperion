@@ -1,0 +1,24 @@
+[package]
+name = "hyperion-scheduler"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spin.workspace = true
+snafu.workspace = true
+futures-util.workspace = true
+chrono.workspace = true
+crossbeam-queue.workspace = true
+
+hyperion-clock.path = "../clock"
+hyperion-color.path = "../color"
+hyperion-framebuffer.path = "../framebuffer"
+hyperion-instant.path = "../instant"
+hyperion-int-safe-lazy.path = "../int-safe-lazy"
+hyperion-keyboard.path = "../keyboard"
+hyperion-log.path = "../log"
+hyperion-log-multi.path = "../log-multi"
+hyperion-timer.path = "../timer"
+hyperion-vfs.path = "../vfs"

@@ -31,7 +31,8 @@ pub struct Executor {
 
 impl Executor {
     pub fn new() -> Self {
-        crate::mem::force_init_allocator();
+        // TODO:
+        // crate::mem::force_init_allocator();
         Self {
             tasks: <_>::default(),
         }

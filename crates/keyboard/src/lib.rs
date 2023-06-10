@@ -9,14 +9,14 @@ use hyperion_log::warn;
 
 //
 
-pub static KEYBOARD_EVENT_Q: IntSafeLazy<ArrayQueue<char>> =
+pub static KEYBOARD_EVENT_QUEUE: IntSafeLazy<ArrayQueue<char>> =
     IntSafeLazy::new(|| ArrayQueue::new(256));
-pub static WAKER: AtomicWaker = AtomicWaker::new();
+pub static KEYBOARD_EVENT_WAKER: AtomicWaker = AtomicWaker::new();
 
 //
 
 pub fn provide_keyboard_event(c: char) {
-    let Some(queue) = KEYBOARD_EVENT_Q.get() else {
+    let Some(queue) = KEYBOARD_EVENT_QUEUE.get() else {
         return
     };
 
@@ -24,5 +24,5 @@ pub fn provide_keyboard_event(c: char) {
         warn!("Keyboard event queue full! Lost '{old}'");
     }
 
-    WAKER.wake()
+    KEYBOARD_EVENT_WAKER.wake()
 }

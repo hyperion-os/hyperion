@@ -226,10 +226,13 @@ dependencies = [
  "hyperion-instant",
  "hyperion-int-safe-lazy",
  "hyperion-interrupts",
+ "hyperion-keyboard",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",
+ "hyperion-scheduler",
  "hyperion-static-str",
+ "hyperion-timer",
  "hyperion-vfs",
  "limine",
  "paste",
@@ -241,6 +244,16 @@ dependencies = [
  "uart_16550",
  "volatile",
  "x86_64",
+]
+
+[[package]]
+name = "hyperion-keyboard"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-queue",
+ "futures-util",
+ "hyperion-int-safe-lazy",
+ "hyperion-log",
 ]
 
 [[package]]
@@ -286,10 +299,15 @@ dependencies = [
  "chrono",
  "crossbeam-queue",
  "futures-util",
+ "hyperion-clock",
  "hyperion-color",
  "hyperion-framebuffer",
+ "hyperion-instant",
+ "hyperion-int-safe-lazy",
+ "hyperion-keyboard",
  "hyperion-log",
  "hyperion-log-multi",
+ "hyperion-timer",
  "hyperion-vfs",
  "snafu",
  "spin",
@@ -298,6 +316,17 @@ dependencies = [
 [[package]]
 name = "hyperion-static-str"
 version = "0.1.0"
+
+[[package]]
+name = "hyperion-timer"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "hyperion-instant",
+ "hyperion-int-safe-lazy",
+ "hyperion-log",
+ "spin",
+]
 
 [[package]]
 name = "hyperion-vfs"

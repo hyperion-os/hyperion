@@ -1,5 +1,5 @@
 [package]
-name = "keyboard"
+name = "hyperion-keyboard"
 version.workspace = true
 edition.workspace = true
 

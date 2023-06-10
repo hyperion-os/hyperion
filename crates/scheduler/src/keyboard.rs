@@ -3,30 +3,10 @@ use core::{
     task::{Context, Poll},
 };
 
-use crossbeam_queue::ArrayQueue;
-use futures_util::{task::AtomicWaker, Stream};
-use hyperion_int_safe_lazy::IntSafeLazy;
-use hyperion_log::warn;
+use futures_util::Stream;
+use hyperion_keyboard::{KEYBOARD_EVENT_QUEUE, KEYBOARD_EVENT_WAKER};
 
 //
-
-pub static KEYBOARD_EVENT_Q: IntSafeLazy<ArrayQueue<char>> =
-    IntSafeLazy::new(|| ArrayQueue::new(256));
-pub static WAKER: AtomicWaker = AtomicWaker::new();
-
-//
-
-pub fn provide_keyboard_event(c: char) {
-    let Some(queue) = KEYBOARD_EVENT_Q.get() else {
-        return
-    };
-
-    if let Some(old) = queue.force_push(c) {
-        warn!("Keyboard event queue full! Lost '{old}'");
-    }
-
-    WAKER.wake()
-}
 
 pub const fn keyboard_events() -> KeyboardEvents {
     KeyboardEvents::new()
@@ -62,7 +42,7 @@ impl Stream for KeyboardEvents {
     type Item = char;
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
-        let queue = KEYBOARD_EVENT_Q.get_force();
+        let queue = KEYBOARD_EVENT_QUEUE.get_force();
 
         if let Some(ev) = queue.pop() {
             return Poll::Ready(Some(ev));
@@ -70,11 +50,11 @@ impl Stream for KeyboardEvents {
 
         // need to check if a keyboard event happened right here
 
-        WAKER.register(ctx.waker());
+        KEYBOARD_EVENT_WAKER.register(ctx.waker());
 
         // .. with this
         if let Some(ev) = queue.pop() {
-            WAKER.take();
+            KEYBOARD_EVENT_WAKER.take();
             Poll::Ready(Some(ev))
         } else {
             Poll::Pending
