@@ -12,7 +12,7 @@ use futures_util::{task::AtomicWaker, Future, FutureExt, Stream};
 use hyperion_instant::Instant;
 use hyperion_int_safe_lazy::IntSafeLazy;
 use hyperion_log::warn;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 
 use crate::driver::acpi::{apic::ApicId, hpet::HPET};
 
@@ -24,7 +24,7 @@ pub fn provide_sleep_wake() {
         return
     };
 
-    let mut timers = deadlines.get(&ApicId::current()).unwrap().lock();
+    let mut timers = deadlines.lock();
 
     if let Some(TimerWaker { deadline, .. }) = timers.peek() {
         if Instant::now() < *deadline {
@@ -123,8 +123,6 @@ impl Future for SleepUntil {
         waker.register(cx.waker());
         DEADLINES
             .get_force()
-            .get(handler)
-            .expect("TIMERS not initialized")
             .lock()
             .push(TimerWaker { deadline, waker });
 
@@ -162,8 +160,9 @@ impl Stream for Ticks {
 
 //
 
-static DEADLINES: IntSafeLazy<BTreeMap<ApicId, Mutex<BinaryHeap<TimerWaker>>>> =
-    IntSafeLazy::new(|| ApicId::iter().map(|apic| (apic, <_>::default())).collect());
+// BinaryHeap::new isnt const? it only calls Vec::new internally which is const
+static DEADLINES: IntSafeLazy<Mutex<BinaryHeap<TimerWaker>>> =
+    IntSafeLazy::new(|| Mutex::new(BinaryHeap::new()));
 
 //
 

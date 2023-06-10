@@ -18,12 +18,8 @@ use hyperion_vfs::{FileDevice, IoError, IoResult};
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
 
-use super::{rsdt::RSDT, SdtError};
-use crate::{
-    driver::acpi::{apic::ApicId, ioapic::IoApic},
-    scheduler::timer::provide_sleep_wake,
-    util::slice_read::slice_read,
-};
+use super::{apic::ApicId, ioapic::IoApic, rsdt::RSDT, SdtError};
+use crate::{scheduler::timer::provide_sleep_wake, util::slice_read::slice_read};
 
 //
 
@@ -310,17 +306,17 @@ impl TimerN {
         let now = HPET.main_counter_value();
         let current = self.current;
         if current > deadline {
-            // crate::debug!("current happens after the new deadline");
+            // debug!("current happens after the new deadline");
             self.deadlines.push(Reverse(current));
             self.set_current(deadline);
         } else if current > now {
-            // crate::debug!("current happens before the new deadline and is still valid");
+            // debug!("current happens before the new deadline and is still valid");
             self.deadlines.push(Reverse(deadline));
         } else if deadline > now {
-            // crate::debug!("new deadline happens next");
+            // debug!("new deadline happens next");
             self.set_current(deadline);
         } else {
-            // crate::debug!("new deadline already happened");
+            // debug!("new deadline already happened");
         }
     }
 
