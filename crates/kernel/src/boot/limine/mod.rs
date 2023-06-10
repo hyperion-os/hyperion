@@ -44,6 +44,10 @@ impl Bootloader for LimineBoot {
         framebuffer()
     }
 
+    fn hhdm_offset(&self) -> u64 {
+        hhdm_offset()
+    }
+
     fn rsdp(&self) -> Option<*const ()> {
         Some(rsdp())
     }

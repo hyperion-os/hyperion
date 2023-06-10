@@ -31,6 +31,9 @@ pub trait Bootloader {
 
     fn framebuffer(&self) -> Option<FramebufferCreateInfo>;
 
+    /// higher half direct map offset
+    fn hhdm_offset(&self) -> u64;
+
     /// root system descriptor pointer
     fn rsdp(&self) -> Option<*const ()>;
 }
@@ -44,6 +47,10 @@ impl Bootloader for NopBootloader {
 
     fn framebuffer(&self) -> Option<FramebufferCreateInfo> {
         None
+    }
+
+    fn hhdm_offset(&self) -> u64 {
+        todo!()
     }
 
     fn rsdp(&self) -> Option<*const ()> {
