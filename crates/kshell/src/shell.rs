@@ -123,9 +123,12 @@ impl Shell {
     }
 
     fn splash_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        // _ = writeln!(self.term, "{KERNEL_SPLASH}");
-        // TODO:
-        // _ = writeln!(self.term, "Welcome to {KERNEL_NAME} - {KERNEL_VERSION} (built {KERNEL_BUILD_TIME} build [{KERNEL_BUILD_REV}])");
+        use hyperion_kernel_info::{BUILD_REV, BUILD_TIME, NAME, VERSION};
+        // _ = writeln!(self.term, "{SPLASH}");
+        _ = writeln!(
+            self.term,
+            "Welcome to {NAME} - {VERSION} (built {BUILD_TIME} build [{BUILD_REV}])"
+        );
         Ok(())
     }
 

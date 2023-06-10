@@ -273,6 +273,7 @@ dependencies = [
  "futures-util",
  "hyperion-color",
  "hyperion-framebuffer",
+ "hyperion-kernel-info",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-scheduler",

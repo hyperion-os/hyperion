@@ -13,6 +13,7 @@ spin.workspace = true
 
 hyperion-color.path = "../color"
 hyperion-framebuffer.path = "../framebuffer"
+hyperion-kernel-info.path = "../kernel-info"
 hyperion-log.path = "../log"
 hyperion-log-multi.path = "../log-multi"
 hyperion-scheduler.path = "../scheduler"
