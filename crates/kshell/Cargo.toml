@@ -1,0 +1,19 @@
+[package]
+name = "hyperion-kshell"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono.workspace = true
+futures-util.workspace = true
+snafu.workspace = true
+spin.workspace = true
+
+hyperion-color.path = "../color"
+hyperion-framebuffer.path = "../framebuffer"
+hyperion-log.path = "../log"
+hyperion-log-multi.path = "../log-multi"
+hyperion-scheduler.path = "../scheduler"
+hyperion-vfs.path = "../vfs"

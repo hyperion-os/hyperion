@@ -227,6 +227,7 @@ dependencies = [
  "hyperion-int-safe-lazy",
  "hyperion-interrupts",
  "hyperion-keyboard",
+ "hyperion-kshell",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",
@@ -260,10 +261,16 @@ dependencies = [
 name = "hyperion-kshell"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "futures-util",
+ "hyperion-color",
+ "hyperion-framebuffer",
+ "hyperion-log",
+ "hyperion-log-multi",
  "hyperion-scheduler",
  "hyperion-vfs",
  "snafu",
+ "spin",
 ]
 
 [[package]]

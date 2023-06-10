@@ -28,9 +28,10 @@ use hyperion_boot_interface::boot;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_interrupts::set_interrupt_handler;
+use hyperion_kshell::kshell;
 use hyperion_log::{debug, warn};
 use hyperion_macros::{build_rev, build_time};
-use hyperion_scheduler::{kshell::kshell, timer::ticks};
+use hyperion_scheduler::timer::ticks;
 use x86_64::{instructions::port::Port, VirtAddr};
 
 use self::{arch::rng_seed, driver::acpi::hpet::HPET};

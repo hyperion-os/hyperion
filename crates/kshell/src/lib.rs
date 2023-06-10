@@ -1,13 +1,19 @@
+#![no_std]
+
+//
+
+extern crate alloc;
+
 use alloc::string::String;
 use core::num::ParseIntError;
 
 use futures_util::StreamExt;
 use hyperion_framebuffer::framebuffer::Framebuffer;
+use hyperion_scheduler::keyboard::KeyboardEvents;
 use hyperion_vfs::{path::PathBuf, IoError};
 use snafu::Snafu;
 
 use self::{shell::Shell, term::Term};
-use super::keyboard::KeyboardEvents;
 
 //
 

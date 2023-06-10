@@ -3,6 +3,7 @@ use core::fmt::Write;
 
 use chrono::{Duration, TimeZone, Utc};
 use hyperion_color::Color;
+use hyperion_scheduler::timer::sleep;
 use hyperion_vfs::{
     self,
     path::{Path, PathBuf},
@@ -12,7 +13,6 @@ use snafu::ResultExt;
 use spin::Mutex;
 
 use super::{term::Term, *};
-use crate::timer::sleep;
 /* use crate::{
     driver::ps2::keyboard::set_layout, mem::pmm::PageFrameAllocator, scheduler::timer::sleep,
     util::fmt::NumberPostfix, KERNEL_BUILD_REV, KERNEL_BUILD_TIME, KERNEL_NAME, KERNEL_VERSION,
