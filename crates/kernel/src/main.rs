@@ -20,23 +20,24 @@
 
 //
 
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use chrono::Duration;
 use futures_util::StreamExt;
 use hyperion_boot_interface::boot;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
-use hyperion_interrupts::set_interrupt_handler;
-use hyperion_kshell::kshell;
+use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::{debug, warn};
-use hyperion_macros::{build_rev, build_time};
 use hyperion_scheduler::timer::ticks;
 use x86_64::{instructions::port::Port, VirtAddr};
 
-use self::{arch::rng_seed, driver::acpi::hpet::HPET};
+use self::arch::rng_seed;
 use crate::{
-    driver::acpi::ioapic::IoApic, mem::from_higher_half, smp::CPU_COUNT, util::fmt::NumberPostfix,
+    driver::acpi::{hpet::HPET, ioapic::IoApic},
+    mem::from_higher_half,
+    smp::CPU_COUNT,
+    util::fmt::NumberPostfix,
 };
 
 extern crate alloc;
@@ -54,23 +55,6 @@ pub mod smp;
 #[cfg(test)]
 pub mod testfw;
 pub mod util;
-
-//
-
-pub static KERNEL_NAME: &str = if cfg!(test) {
-    "Hyperion-Testing"
-} else {
-    "Hyperion"
-};
-
-pub static KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-// ofc. every kernel has to have this cringy ascii name splash
-pub static KERNEL_SPLASH: &str = include_str!("../../../asset/splash");
-
-pub static KERNEL_BUILD_TIME: &str = build_time!();
-
-pub static KERNEL_BUILD_REV: &str = build_rev!();
 
 //
 
@@ -99,16 +83,13 @@ fn kernel_main() -> ! {
         from_higher_half(VirtAddr::new(boot::stack().start as u64))
     );
 
-    debug!(
-        "{KERNEL_NAME} {KERNEL_VERSION} was booted with {}",
-        boot().name()
-    );
+    debug!("{NAME} {VERSION} was booted with {}", boot().name());
 
     #[cfg(test)]
     test_main();
 
     // main task(s)
-    hyperion_scheduler::spawn(kshell());
+    hyperion_scheduler::spawn(hyperion_kshell::kshell());
     hyperion_scheduler::spawn(spinner());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
@@ -120,13 +101,11 @@ fn smp_main(cpu: smp::Cpu) -> ! {
 
     arch::early_per_cpu(&cpu);
 
-    spin::Lazy::force(&HPET);
-
-    static CPU_COUNT_AFTER_INIT: AtomicUsize = AtomicUsize::new(0);
-    if Some(CPU_COUNT_AFTER_INIT.fetch_add(1, Ordering::SeqCst) + 1) == CPU_COUNT.get().copied() {
+    static KB_ONCE: AtomicBool = AtomicBool::new(true);
+    if KB_ONCE.swap(false, Ordering::SeqCst) {
         // code after every CPU and APIC has been initialized
         if let Some(mut io_apic) = IoApic::any() {
-            set_interrupt_handler(33, || {
+            hyperion_interrupts::set_interrupt_handler(33, || {
                 let scancode: u8 = unsafe { Port::new(0x60).read() };
                 driver::ps2::keyboard::process(scancode);
 

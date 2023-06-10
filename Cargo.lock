@@ -226,6 +226,7 @@ dependencies = [
  "hyperion-instant",
  "hyperion-int-safe-lazy",
  "hyperion-interrupts",
+ "hyperion-kernel-info",
  "hyperion-keyboard",
  "hyperion-kshell",
  "hyperion-log",
@@ -245,6 +246,13 @@ dependencies = [
  "uart_16550",
  "volatile",
  "x86_64",
+]
+
+[[package]]
+name = "hyperion-kernel-info"
+version = "0.1.0"
+dependencies = [
+ "hyperion-macros",
 ]
 
 [[package]]
