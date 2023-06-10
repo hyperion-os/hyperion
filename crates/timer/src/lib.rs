@@ -1,0 +1,73 @@
+#![no_std]
+
+//
+
+extern crate alloc;
+
+use alloc::{collections::BinaryHeap, sync::Arc};
+
+use futures_util::task::AtomicWaker;
+use hyperion_instant::Instant;
+use hyperion_int_safe_lazy::IntSafeLazy;
+use hyperion_log::warn;
+use spin::Mutex;
+
+//
+
+// BinaryHeap::new isnt const? it only calls Vec::new internally which is const
+pub static TIMER_DEADLINES: IntSafeLazy<Mutex<BinaryHeap<TimerWaker>>> =
+    IntSafeLazy::new(|| Mutex::new(BinaryHeap::new()));
+
+//
+
+/// interrupt provided wakeup to a sleep
+pub fn provide_sleep_wake() {
+    let Some(deadlines) = TIMER_DEADLINES.get() else {
+        return
+    };
+
+    let mut timers = deadlines.lock();
+
+    if let Some(TimerWaker { deadline, .. }) = timers.peek() {
+        if Instant::now() < *deadline {
+            return;
+        }
+    }
+
+    if let Some(TimerWaker { waker, .. }) = timers.pop() {
+        // assert!(now >= deadline, "{now} < {deadline}");
+        waker.wake();
+    } else {
+        warn!("Timer interrupt without active timers")
+    }
+}
+
+//
+
+#[derive(Debug)]
+pub struct TimerWaker {
+    pub deadline: Instant,
+    pub waker: Arc<AtomicWaker>,
+}
+
+//
+
+impl PartialEq for TimerWaker {
+    fn eq(&self, other: &Self) -> bool {
+        self.deadline == other.deadline
+    }
+}
+
+impl Eq for TimerWaker {}
+
+impl PartialOrd for TimerWaker {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        other.deadline.partial_cmp(&self.deadline)
+    }
+}
+
+impl Ord for TimerWaker {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        other.deadline.cmp(&self.deadline)
+    }
+}
