@@ -229,6 +229,7 @@ dependencies = [
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",
+ "hyperion-static-str",
  "hyperion-vfs",
  "limine",
  "paste",
@@ -293,6 +294,10 @@ dependencies = [
  "snafu",
  "spin",
 ]
+
+[[package]]
+name = "hyperion-static-str"
+version = "0.1.0"
 
 [[package]]
 name = "hyperion-vfs"

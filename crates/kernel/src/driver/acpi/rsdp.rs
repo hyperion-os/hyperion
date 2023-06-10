@@ -7,10 +7,11 @@
 use core::str::Utf8Error;
 
 use hyperion_log::debug;
+use hyperion_static_str::StaticStr;
 use spin::Lazy;
 
 use super::{checksum_of, AcpiOem, AcpiVersion};
-use crate::{driver::acpi::StructUnpacker, util::static_str::StaticStr};
+use crate::driver::acpi::StructUnpacker;
 
 //
 

@@ -1,6 +1,8 @@
 use core::{fmt, mem, ptr, slice, str::Utf8Error};
 
-use crate::{driver::pic::PICS, util::static_str::StaticStr};
+use hyperion_static_str::StaticStr;
+
+use crate::driver::pic::PICS;
 
 //
 

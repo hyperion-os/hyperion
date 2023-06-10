@@ -1,3 +1,7 @@
+#![no_std]
+
+//
+
 use core::{fmt, ops::Deref, str::Utf8Error};
 
 // a string that doesn't require allocations
