@@ -56,7 +56,7 @@ pub mod util;
 
 //
 
-// the actual entry exists in [´crate::boot::boot´]
+#[no_mangle]
 fn kernel_main() -> ! {
     hyperion_log_multi::init_logger();
 

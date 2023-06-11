@@ -1,14 +1,13 @@
 pub use addr::{hhdm_offset, phys_addr, virt_addr};
 pub use cmdline::cmdline;
 pub use framebuffer::framebuffer;
-use hyperion_boot_interface::{provide_boot, Bootloader, Cpu, FramebufferCreateInfo};
+use hyperion_boot_interface::{kernel_main, provide_boot, Bootloader, Cpu, FramebufferCreateInfo};
 pub use kernel::kernel_file;
 pub use mem::{memmap, stack};
 pub use rsdp::rsdp;
 pub use term::_print;
 
 use super::args;
-use crate::kernel_main;
 
 //
 
@@ -29,7 +28,7 @@ pub extern "C" fn _start() -> ! {
     provide_boot(&LimineBoot);
     args::get().apply();
 
-    kernel_main()
+    unsafe { kernel_main() }
 }
 
 struct LimineBoot;
