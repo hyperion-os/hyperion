@@ -1,4 +1,4 @@
-use hyperion_log::LogLevel;
+use hyperion_log::{debug, LogLevel};
 use spin::Lazy;
 
 //
@@ -77,9 +77,11 @@ impl Arguments {
 
     pub fn get() -> Self {
         static ARGUMENTS: Lazy<Arguments> = Lazy::new(|| {
-            crate::cmdline()
+            let new = crate::cmdline()
                 .map(Arguments/*Self doesn't work??*/::parse)
-                .unwrap_or_default()
+                .unwrap_or_default();
+            debug!("Cmdline: {new:?}");
+            new
         });
         *ARGUMENTS
     }

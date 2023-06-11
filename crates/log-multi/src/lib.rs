@@ -5,12 +5,16 @@
 use core::fmt::Arguments;
 
 use crossbeam::atomic::AtomicCell;
-use hyperion_log::{set_logger, LogLevel, Logger};
+use hyperion_boot::args;
+use hyperion_log::{println, set_logger, LogLevel, Logger};
 
 //
 
 pub fn init_logger() {
     set_logger(&MULTI_LOGGER);
+    let args = args::get();
+    set_qemu(args.serial_log_level);
+    set_fbo(args.video_log_level);
 }
 
 pub fn set_qemu(level: LogLevel) {
@@ -25,7 +29,7 @@ pub fn set_fbo(level: LogLevel) {
 
 static MULTI_LOGGER: MultiLogger = MultiLogger {
     qemu: AtomicCell::new(LogLevel::Debug),
-    fbo: AtomicCell::new(LogLevel::Debug),
+    fbo: AtomicCell::new(LogLevel::None),
 };
 
 //
@@ -46,5 +50,6 @@ impl Logger for MultiLogger {
 
     fn print(&self, _level: LogLevel, args: Arguments) {
         hyperion_driver_qemu::_print(args);
+        // TODO: bring back fbo logging
     }
 }

@@ -19,17 +19,19 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     ()          => {
-        $crate::_print($crate::LogLevel::Info, format_args!("\n"))
+        $crate::print!("\n")
     };
     ($($t:tt)*) => {
-        $crate::_print($crate::LogLevel::Info, format_args!("{}\n", format_args!($($t)*)))
+        $crate::print!("{}\n", format_args!($($t)*))
     };
 }
 
 #[macro_export]
 macro_rules! log {
     ($level:expr, $($t:tt)*) => {
-        $crate::_print_log($level, module_path!(), format_args!("{}\n", format_args!($($t)*)))
+        if $crate::_is_enabled($level) {
+            $crate::_print_log($level, module_path!(), format_args!("{}\n", format_args!($($t)*)))
+        }
     };
 }
 
@@ -156,6 +158,10 @@ pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
     }
     .with_reset(false);
     _print_log_custom(level, pre, module, args)
+}
+
+pub fn _is_enabled(level: LogLevel) -> bool {
+    LOGGER.read().is_enabled(level)
 }
 
 //
