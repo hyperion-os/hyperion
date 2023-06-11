@@ -225,6 +225,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-driver-ps2"
+version = "0.1.0"
+dependencies = [
+ "hyperion-driver-acpi",
+ "hyperion-interrupts",
+ "hyperion-keyboard",
+ "hyperion-log",
+ "pc-keyboard",
+ "spin",
+ "x86_64",
+]
+
+[[package]]
 name = "hyperion-driver-qemu"
 version = "0.1.0"
 dependencies = [
@@ -254,6 +267,7 @@ dependencies = [
  "hyperion-driver-acpi",
  "hyperion-driver-pic",
  "hyperion-driver-pit",
+ "hyperion-driver-ps2",
  "hyperion-driver-rtc",
  "hyperion-vfs",
 ]
@@ -391,8 +405,10 @@ name = "hyperion-log-multi"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
+ "hyperion-boot",
  "hyperion-driver-qemu",
  "hyperion-log",
+ "spin",
 ]
 
 [[package]]

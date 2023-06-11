@@ -1,11 +1,32 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use hyperion_driver_acpi::ioapic::IoApic;
 use hyperion_keyboard::provide_keyboard_event;
+use hyperion_log::debug;
 use pc_keyboard::{
     layouts::{AnyLayout, DVP104Key, De105Key, Dvorak104Key, Uk105Key, Us104Key},
     DecodedKey, HandleControl, KeyCode, KeyEvent, Keyboard, ScancodeSet1,
 };
 use spin::Mutex;
+use x86_64::instructions::port::Port;
+
+//
+
+pub fn init() {
+    static KB_ONCE: AtomicBool = AtomicBool::new(true);
+    if KB_ONCE.swap(false, Ordering::SeqCst) {
+        // code after every CPU and APIC has been initialized
+        if let Some(mut io_apic) = IoApic::any() {
+            hyperion_interrupts::set_interrupt_handler(33, || {
+                let scancode: u8 = unsafe { Port::new(0x60).read() };
+                process(scancode);
+            });
+
+            io_apic.set_irq_any(1, 33);
+            debug!("keyboard initialized");
+        }
+    }
+}
 
 //
 
@@ -21,8 +42,7 @@ pub fn process(scancode: u8) -> Option<char> {
         .and_then(|key| match key {
             DecodedKey::Unicode(ch) => Some(ch),
             DecodedKey::RawKey(KeyCode::Home) => {
-                DEBUG_KEY.store(true, Ordering::SeqCst);
-                None
+                panic!("Panic key")
             }
             DecodedKey::RawKey(_key) => None,
         })

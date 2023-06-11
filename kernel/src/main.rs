@@ -20,21 +20,14 @@
 
 //
 
-use core::sync::atomic::{AtomicBool, Ordering};
-
 use chrono::Duration;
 use futures_util::StreamExt;
-use hyperion_boot::{args, hhdm_offset, phys_addr, stack, virt_addr};
 use hyperion_boot_interface::{boot, Cpu};
 use hyperion_color::Color;
-use hyperion_drivers::acpi::ioapic::IoApic;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::{debug, warn};
-use hyperion_mem::from_higher_half;
-use hyperion_num_postfix::NumberPostfix;
 use hyperion_scheduler::timer::ticks;
-use x86_64::{instructions::port::Port, VirtAddr};
 
 use self::arch::rng_seed;
 
@@ -45,7 +38,6 @@ extern crate alloc;
 #[path = "./arch/x86_64/mod.rs"]
 pub mod arch;
 pub mod backtrace;
-pub mod driver;
 pub mod panic;
 #[cfg(test)]
 pub mod testfw;
@@ -61,21 +53,6 @@ fn kernel_main() -> ! {
     arch::early_boot_cpu();
 
     hyperion_drivers::lazy_install();
-
-    debug!("Cmdline: {:?}", args::get());
-
-    debug!(
-        "Kernel addr: {:?} ({}B), {:?} ({}B), ",
-        virt_addr(),
-        virt_addr().postfix_binary(),
-        phys_addr(),
-        phys_addr().postfix_binary(),
-    );
-    debug!("HHDM Offset: {:#0X?}", hhdm_offset());
-    debug!(
-        "Kernel Stack: {:#0X?}",
-        from_higher_half(VirtAddr::new(stack().start as u64))
-    );
 
     debug!("{NAME} {VERSION} was booted with {}", boot().name());
 
@@ -94,24 +71,6 @@ fn smp_main(cpu: Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
     arch::early_per_cpu(&cpu);
-
-    static KB_ONCE: AtomicBool = AtomicBool::new(true);
-    if KB_ONCE.swap(false, Ordering::SeqCst) {
-        // code after every CPU and APIC has been initialized
-        if let Some(mut io_apic) = IoApic::any() {
-            hyperion_interrupts::set_interrupt_handler(33, || {
-                let scancode: u8 = unsafe { Port::new(0x60).read() };
-                driver::ps2::keyboard::process(scancode);
-
-                /* if driver::ps2::keyboard::debug_key() {
-                    unsafe { backtrace::print_backtrace_from(f.stack_pointer) };
-                } */
-            });
-
-            io_apic.set_irq_any(1, 33);
-            debug!("keyboard initialized");
-        }
-    }
 
     hyperion_scheduler::run_tasks();
 }
