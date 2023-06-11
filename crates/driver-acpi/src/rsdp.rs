@@ -6,7 +6,6 @@
 
 use core::str::Utf8Error;
 
-use hyperion_boot_interface::boot;
 use hyperion_log::debug;
 use hyperion_static_str::StaticStr;
 use spin::Lazy;
@@ -50,7 +49,7 @@ impl Rsdp {
     }
 
     pub fn try_init() -> Result<Self, RsdpError> {
-        let rsdp = boot().rsdp().ok_or(RsdpError::NoRsdp)?;
+        let rsdp = hyperion_boot::rsdp().ok_or(RsdpError::NoRsdp)?;
 
         let mut unpacker = unsafe { StructUnpacker::from(rsdp as *const RawRsdpDescriptor) };
 

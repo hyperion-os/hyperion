@@ -1,4 +1,4 @@
-use hyperion_boot_interface::{boot, Cpu};
+use hyperion_boot_interface::Cpu;
 use hyperion_log::{debug, error};
 use spin::{Barrier, Once};
 use x86_64::instructions::random::RdRand;
@@ -14,7 +14,7 @@ pub mod vmm;
 pub fn early_boot_cpu() {
     int::disable();
 
-    cpu::init(&Cpu::new_boot());
+    cpu::init(&hyperion_boot::boot_cpu());
 
     // TODO: enable PICS
 
@@ -25,7 +25,7 @@ pub fn early_boot_cpu() {
 pub fn early_per_cpu(cpu: &Cpu) {
     int::disable();
 
-    let cpus = boot().cpu_count();
+    let cpus = hyperion_boot::cpu_count();
 
     macro_rules! barrier {
         ($print:expr, $name:ident) => {

@@ -3,17 +3,15 @@ use spin::Lazy;
 
 //
 
-pub fn rsdp() -> *const () {
+pub fn rsdp() -> Option<*const ()> {
     static RSDP_REQ: LimineRsdpRequest = LimineRsdpRequest::new(0);
-    static RSDP_DESC: Lazy<usize> = Lazy::new(|| {
-        let rsdp = RSDP_REQ
+    static RSDP_DESC: Lazy<Option<usize>> = Lazy::new(|| {
+        RSDP_REQ
             .get_response()
             .get()
             .and_then(|rsdp| rsdp.address.as_ptr())
-            .expect("RSDP data should be readable");
-
-        rsdp as _
+            .map(|ptr| ptr as usize)
     });
 
-    *RSDP_DESC as *const ()
+    (*RSDP_DESC).map(|ptr| ptr as *const ())
 }

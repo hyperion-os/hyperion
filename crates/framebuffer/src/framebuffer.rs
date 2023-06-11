@@ -3,7 +3,7 @@ use core::{
     ops::{Deref, DerefMut, Range},
 };
 
-use hyperion_boot_interface::{boot, FramebufferCreateInfo};
+use hyperion_boot_interface::FramebufferCreateInfo;
 use hyperion_color::Color;
 use spin::{Mutex, Once};
 
@@ -50,7 +50,7 @@ impl Framebuffer {
                 width,
                 height,
                 pitch,
-            } = boot().framebuffer()?;
+            } = hyperion_boot::framebuffer()?;
             let mut fbo = Framebuffer::new(
                 buf,
                 FramebufferInfo {

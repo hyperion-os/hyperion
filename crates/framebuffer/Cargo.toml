@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 spin.workspace = true
 
+hyperion-boot.path = "../boot"
 hyperion-boot-interface.path = "../boot-interface"
 hyperion-color.path = "../color"
 hyperion-escape.path = "../escape"

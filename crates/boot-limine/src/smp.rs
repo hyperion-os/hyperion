@@ -6,7 +6,7 @@ use spin::Lazy;
 
 //
 
-pub fn init(dest: fn(Cpu) -> !) -> ! {
+pub fn smp_init(dest: fn(Cpu) -> !) -> ! {
     SMP_DEST.store(dest);
 
     let boot = boot_cpu();

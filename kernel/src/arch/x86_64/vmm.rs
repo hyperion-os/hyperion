@@ -1,4 +1,3 @@
-use hyperion_boot_interface::boot;
 use hyperion_mem::{pmm, to_higher_half, vmm::PageMapImpl};
 use spin::RwLock;
 use x86_64::{
@@ -27,7 +26,8 @@ impl PageMapImpl for PageMap {
         let table: *mut PageTable = virt.as_mut_ptr();
         let table = unsafe { &mut *table };
 
-        let offs = unsafe { OffsetPageTable::new(table, VirtAddr::new(boot().hhdm_offset())) };
+        let offs =
+            unsafe { OffsetPageTable::new(table, VirtAddr::new(hyperion_boot::hhdm_offset())) };
 
         Self { offs: offs.into() }
     }

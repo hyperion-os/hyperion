@@ -189,6 +189,7 @@ dependencies = [
  "bit_field",
  "chrono",
  "hyperion-atomic-map",
+ "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-clock",
  "hyperion-driver-pic",
@@ -283,6 +284,7 @@ dependencies = [
 name = "hyperion-framebuffer"
 version = "0.1.0"
 dependencies = [
+ "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-color",
  "hyperion-escape",

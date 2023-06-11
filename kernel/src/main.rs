@@ -22,7 +22,7 @@
 
 use chrono::Duration;
 use futures_util::StreamExt;
-use hyperion_boot_interface::{boot, Cpu};
+use hyperion_boot_interface::Cpu;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
@@ -54,7 +54,7 @@ fn kernel_main() -> ! {
 
     hyperion_drivers::lazy_install();
 
-    debug!("{NAME} {VERSION} was booted with {}", boot().name());
+    debug!("{NAME} {VERSION} was booted with {}", hyperion_boot::NAME);
 
     #[cfg(test)]
     test_main();
@@ -64,7 +64,7 @@ fn kernel_main() -> ! {
     hyperion_scheduler::spawn(spinner());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
-    boot().smp_init(smp_main);
+    hyperion_boot::smp_init(smp_main);
 }
 
 fn smp_main(cpu: Cpu) -> ! {

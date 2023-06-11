@@ -1,9 +1,5 @@
 use core::fmt::{self, Display, Formatter};
 
-
-
-use crate::loader::boot;
-
 //
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,10 +9,6 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new_boot() -> Self {
-        boot().bsp()
-    }
-
     pub const fn new(processor_id: u32, local_apic_id: u32) -> Self {
         Self {
             processor_id,
