@@ -1,12 +1,8 @@
 use crossbeam::atomic::AtomicCell;
+use hyperion_boot_interface::smp::Cpu;
 use hyperion_log::{debug, error};
 use limine::{LimineSmpInfo, LimineSmpRequest};
 use spin::Lazy;
-
-use crate::{
-    smp::{Cpu, CPU_COUNT},
-    smp_main,
-};
 
 //
 
@@ -15,7 +11,6 @@ pub fn init(dest: fn(Cpu) -> !) -> ! {
 
     let boot = boot_cpu();
 
-    let mut cpu_count = 1usize;
     for cpu in REQ
         .get_response()
         .get_mut()
@@ -23,13 +18,14 @@ pub fn init(dest: fn(Cpu) -> !) -> ! {
         .flat_map(|resp| resp.cpus().iter_mut())
         .filter(|cpu| boot.processor_id != cpu.processor_id)
     {
-        cpu_count += 1;
         cpu.goto_address = smp_start;
     }
 
-    CPU_COUNT.call_once(|| cpu_count);
-
     dest(boot);
+}
+
+pub fn cpu_count() -> usize {
+    REQ.get_response().get_mut().unwrap().cpu_count as usize
 }
 
 pub fn boot_cpu() -> Cpu {

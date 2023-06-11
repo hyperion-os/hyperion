@@ -1,5 +1,7 @@
 use core::fmt::{self, Display, Formatter};
 
+use spin::Lazy;
+
 use crate::loader::boot;
 
 //

@@ -32,6 +32,8 @@ pub trait Bootloader {
 
     /// bootstrap processor
     fn bsp(&self) -> Cpu;
+
+    fn cpu_count(&self) -> usize;
 }
 
 pub struct NopBootloader;
@@ -61,6 +63,10 @@ impl Bootloader for NopBootloader {
 
     fn bsp(&self) -> Cpu {
         todo!()
+    }
+
+    fn cpu_count(&self) -> usize {
+        1
     }
 }
 
