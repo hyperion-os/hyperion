@@ -2,7 +2,7 @@
 //!
 //! https://wiki.osdev.org/HPET
 
-use alloc::{boxed::Box, collections::BinaryHeap};
+use alloc::{collections::BinaryHeap};
 use core::{
     cmp::Reverse,
     ops::{Deref, DerefMut},

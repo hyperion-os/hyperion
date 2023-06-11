@@ -21,7 +21,7 @@
 
 //
 
-use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::Duration;
 use futures_util::StreamExt;
@@ -37,7 +37,7 @@ use x86_64::{instructions::port::Port, VirtAddr};
 
 use self::arch::rng_seed;
 use crate::{
-    driver::acpi::{hpet::HPET, ioapic::IoApic},
+    driver::acpi::{ioapic::IoApic},
     mem::from_higher_half,
 };
 

@@ -6,10 +6,9 @@ use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
+use hyperion_log::{print, println};
 use spin::Once;
 use x86_64::instructions::port::Port;
-
-use crate::{log, print, println};
 
 //
 
@@ -46,7 +45,6 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
 pub fn test_runner(tests: &'static [&'static dyn TestCase]) {
     TESTS.call_once(|| tests);
 
-    log::set_log_level(log::LogLevel::None);
     println!("Running {} tests", tests.len());
     run_tests();
 

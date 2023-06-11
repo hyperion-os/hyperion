@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+
 
 use hyperion_clock::ClockSource;
 use spin::{Lazy, Mutex};
@@ -109,7 +109,7 @@ impl ClockSource for Pit {
         todo!()
     }
 
-    fn trigger_interrupt_at(&self, deadline: u64) {
+    fn trigger_interrupt_at(&self, _deadline: u64) {
         todo!()
     }
 

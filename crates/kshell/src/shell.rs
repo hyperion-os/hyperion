@@ -13,10 +13,6 @@ use snafu::ResultExt;
 use spin::Mutex;
 
 use super::{term::Term, *};
-/* use crate::{
-    driver::ps2::keyboard::set_layout, mem::pmm::PageFrameAllocator, scheduler::timer::sleep,
-    util::fmt::NumberPostfix, KERNEL_BUILD_REV, KERNEL_BUILD_TIME, KERNEL_NAME, KERNEL_VERSION,
-}; */
 
 //
 

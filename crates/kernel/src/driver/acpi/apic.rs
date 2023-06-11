@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+
 
 use hyperion_atomic_map::AtomicMap;
 use hyperion_clock::CLOCK_SOURCE;
@@ -7,7 +7,7 @@ use hyperion_log::trace;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use super::{ReadOnly, ReadWrite, Reserved, WriteOnly};
-use crate::driver::{acpi::madt::MADT, pit::PIT};
+use crate::driver::{acpi::madt::MADT};
 
 //
 

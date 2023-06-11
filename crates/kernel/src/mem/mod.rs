@@ -5,7 +5,7 @@ use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
 use self::slab::SlabAllocator;
-use crate::boot;
+
 
 //
 

@@ -7,7 +7,7 @@ use core::{
     fmt,
     ptr::NonNull,
     slice,
-    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use hyperion_bitmap::Bitmap;
@@ -19,7 +19,7 @@ use spin::{Lazy, Mutex};
 use x86_64::{align_up, PhysAddr, VirtAddr};
 
 use super::{from_higher_half, to_higher_half};
-use crate::boot;
+
 
 //
 
@@ -124,7 +124,7 @@ impl PageFrameAllocator {
         let page_data: &mut [u8] = unsafe {
             slice::from_raw_parts_mut(
                 to_higher_half(addr).as_mut_ptr(),
-                count * PAGE_SIZE as usize,
+                count * PAGE_SIZE,
             )
         };
 
@@ -259,7 +259,7 @@ impl PageFrameAllocator {
 
 unsafe impl Allocator for PageFrameAllocator {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
-        let frame = self.alloc(layout.size() / PAGE_SIZE as usize);
+        let frame = self.alloc(layout.size() / PAGE_SIZE);
 
         NonNull::new(to_higher_half(frame.physical_addr()).as_mut_ptr())
             .map(|first| NonNull::slice_from_raw_parts(first, frame.byte_len()))
@@ -269,7 +269,7 @@ unsafe impl Allocator for PageFrameAllocator {
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
         self.free(PageFrame {
             first: from_higher_half(VirtAddr::new(ptr.as_ptr() as u64)),
-            count: layout.size() / PAGE_SIZE as usize,
+            count: layout.size() / PAGE_SIZE,
         })
     }
 }
@@ -336,7 +336,7 @@ impl PageFrame {
 
     /// number of bytes
     pub fn byte_len(&self) -> usize {
-        self.count * PAGE_SIZE as usize
+        self.count * PAGE_SIZE
     }
 
     pub fn as_mut_slice<T>(&mut self) -> &mut [T] {
