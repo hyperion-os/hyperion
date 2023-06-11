@@ -1,3 +1,8 @@
+#![no_std]
+#![feature(cfg_target_has_atomic)]
+
+//
+
 use core::{
     mem,
     sync::atomic::{AtomicU8, Ordering},

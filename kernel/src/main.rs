@@ -10,7 +10,6 @@
     pointer_is_aligned,
     int_roundings,
     array_chunks,
-    cfg_target_has_atomic,
     core_intrinsics,
     custom_test_frameworks,
     panic_can_unwind,

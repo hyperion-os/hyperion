@@ -21,7 +21,6 @@ pub fn early_boot_cpu() {
 
     {
         let pics = &*driver::pic::PICS;
-        driver::rtc::RTC.now();
 
         pics.lock().enable();
     }
