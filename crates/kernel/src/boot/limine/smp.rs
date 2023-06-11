@@ -1,3 +1,4 @@
+use crossbeam::atomic::AtomicCell;
 use hyperion_log::{debug, error};
 use limine::{LimineSmpInfo, LimineSmpRequest};
 use spin::Lazy;
@@ -9,7 +10,9 @@ use crate::{
 
 //
 
-pub fn init() -> Cpu {
+pub fn init(dest: fn(Cpu) -> !) -> ! {
+    SMP_DEST.store(dest);
+
     let boot = boot_cpu();
 
     let mut cpu_count = 1usize;
@@ -26,7 +29,7 @@ pub fn init() -> Cpu {
 
     CPU_COUNT.call_once(|| cpu_count);
 
-    boot
+    dest(boot);
 }
 
 pub fn boot_cpu() -> Cpu {
@@ -56,7 +59,7 @@ pub fn boot_cpu() -> Cpu {
 
 extern "C" fn smp_start(info: *const LimineSmpInfo) -> ! {
     let info = unsafe { &*info };
-    smp_main(Cpu::from(info));
+    SMP_DEST.load()(Cpu::from(info));
 }
 
 //
@@ -69,4 +72,5 @@ impl From<&LimineSmpInfo> for Cpu {
 
 //
 
+static SMP_DEST: AtomicCell<fn(Cpu) -> !> = AtomicCell::new(|_| unreachable!());
 static REQ: LimineSmpRequest = LimineSmpRequest::new(0);

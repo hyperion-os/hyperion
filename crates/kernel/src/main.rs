@@ -5,7 +5,6 @@
 //
 #![feature(
     const_option,
-    abi_x86_interrupt,
     allocator_api,
     pointer_is_aligned,
     int_roundings,
@@ -44,8 +43,6 @@ extern crate alloc;
 
 //
 
-#[path = "arch/x86_64/mod.rs"]
-pub mod arch;
 pub mod backtrace;
 pub mod boot;
 pub mod driver;

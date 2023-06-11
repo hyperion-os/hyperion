@@ -1,9 +1,6 @@
 use core::fmt::{self, Display, Formatter};
 
-use hyperion_log::debug;
-use spin::Once;
-
-use crate::boot;
+use crate::loader::boot;
 
 //
 
@@ -15,7 +12,7 @@ pub struct Cpu {
 
 impl Cpu {
     pub fn new_boot() -> Self {
-        boot::boot_cpu()
+        boot().bsp()
     }
 
     pub const fn new(processor_id: u32, local_apic_id: u32) -> Self {
