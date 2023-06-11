@@ -30,6 +30,7 @@ use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::{debug, warn};
+use hyperion_num_postfix::NumberPostfix;
 use hyperion_scheduler::timer::ticks;
 use x86_64::{instructions::port::Port, VirtAddr};
 
@@ -37,7 +38,6 @@ use self::arch::rng_seed;
 use crate::{
     driver::acpi::{hpet::HPET, ioapic::IoApic},
     mem::from_higher_half,
-    util::fmt::NumberPostfix,
 };
 
 extern crate alloc;

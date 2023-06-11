@@ -1,3 +1,7 @@
+#![no_std]
+
+//
+
 use core::{fmt, ops::DivAssign};
 
 //

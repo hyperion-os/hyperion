@@ -13,14 +13,12 @@ use core::{
 use hyperion_boot::memmap;
 use hyperion_boot_interface::Memmap;
 use hyperion_log::debug;
+use hyperion_num_postfix::NumberPostfix;
 use spin::{Lazy, Mutex};
 use x86_64::{align_up, PhysAddr, VirtAddr};
 
 use super::{from_higher_half, to_higher_half};
-use crate::{
-    boot,
-    util::{bitmap::Bitmap, fmt::NumberPostfix},
-};
+use crate::{boot, util::bitmap::Bitmap};
 
 //
 

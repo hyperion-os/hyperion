@@ -277,6 +277,7 @@ dependencies = [
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",
+ "hyperion-num-postfix",
  "hyperion-scheduler",
  "hyperion-static-str",
  "hyperion-timer",

@@ -51,6 +51,7 @@ hyperion-scheduler.path = "../scheduler"
 hyperion-static-str.path = "../static-str"
 hyperion-timer.path = "../timer"
 hyperion-vfs.path = "../vfs"
+hyperion-num-postfix.path = "../num-postfix"
 hyperion-macros.path = "../macros"
 
 # [dependencies.crossbeam-queue]
