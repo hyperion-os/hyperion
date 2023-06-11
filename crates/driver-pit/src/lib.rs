@@ -1,5 +1,9 @@
+#![no_std]
+
+//
+
 use hyperion_clock::ClockSource;
-use hyperion_drivers::pic::PICS;
+use hyperion_driver_pic::PICS;
 use spin::{Lazy, Mutex};
 use x86_64::instructions::port::Port;
 

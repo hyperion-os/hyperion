@@ -1,13 +1,13 @@
 [package]
-name = "hyperion-drivers"
+name = "hyperion-driver-pit"
 version.workspace = true
 edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+spin.workspace = true
+x86_64.workspace = true
+
 hyperion-clock.path = "../clock"
 hyperion-driver-pic.path = "../driver-pic"
-hyperion-driver-pit.path = "../driver-pit"
-hyperion-driver-rtc.path = "../driver-rtc"
-hyperion-vfs.path = "../vfs"

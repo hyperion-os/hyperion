@@ -3,7 +3,6 @@ use self::acpi::hpet::{HpetDevice, HPET};
 //
 
 pub mod acpi;
-pub mod pit;
 pub mod ps2;
 
 //

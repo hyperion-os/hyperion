@@ -193,6 +193,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-driver-pit"
+version = "0.1.0"
+dependencies = [
+ "hyperion-clock",
+ "hyperion-driver-pic",
+ "spin",
+ "x86_64",
+]
+
+[[package]]
 name = "hyperion-driver-qemu"
 version = "0.1.0"
 dependencies = [
@@ -218,8 +228,11 @@ dependencies = [
 name = "hyperion-drivers"
 version = "0.1.0"
 dependencies = [
+ "hyperion-clock",
  "hyperion-driver-pic",
+ "hyperion-driver-pit",
  "hyperion-driver-rtc",
+ "hyperion-vfs",
 ]
 
 [[package]]
