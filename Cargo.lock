@@ -265,6 +265,7 @@ dependencies = [
  "hyperion-static-str",
  "hyperion-timer",
  "hyperion-vfs",
+ "hyperion-vfs-util",
  "paste",
  "pc-keyboard",
  "rustc-demangle",
@@ -397,6 +398,13 @@ dependencies = [
  "hyperion-log",
  "snafu",
  "spin",
+]
+
+[[package]]
+name = "hyperion-vfs-util"
+version = "0.1.0"
+dependencies = [
+ "hyperion-vfs",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
 //!
 //! https://wiki.osdev.org/HPET
 
-use alloc::{collections::BinaryHeap};
+use alloc::collections::BinaryHeap;
 use core::{
     cmp::Reverse,
     ops::{Deref, DerefMut},
@@ -16,11 +16,11 @@ use hyperion_clock::ClockSource;
 use hyperion_log::{debug, trace, warn};
 use hyperion_timer::provide_sleep_wake;
 use hyperion_vfs::{FileDevice, IoError, IoResult};
+use hyperion_vfs_util::slice_read;
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
 
 use super::{apic::ApicId, ioapic::IoApic, rsdt::RSDT, SdtError};
-use crate::util::slice_read::slice_read;
 
 //
 
