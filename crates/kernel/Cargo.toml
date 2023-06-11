@@ -34,6 +34,7 @@ snafu.workspace = true
 hyperion-atomic-map.path = "../atomic-map"
 hyperion-boot.path = "../boot"
 hyperion-boot-interface.path = "../boot-interface"
+hyperion-bitmap.path = "../bitmap"
 hyperion-checked.path = "../checked"
 hyperion-clock.path = "../clock"
 hyperion-color.path = "../color"

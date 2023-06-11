@@ -10,6 +10,7 @@ use core::{
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
+use hyperion_bitmap::Bitmap;
 use hyperion_boot::memmap;
 use hyperion_boot_interface::Memmap;
 use hyperion_log::debug;
@@ -18,7 +19,7 @@ use spin::{Lazy, Mutex};
 use x86_64::{align_up, PhysAddr, VirtAddr};
 
 use super::{from_higher_half, to_higher_half};
-use crate::{boot, util::bitmap::Bitmap};
+use crate::boot;
 
 //
 

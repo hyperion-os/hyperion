@@ -261,6 +261,7 @@ dependencies = [
  "elf",
  "futures-util",
  "hyperion-atomic-map",
+ "hyperion-bitmap",
  "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-checked",

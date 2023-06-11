@@ -1,3 +1,7 @@
+#![no_std]
+
+//
+
 #[derive(Debug, Default)]
 pub struct Bitmap<'a> {
     data: &'a mut [u8],
