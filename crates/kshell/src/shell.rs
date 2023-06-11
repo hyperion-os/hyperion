@@ -317,7 +317,7 @@ impl Shell {
         }
     }
 
-    fn kbl_cmd(&mut self, args: Option<&str>) -> Result<()> {
+    fn kbl_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         todo!();
         /* let name = args.unwrap_or("us");
         if set_layout(name).is_none() {

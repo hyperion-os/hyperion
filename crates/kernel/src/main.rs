@@ -138,3 +138,6 @@ async fn spinner() {
         fbo.fill(x, y, 50, 50, Color::new(r, g, b));
     }
 }
+
+#[lang = "eh_personality"]
+extern "C" fn eh_personality() {}

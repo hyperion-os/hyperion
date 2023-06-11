@@ -197,7 +197,7 @@ impl From<&Path> for Option<PathBuf> {
 mod tests {
     use super::Path;
 
-    #[test_case]
+    #[test]
     fn path_unsafe_test_2() {
         let path = "/some/path";
         let path: &Path = path.as_ref();

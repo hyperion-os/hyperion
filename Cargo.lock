@@ -129,25 +129,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
-name = "hyperion-arch"
-version = "0.1.0"
-dependencies = [
- "hyperion-arch-x86_64",
-]
-
-[[package]]
-name = "hyperion-arch-x86_64"
-version = "0.1.0"
-dependencies = [
- "hyperion-boot-interface",
- "hyperion-interrupts",
- "hyperion-log",
- "hyperion-macros",
- "spin",
- "x86_64",
-]
-
-[[package]]
 name = "hyperion-atomic-map"
 version = "0.1.0"
 
@@ -352,19 +333,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.18",
-]
-
-[[package]]
-name = "hyperion-mem"
-version = "0.1.0"
-dependencies = [
- "hyperion-bitmap",
- "hyperion-boot-interface",
- "hyperion-log",
- "hyperion-num-postfix",
- "spin",
- "volatile",
- "x86_64",
 ]
 
 [[package]]

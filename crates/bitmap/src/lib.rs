@@ -103,7 +103,7 @@ impl<'a> Bitmap<'a> {
 mod tests {
     use super::Bitmap;
 
-    #[test_case]
+    #[test]
     fn test_bitmap_iter_true() {
         let mut bitmap = [0; 10];
         let mut bitmap = Bitmap::new(&mut bitmap);
@@ -124,7 +124,7 @@ mod tests {
         assert_eq!(iter.next(), None);
     }
 
-    #[test_case]
+    #[test]
     fn test_bitmap_iter_false() {
         let mut bitmap = [0xFF; 10];
         let mut bitmap = Bitmap::new(&mut bitmap);

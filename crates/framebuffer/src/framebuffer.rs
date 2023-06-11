@@ -165,7 +165,7 @@ mod tests {
 
     //
 
-    #[test_case]
+    #[test]
     fn fbo_draw() {
         if let Some(fbo) = Framebuffer::get() {
             let mut fbo = fbo.lock();
