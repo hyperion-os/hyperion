@@ -1,6 +1,6 @@
 use core::slice;
 
-use hyperion_boot_interface::framebuffer::FramebufferCreateInfo;
+use hyperion_boot_interface::FramebufferCreateInfo;
 use limine::LimineFramebufferRequest;
 
 //

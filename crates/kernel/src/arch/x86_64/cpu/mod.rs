@@ -1,11 +1,11 @@
 use alloc::boxed::Box;
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use hyperion_boot_interface::Cpu;
 use hyperion_log::trace;
 use spin::Once;
 
 use self::{gdt::Gdt, idt::Idt, tss::Tss};
-use crate::smp::Cpu;
 
 //
 

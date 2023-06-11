@@ -1,18 +1,12 @@
 pub use addr::{hhdm_offset, phys_addr, virt_addr};
 pub use cmdline::cmdline;
 pub use framebuffer::framebuffer;
-use hyperion_boot_interface::{
-    framebuffer::FramebufferCreateInfo,
-    loader::{provide_boot, Bootloader},
-    smp::Cpu,
-};
+use hyperion_boot_interface::{provide_boot, Bootloader, Cpu, FramebufferCreateInfo};
 pub use kernel::kernel_file;
 pub use mem::{memmap, stack};
 pub use rsdp::rsdp;
-pub use smp::{boot_cpu, init as smp_init};
 pub use term::_print;
 
-use self::smp::cpu_count;
 use super::args;
 use crate::kernel_main;
 
@@ -62,10 +56,10 @@ impl Bootloader for LimineBoot {
     }
 
     fn smp_init(&self, dest: fn(Cpu) -> !) -> ! {
-        smp_init(dest)
+        smp::init(dest)
     }
 
     fn cpu_count(&self) -> usize {
-        cpu_count()
+        smp::cpu_count()
     }
 }

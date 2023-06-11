@@ -1,5 +1,5 @@
 use crossbeam::atomic::AtomicCell;
-use hyperion_boot_interface::smp::Cpu;
+use hyperion_boot_interface::Cpu;
 use hyperion_log::{debug, error};
 use limine::{LimineSmpInfo, LimineSmpRequest};
 use spin::Lazy;
@@ -38,7 +38,7 @@ pub fn boot_cpu() -> Cpu {
                 resp.cpus()
                     .iter_mut()
                     .find(move |cpu| bsp_lapic_id == cpu.lapic_id)
-                    .map(|cpu| (&**cpu).into())
+                    .map(|cpu| Cpu::new(cpu.processor_id, cpu.lapic_id))
             })
             .unwrap_or_else(|| {
                 error!("Boot CPU not found");
@@ -55,15 +55,7 @@ pub fn boot_cpu() -> Cpu {
 
 extern "C" fn smp_start(info: *const LimineSmpInfo) -> ! {
     let info = unsafe { &*info };
-    SMP_DEST.load()(Cpu::from(info));
-}
-
-//
-
-impl From<&LimineSmpInfo> for Cpu {
-    fn from(value: &LimineSmpInfo) -> Self {
-        Self::new(value.processor_id, value.lapic_id)
-    }
+    SMP_DEST.load()(Cpu::new(info.processor_id, info.lapic_id));
 }
 
 //

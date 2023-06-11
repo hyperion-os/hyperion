@@ -5,6 +5,7 @@
 //
 #![feature(
     const_option,
+    abi_x86_interrupt,
     allocator_api,
     pointer_is_aligned,
     int_roundings,
@@ -23,7 +24,7 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use chrono::Duration;
 use futures_util::StreamExt;
-use hyperion_boot_interface::boot;
+use hyperion_boot_interface::{boot, Cpu};
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
@@ -35,7 +36,6 @@ use self::arch::rng_seed;
 use crate::{
     driver::acpi::{hpet::HPET, ioapic::IoApic},
     mem::from_higher_half,
-    smp::CPU_COUNT,
     util::fmt::NumberPostfix,
 };
 
@@ -43,12 +43,13 @@ extern crate alloc;
 
 //
 
+#[path = "./arch/x86_64/mod.rs"]
+pub mod arch;
 pub mod backtrace;
 pub mod boot;
 pub mod driver;
 pub mod mem;
 pub mod panic;
-pub mod smp;
 #[cfg(test)]
 pub mod testfw;
 pub mod util;
@@ -90,10 +91,10 @@ fn kernel_main() -> ! {
     hyperion_scheduler::spawn(spinner());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
-    smp::init()
+    boot().smp_init(smp_main);
 }
 
-fn smp_main(cpu: smp::Cpu) -> ! {
+fn smp_main(cpu: Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
     arch::early_per_cpu(&cpu);

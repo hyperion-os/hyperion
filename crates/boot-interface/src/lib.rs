@@ -2,6 +2,12 @@
 
 //
 
-pub mod framebuffer;
-pub mod loader;
-pub mod smp;
+pub use framebuffer::*;
+pub use loader::*;
+pub use smp::*;
+
+//
+
+mod framebuffer;
+mod loader;
+mod smp;

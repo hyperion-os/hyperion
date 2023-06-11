@@ -1,11 +1,9 @@
+use hyperion_boot_interface::{boot, Cpu};
 use hyperion_log::{debug, error};
 use spin::{Barrier, Once};
 use x86_64::instructions::random::RdRand;
 
-use crate::{
-    driver,
-    smp::{Cpu, CPU_COUNT},
-};
+use crate::driver;
 
 //
 
@@ -35,13 +33,15 @@ pub fn early_boot_cpu() {
 pub fn early_per_cpu(cpu: &Cpu) {
     int::disable();
 
+    let cpus = boot().cpu_count();
+
     macro_rules! barrier {
         ($print:expr, $name:ident) => {
             if $print {
                 debug!("waiting: {}", stringify!($name));
             }
             static $name: Once<Barrier> = Once::new();
-            $name.call_once(|| Barrier::new(*CPU_COUNT.wait())).wait();
+            $name.call_once(|| Barrier::new(cpus)).wait();
             if $print {
                 debug!("done waiting: {}", stringify!($name));
             }

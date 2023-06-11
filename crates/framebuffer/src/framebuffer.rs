@@ -3,7 +3,7 @@ use core::{
     ops::{Deref, DerefMut, Range},
 };
 
-use hyperion_boot_interface::{framebuffer::FramebufferCreateInfo, loader::boot};
+use hyperion_boot_interface::{boot, FramebufferCreateInfo};
 use hyperion_color::Color;
 use spin::{Mutex, Once};
 

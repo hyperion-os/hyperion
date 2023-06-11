@@ -1,6 +1,6 @@
 use spin::Once;
 
-use crate::{framebuffer::FramebufferCreateInfo, smp::Cpu};
+use crate::{Cpu, FramebufferCreateInfo};
 
 //
 
