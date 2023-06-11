@@ -70,7 +70,7 @@ ${KERNEL}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 
 ${KERNEL_TESTING}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 	@echo -e "\n\033[32m--[[ building Hyperion-Testing ]]--\033[0m"
-	@${CARGO} test --no-run # first one prints human readable errors
+	@${CARGO} test --no-run ${CARGO_FLAGS} # first one prints human readable errors
 	${CARGO} test --no-run --message-format=json ${CARGO_FLAGS} | \
 		jq -r "select(.profile.test == true) | .filenames[]" | \
 		xargs -I % cp "%" ${KERNEL_TESTING}

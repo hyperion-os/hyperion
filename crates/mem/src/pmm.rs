@@ -20,7 +20,6 @@ use x86_64::{align_up, PhysAddr, VirtAddr};
 
 use super::{from_higher_half, to_higher_half};
 
-
 //
 
 pub static PFA: Lazy<PageFrameAllocator> = Lazy::new(PageFrameAllocator::init);
@@ -122,10 +121,7 @@ impl PageFrameAllocator {
 
         // SAFETY: TODO:
         let page_data: &mut [u8] = unsafe {
-            slice::from_raw_parts_mut(
-                to_higher_half(addr).as_mut_ptr(),
-                count * PAGE_SIZE,
-            )
+            slice::from_raw_parts_mut(to_higher_half(addr).as_mut_ptr(), count * PAGE_SIZE)
         };
 
         // fill the page with zeros
@@ -370,7 +366,7 @@ impl PageFrame {
 mod tests {
     use super::PageFrameAllocator;
 
-    #[test_case]
+    #[test]
     fn pfa_simple() {
         let pfa = PageFrameAllocator::get();
 
