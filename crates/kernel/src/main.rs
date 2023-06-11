@@ -13,7 +13,8 @@
     cfg_target_has_atomic,
     core_intrinsics,
     custom_test_frameworks,
-    panic_can_unwind
+    panic_can_unwind,
+    lang_items
 )]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
