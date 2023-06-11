@@ -1,10 +1,13 @@
 [package]
-name = "hyperion-drivers"
+name = "hyperion-driver-pic"
 version.workspace = true
 edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hyperion-driver-pic.path = "../driver-pic"
-hyperion-driver-rtc.path = "../driver-rtc"
+spin.workspace = true
+x86_64.workspace = true
+
+hyperion-log.path = "../log"
+hyperion-interrupts.path = "../interrupts"

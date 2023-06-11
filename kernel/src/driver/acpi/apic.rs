@@ -1,13 +1,10 @@
-
-
 use hyperion_atomic_map::AtomicMap;
 use hyperion_clock::CLOCK_SOURCE;
 use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use super::{ReadOnly, ReadWrite, Reserved, WriteOnly};
-use crate::driver::{acpi::madt::MADT};
+use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
 
 //
 

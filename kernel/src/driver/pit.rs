@@ -1,10 +1,7 @@
-
-
 use hyperion_clock::ClockSource;
+use hyperion_drivers::pic::PICS;
 use spin::{Lazy, Mutex};
 use x86_64::instructions::port::Port;
-
-use super::pic::PICS;
 
 //
 

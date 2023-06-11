@@ -1,3 +1,7 @@
+#![no_std]
+
+//
+
 use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::debug;
 use spin::{Lazy, Mutex};

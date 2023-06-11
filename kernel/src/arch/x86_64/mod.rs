@@ -20,7 +20,7 @@ pub fn early_boot_cpu() {
     cpu::init(&Cpu::new_boot());
 
     {
-        let pics = &*driver::pic::PICS;
+        let pics = &*hyperion_drivers::pic::PICS;
 
         pics.lock().enable();
     }

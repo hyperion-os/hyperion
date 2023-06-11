@@ -8,8 +8,7 @@ use core::mem;
 use hyperion_log::{trace, warn};
 use spin::Lazy;
 
-use super::{rsdt::RSDT, SdtError};
-use crate::driver::acpi::ioapic::IoApicInfo;
+use super::{ioapic::IoApicInfo, rsdt::RSDT, SdtError};
 
 //
 

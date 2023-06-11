@@ -183,6 +183,16 @@ name = "hyperion-defer"
 version = "0.1.0"
 
 [[package]]
+name = "hyperion-driver-pic"
+version = "0.1.0"
+dependencies = [
+ "hyperion-interrupts",
+ "hyperion-log",
+ "spin",
+ "x86_64",
+]
+
+[[package]]
 name = "hyperion-driver-qemu"
 version = "0.1.0"
 dependencies = [
@@ -208,6 +218,7 @@ dependencies = [
 name = "hyperion-drivers"
 version = "0.1.0"
 dependencies = [
+ "hyperion-driver-pic",
  "hyperion-driver-rtc",
 ]
 
