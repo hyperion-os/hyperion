@@ -1,3 +1,7 @@
+#![no_std]
+
+//
+
 pub struct Defer<F: FnOnce()> {
     f: Option<F>,
 }

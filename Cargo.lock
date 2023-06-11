@@ -180,6 +180,10 @@ name = "hyperion-color"
 version = "0.1.0"
 
 [[package]]
+name = "hyperion-defer"
+version = "0.1.0"
+
+[[package]]
 name = "hyperion-driver-qemu"
 version = "0.1.0"
 dependencies = [

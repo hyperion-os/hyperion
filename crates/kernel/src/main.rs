@@ -50,7 +50,6 @@ pub mod driver;
 pub mod panic;
 #[cfg(test)]
 pub mod testfw;
-pub mod util;
 
 //
 
