@@ -239,8 +239,6 @@ version = "0.1.0"
 dependencies = [
  "bit_field",
  "chrono",
- "crossbeam",
- "crossbeam-queue",
  "elf",
  "futures-util",
  "hyperion-atomic-map",
@@ -272,10 +270,7 @@ dependencies = [
  "pc-keyboard",
  "rustc-demangle",
  "smallvec",
- "snafu",
  "spin",
- "uart_16550",
- "volatile",
  "x86_64",
 ]
 
