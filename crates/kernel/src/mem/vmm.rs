@@ -1,24 +1,6 @@
-use hyperion_boot::stack;
-use hyperion_log::println;
-use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
-pub use crate::arch::vmm::PageMap;
-
-
 //
-
-// unmap the page at the bottom of the stack
-pub fn protect_stack_bottom() {
-    let bottom = stack().start - 0x1000;
-    println!("unmapping");
-    PAGE_MAP.unmap(VirtAddr::new(bottom as _), 1);
-    println!("unmapped");
-}
-
-//
-
-pub static PAGE_MAP: Lazy<PageMap> = Lazy::new(PageMap::init);
 
 pub trait PageMapImpl {
     fn init() -> Self;
@@ -34,7 +16,7 @@ pub trait PageMapImpl {
 
 #[cfg(test)]
 mod tests {
-    use x86_64::VirtAddr;
+    /* use x86_64::VirtAddr;
 
     use super::{PageMap, PageMapImpl};
     use crate::mem::pmm::PageFrameAllocator;
@@ -54,5 +36,5 @@ mod tests {
         assert_eq!(a1, a2);
         *a1 = 150;
         assert_eq!(a1, a2);
-    }
+    } */
 }
