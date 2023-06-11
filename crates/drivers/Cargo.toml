@@ -7,6 +7,7 @@ edition.workspace = true
 
 [dependencies]
 hyperion-clock.path = "../clock"
+hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-driver-pic.path = "../driver-pic"
 hyperion-driver-pit.path = "../driver-pit"
 hyperion-driver-rtc.path = "../driver-rtc"

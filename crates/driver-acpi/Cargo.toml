@@ -1,0 +1,25 @@
+[package]
+name = "hyperion-driver-acpi"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spin.workspace = true
+smallvec.workspace = true
+bit_field.workspace = true
+paste.workspace = true
+chrono.workspace = true
+x86_64.workspace = true
+
+hyperion-atomic-map.path = "../atomic-map"
+hyperion-boot-interface.path = "../boot-interface"
+hyperion-clock.path = "../clock"
+hyperion-driver-pic.path = "../driver-pic"
+hyperion-static-str.path = "../static-str"
+hyperion-interrupts.path = "../interrupts"
+hyperion-log.path = "../log"
+hyperion-timer.path = "../timer"
+hyperion-vfs.path = "../vfs"
+hyperion-vfs-util.path = "../vfs-util"

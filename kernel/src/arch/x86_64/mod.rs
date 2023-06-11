@@ -3,12 +3,9 @@ use hyperion_log::{debug, error};
 use spin::{Barrier, Once};
 use x86_64::instructions::random::RdRand;
 
-use crate::driver;
-
 //
 
 pub mod cpu;
-// pub mod mem;
 pub mod pmm;
 pub mod vmm;
 
@@ -19,11 +16,7 @@ pub fn early_boot_cpu() {
 
     cpu::init(&Cpu::new_boot());
 
-    {
-        let pics = &*hyperion_drivers::pic::PICS;
-
-        pics.lock().enable();
-    }
+    // TODO: enable PICS
 
     int::enable();
 }
@@ -51,7 +44,7 @@ pub fn early_per_cpu(cpu: &Cpu) {
 
     cpu::init(cpu);
 
-    driver::acpi::init();
+    hyperion_drivers::acpi::init();
 
     barrier!(cpu.is_boot(), POST_APIC);
 

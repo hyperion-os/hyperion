@@ -183,6 +183,28 @@ name = "hyperion-defer"
 version = "0.1.0"
 
 [[package]]
+name = "hyperion-driver-acpi"
+version = "0.1.0"
+dependencies = [
+ "bit_field",
+ "chrono",
+ "hyperion-atomic-map",
+ "hyperion-boot-interface",
+ "hyperion-clock",
+ "hyperion-driver-pic",
+ "hyperion-interrupts",
+ "hyperion-log",
+ "hyperion-static-str",
+ "hyperion-timer",
+ "hyperion-vfs",
+ "hyperion-vfs-util",
+ "paste",
+ "smallvec",
+ "spin",
+ "x86_64",
+]
+
+[[package]]
 name = "hyperion-driver-pic"
 version = "0.1.0"
 dependencies = [
@@ -229,6 +251,7 @@ name = "hyperion-drivers"
 version = "0.1.0"
 dependencies = [
  "hyperion-clock",
+ "hyperion-driver-acpi",
  "hyperion-driver-pic",
  "hyperion-driver-pit",
  "hyperion-driver-rtc",

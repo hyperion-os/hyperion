@@ -1,6 +1,13 @@
+#![no_std]
+#![feature(core_intrinsics)]
+
+//
+
+extern crate alloc;
+
 use core::{fmt, mem, ptr, slice, str::Utf8Error};
 
-use hyperion_drivers::pic::PICS;
+use hyperion_driver_pic::PICS;
 use hyperion_static_str::StaticStr;
 
 //

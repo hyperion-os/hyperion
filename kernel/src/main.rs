@@ -27,6 +27,7 @@ use futures_util::StreamExt;
 use hyperion_boot::{args, hhdm_offset, phys_addr, stack, virt_addr};
 use hyperion_boot_interface::{boot, Cpu};
 use hyperion_color::Color;
+use hyperion_drivers::acpi::ioapic::IoApic;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::{debug, warn};
@@ -36,7 +37,6 @@ use hyperion_scheduler::timer::ticks;
 use x86_64::{instructions::port::Port, VirtAddr};
 
 use self::arch::rng_seed;
-use crate::driver::acpi::ioapic::IoApic;
 
 extern crate alloc;
 
@@ -60,7 +60,7 @@ fn kernel_main() -> ! {
 
     arch::early_boot_cpu();
 
-    driver::lazy_install();
+    hyperion_drivers::lazy_install();
 
     debug!("Cmdline: {:?}", args::get());
 

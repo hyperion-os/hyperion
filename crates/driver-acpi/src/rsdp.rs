@@ -6,12 +6,13 @@
 
 use core::str::Utf8Error;
 
+use hyperion_boot_interface::boot;
 use hyperion_log::debug;
 use hyperion_static_str::StaticStr;
 use spin::Lazy;
 
 use super::{checksum_of, AcpiOem, AcpiVersion};
-use crate::driver::acpi::StructUnpacker;
+use crate::StructUnpacker;
 
 //
 
@@ -49,9 +50,7 @@ impl Rsdp {
     }
 
     pub fn try_init() -> Result<Self, RsdpError> {
-        let rsdp = hyperion_boot_interface::boot()
-            .rsdp()
-            .ok_or(RsdpError::NoRsdp)?;
+        let rsdp = boot().rsdp().ok_or(RsdpError::NoRsdp)?;
 
         let mut unpacker = unsafe { StructUnpacker::from(rsdp as *const RawRsdpDescriptor) };
 
