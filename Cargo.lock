@@ -302,6 +302,8 @@ dependencies = [
  "hyperion-kernel-info",
  "hyperion-log",
  "hyperion-log-multi",
+ "hyperion-mem",
+ "hyperion-num-postfix",
  "hyperion-scheduler",
  "hyperion-vfs",
  "snafu",

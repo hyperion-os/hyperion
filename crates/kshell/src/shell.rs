@@ -3,6 +3,8 @@ use core::fmt::Write;
 
 use chrono::{Duration, TimeZone, Utc};
 use hyperion_color::Color;
+use hyperion_mem::pmm::PageFrameAllocator;
+use hyperion_num_postfix::NumberPostfix;
 use hyperion_scheduler::timer::sleep;
 use hyperion_vfs::{
     self,
@@ -210,8 +212,7 @@ impl Shell {
     }
 
     fn mem_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        todo!();
-        /* let pfa = PageFrameAllocator::get();
+        let pfa = PageFrameAllocator::get();
         let used = pfa.used_mem();
         let usable = pfa.usable_mem();
         _ = writeln!(
@@ -220,7 +221,7 @@ impl Shell {
             usable.postfix_binary(),
             used.postfix_binary(),
             used as f64 / usable as f64 * 100.0
-        ); */
+        );
 
         Ok(())
     }
