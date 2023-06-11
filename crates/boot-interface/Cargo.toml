@@ -7,5 +7,3 @@ edition.workspace = true
 
 [dependencies]
 spin.workspace = true
-
-hyperion-log.path = "../log"

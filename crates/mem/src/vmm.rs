@@ -14,7 +14,7 @@ pub trait PageMapImpl {
 
 //
 
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
     /* use x86_64::VirtAddr;
 
@@ -37,4 +37,4 @@ mod tests {
         *a1 = 150;
         assert_eq!(a1, a2);
     } */
-}
+} */

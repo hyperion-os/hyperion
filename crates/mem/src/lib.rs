@@ -24,6 +24,7 @@ pub mod slab;
 
 //
 
+#[cfg(feature = "set-allocator")]
 pub fn force_init_allocator() {
     Lazy::force(&ALLOCATOR.slab);
 }
@@ -34,6 +35,7 @@ struct KAlloc {
     slab: Lazy<SlabAllocator>,
 }
 
+#[cfg(feature = "set-allocator")]
 #[global_allocator]
 static ALLOCATOR: KAlloc = KAlloc {
     slab: Lazy::new(SlabAllocator::new),

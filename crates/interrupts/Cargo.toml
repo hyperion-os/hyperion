@@ -8,5 +8,4 @@ edition.workspace = true
 [dependencies]
 crossbeam.workspace = true
 
-hyperion-log.path = "../log"
 hyperion-macros.path = "../macros"

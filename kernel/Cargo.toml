@@ -55,7 +55,10 @@ hyperion-vfs.path = "../crates/vfs"
 hyperion-vfs-util.path = "../crates/vfs-util"
 hyperion-num-postfix.path = "../crates/num-postfix"
 hyperion-macros.path = "../crates/macros"
-hyperion-mem.path = "../crates/mem"
+
+[dependencies.hyperion-mem]
+path = "../crates/mem"
+features = ["set-allocator"]
 
 # [dependencies.crossbeam-queue]
 # version = "0.3"

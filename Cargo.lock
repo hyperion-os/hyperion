@@ -149,7 +149,6 @@ dependencies = [
 name = "hyperion-boot-interface"
 version = "0.1.0"
 dependencies = [
- "hyperion-log",
  "spin",
 ]
 
@@ -231,7 +230,6 @@ name = "hyperion-interrupts"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
- "hyperion-log",
  "hyperion-macros",
 ]
 
@@ -368,15 +366,11 @@ dependencies = [
  "futures-util",
  "hyperion-clock",
  "hyperion-color",
- "hyperion-framebuffer",
  "hyperion-instant",
  "hyperion-int-safe-lazy",
  "hyperion-keyboard",
  "hyperion-log",
- "hyperion-log-multi",
  "hyperion-timer",
- "hyperion-vfs",
- "snafu",
  "spin",
 ]
 
