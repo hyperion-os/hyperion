@@ -27,6 +27,6 @@ fn panic_handler(info: &PanicInfo) -> ! {
 }
 
 fn panic_unwind(info: &PanicInfo) {
-    println!("Kernel CPU {info} {}", info.can_unwind());
+    println!("Kernel CPU {info}");
     backtrace::print_backtrace();
 }
