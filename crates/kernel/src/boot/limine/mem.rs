@@ -4,11 +4,10 @@ use core::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
+use hyperion_boot_interface::{Memmap, Memtype};
 use hyperion_log::trace;
 use limine::{LimineMemmapEntry, LimineMemmapRequest, LimineMemoryMapEntryType, NonNullPtr};
 use x86_64::PhysAddr;
-
-use crate::mem::map::{Memmap, Memtype};
 
 //
 
@@ -36,8 +35,8 @@ pub fn memmap() -> impl Iterator<Item = Memmap> {
         };
 
         Some(Memmap {
-            base: PhysAddr::new(memmap.base),
-            len: memmap.len,
+            base: memmap.base as _,
+            len: memmap.len as _,
             ty,
         })
     })

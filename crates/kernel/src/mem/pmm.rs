@@ -10,11 +10,12 @@ use core::{
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
+use hyperion_boot_interface::Memmap;
 use hyperion_log::debug;
 use spin::{Lazy, Mutex};
 use x86_64::{align_up, PhysAddr, VirtAddr};
 
-use super::{from_higher_half, map::Memmap, to_higher_half};
+use super::{from_higher_half, to_higher_half};
 use crate::{
     boot,
     util::{bitmap::Bitmap, fmt::NumberPostfix},
@@ -24,16 +25,16 @@ use crate::{
 
 pub static PFA: Lazy<PageFrameAllocator> = Lazy::new(PageFrameAllocator::init);
 
-const PAGE_SIZE: u64 = 2u64.pow(12); // 4KiB pages
+const PAGE_SIZE: usize = 2usize.pow(12); // 4KiB pages
 
 //
 
 pub struct PageFrameAllocator {
     // 1 bits are used pages
     bitmap: Mutex<Bitmap<'static>>,
-    usable: AtomicU64,
-    used: AtomicU64,
-    total: AtomicU64,
+    usable: AtomicUsize,
+    used: AtomicUsize,
+    total: AtomicUsize,
 
     last_alloc_index: AtomicUsize,
 }
@@ -52,27 +53,27 @@ impl PageFrameAllocator {
     }
 
     /// System total memory in bytes
-    pub fn total_mem(&self) -> u64 {
+    pub fn total_mem(&self) -> usize {
         self.total.load(Ordering::SeqCst)
     }
 
     /// System usable memory in bytes
-    pub fn usable_mem(&self) -> u64 {
+    pub fn usable_mem(&self) -> usize {
         self.usable.load(Ordering::SeqCst)
     }
 
     /// Currently used usable memory in bytes
-    pub fn used_mem(&self) -> u64 {
+    pub fn used_mem(&self) -> usize {
         self.used.load(Ordering::SeqCst)
     }
 
     /// Currently free usable memory in bytes
-    pub fn free_mem(&self) -> u64 {
+    pub fn free_mem(&self) -> usize {
         self.usable_mem() - self.used_mem()
     }
 
     /// Reserved memory in bytes
-    pub fn reserved_mem(&self) -> u64 {
+    pub fn reserved_mem(&self) -> usize {
         self.total_mem() - self.usable_mem()
     }
 
@@ -86,14 +87,14 @@ impl PageFrameAllocator {
         }
 
         let mut bitmap = self.bitmap.lock();
-        let page = (frame.first.as_u64() / PAGE_SIZE) as usize;
+        let page = frame.first.as_u64() as usize / PAGE_SIZE;
         // trace!("freeing pages first={page} count={}", frame.count);
         for page in page..page + frame.count {
             bitmap.set(page, false).unwrap();
         }
 
         self.used
-            .fetch_sub(frame.count as u64 * PAGE_SIZE, Ordering::SeqCst);
+            .fetch_sub(frame.count * PAGE_SIZE, Ordering::SeqCst);
     }
 
     /// Alloc pages
@@ -117,7 +118,7 @@ impl PageFrameAllocator {
 
         self.alloc_from(first_page + count);
 
-        let addr = PhysAddr::new(first_page as u64 * PAGE_SIZE);
+        let addr = PhysAddr::new((first_page * PAGE_SIZE) as u64);
 
         // SAFETY: TODO:
         let page_data: &mut [u8] = unsafe {
@@ -131,8 +132,7 @@ impl PageFrameAllocator {
         // trace!("Memzeroing {:?}", page_data.as_ptr_range());
         page_data.fill(0);
 
-        self.used
-            .fetch_add(count as u64 * PAGE_SIZE, Ordering::SeqCst);
+        self.used.fetch_add(count * PAGE_SIZE, Ordering::SeqCst);
 
         PageFrame { first: addr, count }
     }
@@ -179,13 +179,13 @@ impl PageFrameAllocator {
 
     fn init() -> Self {
         // usable system memory
-        let usable: u64 = boot::memmap()
+        let usable: usize = boot::memmap()
             .filter(Memmap::is_usable)
             .map(|Memmap { len, .. }| len)
             .sum();
 
         // total system memory
-        let total: u64 = boot::memmap().map(|Memmap { len, .. }| len).sum();
+        let total: usize = boot::memmap().map(|Memmap { len, .. }| len).sum();
 
         // the end of the usable physical memory address space
         let top = boot::memmap()
@@ -195,8 +195,8 @@ impl PageFrameAllocator {
             .expect("No memory");
 
         // size in bytes
-        let bitmap_size = align_up(top.as_u64() / PAGE_SIZE / 8, PAGE_SIZE);
-        let bitmap_data = boot::memmap()
+        let bitmap_size: usize = align_up((top / PAGE_SIZE / 8) as _, PAGE_SIZE as _) as _;
+        let bitmap_data: usize = boot::memmap()
             .filter(Memmap::is_usable)
             .find(|Memmap { len, .. }| *len >= bitmap_size)
             .expect("No place to store PageFrameAllocator bitmap")
@@ -204,7 +204,10 @@ impl PageFrameAllocator {
 
         // SAFETY: this bitmap is going to be initialized before it is read from
         let bitmap = unsafe {
-            slice::from_raw_parts_mut(to_higher_half(bitmap_data).as_mut_ptr(), bitmap_size as _)
+            slice::from_raw_parts_mut(
+                to_higher_half(PhysAddr::new(bitmap_data as _)).as_mut_ptr(),
+                bitmap_size as _,
+            )
         };
         let mut bitmap = Bitmap::new(bitmap);
         bitmap.fill(true); // initialized here
@@ -222,8 +225,8 @@ impl PageFrameAllocator {
                 len -= bitmap_size;
             }
 
-            let mut bottom = base.as_u64();
-            let mut top = base.as_u64() + len;
+            let mut bottom = base;
+            let mut top = base + len;
 
             debug!(
                 "Free pages: [ {:#018x?} ] ({}B)",

@@ -1,11 +1,9 @@
-use x86_64::PhysAddr;
-
-//
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Memmap {
-    pub base: PhysAddr,
-    pub len: u64,
+    /// physical address memory region base (bottom)
+    pub base: usize,
+    /// length of the memory region (top - bottom)
+    pub len: usize,
     pub ty: Memtype,
 }
 
@@ -84,17 +82,5 @@ impl Memtype {
     #[must_use]
     pub fn is_framebuffer(&self) -> bool {
         matches!(self, Self::Framebuffer)
-    }
-}
-
-//
-
-#[cfg(test)]
-mod tests {
-    use alloc::vec::Vec;
-
-    #[test_case]
-    fn test_alloc() {
-        core::hint::black_box((0..64).map(|i| i * 2).collect::<Vec<_>>());
     }
 }

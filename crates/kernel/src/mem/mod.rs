@@ -8,7 +8,6 @@ use crate::boot;
 
 //
 
-pub mod map;
 pub mod pmm;
 pub mod vmm;
 
