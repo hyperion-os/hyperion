@@ -1,4 +1,9 @@
-use std::{env::var, error::Error};
+use std::{
+    env::{self, var},
+    error::Error,
+    fs,
+    path::PathBuf,
+};
 
 //
 
@@ -27,7 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     set("multiboot2");
 
     if let Some(bootloader) = bootloader {
-        let script = format!("crates/kernel/src/boot/{bootloader}/link.ld");
+        let script = format!("crates/boot-{bootloader}/src/link.ld");
         println!("cargo:rustc-link-arg-bin={kernel}=--script={script}");
         println!("cargo:rerun-if-changed={script}");
     } else {

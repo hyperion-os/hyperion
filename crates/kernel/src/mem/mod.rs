@@ -1,5 +1,6 @@
 use core::alloc::{GlobalAlloc, Layout};
 
+use hyperion_boot::hhdm_offset;
 use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
@@ -59,7 +60,7 @@ macro_rules! debug_phys_addr {
 
 #[allow(unused)]
 pub fn is_higher_half(addr: u64) -> bool {
-    addr >= boot::hhdm_offset()
+    addr >= hhdm_offset()
 }
 
 #[allow(unused)]
@@ -68,7 +69,7 @@ pub fn to_higher_half(addr: PhysAddr) -> VirtAddr {
     if is_higher_half(addr) {
         VirtAddr::new(addr)
     } else {
-        VirtAddr::new(addr + boot::hhdm_offset())
+        VirtAddr::new(addr + hhdm_offset())
     }
 }
 
@@ -76,7 +77,7 @@ pub fn to_higher_half(addr: PhysAddr) -> VirtAddr {
 pub fn from_higher_half(addr: VirtAddr) -> PhysAddr {
     let addr = addr.as_u64();
     if is_higher_half(addr) {
-        PhysAddr::new(addr - boot::hhdm_offset())
+        PhysAddr::new(addr - hhdm_offset())
     } else {
         PhysAddr::new(addr)
     }

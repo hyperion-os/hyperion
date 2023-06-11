@@ -1,8 +1,6 @@
 use hyperion_log::LogLevel;
 use spin::Lazy;
 
-use crate::boot;
-
 //
 
 pub fn get() -> Arguments {
@@ -79,15 +77,10 @@ impl Arguments {
 
     pub fn get() -> Self {
         static ARGUMENTS: Lazy<Arguments> = Lazy::new(|| {
-            boot::cmdline()
+            crate::cmdline()
                 .map(Arguments/*Self doesn't work??*/::parse)
                 .unwrap_or_default()
         });
         *ARGUMENTS
-    }
-
-    pub fn apply(&self) {
-        hyperion_log_multi::set_fbo(self.video_log_level);
-        hyperion_log_multi::set_qemu(self.serial_log_level);
     }
 }

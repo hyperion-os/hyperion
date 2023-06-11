@@ -7,7 +7,7 @@ edition.workspace = true
 
 [features]
 default = ["limine"]
-limine = ["dep:limine"]
+limine = []
 bootboot = []
 multiboot1 = []
 multiboot2 = []
@@ -32,6 +32,7 @@ snafu.workspace = true
 
 # hyperion-arch.path = "../arch"
 hyperion-atomic-map.path = "../atomic-map"
+hyperion-boot.path = "../boot"
 hyperion-boot-interface.path = "../boot-interface"
 hyperion-checked.path = "../checked"
 hyperion-clock.path = "../clock"
@@ -61,10 +62,6 @@ hyperion-macros.path = "../macros"
 # version = "0.8"
 # default-features = false
 # features = ["alloc"]
-
-[dependencies.limine]
-version = "0.1"
-optional = true
 
 [build-dependencies]
 # adding crates here triggers a bug in cargo that makes the crossbeam force to use std somehow

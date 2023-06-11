@@ -35,7 +35,7 @@ TARGET_DIR       := target
 endif
 HYPER_DIR        := ${TARGET_DIR}/hyperion/${BOOTLOADER}/${ARCH}
 ARCH_DIR         := crates/kernel/src/arch/${ARCH}
-BOOT_DIR         := crates/kernel/src/boot
+BOOT_DIR         := crates/boot-${BOOTLOADER}/src
 CARGO_DIR        := ${TARGET_DIR}/${RUST_T_${ARCH}}/${PROFILE}
 ISO_DIR          := ${HYPER_DIR}/iso
 ISO_TESTING_DIR  := ${HYPER_DIR}/iso-testing
@@ -77,7 +77,7 @@ ${KERNEL_TESTING}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 	@touch ${KERNEL_TESTING}
 
 # ISO generation
-include ./${BOOT_DIR}/${BOOTLOADER}/Makefile
+include ./${BOOT_DIR}/Makefile
 
 # ISO running
 include ./qemu.mk

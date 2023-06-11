@@ -1,15 +1,14 @@
 use limine::{LimineHhdmRequest, LimineKernelAddressRequest, LimineKernelAddressResponse};
 use spin::Lazy;
-use x86_64::{PhysAddr, VirtAddr};
 
 //
 
-pub fn phys_addr() -> PhysAddr {
-    PhysAddr::new(KERNEL_ADDR.physical_base)
+pub fn phys_addr() -> usize {
+    KERNEL_ADDR.physical_base as _
 }
 
-pub fn virt_addr() -> VirtAddr {
-    VirtAddr::new(KERNEL_ADDR.virtual_base)
+pub fn virt_addr() -> usize {
+    KERNEL_ADDR.virtual_base as _
 }
 
 pub fn hhdm_offset() -> u64 {

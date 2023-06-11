@@ -3,16 +3,14 @@ use core::{arch::asm, ffi::c_void, ptr};
 use elf::{
     endian::AnyEndian, string_table::StringTable, symbol::SymbolTable, ElfBytes, ParseError,
 };
+use hyperion_boot::{kernel_file, virt_addr};
 use hyperion_escape::encode::EscapeEncoder;
 use hyperion_log::{println, LogLevel};
 use rustc_demangle::demangle;
 use spin::Lazy;
 use x86_64::VirtAddr;
 
-use crate::{
-    arch,
-    boot::{self, virt_addr},
-};
+use crate::arch;
 
 //
 
@@ -130,7 +128,7 @@ pub unsafe fn unwind_stack_from(ip: VirtAddr, mut f: impl FnMut(FrameInfo)) {
 
             let instr_ptr = _frame
                 .instr_ptr
-                .checked_sub(virt_addr().as_u64())
+                .checked_sub(virt_addr() as u64)
                 .and_then(|i| i.checked_add(kernel_base()))
                 .unwrap_or(_frame.instr_ptr);
             f(symbol_noerr(instr_ptr));
@@ -191,7 +189,7 @@ pub fn print_backtrace() {
 //
 
 static KERNEL_ELF: Lazy<BacktraceResult<ElfBytes<'static, AnyEndian>>> = Lazy::new(|| {
-    let bytes = boot::kernel_file().ok_or(BacktraceError::ElfNotLoaded)?;
+    let bytes = kernel_file().ok_or(BacktraceError::ElfNotLoaded)?;
     ElfBytes::minimal_parse(bytes).map_err(BacktraceError::ElfParse)
     // ElfBytes::minimal_parse(bytes)
     //     .ok()

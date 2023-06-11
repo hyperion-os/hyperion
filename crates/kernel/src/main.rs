@@ -24,6 +24,7 @@ use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use chrono::Duration;
 use futures_util::StreamExt;
+use hyperion_boot::{args, hhdm_offset, phys_addr, stack, virt_addr};
 use hyperion_boot_interface::{boot, Cpu};
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
@@ -46,7 +47,6 @@ extern crate alloc;
 #[path = "./arch/x86_64/mod.rs"]
 pub mod arch;
 pub mod backtrace;
-pub mod boot;
 pub mod driver;
 pub mod mem;
 pub mod panic;
@@ -66,19 +66,19 @@ fn kernel_main() -> ! {
 
     driver::lazy_install();
 
-    debug!("Cmdline: {:?}", boot::args::get());
+    debug!("Cmdline: {:?}", args::get());
 
     debug!(
         "Kernel addr: {:?} ({}B), {:?} ({}B), ",
-        boot::virt_addr(),
-        boot::virt_addr().as_u64().postfix_binary(),
-        boot::phys_addr(),
-        boot::phys_addr().as_u64().postfix_binary(),
+        virt_addr(),
+        virt_addr().postfix_binary(),
+        phys_addr(),
+        phys_addr().postfix_binary(),
     );
-    debug!("HHDM Offset: {:#0X?}", boot::hhdm_offset());
+    debug!("HHDM Offset: {:#0X?}", hhdm_offset());
     debug!(
         "Kernel Stack: {:#0X?}",
-        from_higher_half(VirtAddr::new(boot::stack().start as u64))
+        from_higher_half(VirtAddr::new(stack().start as u64))
     );
 
     debug!("{NAME} {VERSION} was booted with {}", boot().name());

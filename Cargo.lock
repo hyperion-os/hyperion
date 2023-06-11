@@ -156,10 +156,30 @@ name = "hyperion-bitmap"
 version = "0.1.0"
 
 [[package]]
+name = "hyperion-boot"
+version = "0.1.0"
+dependencies = [
+ "hyperion-boot-limine",
+ "hyperion-log",
+ "spin",
+]
+
+[[package]]
 name = "hyperion-boot-interface"
 version = "0.1.0"
 dependencies = [
  "hyperion-log",
+ "spin",
+]
+
+[[package]]
+name = "hyperion-boot-limine"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "hyperion-boot-interface",
+ "hyperion-log",
+ "limine",
  "spin",
 ]
 
@@ -241,6 +261,7 @@ dependencies = [
  "elf",
  "futures-util",
  "hyperion-atomic-map",
+ "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-checked",
  "hyperion-clock",
@@ -260,7 +281,6 @@ dependencies = [
  "hyperion-static-str",
  "hyperion-timer",
  "hyperion-vfs",
- "limine",
  "paste",
  "pc-keyboard",
  "rustc-demangle",

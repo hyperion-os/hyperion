@@ -7,7 +7,6 @@ use core::{
 use hyperion_boot_interface::{Memmap, Memtype};
 use hyperion_log::trace;
 use limine::{LimineMemmapEntry, LimineMemmapRequest, LimineMemoryMapEntryType, NonNullPtr};
-use x86_64::PhysAddr;
 
 //
 

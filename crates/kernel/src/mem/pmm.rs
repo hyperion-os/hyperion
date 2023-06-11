@@ -10,6 +10,7 @@ use core::{
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
+use hyperion_boot::memmap;
 use hyperion_boot_interface::Memmap;
 use hyperion_log::debug;
 use spin::{Lazy, Mutex};
@@ -179,16 +180,16 @@ impl PageFrameAllocator {
 
     fn init() -> Self {
         // usable system memory
-        let usable: usize = boot::memmap()
+        let usable: usize = memmap()
             .filter(Memmap::is_usable)
             .map(|Memmap { len, .. }| len)
             .sum();
 
         // total system memory
-        let total: usize = boot::memmap().map(|Memmap { len, .. }| len).sum();
+        let total: usize = memmap().map(|Memmap { len, .. }| len).sum();
 
         // the end of the usable physical memory address space
-        let top = boot::memmap()
+        let top = memmap()
             .filter(Memmap::is_usable)
             .map(|Memmap { base, len, ty: _ }| base + len)
             .max()
@@ -196,7 +197,7 @@ impl PageFrameAllocator {
 
         // size in bytes
         let bitmap_size: usize = align_up((top / PAGE_SIZE / 8) as _, PAGE_SIZE as _) as _;
-        let bitmap_data: usize = boot::memmap()
+        let bitmap_data: usize = memmap()
             .filter(Memmap::is_usable)
             .find(|Memmap { len, .. }| *len >= bitmap_size)
             .expect("No place to store PageFrameAllocator bitmap")
@@ -217,7 +218,7 @@ impl PageFrameAllocator {
             mut base,
             mut len,
             ty: _,
-        } in boot::memmap().filter(Memmap::is_usable)
+        } in memmap().filter(Memmap::is_usable)
         {
             if base == bitmap_data {
                 // skip the bitmap allocation spot

@@ -1,3 +1,7 @@
+#![no_std]
+
+//
+
 pub use addr::{hhdm_offset, phys_addr, virt_addr};
 pub use cmdline::cmdline;
 pub use framebuffer::framebuffer;
@@ -6,8 +10,6 @@ pub use kernel::kernel_file;
 pub use mem::{memmap, stack};
 pub use rsdp::rsdp;
 pub use term::_print;
-
-use super::args;
 
 //
 
@@ -26,7 +28,6 @@ mod term;
 pub extern "C" fn _start() -> ! {
     mem::stack_init();
     provide_boot(&LimineBoot);
-    args::get().apply();
 
     unsafe { kernel_main() }
 }

@@ -1,3 +1,4 @@
+use hyperion_boot::stack;
 use hyperion_log::println;
 use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
@@ -9,7 +10,7 @@ use crate::boot;
 
 // unmap the page at the bottom of the stack
 pub fn protect_stack_bottom() {
-    let bottom = boot::stack().start - 0x1000;
+    let bottom = stack().start - 0x1000;
     println!("unmapping");
     PAGE_MAP.unmap(VirtAddr::new(bottom as _), 1);
     println!("unmapped");
