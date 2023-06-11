@@ -259,6 +259,7 @@ dependencies = [
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-macros",
+ "hyperion-mem",
  "hyperion-num-postfix",
  "hyperion-scheduler",
  "hyperion-static-str",
@@ -333,6 +334,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.18",
+]
+
+[[package]]
+name = "hyperion-mem"
+version = "0.1.0"
+dependencies = [
+ "hyperion-bitmap",
+ "hyperion-boot",
+ "hyperion-boot-interface",
+ "hyperion-log",
+ "hyperion-num-postfix",
+ "spin",
+ "volatile",
+ "x86_64",
 ]
 
 [[package]]

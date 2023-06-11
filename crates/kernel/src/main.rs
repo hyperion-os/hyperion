@@ -31,15 +31,13 @@ use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::{debug, warn};
+use hyperion_mem::from_higher_half;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_scheduler::timer::ticks;
 use x86_64::{instructions::port::Port, VirtAddr};
 
 use self::arch::rng_seed;
-use crate::{
-    driver::acpi::{ioapic::IoApic},
-    mem::from_higher_half,
-};
+use crate::driver::acpi::ioapic::IoApic;
 
 extern crate alloc;
 
@@ -49,7 +47,6 @@ extern crate alloc;
 pub mod arch;
 pub mod backtrace;
 pub mod driver;
-pub mod mem;
 pub mod panic;
 #[cfg(test)]
 pub mod testfw;

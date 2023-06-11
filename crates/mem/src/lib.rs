@@ -1,3 +1,10 @@
+#![no_std]
+#![feature(int_roundings, pointer_is_aligned, allocator_api)]
+
+//
+
+extern crate alloc;
+
 use core::alloc::{GlobalAlloc, Layout};
 
 use hyperion_boot::hhdm_offset;
@@ -5,7 +12,6 @@ use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
 use self::slab::SlabAllocator;
-
 
 //
 

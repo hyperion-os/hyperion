@@ -1,4 +1,5 @@
 use hyperion_boot_interface::boot;
+use hyperion_mem::{pmm, to_higher_half, vmm::PageMapImpl};
 use spin::RwLock;
 use x86_64::{
     registers::control::Cr3,
@@ -9,7 +10,7 @@ use x86_64::{
     PhysAddr, VirtAddr,
 };
 
-use crate::mem::{pmm, to_higher_half, vmm::PageMapImpl};
+use super::pmm::Pfa;
 
 //
 
@@ -41,7 +42,7 @@ impl PageMapImpl for PageMap {
 
     fn map(&self, v_addr: VirtAddr, p_addr: PhysAddr, pages: usize) {
         let mut offs = self.offs.write();
-        let mut pmm = pmm::PageFrameAllocator::get();
+        let mut pmm = Pfa(pmm::PageFrameAllocator::get());
 
         let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
 
