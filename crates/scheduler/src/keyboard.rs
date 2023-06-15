@@ -4,7 +4,7 @@ use core::{
 };
 
 use futures_util::Stream;
-use hyperion_keyboard::{KEYBOARD_EVENT_QUEUE, KEYBOARD_EVENT_WAKER};
+use hyperion_keyboard::wait_keyboard_event;
 
 //
 
@@ -41,23 +41,7 @@ pub enum ElementState {
 impl Stream for KeyboardEvents {
     type Item = char;
 
-    fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
-        let queue = KEYBOARD_EVENT_QUEUE.get_force();
-
-        if let Some(ev) = queue.pop() {
-            return Poll::Ready(Some(ev));
-        }
-
-        // need to check if a keyboard event happened right here
-
-        KEYBOARD_EVENT_WAKER.register(ctx.waker());
-
-        // .. with this
-        if let Some(ev) = queue.pop() {
-            KEYBOARD_EVENT_WAKER.take();
-            Poll::Ready(Some(ev))
-        } else {
-            Poll::Pending
-        }
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        wait_keyboard_event(cx).map(Some)
     }
 }

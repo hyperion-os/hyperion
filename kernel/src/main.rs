@@ -52,7 +52,7 @@ fn kernel_main() -> ! {
 
     arch::early_boot_cpu();
 
-    hyperion_drivers::lazy_install();
+    hyperion_drivers::lazy_install_early();
 
     debug!("{NAME} {VERSION} was booted with {}", hyperion_boot::NAME);
 
@@ -71,6 +71,8 @@ fn smp_main(cpu: Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
     arch::early_per_cpu(&cpu);
+
+    hyperion_drivers::lazy_install_late();
 
     hyperion_scheduler::run_tasks();
 }

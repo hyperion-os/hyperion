@@ -391,6 +391,7 @@ dependencies = [
 name = "hyperion-keyboard"
 version = "0.1.0"
 dependencies = [
+ "crossbeam",
  "crossbeam-queue",
  "futures-util",
  "hyperion-int-safe-lazy",
