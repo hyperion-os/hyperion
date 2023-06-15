@@ -5,10 +5,12 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::{
-    ptr,
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
-};
+use core::ptr;
+#[cfg(not(loom))]
+use core::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
+
+#[cfg(loom)]
+use loom::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
 //
 
@@ -27,7 +29,16 @@ struct AtomicMapNode<K, V> {
 //
 
 impl<K, V> AtomicMap<K, V> {
+    #[cfg(not(loom))]
     pub const fn new() -> Self {
+        Self {
+            len: AtomicUsize::new(0),
+            head: AtomicPtr::new(ptr::null_mut()),
+        }
+    }
+
+    #[cfg(loom)]
+    pub fn new() -> Self {
         Self {
             len: AtomicUsize::new(0),
             head: AtomicPtr::new(ptr::null_mut()),
@@ -100,4 +111,45 @@ impl<K, V> AtomicMap<K, V> {
     }
 }
 
-// TODO: drop
+impl<K, V> Drop for AtomicMap<K, V> {
+    fn drop(&mut self) {
+        let mut head = self.head.load(Ordering::Relaxed);
+
+        loop {
+            if head.is_null() {
+                return;
+            }
+
+            let node = unsafe { Box::from_raw(head) };
+            head = node.next.load(Ordering::Relaxed);
+        }
+    }
+}
+
+//
+
+#[cfg(test)]
+mod tests {
+
+    #[cfg(loom)]
+    #[test]
+    fn test_drop() {
+        use alloc::sync::Arc;
+
+        use crate::AtomicMap;
+
+        loom::model(|| {
+            let map = AtomicMap::new();
+
+            let v0 = Arc::new(());
+
+            assert_eq!(Arc::strong_count(&v0), 1);
+            map.insert(0, v0.clone());
+            assert_eq!(Arc::strong_count(&v0), 2);
+            map.insert(0, v0.clone());
+            assert_eq!(Arc::strong_count(&v0), 3);
+            drop(map);
+            assert_eq!(Arc::strong_count(&v0), 1);
+        });
+    }
+}
