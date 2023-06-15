@@ -72,7 +72,9 @@ fn smp_main(cpu: Cpu) -> ! {
 
     arch::early_per_cpu(&cpu);
 
-    hyperion_drivers::lazy_install_late();
+    if cpu.is_boot() {
+        hyperion_drivers::lazy_install_late();
+    }
 
     hyperion_scheduler::run_tasks();
 }
@@ -81,7 +83,7 @@ async fn spinner() {
     let mut ticks = ticks(Duration::milliseconds(100));
 
     while ticks.next().await.is_some() {
-        let Some( fbo) = Framebuffer::get() else {
+        let Some(fbo) = Framebuffer::get() else {
             warn!("failed to get fbo");
             break;
         };
