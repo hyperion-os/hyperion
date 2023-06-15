@@ -46,15 +46,16 @@ pub mod testfw;
 
 #[no_mangle]
 fn kernel_main() -> ! {
+    // enable logging and and outputs based on the kernel args,
+    // any logging before won't be shown
     hyperion_log_multi::init_logger();
 
     debug!("Entering kernel_main");
+    debug!("{NAME} {VERSION} was booted with {}", hyperion_boot::NAME);
 
     arch::early_boot_cpu();
 
     hyperion_drivers::lazy_install_early();
-
-    debug!("{NAME} {VERSION} was booted with {}", hyperion_boot::NAME);
 
     #[cfg(test)]
     test_main();
@@ -80,7 +81,7 @@ fn smp_main(cpu: Cpu) -> ! {
 }
 
 async fn spinner() {
-    let mut ticks = ticks(Duration::milliseconds(100));
+    let mut ticks = ticks(Duration::milliseconds(500));
 
     while ticks.next().await.is_some() {
         let Some(fbo) = Framebuffer::get() else {
