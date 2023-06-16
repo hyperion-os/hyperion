@@ -2,7 +2,6 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use hyperion_driver_acpi::ioapic::IoApic;
 use hyperion_keyboard::provide_keyboard_event;
-use hyperion_log::debug;
 use pc_keyboard::{
     layouts::{AnyLayout, DVP104Key, De105Key, Dvorak104Key, Uk105Key, Us104Key},
     DecodedKey, HandleControl, KeyCode, KeyEvent, Keyboard, ScancodeSet1,
@@ -13,17 +12,25 @@ use x86_64::instructions::port::Port;
 //
 
 pub fn init() {
-    static KB_ONCE: AtomicBool = AtomicBool::new(true);
-    if KB_ONCE.swap(false, Ordering::SeqCst) {
-        // code after every CPU and APIC has been initialized
+    static ONCE: AtomicBool = AtomicBool::new(true);
+    if ONCE.swap(false, Ordering::SeqCst) {
         if let Some(mut io_apic) = IoApic::any() {
-            hyperion_interrupts::set_interrupt_handler(33, || {
-                let scancode: u8 = unsafe { Port::new(0x60).read() };
-                process(scancode);
-            });
+            let irq = hyperion_interrupts::set_any_interrupt_handler(
+                |irq| irq >= 0x20,
+                || {
+                    /* hyperion_log::debug!(
+                        "avail?: {}",
+                        unsafe { Port::<u8>::new(0x64).read() } & 0b1
+                    ); */
+                    let scancode: u8 = unsafe { Port::new(0x60).read() };
 
-            io_apic.set_irq_any(1, 33);
-            debug!("keyboard initialized");
+                    process(scancode);
+                },
+            )
+            .expect("No room for PS/2 keyboard irq");
+
+            io_apic.set_irq_any(1, irq);
+            hyperion_log::debug!("PS/2 keyboard irq: {irq}");
         }
     }
 }

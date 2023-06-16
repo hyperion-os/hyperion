@@ -9,6 +9,7 @@ edition.workspace = true
 spin.workspace = true
 pc-keyboard.workspace = true
 x86_64.workspace = true
+crossbeam.workspace = true
 
 hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-keyboard.path = "../keyboard"

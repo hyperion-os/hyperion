@@ -36,4 +36,5 @@ pub fn lazy_install_late() {
     }
 
     hyperion_driver_ps2::keyboard::init();
+    hyperion_driver_ps2::mouse::init();
 }
