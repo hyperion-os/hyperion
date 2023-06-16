@@ -12,7 +12,7 @@ use hyperion_log::{debug, error};
 use hyperion_vfs::{FileDevice, IoError, IoResult};
 use hyperion_vfs_util::slice_read;
 use spin::Mutex;
-use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, UtcOffset};
+use time::{Date, Month, OffsetDateTime, UtcOffset};
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
 
 //
@@ -247,6 +247,7 @@ impl RtcPorts {
             let bcd_to_bin = |bcd: u8| -> u8 { (bcd & 0x0F) + bcd / 16 * 10 };
             last.sec = bcd_to_bin(last.sec);
             last.min = bcd_to_bin(last.sec);
+            /* last.hour = bcd_to_bin(last.hour); */
             last.hour = (last.hour & 0x0F) + (((last.hour & 0x70) / 16 * 10) | (last.hour & 0x80));
             last.day = bcd_to_bin(last.day);
             last.month = bcd_to_bin(last.month);

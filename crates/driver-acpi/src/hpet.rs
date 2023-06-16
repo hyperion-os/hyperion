@@ -18,7 +18,6 @@ use hyperion_vfs::{FileDevice, IoError, IoResult};
 use hyperion_vfs_util::slice_read;
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
-use time::Duration;
 
 use super::{apic::ApicId, ioapic::IoApic, rsdt::RSDT, SdtError};
 
