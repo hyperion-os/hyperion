@@ -10,7 +10,7 @@ spin.workspace = true
 smallvec.workspace = true
 bit_field.workspace = true
 paste.workspace = true
-chrono.workspace = true
+time.workspace = true
 x86_64.workspace = true
 
 hyperion-atomic-map.path = "../atomic-map"

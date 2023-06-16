@@ -8,7 +8,7 @@ edition.workspace = true
 [dependencies]
 spin.workspace = true
 futures-util.workspace = true
-chrono.workspace = true
+time.workspace = true
 crossbeam-queue.workspace = true
 
 hyperion-clock.path = "../clock"

@@ -102,15 +102,11 @@ impl Pit {
 }
 
 impl ClockSource for Pit {
-    fn tick_now(&self) -> u64 {
+    fn nanosecond_now(&self) -> u128 {
         todo!()
     }
 
-    fn femtos_per_tick(&self) -> u64 {
-        todo!()
-    }
-
-    fn trigger_interrupt_at(&self, _deadline: u64) {
+    fn trigger_interrupt_at(&self, _deadline: u128) {
         todo!()
     }
 

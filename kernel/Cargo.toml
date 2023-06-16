@@ -22,7 +22,7 @@ bit_field.workspace = true
 rustc-demangle.workspace = true
 elf.workspace = true
 smallvec.workspace = true
-chrono.workspace = true
+time.workspace = true
 futures-util.workspace = true
 
 # hyperion-arch.path = "../crates/arch"

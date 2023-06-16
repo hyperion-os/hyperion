@@ -11,7 +11,6 @@ use core::{
 };
 
 use bit_field::BitField;
-use chrono::Duration;
 use hyperion_clock::ClockSource;
 use hyperion_log::{debug, trace, warn};
 use hyperion_timer::provide_sleep_wake;
@@ -19,6 +18,7 @@ use hyperion_vfs::{FileDevice, IoError, IoResult};
 use hyperion_vfs_util::slice_read;
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
+use time::Duration;
 
 use super::{apic::ApicId, ioapic::IoApic, rsdt::RSDT, SdtError};
 
@@ -321,21 +321,6 @@ impl TimerN {
         }
     }
 
-    /// non blocking sleep, this triggers an interrupt after `dur`
-    pub fn sleep(&mut self, dur: Duration) {
-        if let Some(nanos) = dur.num_nanoseconds() {
-            if nanos <= 0 {
-                return;
-            }
-
-            // calculate tick deadline
-            let deadline = HPET.nanos_to_deadline(nanos as _);
-            self.sleep_until(deadline);
-        } else {
-            todo!();
-        }
-    }
-
     pub fn init(&mut self) {
         let mut config = self.config_and_caps();
         config.set_int_route(10); // TODO:
@@ -451,16 +436,16 @@ impl FileDevice for HpetDevice {
 //
 
 impl ClockSource for Hpet {
-    fn tick_now(&self) -> u64 {
-        self.main_counter_value()
+    fn nanosecond_now(&self) -> u128 {
+        self.main_counter_value() as u128 * self.period() as u128 / 1_000_000
     }
 
-    fn femtos_per_tick(&self) -> u64 {
-        self.period() as _
-    }
+    fn trigger_interrupt_at(&self, nanosecond: u128) {
+        let tick: u64 = (nanosecond * 1_000_000 / self.period() as u128)
+            .try_into()
+            .unwrap();
 
-    fn trigger_interrupt_at(&self, deadline: u64) {
-        self.next_timer().sleep_until(deadline)
+        self.next_timer().sleep_until(tick)
     }
 
     fn _apic_sleep_simple_blocking(&self, micros: u16, pre: &mut dyn FnMut()) {

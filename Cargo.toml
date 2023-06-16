@@ -35,9 +35,10 @@ features = ["const_generics"]
 #version = "0.10.5"
 #default-features = false
 
-[workspace.dependencies.chrono]
-version = "0.4"
+[workspace.dependencies.time]
+version = "0.3"
 default-features = false
+# features = ["alloc"]
 
 [workspace.dependencies.crossbeam-queue]
 version = "0.3"

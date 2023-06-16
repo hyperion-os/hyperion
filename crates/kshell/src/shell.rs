@@ -1,7 +1,6 @@
 use alloc::{string::String, sync::Arc};
 use core::fmt::Write;
 
-use chrono::{Duration, TimeZone, Utc};
 use hyperion_color::Color;
 use hyperion_mem::pmm::PageFrameAllocator;
 use hyperion_num_postfix::NumberPostfix;
@@ -13,6 +12,7 @@ use hyperion_vfs::{
 };
 use snafu::ResultExt;
 use spin::Mutex;
+use time::{Duration, OffsetDateTime, UtcOffset};
 
 use super::{term::Term, *};
 
@@ -204,7 +204,7 @@ impl Shell {
         file.read_exact(0, &mut timestamp)
             .context(IoSnafu { resource })?;
 
-        let date = Utc.timestamp_nanos(i64::from_le_bytes(timestamp));
+        let date = OffsetDateTime::from_unix_timestamp(i64::from_le_bytes(timestamp));
 
         _ = writeln!(self.term, "{date:?}");
 

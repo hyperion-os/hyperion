@@ -3,12 +3,6 @@
 version = 3
 
 [[package]]
-name = "android-tzdata"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
-
-[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -37,16 +31,6 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
-
-[[package]]
-name = "chrono"
-version = "0.4.26"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec837a71355b28f6556dbd569b37b3f363091c0bd4b2e735674521b4c5fd9bc5"
-dependencies = [
- "android-tzdata",
- "num-traits",
-]
 
 [[package]]
 name = "crossbeam"
@@ -209,7 +193,6 @@ name = "hyperion-driver-acpi"
 version = "0.1.0"
 dependencies = [
  "bit_field",
- "chrono",
  "hyperion-atomic-map",
  "hyperion-boot",
  "hyperion-boot-interface",
@@ -224,6 +207,7 @@ dependencies = [
  "paste",
  "smallvec",
  "spin",
+ "time",
  "x86_64",
 ]
 
@@ -273,12 +257,12 @@ dependencies = [
 name = "hyperion-driver-rtc"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "hyperion-log",
  "hyperion-macros",
  "hyperion-vfs",
  "hyperion-vfs-util",
  "spin",
+ "time",
  "x86_64",
 ]
 
@@ -318,9 +302,10 @@ dependencies = [
 name = "hyperion-instant"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "hyperion-checked",
  "hyperion-clock",
+ "hyperion-log",
+ "time",
 ]
 
 [[package]]
@@ -343,7 +328,6 @@ name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
  "bit_field",
- "chrono",
  "elf",
  "futures-util",
  "hyperion-atomic-map",
@@ -377,6 +361,7 @@ dependencies = [
  "rustc-demangle",
  "smallvec",
  "spin",
+ "time",
  "x86_64",
 ]
 
@@ -402,7 +387,6 @@ dependencies = [
 name = "hyperion-kshell"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "futures-util",
  "hyperion-color",
  "hyperion-framebuffer",
@@ -415,6 +399,7 @@ dependencies = [
  "hyperion-vfs",
  "snafu",
  "spin",
+ "time",
 ]
 
 [[package]]
@@ -467,7 +452,6 @@ version = "0.1.0"
 name = "hyperion-scheduler"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "crossbeam-queue",
  "futures-util",
  "hyperion-clock",
@@ -478,6 +462,7 @@ dependencies = [
  "hyperion-log",
  "hyperion-timer",
  "spin",
+ "time",
 ]
 
 [[package]]
@@ -584,15 +569,6 @@ checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
 dependencies = [
  "overload",
  "winapi",
-]
-
-[[package]]
-name = "num-traits"
-version = "0.2.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "578ede34cf02f8924ab9447f50c28075b4d3e5b269972345e7e0372b38c6cdcd"
-dependencies = [
- "autocfg",
 ]
 
 [[package]]
@@ -780,6 +756,21 @@ dependencies = [
  "cfg-if",
  "once_cell",
 ]
+
+[[package]]
+name = "time"
+version = "0.3.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea9e1b3cf1243ae005d9e74085d4d542f3125458f3a81af210d901dcd7411efd"
+dependencies = [
+ "time-core",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7300fbefb4dadc1af235a9cef3737cea692a9d97e1b9cbcd4ebdae6f8868e6fb"
 
 [[package]]
 name = "tracing"

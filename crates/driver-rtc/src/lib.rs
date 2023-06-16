@@ -8,11 +8,11 @@ use core::{
     sync::atomic::{AtomicU8, Ordering},
 };
 
-use chrono::{DateTime, TimeZone, Utc};
 use hyperion_log::{debug, error};
 use hyperion_vfs::{FileDevice, IoError, IoResult};
 use hyperion_vfs_util::slice_read;
 use spin::Mutex;
+use time::{Date, Month, OffsetDateTime, PrimitiveDateTime, UtcOffset};
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
 
 //
@@ -81,24 +81,29 @@ impl Rtc {
         error!("Failed to init system clock, RTC gave invalid times, fallback time set");
     }
 
-    pub fn now(&self) -> Option<DateTime<Utc>> {
-        let time = self.ports.lock().read();
-        let time = Utc
-            .with_ymd_and_hms(
-                time.full_year as _,
-                time.month as _,
-                time.day as _,
-                time.hour as _,
-                time.min as _,
-                time.sec as _,
-            )
-            .single();
+    pub fn now(&self) -> Option<OffsetDateTime> {
+        let RtcTime {
+            sec,
+            min,
+            hour,
+            day,
+            month,
+            // year,
+            // cent,
+            full_year,
+            ..
+        } = self.ports.lock().read();
 
-        if let Some(time) = time {
-            self.time.store(time.timestamp_nanos());
-        }
+        let time =
+            Date::from_calendar_date(full_year as _, Month::try_from(month).ok()?, day).ok()?;
 
-        time
+        let date_time = time.with_hms(hour, min, sec).ok()?;
+
+        let utc = date_time.assume_offset(UtcOffset::UTC);
+
+        self.time.store(utc.unix_timestamp());
+
+        Some(utc)
     }
 
     pub fn now_bytes(&self) -> [u8; 8] {

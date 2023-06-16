@@ -4,11 +4,11 @@ use core::{
     task::{Context, Poll},
 };
 
-use chrono::Duration;
 use futures_util::{task::AtomicWaker, Future, FutureExt, Stream};
 use hyperion_clock::CLOCK_SOURCE;
 use hyperion_instant::Instant;
 use hyperion_timer::{TimerWaker, TIMER_DEADLINES};
+use time::Duration;
 
 //
 
@@ -95,7 +95,7 @@ impl Future for SleepUntil {
             .lock()
             .push(TimerWaker { deadline, waker });
 
-        CLOCK_SOURCE.trigger_interrupt_at(deadline.ticks());
+        CLOCK_SOURCE.trigger_interrupt_at(deadline.nanosecond());
 
         if Instant::now() >= deadline {
             waker2.take();

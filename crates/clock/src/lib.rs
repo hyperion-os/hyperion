@@ -18,19 +18,17 @@ pub static PICK_CLOCK_SOURCE: Mutex<fn() -> Option<&'static dyn ClockSource>> = 
 //
 
 pub trait ClockSource: Send + Sync {
-    fn tick_now(&self) -> u64;
+    fn nanosecond_now(&self) -> u128;
 
-    fn femtos_per_tick(&self) -> u64;
-
-    fn trigger_interrupt_at(&self, deadline: u64);
+    fn trigger_interrupt_at(&self, nanosecond: u128);
 
     fn _apic_sleep_simple_blocking(&self, micros: u16, pre: &mut dyn FnMut());
 }
 
-impl dyn ClockSource {
+/* impl dyn ClockSource {
     /// `nanos` is nanos from now
     pub fn nanos_to_deadline(&self, nanos: u64) -> u64 {
-        self.tick_now() + self.nanos_to_ticks_u(nanos)
+        self.nanosecond_now() + self.nanos_to_ticks_u(nanos)
     }
 
     pub fn nanos_to_ticks_u(&self, nanos: u64) -> u64 {
@@ -48,20 +46,20 @@ impl dyn ClockSource {
     pub fn ticks_to_nanos_i(&self, ticks: i64) -> i64 {
         (ticks as i128 * self.femtos_per_tick() as i128 / 1_000_000) as i64
     }
-}
+} */
 
 pub struct NopClock;
 
 impl ClockSource for NopClock {
-    fn tick_now(&self) -> u64 {
+    fn nanosecond_now(&self) -> u128 {
         0
     }
 
-    fn femtos_per_tick(&self) -> u64 {
+    /* fn femtos_per_tick(&self) -> u64 {
         u64::MAX
-    }
+    } */
 
-    fn trigger_interrupt_at(&self, _: u64) {}
+    fn trigger_interrupt_at(&self, _: u128) {}
 
     fn _apic_sleep_simple_blocking(&self, _: u16, pre: &mut dyn FnMut()) {
         pre();

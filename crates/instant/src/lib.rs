@@ -4,9 +4,9 @@
 
 use core::ops::{Add, Sub};
 
-use chrono::Duration;
 use hyperion_checked::{CheckedAdd, CheckedSub};
 use hyperion_clock::CLOCK_SOURCE;
+use time::Duration;
 
 //
 
@@ -16,9 +16,7 @@ use hyperion_clock::CLOCK_SOURCE;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Instant {
-    // clock tick period is based on the underlying clocksource
-    // so this is not a nanosecond or picosecond or something
-    inner: u64,
+    nanosecond: u128,
 }
 
 //
@@ -28,18 +26,16 @@ impl Instant {
 
     pub fn now() -> Self {
         Self {
-            inner: CLOCK_SOURCE.tick_now(),
+            nanosecond: CLOCK_SOURCE.nanosecond_now(),
         }
     }
 
-    /// clock tick period is based on the underlying clocksource
-    /// so this is not a nanosecond or picosecond or something
-    pub const fn new(tick: u64) -> Self {
-        Self { inner: tick }
+    pub const fn new(nanosecond: u128) -> Self {
+        Self { nanosecond }
     }
 
-    pub const fn ticks(self) -> u64 {
-        self.inner
+    pub const fn nanosecond(self) -> u128 {
+        self.nanosecond
     }
 
     pub fn elapsed(self) -> Duration {
@@ -51,10 +47,9 @@ impl CheckedAdd<Duration> for Instant {
     type Output = Self;
 
     fn checked_add(mut self, rhs: Duration) -> Option<Self::Output> {
-        let nanos = rhs.num_nanoseconds()?;
-        let ticks = CLOCK_SOURCE.nanos_to_ticks_i(nanos);
-        self.inner = self.inner.checked_add_signed(ticks)?;
-
+        self.nanosecond = self
+            .nanosecond
+            .saturating_add_signed(rhs.whole_nanoseconds());
         Some(self)
     }
 }
@@ -63,10 +58,9 @@ impl CheckedSub<Duration> for Instant {
     type Output = Self;
 
     fn checked_sub(mut self, rhs: Duration) -> Option<Self::Output> {
-        let nanos = rhs.num_nanoseconds()?;
-        let ticks = CLOCK_SOURCE.nanos_to_ticks_i(nanos);
-        self.inner = self.inner.checked_add_signed(-ticks)?;
-
+        self.nanosecond = self
+            .nanosecond
+            .saturating_add_signed(-rhs.whole_nanoseconds());
         Some(self)
     }
 }
@@ -75,9 +69,15 @@ impl CheckedSub for Instant {
     type Output = Duration;
 
     fn checked_sub(self, rhs: Self) -> Option<Self::Output> {
-        let ticks = (self.inner as i64).checked_sub(rhs.inner as i64)?;
-        let nanos = CLOCK_SOURCE.ticks_to_nanos_i(ticks);
-        Some(Duration::nanoseconds(nanos))
+        let lhs: i128 = self.nanosecond.try_into().ok()?;
+        let rhs: i128 = rhs.nanosecond.try_into().ok()?;
+
+        let nanos = lhs.checked_sub(rhs)?;
+
+        let seconds = (nanos / 1_000_000_000) as i64;
+        let nanos = (nanos % 1_000_000_000) as i64;
+
+        Some(Duration::seconds(seconds) + Duration::nanoseconds(nanos))
     }
 }
 

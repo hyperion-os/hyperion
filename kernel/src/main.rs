@@ -20,7 +20,6 @@
 
 //
 
-use chrono::Duration;
 use futures_util::StreamExt;
 use hyperion_boot_interface::Cpu;
 use hyperion_color::Color;
@@ -28,6 +27,7 @@ use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::{debug, warn};
 use hyperion_scheduler::timer::ticks;
+use time::Duration;
 
 use self::arch::rng_seed;
 
