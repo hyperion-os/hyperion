@@ -12,7 +12,7 @@ use hyperion_vfs::{
 };
 use snafu::ResultExt;
 use spin::Mutex;
-use time::{Duration, OffsetDateTime, UtcOffset};
+use time::{Duration, OffsetDateTime};
 
 use super::{term::Term, *};
 
