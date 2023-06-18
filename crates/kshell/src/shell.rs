@@ -110,7 +110,6 @@ impl Shell {
             "clear" => {
                 self.term.clear();
             }
-            "t" => sleep(Duration::milliseconds(500)).await,
             "" => self.term.write_byte(b'\n'),
             other => {
                 _ = writeln!(self.term, "unknown command {other}");
