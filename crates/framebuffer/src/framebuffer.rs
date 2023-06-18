@@ -66,6 +66,10 @@ impl Framebuffer {
         .as_ref()
     }
 
+    pub fn buf_mut(&mut self) -> &mut [u8] {
+        self.buf
+    }
+
     pub fn pixel(&mut self, x: usize, y: usize, color: Color) {
         let spot = self.pixel_keep_area(x, y, color);
         self.flush_area(spot);

@@ -1,0 +1,11 @@
+[package]
+name = "hyperion-driver-framebuffer"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hyperion-framebuffer.path = "../framebuffer"
+hyperion-vfs.path = "../vfs"
+hyperion-vfs-util.path = "../vfs-util"

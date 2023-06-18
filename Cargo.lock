@@ -212,6 +212,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-driver-framebuffer"
+version = "0.1.0"
+dependencies = [
+ "hyperion-framebuffer",
+ "hyperion-vfs",
+ "hyperion-vfs-util",
+]
+
+[[package]]
 name = "hyperion-driver-pic"
 version = "0.1.0"
 dependencies = [
@@ -273,6 +282,7 @@ version = "0.1.0"
 dependencies = [
  "hyperion-clock",
  "hyperion-driver-acpi",
+ "hyperion-driver-framebuffer",
  "hyperion-driver-pic",
  "hyperion-driver-pit",
  "hyperion-driver-ps2",
