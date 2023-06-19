@@ -2,6 +2,7 @@ use alloc::{string::String, sync::Arc};
 use core::fmt::Write;
 
 use hyperion_color::Color;
+use hyperion_driver_ps2::keyboard::set_layout;
 use hyperion_mem::pmm::PageFrameAllocator;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_scheduler::timer::sleep;
@@ -313,12 +314,11 @@ impl Shell {
         }
     }
 
-    fn kbl_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        todo!();
-        /* let name = args.unwrap_or("us");
+    fn kbl_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        let name = args.unwrap_or("us");
         if set_layout(name).is_none() {
             _ = writeln!(self.term, "invalid layout `{name}`");
-        } */
+        }
 
         Ok(())
     }

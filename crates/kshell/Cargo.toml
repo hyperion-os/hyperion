@@ -12,11 +12,12 @@ snafu.workspace = true
 spin.workspace = true
 
 hyperion-color.path = "../color"
+hyperion-driver-ps2.path = "../driver-ps2"
 hyperion-framebuffer.path = "../framebuffer"
 hyperion-kernel-info.path = "../kernel-info"
-hyperion-log.path = "../log"
 hyperion-log-multi.path = "../log-multi"
-hyperion-scheduler.path = "../scheduler"
-hyperion-vfs.path = "../vfs"
+hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"
 hyperion-num-postfix.path = "../num-postfix"
+hyperion-scheduler.path = "../scheduler"
+hyperion-vfs.path = "../vfs"
