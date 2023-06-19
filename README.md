@@ -52,9 +52,11 @@ rustup target add x86_64-unknown-none
 rustup toolchain install nightly
 ```
 
-## Demo image(s)
+## Example image(s)
 
 ![image](https://github.com/xor-bits/hyperion/assets/42496863/cde71ecf-825f-4e5b-9a32-f204ffbef6e7)
+
+![image](https://github.com/xor-bits/hyperion/assets/42496863/76460288-d6d7-47de-ab1b-399d0a91dc80)
 
 ## Font
 
