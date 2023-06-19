@@ -11,19 +11,61 @@ env:
 
 jobs:
 
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v3 
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2.5.0
+
     - name: install cargo-nextest
       uses: taiki-e/install-action@nextest
-    - name: Build
-      run: cargo build --verbose
+
     - name: Hack to ignore kernel from test cargo compiler
       run: sed -i -e 's/^# \(.*sed_mark_1\)/\1/' Cargo.toml && sed -i -e 's/^\(.*sed_mark_0\)/# \1/' Cargo.toml
+
+    - name: Build
+      run: cargo build --verbose
+
     - name: Run tests
       run: cargo nextest run --verbose
-    - name: Undo hack to ignore kernel from test cargo compiler
-      run: sed -i -e 's/^# \(.*sed_mark_0\)/\1/' Cargo.toml && sed -i -e 's/^\(.*sed_mark_1\)/# \1/' Cargo.toml
+
+  kernel-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3 
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2.5.0
+
     - name: Run qemu tests
       run: make test
+    
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3 
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2.5.0
+
+    - name: Add Clippy
+      run: rustup component add clippy
+
+    - name: Run clippy
+      run: cargo clippy --all -- -D warnings
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3 
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2.5.0
+
+    - name: Add Rustfmt
+      run: rustup component add rustfmt
+
+    - name: Run clippy
+      run: cargo fmt --all -- --check
