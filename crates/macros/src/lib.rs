@@ -1,6 +1,6 @@
 use std::{iter, process::Command};
 
-// use chrono::{Datelike, Utc};
+use chrono::{Datelike, Utc};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{
@@ -82,8 +82,7 @@ pub fn rtc_year(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         return err;
     }
 
-    // hardcoding to workaround a cargo bug
-    let year = 2023u32; // Utc::now().date_naive().year();
+    let year: u32 = Utc::now().date_naive().year() as u32;
 
     (quote! {
         #year
@@ -97,11 +96,10 @@ pub fn build_time(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         return err;
     }
 
-    // hardcoding to workaround a cargo bug
-    let time = "23-06-08 21:33:33"; /* Utc::now()
-                                    .naive_local()
-                                    .format("%Y-%m-%d %H:%M:%S")
-                                    .to_string(); */
+    let time = Utc::now()
+        .naive_local()
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();
 
     (quote! {
         #time

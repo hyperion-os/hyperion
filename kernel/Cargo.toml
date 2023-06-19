@@ -54,29 +54,3 @@ hyperion-macros.path = "../crates/macros"
 [dependencies.hyperion-mem]
 path = "../crates/mem"
 features = ["set-allocator"]
-
-# [dependencies.crossbeam-queue]
-# version = "0.3"
-# default-features = false
-# features = ["alloc"]
-#
-# [dependencies.crossbeam]
-# version = "0.8"
-# default-features = false
-# features = ["alloc"]
-
-[build-dependencies]
-# adding crates here triggers a bug in cargo that makes the crossbeam force to use std somehow
-# so im moving things to a proc macro
-# image = "0.24"
-# chrono = "0.4"
-#image.workspace = true
-#chrono.workspace = true
-
-# [build-dependencies.image]
-# version = "0.9"
-# default-features = true
-
-# [build-dependencies.chrono]
-# version = "0.1"
-# default-features = true
