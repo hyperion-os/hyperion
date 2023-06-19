@@ -40,7 +40,7 @@ impl FileDevice for File {
 }
 
 impl File {
-    pub fn new() -> FileRef {
+    pub fn new_empty() -> FileRef {
         Arc::new(Mutex::new(Self {})) as _
     }
 }

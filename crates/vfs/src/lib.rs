@@ -118,7 +118,7 @@ fn get_file_with(
 
             // new file
             if create {
-                let node = File::new();
+                let node = File::new_empty();
                 parent.create_node(file, Node::File(node.clone()))?;
                 return Ok(node);
             }
