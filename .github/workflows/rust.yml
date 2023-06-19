@@ -1,0 +1,29 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: install cargo-nextest
+      uses: taiki-e/install-action@nextest
+    - name: Build
+      run: cargo build --verbose
+    - name: Hack to ignore kernel from test cargo compiler
+      run: sed -i -e 's/^# \(.*sed_mark_1\)/\1/' Cargo.toml && sed -i -e 's/^\(.*sed_mark_0\)/# \1/' Cargo.toml
+    - name: Run tests
+      run: cargo nextest run --verbose
+    - name: Undo hack to ignore kernel from test cargo compiler
+      run: sed -i -e 's/^# \(.*sed_mark_0\)/\1/' Cargo.toml && sed -i -e 's/^\(.*sed_mark_1\)/# \1/' Cargo.toml
+    - name: Run qemu tests
+      run: make test
