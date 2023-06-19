@@ -21,7 +21,7 @@ impl FileDevice for FboDevice {
     }
 
     fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
-        Self::with_mut(|mut fbo| fbo.write(offset, buf))
+        Self::with_mut(|fbo| fbo.write(offset, buf))
     }
 }
 

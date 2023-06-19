@@ -6,9 +6,9 @@ use alloc::{
 use spin::Mutex;
 
 use crate::{
-    device::DirectoryDevice,
+    device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
-    tree::{DirRef, Node, WeakDirRef},
+    tree::{DirRef, FileRef, Node, WeakDirRef},
 };
 
 //
@@ -24,6 +24,26 @@ pub struct Directory {
 }
 
 //
+
+impl FileDevice for File {
+    fn len(&self) -> usize {
+        0
+    }
+
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        FileDevice::read(&[][..], offset, buf)
+    }
+
+    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+        FileDevice::write(&mut [][..], offset, buf)
+    }
+}
+
+impl File {
+    pub fn new() -> FileRef {
+        Arc::new(Mutex::new(Self {})) as _
+    }
+}
 
 impl DirectoryDevice for Directory {
     fn get_node(&mut self, name: &str) -> IoResult<Node> {

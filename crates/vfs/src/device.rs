@@ -83,7 +83,7 @@ pub trait DirectoryDevice: Send + Sync {
 
 //
 
-impl FileDevice for &'_ [u8] {
+impl FileDevice for [u8] {
     fn len(&self) -> usize {
         <[u8]>::len(self)
     }
@@ -98,21 +98,6 @@ impl FileDevice for &'_ [u8] {
         buf[..len].copy_from_slice(&self[offset..offset + len]);
 
         Ok(len)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
-    }
-}
-
-impl FileDevice for &'_ mut [u8] {
-    fn len(&self) -> usize {
-        <[u8]>::len(self)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        let immut: &[u8] = &**self;
-        immut.read(offset, buf)
     }
 
     fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {

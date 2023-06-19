@@ -13,7 +13,7 @@ use self::{
     device::FileDevice,
     error::{IoError, IoResult},
     path::Path,
-    ramdisk::Directory,
+    ramdisk::{Directory, File},
     tree::{DirRef, FileRef, Node},
 };
 use crate::tree::Root;
@@ -99,12 +99,32 @@ fn get_file_with(
     node: Node,
     path: impl AsRef<Path>,
     make_dirs: bool,
-    _create: bool,
+    create: bool,
 ) -> IoResult<FileRef> {
-    let node = get_node_with(node, path, make_dirs)?;
+    let path = path.as_ref();
+    let (parent, file) = path.split().ok_or(IoError::NotFound)?;
+    let node = get_node_with(node, parent, make_dirs)?;
     match node {
-        Node::File(file) => Ok(file),
-        Node::Directory(_) => Err(IoError::IsADirectory),
+        Node::File(_) => Err(IoError::NotADirectory),
+        Node::Directory(parent) => {
+            let mut parent = parent.lock();
+
+            // existing file
+            match parent.get_node(file) {
+                Ok(Node::File(file)) => return Ok(file),
+                Ok(Node::Directory(_)) => return Err(IoError::IsADirectory),
+                Err(_) => {}
+            }
+
+            // new file
+            if create {
+                let node = File::new();
+                parent.create_node(file, Node::File(node.clone()))?;
+                return Ok(node);
+            }
+
+            Err(IoError::NotFound)
+        }
     }
 }
 
