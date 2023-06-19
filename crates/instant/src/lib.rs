@@ -5,7 +5,6 @@
 use core::ops::{Add, Sub};
 
 use hyperion_checked::{CheckedAdd, CheckedSub};
-use hyperion_clock::CLOCK_SOURCE;
 use time::Duration;
 
 //
@@ -26,7 +25,7 @@ impl Instant {
 
     pub fn now() -> Self {
         Self {
-            nanosecond: CLOCK_SOURCE.nanosecond_now(),
+            nanosecond: hyperion_clock::get().nanosecond_now(),
         }
     }
 

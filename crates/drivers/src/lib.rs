@@ -24,11 +24,11 @@ pub fn lazy_install_early() {
         hyperion_vfs::install_dev("/dev/fbo", fbo::FboDevice);
     });
 
-    *hyperion_clock::PICK_CLOCK_SOURCE.lock() = || {
+    hyperion_clock::set_source_picker(|| {
         // TODO: more clocks
         Some(&*acpi::hpet::HPET)
         // Some(&*pit::PIT)
-    };
+    });
 }
 
 pub fn lazy_install_late() {

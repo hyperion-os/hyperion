@@ -1,5 +1,4 @@
 use hyperion_atomic_map::AtomicMap;
-use hyperion_clock::CLOCK_SOURCE;
 use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -190,7 +189,7 @@ fn calibrate(regs: &mut ApicRegs) -> u32 {
 
     regs.timer_divide.write(APIC_TIMER_DIV);
 
-    CLOCK_SOURCE._apic_sleep_simple_blocking(10_000, &mut || {
+    hyperion_clock::get()._apic_sleep_simple_blocking(10_000, &mut || {
         // reset right before PIT sleeping
         regs.timer_init.write(INITIAL_COUNT);
     });
