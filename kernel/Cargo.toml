@@ -48,7 +48,6 @@ hyperion-scheduler.path = "../crates/scheduler"
 hyperion-static-str.path = "../crates/static-str"
 hyperion-timer.path = "../crates/timer"
 hyperion-vfs.path = "../crates/vfs"
-hyperion-vfs-util.path = "../crates/vfs-util"
 hyperion-num-postfix.path = "../crates/num-postfix"
 hyperion-macros.path = "../crates/macros"
 

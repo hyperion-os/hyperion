@@ -14,8 +14,10 @@ use bit_field::BitField;
 use hyperion_clock::ClockSource;
 use hyperion_log::{debug, trace, warn};
 use hyperion_timer::provide_sleep_wake;
-use hyperion_vfs::{FileDevice, IoError, IoResult};
-use hyperion_vfs_util::slice_read;
+use hyperion_vfs::{
+    device::FileDevice,
+    error::{IoError, IoResult},
+};
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
 
@@ -424,7 +426,7 @@ impl FileDevice for HpetDevice {
 
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
         let bytes = &HPET.now_bytes()[..];
-        slice_read(bytes, offset, buf)
+        bytes.read(offset, buf)
     }
 
     fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {

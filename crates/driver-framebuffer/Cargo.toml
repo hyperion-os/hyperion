@@ -8,4 +8,3 @@ edition.workspace = true
 [dependencies]
 hyperion-framebuffer.path = "../framebuffer"
 hyperion-vfs.path = "../vfs"
-hyperion-vfs-util.path = "../vfs-util"

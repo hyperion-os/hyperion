@@ -3,7 +3,7 @@
 //
 
 use hyperion_framebuffer::framebuffer::Framebuffer;
-use hyperion_vfs::{FileDevice, IoResult};
+use hyperion_vfs::{device::FileDevice, error::IoResult};
 
 //
 
@@ -13,14 +13,20 @@ pub struct FboDevice;
 
 impl FileDevice for FboDevice {
     fn len(&self) -> usize {
-        if let Some(fbo) = Framebuffer::get() {
-            fbo.lock().buf_mut().len()
-        } else {
-            0
-        }
+        Self::with(|fbo| fbo.len())
     }
 
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        Self::with(|fbo| fbo.read(offset, buf))
+    }
+
+    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+        Self::with_mut(|mut fbo| fbo.write(offset, buf))
+    }
+}
+
+impl FboDevice {
+    pub fn with<T>(f: impl FnOnce(&[u8]) -> T) -> T {
         let fbo = Framebuffer::get();
         let mut lock;
         let this = if let Some(fbo) = fbo {
@@ -30,10 +36,10 @@ impl FileDevice for FboDevice {
             &[]
         };
 
-        hyperion_vfs_util::slice_read(this, offset, buf)
+        f(this)
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+    pub fn with_mut<T>(f: impl FnOnce(&mut [u8]) -> T) -> T {
         let fbo = Framebuffer::get();
         let mut lock;
         let this = if let Some(fbo) = fbo {
@@ -43,6 +49,6 @@ impl FileDevice for FboDevice {
             &mut []
         };
 
-        hyperion_vfs_util::slice_write(this, offset, buf)
+        f(this)
     }
 }

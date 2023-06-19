@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicBool, AtomicI16, AtomicI8, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicI16, AtomicI8, Ordering};
 
 use crossbeam::atomic::AtomicCell;
 use hyperion_driver_acpi::ioapic::IoApic;

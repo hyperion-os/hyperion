@@ -18,11 +18,11 @@ pub fn lazy_install_early() {
         return;
     }
 
-    *hyperion_vfs::IO_DEVICES.lock() = || {
+    hyperion_vfs::device::set_io_device_loader(|| {
         hyperion_vfs::install_dev("/dev/rtc", rtc::RtcDevice);
         hyperion_vfs::install_dev("/dev/hpet", acpi::hpet::HpetDevice);
         hyperion_vfs::install_dev("/dev/fbo", fbo::FboDevice);
-    };
+    });
 
     *hyperion_clock::PICK_CLOCK_SOURCE.lock() = || {
         // TODO: more clocks

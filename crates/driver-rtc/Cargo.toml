@@ -12,5 +12,4 @@ x86_64.workspace = true
 
 hyperion-log.path = "../log"
 hyperion-vfs.path = "../vfs"
-hyperion-vfs-util.path = "../vfs-util"
 hyperion-macros.path = "../macros"

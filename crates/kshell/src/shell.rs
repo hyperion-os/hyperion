@@ -8,7 +8,7 @@ use hyperion_scheduler::timer::sleep;
 use hyperion_vfs::{
     self,
     path::{Path, PathBuf},
-    Node,
+    tree::Node,
 };
 use snafu::ResultExt;
 use spin::Mutex;
@@ -157,7 +157,7 @@ impl Shell {
             }
             Node::Directory(dir) => {
                 let mut dir = dir.lock();
-                for entry in dir.nodes().context(IoSnafu { resource })? {
+                for entry in dir.nodes().context(IoSnafu { resource })?.iter() {
                     _ = writeln!(self.term, "{entry}");
                 }
             }

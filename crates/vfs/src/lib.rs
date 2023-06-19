@@ -4,27 +4,27 @@
 
 extern crate alloc;
 
-use alloc::{
-    collections::{btree_map::Entry, BTreeMap},
-    string::{String, ToString},
-    sync::{Arc, Weak},
-    vec::Vec,
-};
-use core::sync::atomic::{AtomicBool, Ordering};
+use alloc::sync::Arc;
 
-use hyperion_log::{debug, error, warn};
-use snafu::Snafu;
+use hyperion_log::{debug, error};
 use spin::{Lazy, Mutex};
 
-use self::path::Path;
+use self::{
+    device::FileDevice,
+    error::{IoError, IoResult},
+    path::Path,
+    ramdisk::Directory,
+    tree::{DirRef, FileRef, Node},
+};
+use crate::tree::Root;
 
 //
 
+pub mod device;
+pub mod error;
 pub mod path;
-
-//
-
-pub static IO_DEVICES: Mutex<fn()> = Mutex::new(|| warn!("Device provicer wasn't given to VFS"));
+pub mod ramdisk;
+pub mod tree;
 
 //
 
@@ -32,11 +32,7 @@ pub fn get_root() -> Node {
     pub static ROOT: Lazy<Root> = Lazy::new(|| Directory::from(""));
     let root = ROOT.clone();
 
-    static IO_DEVICES_ONCE: AtomicBool = AtomicBool::new(true);
-    if IO_DEVICES_ONCE.swap(false, Ordering::Release) {
-        debug!("Initializing VFS");
-        (IO_DEVICES.lock())()
-    }
+    device::init();
 
     Node::Directory(root)
 }
@@ -58,193 +54,12 @@ pub fn create_device(path: impl AsRef<Path>, make_dirs: bool, dev: FileRef) -> I
     create_device_with(get_root(), path, make_dirs, dev)
 }
 
-pub fn install_dev(path: impl AsRef<Path>, dev: impl FileDevice + Send + Sync + 'static) {
+pub fn install_dev(path: impl AsRef<Path>, dev: impl FileDevice + 'static) {
     install_dev_with(get_root(), path, dev)
 }
 
 pub use get_dir as read_dir;
 pub use get_file as open;
-
-//
-
-#[derive(Clone)]
-pub enum Node {
-    /// a normal file, like `/etc/fstab`
-    ///
-    /// or
-    ///
-    /// a device mapped to a file, like `/dev/fb0`
-    File(FileRef),
-
-    /// a directory with 0 or more files, like `/home/`
-    ///
-    /// or
-    ///
-    /// a device mapped to a directory, like `/https/archlinux/org/`
-    ///
-    /// mountpoints are also directory devices
-    ///
-    /// directory devices may be unlistable, because it's not sensible to list every website there
-    /// is
-    ///
-    /// a directory device most likely contains more directory devices, like `/https/archlinux/org`
-    /// inside `/https/archlinux/`
-    Directory(DirRef),
-}
-
-pub type FileRef = Arc<Mutex<dyn FileDevice + Sync + Send + 'static>>;
-pub type WeakFileRef = Weak<Mutex<dyn FileDevice + Sync + Send + 'static>>;
-pub type DirRef = Arc<Mutex<dyn DirectoryDevice + Sync + Send + 'static>>;
-pub type WeakDirRef = Weak<Mutex<dyn DirectoryDevice + Sync + Send + 'static>>;
-pub type Root = DirRef;
-
-pub struct File {}
-
-pub struct Directory {
-    pub name: String,
-    pub children: BTreeMap<String, Node>,
-    pub parent: Option<WeakDirRef>,
-}
-
-pub trait FileDevice {
-    fn len(&self) -> usize;
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize>;
-
-    fn read_exact(&self, mut offset: usize, mut buf: &mut [u8]) -> IoResult<()> {
-        while !buf.is_empty() {
-            match self.read(offset, buf) {
-                Ok(0) => break,
-                Ok(n) => {
-                    offset += n;
-                    let tmp = buf;
-                    buf = &mut tmp[n..];
-                }
-                Err(IoError::Interrupted) => {}
-                Err(err) => return Err(err),
-            }
-        }
-
-        if !buf.is_empty() {
-            Err(IoError::UnexpectedEOF)
-        } else {
-            Ok(())
-        }
-    }
-
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize>;
-
-    fn write_exact(&mut self, mut offset: usize, mut buf: &[u8]) -> IoResult<()> {
-        while !buf.is_empty() {
-            match self.write(offset, buf) {
-                Ok(0) => return Err(IoError::WriteZero),
-                Ok(n) => {
-                    offset += n;
-                    buf = &buf[n..];
-                }
-                Err(IoError::Interrupted) => {}
-                Err(err) => return Err(err),
-            }
-        }
-        Ok(())
-    }
-}
-
-pub trait DirectoryDevice {
-    fn get_node(&mut self, name: &str) -> IoResult<Node>;
-
-    fn create_node(&mut self, name: &str, node: Node) -> IoResult<()>;
-
-    fn nodes(&mut self) -> IoResult<Vec<String>>;
-}
-
-#[derive(Debug, Snafu)]
-pub enum IoError {
-    #[snafu(display("not found"))]
-    NotFound,
-
-    #[snafu(display("already exists"))]
-    AlreadyExists,
-
-    #[snafu(display("not a directory"))]
-    NotADirectory,
-
-    #[snafu(display("is a directory"))]
-    IsADirectory,
-
-    #[snafu(display("internal filesystem error"))]
-    FilesystemError,
-
-    #[snafu(display("permission denied"))]
-    PermissionDenied,
-
-    #[snafu(display("unexpected end of file"))]
-    UnexpectedEOF,
-
-    #[snafu(display("interrupted"))]
-    Interrupted,
-
-    #[snafu(display("wrote nothing"))]
-    WriteZero,
-}
-
-pub type IoResult<T> = Result<T, IoError>;
-
-//
-
-impl DirectoryDevice for Directory {
-    fn get_node(&mut self, name: &str) -> IoResult<Node> {
-        if let Some(node) = self.children.get(name) {
-            Ok(node.clone())
-        } else {
-            Err(IoError::NotFound)
-        }
-    }
-
-    fn create_node(&mut self, name: &str, node: Node) -> IoResult<()> {
-        match self.children.entry(name.to_string()) {
-            Entry::Vacant(entry) => {
-                entry.insert(node);
-                Ok(())
-            }
-            Entry::Occupied(_) => Err(IoError::AlreadyExists),
-        }
-    }
-
-    fn nodes(&mut self) -> IoResult<Vec<String>> {
-        Ok(self.children.keys().cloned().collect())
-    }
-}
-
-impl Directory {
-    pub fn from(name: impl Into<String>) -> DirRef {
-        Arc::new(Mutex::new(Directory {
-            name: name.into(),
-            children: BTreeMap::new(),
-            parent: None,
-        })) as _
-    }
-}
-
-impl IoError {
-    pub fn to_str(&self) -> &'static str {
-        match self {
-            IoError::NotFound => "not found",
-            IoError::AlreadyExists => "already exists",
-            IoError::NotADirectory => "not a directory",
-            IoError::IsADirectory => "is a directory",
-            IoError::FilesystemError => "filesystem error",
-            IoError::PermissionDenied => "permission denied",
-            IoError::UnexpectedEOF => "unexpected eof",
-            IoError::Interrupted => "interrupted",
-            IoError::WriteZero => "wrote nothing",
-        }
-    }
-}
 
 //
 
@@ -302,11 +117,7 @@ fn create_device_with(
     create_node_with(node, path, make_dirs, Node::File(dev))
 }
 
-fn install_dev_with(
-    node: Node,
-    path: impl AsRef<Path>,
-    dev: impl FileDevice + Send + Sync + 'static,
-) {
+fn install_dev_with(node: Node, path: impl AsRef<Path>, dev: impl FileDevice + 'static) {
     let path = path.as_ref();
     debug!("installing VFS device at {path:?}");
     if let Err(err) = create_device_with(node, path, true, Arc::new(Mutex::new(dev)) as _) {
