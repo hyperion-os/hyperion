@@ -30,7 +30,7 @@ pub static NAME: &str = "Limine";
 //
 
 #[no_mangle]
-extern "C" fn _start() -> ! {
+extern "C" fn _hyperion_start() -> ! {
     mem::stack_init();
 
     unsafe { kernel_main() }

@@ -1,4 +1,4 @@
-ENTRY(_start)
+ENTRY(_hyperion_start)
 OUTPUT_ARCH(i386:x86-64)
 OUTPUT_FORMAT(elf64-x86-64)
 
