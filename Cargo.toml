@@ -5,9 +5,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
-# set_members
-members = ["crates/*", "kernel"]
-# members = ["crates/*"]
+members = ["crates/*", "kernel"] # sed_mark_0
+# members = ["crates/*"] # sed_mark_1
 
 [workspace.dependencies]
 spin = "0.9"
