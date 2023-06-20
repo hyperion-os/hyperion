@@ -19,13 +19,12 @@ x86_64.workspace = true
 pc-keyboard.workspace = true
 paste.workspace = true
 bit_field.workspace = true
-rustc-demangle.workspace = true
-elf.workspace = true
 smallvec.workspace = true
 time.workspace = true
 futures-util.workspace = true
 
 hyperion-arch.path = "../crates/arch"
+hyperion-backtrace.path = "../crates/backtrace"
 hyperion-random.path = "../crates/random"
 hyperion-atomic-map.path = "../crates/atomic-map"
 hyperion-boot.path = "../crates/boot"

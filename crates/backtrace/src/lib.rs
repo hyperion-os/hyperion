@@ -1,3 +1,7 @@
+#![no_std]
+
+//
+
 use core::{arch::asm, ffi::c_void, ptr};
 
 use elf::{
@@ -111,29 +115,27 @@ pub unsafe fn unwind_stack_from(ip: VirtAddr, mut f: impl FnMut(FrameInfo)) {
 
     let mut frame: *const RawStackFrame = ip.as_u64() as _;
 
-    hyperion_arch::int::without(|| {
-        loop {
-            if frame.is_null() {
-                break;
-            }
-
-            let _frame = unsafe { ptr::read_volatile(frame) };
-            frame = _frame.next;
-
-            if _frame.instr_ptr == 0 {
-                break;
-            }
-
-            let instr_ptr = _frame
-                .instr_ptr
-                .checked_sub(virt_addr() as u64)
-                .and_then(|i| i.checked_add(kernel_base()))
-                .unwrap_or(_frame.instr_ptr);
-            f(symbol_noerr(instr_ptr));
+    loop {
+        if frame.is_null() {
+            break;
         }
 
-        println!("{:#0x}", frame as usize);
-    });
+        let _frame = unsafe { ptr::read_volatile(frame) };
+        frame = _frame.next;
+
+        if _frame.instr_ptr == 0 {
+            break;
+        }
+
+        let instr_ptr = _frame
+            .instr_ptr
+            .checked_sub(virt_addr() as u64)
+            .and_then(|i| i.checked_add(kernel_base()))
+            .unwrap_or(_frame.instr_ptr);
+        f(symbol_noerr(instr_ptr));
+    }
+
+    println!("{:#0x}", frame as usize);
 }
 
 pub fn unwind_stack(f: impl FnMut(FrameInfo)) {

@@ -3,8 +3,6 @@ use core::panic::PanicInfo;
 use hyperion_arch::{done, int};
 use hyperion_log::println;
 
-use crate::backtrace;
-
 //
 
 #[cfg(not(test))]
@@ -26,5 +24,5 @@ fn panic_handler(info: &PanicInfo) -> ! {
 
 fn panic_unwind(info: &PanicInfo) {
     println!("Kernel CPU {info}");
-    backtrace::print_backtrace();
+    hyperion_backtrace::print_backtrace();
 }

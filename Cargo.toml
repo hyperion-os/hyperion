@@ -14,9 +14,8 @@ volatile = "0.4"
 x86_64 = "0.14"
 uart_16550 = "0.2"
 pc-keyboard = "0.7"
-paste = "1.0"          # macro ident concat
+paste = "1.0"       # macro ident concat
 bit_field = "0.10"
-rustc-demangle = "0.1" # backtrace demangling
 # image = "0.24"
 # bitvec = "1.0.1"
 # tracing = { version = "0.1.37", default-features = false }

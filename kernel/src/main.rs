@@ -33,7 +33,6 @@ extern crate alloc;
 
 //
 
-pub mod backtrace;
 pub mod panic;
 #[cfg(test)]
 pub mod testfw;
