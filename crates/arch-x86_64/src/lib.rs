@@ -1,3 +1,10 @@
+#![no_std]
+#![feature(abi_x86_interrupt)]
+
+//
+
+extern crate alloc;
+
 use hyperion_boot_interface::Cpu;
 use hyperion_log::{debug, error};
 use spin::{Barrier, Once};

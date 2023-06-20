@@ -5,7 +5,6 @@
 //
 #![feature(
     const_option,
-    abi_x86_interrupt,
     allocator_api,
     pointer_is_aligned,
     int_roundings,
@@ -21,6 +20,7 @@
 //
 
 use futures_util::StreamExt;
+use hyperion_arch::rng_seed;
 use hyperion_boot_interface::Cpu;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
@@ -29,14 +29,10 @@ use hyperion_log::{debug, warn};
 use hyperion_scheduler::timer::ticks;
 use time::Duration;
 
-use self::arch::rng_seed;
-
 extern crate alloc;
 
 //
 
-#[path = "./arch/x86_64/mod.rs"]
-pub mod arch;
 pub mod backtrace;
 pub mod panic;
 #[cfg(test)]
@@ -53,9 +49,9 @@ fn kernel_main() -> ! {
     debug!("Entering kernel_main");
     debug!("{NAME} {VERSION} was booted with {}", hyperion_boot::NAME);
 
-    arch::early_boot_cpu();
+    hyperion_arch::early_boot_cpu();
 
-    hyperion_random::provide_entropy(&arch::rng_seed().to_ne_bytes());
+    hyperion_random::provide_entropy(&hyperion_arch::rng_seed().to_ne_bytes());
 
     hyperion_drivers::lazy_install_early();
 
@@ -73,7 +69,7 @@ fn kernel_main() -> ! {
 fn smp_main(cpu: Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
-    arch::early_per_cpu(&cpu);
+    hyperion_arch::early_per_cpu(&cpu);
 
     if cpu.is_boot() {
         hyperion_drivers::lazy_install_late();

@@ -4,8 +4,6 @@ use x86_64::{
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
 };
 
-use crate::backtrace::print_backtrace_from;
-
 //
 
 pub extern "x86-interrupt" fn divide_error(stack: InterruptStackFrame) {
@@ -71,7 +69,7 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
         let addr = Cr2::read();
 
         error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
-        unsafe { print_backtrace_from(stack.stack_pointer) };
+        // unsafe { print_backtrace_from(stack.stack_pointer) };
 
         panic!();
     });
@@ -82,7 +80,7 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
         let addr = Cr2::read();
 
         error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
-        unsafe { print_backtrace_from(stack.stack_pointer) };
+        // unsafe { print_backtrace_from(stack.stack_pointer) };
 
         panic!();
     });

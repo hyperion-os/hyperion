@@ -10,8 +10,6 @@ use rustc_demangle::demangle;
 use spin::Lazy;
 use x86_64::VirtAddr;
 
-use crate::arch;
-
 //
 
 pub type BacktraceResult<T> = Result<T, BacktraceError>;
@@ -113,7 +111,7 @@ pub unsafe fn unwind_stack_from(ip: VirtAddr, mut f: impl FnMut(FrameInfo)) {
 
     let mut frame: *const RawStackFrame = ip.as_u64() as _;
 
-    arch::int::without(|| {
+    hyperion_arch::int::without(|| {
         loop {
             if frame.is_null() {
                 break;

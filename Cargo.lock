@@ -214,6 +214,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
+name = "hyperion-arch"
+version = "0.1.0"
+dependencies = [
+ "hyperion-arch-x86_64",
+]
+
+[[package]]
+name = "hyperion-arch-x86_64"
+version = "0.1.0"
+dependencies = [
+ "hyperion-boot",
+ "hyperion-boot-interface",
+ "hyperion-drivers",
+ "hyperion-interrupts",
+ "hyperion-log",
+ "hyperion-macros",
+ "hyperion-mem",
+ "spin",
+ "x86_64",
+]
+
+[[package]]
 name = "hyperion-atomic-map"
 version = "0.1.0"
 dependencies = [
@@ -419,6 +441,7 @@ dependencies = [
  "bit_field",
  "elf",
  "futures-util",
+ "hyperion-arch",
  "hyperion-atomic-map",
  "hyperion-bitmap",
  "hyperion-boot",
@@ -496,6 +519,13 @@ dependencies = [
  "snafu",
  "spin",
  "time 0.3.22",
+]
+
+[[package]]
+name = "hyperion-loader"
+version = "0.1.0"
+dependencies = [
+ "elf",
 ]
 
 [[package]]

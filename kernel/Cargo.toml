@@ -25,7 +25,7 @@ smallvec.workspace = true
 time.workspace = true
 futures-util.workspace = true
 
-# hyperion-arch.path = "../crates/arch"
+hyperion-arch.path = "../crates/arch"
 hyperion-random.path = "../crates/random"
 hyperion-atomic-map.path = "../crates/atomic-map"
 hyperion-boot.path = "../crates/boot"

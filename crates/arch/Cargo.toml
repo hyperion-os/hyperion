@@ -1,0 +1,9 @@
+[package]
+name = "hyperion-arch"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hyperion-arch-x86_64.path = "../arch-x86_64"

@@ -1,11 +1,9 @@
 use core::panic::PanicInfo;
 
+use hyperion_arch::{done, int};
 use hyperion_log::println;
 
-use crate::{
-    arch::{done, int},
-    backtrace,
-};
+use crate::backtrace;
 
 //
 
