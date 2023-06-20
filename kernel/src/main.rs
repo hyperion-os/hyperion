@@ -20,12 +20,12 @@
 //
 
 use futures_util::StreamExt;
-use hyperion_arch::rng_seed;
 use hyperion_boot_interface::Cpu;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::{debug, warn};
+use hyperion_random::Rng;
 use hyperion_scheduler::timer::ticks;
 use time::Duration;
 
@@ -80,6 +80,7 @@ fn smp_main(cpu: Cpu) -> ! {
 
 async fn spinner() {
     let mut ticks = ticks(Duration::milliseconds(500));
+    let mut rng = hyperion_random::next_fast_rng();
 
     while ticks.next().await.is_some() {
         let Some(fbo) = Framebuffer::get() else {
@@ -88,9 +89,7 @@ async fn spinner() {
         };
         let mut fbo = fbo.lock();
 
-        let r = (rng_seed() % 0xFF) as u8;
-        let g = (rng_seed() % 0xFF) as u8;
-        let b = (rng_seed() % 0xFF) as u8;
+        let (r, g, b) = rng.gen();
         let x = fbo.width - 60;
         let y = fbo.height - 60;
         fbo.fill(x, y, 50, 50, Color::new(r, g, b));
