@@ -12,6 +12,7 @@ snafu.workspace = true
 spin.workspace = true
 
 hyperion-color.path = "../color"
+hyperion-escape.path = "../escape"
 hyperion-framebuffer.path = "../framebuffer"
 hyperion-kernel-info.path = "../kernel-info"
 hyperion-keyboard.path = "../keyboard"
@@ -21,3 +22,4 @@ hyperion-mem.path = "../mem"
 hyperion-num-postfix.path = "../num-postfix"
 hyperion-scheduler.path = "../scheduler"
 hyperion-vfs.path = "../vfs"
+hyperion-random.path = "../random"

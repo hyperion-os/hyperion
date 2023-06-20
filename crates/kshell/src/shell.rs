@@ -16,6 +16,7 @@ use spin::Mutex;
 use time::{Duration, OffsetDateTime};
 
 use super::{term::Term, *};
+use crate::snake::snake_game;
 
 //
 
@@ -112,6 +113,7 @@ impl Shell {
             "draw" => self.draw_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
             "touch" => self.touch_cmd(args)?,
+            "rand" => self.rand_cmd(args)?,
             "clear" => {
                 self.term.clear();
             }
@@ -341,6 +343,12 @@ impl Shell {
         let resource = resource.as_ref();
 
         hyperion_vfs::get_file(file, true, true).context(IoSnafu { resource })?;
+
+        Ok(())
+    }
+
+    fn rand_cmd(&mut self, _: Option<&str>) -> Result<()> {
+        _ = writeln!(self.term, "{}", hyperion_random::rand());
 
         Ok(())
     }
