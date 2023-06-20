@@ -9,7 +9,7 @@ edition.workspace = true
 spin.workspace = true
 blake3 = { version = "1.4", default-features = false }
 # sha2 = { version = "0.10", default-features = false }
-# rand = { version = "0.8", default-features = false, features = ["rand_chacha"] }
+rand = { version = "0.8", default-features = false, features = ["rand_chacha"] }
 rand_chacha = { version = "0.3", default-features = false }
 
 hyperion-log.path = "../log"

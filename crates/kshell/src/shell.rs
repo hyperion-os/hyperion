@@ -5,6 +5,7 @@ use hyperion_color::Color;
 use hyperion_keyboard::{event::KeyboardEvent, layouts, set_layout};
 use hyperion_mem::pmm::PageFrameAllocator;
 use hyperion_num_postfix::NumberPostfix;
+use hyperion_random::Rng;
 use hyperion_scheduler::timer::sleep;
 use hyperion_vfs::{
     self,
@@ -348,7 +349,8 @@ impl Shell {
     }
 
     fn rand_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "{}", hyperion_random::rand());
+        let mut rng = hyperion_random::next_secure_rng().ok_or(Error::InsecurePrng)?;
+        _ = writeln!(self.term, "{}", rng.gen::<u64>());
 
         Ok(())
     }
