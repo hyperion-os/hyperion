@@ -1,4 +1,13 @@
+use alloc::{format, sync::Arc};
 use core::fmt;
+
+use hyperion_color::Color;
+
+//
+
+pub fn color_to_code(Color { r, g, b }: Color) -> Arc<str> {
+    format!("\x1B[38;2;{r};{g};{b}m").into()
+}
 
 //
 
