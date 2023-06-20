@@ -8,6 +8,7 @@ edition.workspace = true
 [dependencies]
 futures-util.workspace = true
 spin.workspace = true
+time.workspace = true
 
 hyperion-instant.path = "../instant"
 hyperion-int-safe-lazy.path = "../int-safe-lazy"

@@ -11,7 +11,7 @@ use super::CHAR_SIZE;
 
 pub struct Term {
     pub cursor: (usize, usize),
-    size: (usize, usize),
+    pub size: (usize, usize),
     buf: Box<[u8]>,
     old_buf: Box<[u8]>,
 }
@@ -100,6 +100,10 @@ impl Term {
     pub fn clear(&mut self) {
         self.cursor = (0, 0);
         self.buf.fill(b' ');
+    }
+
+    pub fn read_at(&self, cursor: (usize, usize)) -> u8 {
+        self.buf[cursor.0 + cursor.1 * self.size.0]
     }
 
     pub fn write_byte(&mut self, b: u8) {

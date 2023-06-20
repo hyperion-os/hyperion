@@ -115,6 +115,7 @@ impl Shell {
             "kbl" => self.kbl_cmd(args)?,
             "touch" => self.touch_cmd(args)?,
             "rand" => self.rand_cmd(args)?,
+            "snake" => self.snake_cmd(args).await?,
             "clear" => {
                 self.term.clear();
             }
@@ -353,5 +354,9 @@ impl Shell {
         _ = writeln!(self.term, "{}", rng.gen::<u64>());
 
         Ok(())
+    }
+
+    async fn snake_cmd(&mut self, _: Option<&str>) -> Result<()> {
+        snake_game(&mut self.term).await
     }
 }

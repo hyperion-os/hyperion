@@ -33,17 +33,20 @@ pub fn ticks(interval: Duration) -> Ticks {
 
 //
 
+#[derive(Debug, Clone, Copy)]
 #[must_use]
 pub struct SleepUntil {
     deadline: Instant,
     sleeping: bool,
 }
 
+#[derive(Debug, Clone, Copy)]
 #[must_use]
 pub struct Sleep {
     inner: SleepUntil,
 }
 
+#[derive(Debug, Clone, Copy)]
 #[must_use]
 pub struct Ticks {
     interval: Duration,

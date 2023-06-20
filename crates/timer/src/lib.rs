@@ -29,7 +29,10 @@ pub fn provide_sleep_wake() {
     let mut timers = deadlines.lock();
 
     if let Some(TimerWaker { deadline, .. }) = timers.peek() {
-        if Instant::now() < *deadline {
+        let now = Instant::now();
+        if now < *deadline
+        /* || (*deadline) + Duration::nanoseconds(10) > now */
+        {
             return;
         }
     }

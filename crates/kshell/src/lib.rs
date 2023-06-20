@@ -18,6 +18,7 @@ use self::{shell::Shell, term::Term};
 //
 
 pub mod shell;
+pub mod snake;
 pub mod term;
 
 //
@@ -55,6 +56,9 @@ pub enum Error {
 
     #[snafu(display("{msg}"))]
     Other { msg: String },
+
+    #[snafu(display("insecure PRNG"))]
+    InsecurePrng,
 }
 
 pub type Result<T> = core::result::Result<T, Error>;

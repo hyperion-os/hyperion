@@ -55,6 +55,8 @@ fn kernel_main() -> ! {
 
     arch::early_boot_cpu();
 
+    hyperion_random::provide_entropy(&arch::rng_seed().to_ne_bytes());
+
     hyperion_drivers::lazy_install_early();
 
     #[cfg(test)]
