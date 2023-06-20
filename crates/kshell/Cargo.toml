@@ -10,6 +10,8 @@ time.workspace = true
 futures-util.workspace = true
 snafu.workspace = true
 spin.workspace = true
+libm = "0.2"
+glam = { version = "0.24", default-features = false, features = ["libm"] }
 
 hyperion-color.path = "../color"
 hyperion-escape.path = "../escape"

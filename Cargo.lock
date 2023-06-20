@@ -199,6 +199,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad83ab008a4fa3b31dfa713dd41b5a9bdea1e94e4cf1e2fc274ffbd49b0271d3"
+dependencies = [
+ "libm",
+]
+
+[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -470,6 +479,7 @@ name = "hyperion-kshell"
 version = "0.1.0"
 dependencies = [
  "futures-util",
+ "glam",
  "hyperion-color",
  "hyperion-escape",
  "hyperion-framebuffer",
@@ -482,6 +492,7 @@ dependencies = [
  "hyperion-random",
  "hyperion-scheduler",
  "hyperion-vfs",
+ "libm",
  "snafu",
  "spin",
  "time 0.3.22",
@@ -631,6 +642,12 @@ name = "libc"
 version = "0.2.146"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f92be4933c13fd498862a9e02a3055f8a8d9c039ce33db97306fd5a6caa7f29b"
+
+[[package]]
+name = "libm"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7012b1bbb0719e1097c47611d3898568c546d597c2e74d66f6087edd5233ff4"
 
 [[package]]
 name = "limine"
