@@ -1,8 +1,12 @@
 use alloc::{string::String, sync::Arc};
 use core::fmt::Write;
 
+use futures_util::stream::select;
 use hyperion_color::Color;
-use hyperion_keyboard::{event::KeyboardEvent, layouts, set_layout};
+use hyperion_keyboard::{
+    event::{KeyCode, KeyboardEvent},
+    layouts, set_layout,
+};
 use hyperion_mem::pmm::PageFrameAllocator;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
@@ -427,23 +431,38 @@ impl Shell {
         let mid_y = ((self.term.size.1 * CHAR_SIZE.1 as usize) / 2) as i32;
         let mut a = 0.0f32;
 
-        let mut ticks = ticks(Duration::milliseconds(10));
-        while ticks.next().await.is_some() {
-            let Some(fbo) = Framebuffer::get() else {
-            return Ok(());
-        };
+        let ticks = ticks(Duration::milliseconds(10)).map(|_| None);
+        let esc = KeyboardEvents.map(Some);
+        let mut events = select(ticks, esc);
 
+        loop {
+            let Some(fbo) = Framebuffer::get() else {
+                break;
+            };
             let mut fbo = fbo.lock();
+
+            let red = Mat4::from_rotation_y(a);
+            let blue = Mat4::from_rotation_y(a * 2.0);
+            draw_cube(&mut fbo, mid_x, mid_y, red, 100.0, Color::RED);
+            draw_cube(&mut fbo, mid_x, mid_y, blue, 80.0, Color::BLUE);
+
+            let stop = matches!(
+                events.next().await,
+                Some(Some(KeyboardEvent {
+                    keycode: KeyCode::Escape,
+                    ..
+                }))
+            );
 
             let red = Mat4::from_rotation_y(a);
             let blue = Mat4::from_rotation_y(a * 2.0);
             draw_cube(&mut fbo, mid_x, mid_y, red, 100.0, Color::BLACK);
             draw_cube(&mut fbo, mid_x, mid_y, blue, 80.0, Color::BLACK);
             a += 0.01;
-            let red = Mat4::from_rotation_y(a);
-            let blue = Mat4::from_rotation_y(a * 2.0);
-            draw_cube(&mut fbo, mid_x, mid_y, red, 100.0, Color::RED);
-            draw_cube(&mut fbo, mid_x, mid_y, blue, 80.0, Color::BLUE);
+
+            if stop {
+                break;
+            }
         }
 
         Ok(())
