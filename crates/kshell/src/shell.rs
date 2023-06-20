@@ -116,12 +116,14 @@ impl Shell {
             "touch" => self.touch_cmd(args)?,
             "rand" => self.rand_cmd(args)?,
             "snake" => self.snake_cmd(args).await?,
+            "help" => self.help_cmd(args)?,
             "clear" => {
                 self.term.clear();
             }
             "" => self.term.write_byte(b'\n'),
             other => {
                 _ = writeln!(self.term, "unknown command {other}");
+                self.help_cmd(None)?;
             }
         }
 
@@ -358,5 +360,11 @@ impl Shell {
 
     async fn snake_cmd(&mut self, _: Option<&str>) -> Result<()> {
         snake_game(&mut self.term).await
+    }
+
+    fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, clear");
+
+        Ok(())
     }
 }
