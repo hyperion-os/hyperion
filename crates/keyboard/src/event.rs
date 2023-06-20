@@ -4,7 +4,7 @@ pub use pc_keyboard::KeyCode;
 
 //
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KeyboardEvent {
     // pub scancode: u8,
     pub state: ElementState,
@@ -12,7 +12,7 @@ pub struct KeyboardEvent {
     pub unicode: Option<char>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ElementState {
     PressHold,
     PressRelease,
