@@ -25,10 +25,9 @@ pub mod term;
 pub async fn kshell() {
     let term = Term::new();
     let mut shell = Shell::new(term);
-    let mut stream = KeyboardEvents::new();
 
     shell.init();
-    while let Some(ev) = stream.next().await {
+    while let Some(ev) = KeyboardEvents.next().await {
         shell.input(ev).await;
     }
 }

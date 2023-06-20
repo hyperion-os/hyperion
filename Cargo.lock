@@ -290,8 +290,6 @@ dependencies = [
  "hyperion-interrupts",
  "hyperion-keyboard",
  "hyperion-log",
- "pc-keyboard",
- "spin",
  "x86_64",
 ]
 
@@ -431,6 +429,8 @@ dependencies = [
  "futures-util",
  "hyperion-int-safe-lazy",
  "hyperion-log",
+ "pc-keyboard",
+ "spin",
 ]
 
 [[package]]
@@ -439,9 +439,9 @@ version = "0.1.0"
 dependencies = [
  "futures-util",
  "hyperion-color",
- "hyperion-driver-ps2",
  "hyperion-framebuffer",
  "hyperion-kernel-info",
+ "hyperion-keyboard",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-mem",

@@ -10,31 +10,42 @@ use futures_util::task::AtomicWaker;
 use hyperion_int_safe_lazy::IntSafeLazy;
 use hyperion_log::warn;
 
+use self::event::KeyboardEvent;
+
+//
+
+mod decode;
+pub mod event;
+
 //
 
 pub static LAZY: AtomicCell<fn()> = AtomicCell::new(noop);
 
 //
 
-pub fn provide_keyboard_event(c: char) {
+pub fn provide_keyboard_event(ps2_byte: u8) {
+    let Some(event) = decode::process(ps2_byte) else {
+        return;
+    };
+
     let Some(queue) = KEYBOARD_EVENT_QUEUE.get() else {
-        warn!("Keyboard event queue not initialized! Lost '{c}'");
+        warn!("Keyboard event queue not initialized! Lost '{event:?}'");
         return
     };
 
-    if let Some(old) = queue.force_push(c) {
-        warn!("Keyboard event queue full! Lost '{old}'");
+    if let Some(old) = queue.force_push(event) {
+        warn!("Keyboard event queue full! Lost '{old:?}'");
     }
 
     KEYBOARD_EVENT_WAKER.wake()
 }
 
-pub fn next_keyboard_event() -> Option<char> {
+pub fn next_keyboard_event() -> Option<KeyboardEvent> {
     run_lazy();
     KEYBOARD_EVENT_QUEUE.get_force().pop()
 }
 
-pub fn wait_keyboard_event(cx: &mut Context) -> Poll<char> {
+pub fn wait_keyboard_event(cx: &mut Context) -> Poll<KeyboardEvent> {
     run_lazy();
     let queue = KEYBOARD_EVENT_QUEUE.get_force();
 
@@ -55,14 +66,18 @@ pub fn wait_keyboard_event(cx: &mut Context) -> Poll<char> {
     }
 }
 
+pub use decode::{layouts, set_layout};
+
+//
+
+static KEYBOARD_EVENT_QUEUE: IntSafeLazy<ArrayQueue<KeyboardEvent>> =
+    IntSafeLazy::new(|| ArrayQueue::new(512));
+static KEYBOARD_EVENT_WAKER: AtomicWaker = AtomicWaker::new();
+
+//
+
 fn noop() {}
 
 fn run_lazy() {
     LAZY.swap(noop)();
 }
-
-//
-
-static KEYBOARD_EVENT_QUEUE: IntSafeLazy<ArrayQueue<char>> =
-    IntSafeLazy::new(|| ArrayQueue::new(256));
-static KEYBOARD_EVENT_WAKER: AtomicWaker = AtomicWaker::new();

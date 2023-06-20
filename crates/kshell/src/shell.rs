@@ -2,7 +2,7 @@ use alloc::{string::String, sync::Arc};
 use core::fmt::Write;
 
 use hyperion_color::Color;
-use hyperion_driver_ps2::keyboard::set_layout;
+use hyperion_keyboard::{event::KeyboardEvent, layouts, set_layout};
 use hyperion_mem::pmm::PageFrameAllocator;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_scheduler::timer::sleep;
@@ -44,9 +44,13 @@ impl Shell {
         self.term.flush();
     }
 
-    pub async fn input(&mut self, ev: char) {
+    pub async fn input(&mut self, ev: KeyboardEvent) {
         let cmdbuf = self.cmdbuf.clone();
         let mut cmdbuf = cmdbuf.lock();
+
+        let Some(ev) = ev.unicode else {
+            return;
+        };
 
         if ev == '\n' {
             _ = writeln!(self.term);
@@ -318,6 +322,7 @@ impl Shell {
         let name = args.unwrap_or("us");
         if set_layout(name).is_none() {
             _ = writeln!(self.term, "invalid layout `{name}`");
+            _ = writeln!(self.term, "available layouts(s): `{:?}`", layouts());
         }
 
         Ok(())

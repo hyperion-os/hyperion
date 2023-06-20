@@ -6,9 +6,11 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossbeam.workspace = true
 crossbeam-queue.workspace = true
+crossbeam.workspace = true
 futures-util.workspace = true
+pc-keyboard.workspace = true
+spin.workspace = true
 
 hyperion-int-safe-lazy.path = "../int-safe-lazy"
 hyperion-log.path = "../log"
