@@ -372,10 +372,6 @@ impl Shell {
     async fn modeltest_cmd(&mut self, _: Option<&str>) -> Result<()> {
         use glam::{Mat4, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
 
-        let Some(fbo) = Framebuffer::get() else {
-            return Ok(());
-        };
-
         fn draw_line(fbo: &mut Framebuffer, x0: i32, y0: i32, x1: i32, y1: i32, color: Color) {
             let dx = x0.abs_diff(x1);
             let dy = y0.abs_diff(y1);
@@ -427,14 +423,18 @@ impl Shell {
             translated_line(Vec3::new(s, s, -s), Vec3::new(s, s, s));
         }
 
-        let mut fbo = fbo.lock();
-
         let mid_x = ((self.term.size.0 * CHAR_SIZE.0 as usize) / 2) as i32;
         let mid_y = ((self.term.size.1 * CHAR_SIZE.1 as usize) / 2) as i32;
         let mut a = 0.0f32;
 
         let mut ticks = ticks(Duration::milliseconds(10));
         while ticks.next().await.is_some() {
+            let Some(fbo) = Framebuffer::get() else {
+            return Ok(());
+        };
+
+            let mut fbo = fbo.lock();
+
             let red = Mat4::from_rotation_y(a);
             let blue = Mat4::from_rotation_y(a * 2.0);
             draw_cube(&mut fbo, mid_x, mid_y, red, 100.0, Color::BLACK);
