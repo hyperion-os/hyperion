@@ -22,7 +22,7 @@
       {
         # `nix develop`
         devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
+          buildInput = with pkgs; [
             pkg-config
             openssl
             (rust-bin.nightly.latest.default.override {
