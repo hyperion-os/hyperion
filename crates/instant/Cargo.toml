@@ -10,4 +10,3 @@ time.workspace = true
 
 hyperion-checked.path = "../checked"
 hyperion-clock.path = "../clock"
-hyperion-log.path = "../log"
