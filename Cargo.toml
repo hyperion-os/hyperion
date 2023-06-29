@@ -11,7 +11,7 @@ members = ["crates/*", "kernel"] # sed_mark_0
 
 [workspace.dependencies]
 spin = "0.9"
-volatile = "0.4"
+volatile = "0.5"
 x86_64 = "0.14"
 uart_16550 = "0.2"
 pc-keyboard = "0.7"

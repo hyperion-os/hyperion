@@ -8,4 +8,4 @@ edition.workspace = true
 [dependencies]
 
 [target.'cfg(loom)'.dependencies]
-loom = "0.5"
+loom = "0.6"
