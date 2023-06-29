@@ -243,6 +243,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-backtrace"
+version = "0.1.0"
+dependencies = [
+ "elf",
+ "hyperion-boot",
+ "hyperion-escape",
+ "hyperion-log",
+ "rustc-demangle",
+ "spin",
+ "x86_64",
+]
+
+[[package]]
 name = "hyperion-bitmap"
 version = "0.1.0"
 
@@ -258,9 +271,6 @@ dependencies = [
 [[package]]
 name = "hyperion-boot-interface"
 version = "0.1.0"
-dependencies = [
- "spin",
-]
 
 [[package]]
 name = "hyperion-boot-limine"
@@ -415,7 +425,6 @@ version = "0.1.0"
 dependencies = [
  "hyperion-checked",
  "hyperion-clock",
- "hyperion-log",
  "time 0.3.22",
 ]
 
@@ -438,40 +447,21 @@ dependencies = [
 name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
- "bit_field",
- "elf",
  "futures-util",
  "hyperion-arch",
- "hyperion-atomic-map",
- "hyperion-bitmap",
+ "hyperion-backtrace",
  "hyperion-boot",
  "hyperion-boot-interface",
- "hyperion-checked",
- "hyperion-clock",
  "hyperion-color",
  "hyperion-drivers",
- "hyperion-escape",
  "hyperion-framebuffer",
- "hyperion-instant",
- "hyperion-int-safe-lazy",
- "hyperion-interrupts",
  "hyperion-kernel-info",
- "hyperion-keyboard",
  "hyperion-kshell",
  "hyperion-log",
  "hyperion-log-multi",
- "hyperion-macros",
  "hyperion-mem",
- "hyperion-num-postfix",
  "hyperion-random",
  "hyperion-scheduler",
- "hyperion-static-str",
- "hyperion-timer",
- "hyperion-vfs",
- "paste",
- "pc-keyboard",
- "rustc-demangle",
- "smallvec",
  "spin",
  "time 0.3.22",
  "x86_64",
@@ -519,13 +509,6 @@ dependencies = [
  "snafu",
  "spin",
  "time 0.3.22",
-]
-
-[[package]]
-name = "hyperion-loader"
-version = "0.1.0"
-dependencies = [
- "elf",
 ]
 
 [[package]]
