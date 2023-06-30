@@ -12,12 +12,16 @@ QEMU_FLAGS      += -machine q35
 QEMU_FLAGS      += -cpu qemu64,+rdrand,+rdseed
 QEMU_FLAGS      += -smp ${CPUS}
 QEMU_FLAGS      += -m ${MEMORY}
+ifeq (${GDB},true)
 QEMU_FLAGS      += -M smm=off,accel=kvm
-# QEMU_FLAGS      += -M smm=off
+else
+QEMU_FLAGS      += -M smm=off
+endif
 # QEMU_FLAGS      += -d int,guest_errors,cpu_reset
 # QEMU_FLAGS      += -d int,guest_errors
 QEMU_FLAGS      += -d guest_errors
 QEMU_FLAGS      += -no-reboot
+# QEMU_FLAGS      += -no-shutdown
 QEMU_FLAGS      += -serial stdio
 QEMU_FLAGS      += -rtc base=localtime
 QEMU_OVMF       ?= /usr/share/ovmf/x64/OVMF.fd
