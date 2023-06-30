@@ -13,6 +13,7 @@ use core::{
 use bit_field::BitField;
 use hyperion_clock::ClockSource;
 use hyperion_log::{debug, trace, warn};
+use hyperion_mem::to_higher_half;
 use hyperion_timer::provide_sleep_wake;
 use hyperion_vfs::{
     device::FileDevice,
@@ -20,6 +21,7 @@ use hyperion_vfs::{
 };
 use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
+use x86_64::PhysAddr;
 
 use super::{apic::ApicId, ioapic::IoApic, rsdt::RSDT, SdtError};
 
@@ -84,11 +86,12 @@ impl Hpet {
         let u = &mut unpacker;
 
         let hpet: RawHpet = u.unpack(true)?;
+        let addr = PhysAddr::new(hpet.address.address);
 
         trace!("HPET initialized {hpet:#x?}");
 
         let mut res = Self {
-            addr: hpet.address.address,
+            addr: to_higher_half(addr).as_u64(),
             // minimum_tick: hpet.minimum_tick,
             period: 0,
             next_timer: AtomicU8::new(0),
