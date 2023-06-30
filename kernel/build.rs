@@ -29,6 +29,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     if let Some(bootloader) = bootloader {
         let script = format!("crates/boot-{bootloader}/src/link.ld");
         println!("cargo:rustc-link-arg-bin={kernel}=--script={script}");
+        // println!("cargo:rustc-link-arg-bin={kernel}=-T");
+        // println!("cargo:rustc-link-arg-bin={kernel}={script}");
         println!("cargo:rerun-if-changed={script}");
     } else {
         println!("cargo:warning=No bootloaders given");
