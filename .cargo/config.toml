@@ -6,3 +6,6 @@ rustflags = [
     #"-C", "linker=clang-16",
     #"-C", "link-arg=-fuse-ld=lld"
 ]
+
+[unstable]
+bindeps = true

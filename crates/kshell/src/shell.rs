@@ -122,6 +122,7 @@ impl Shell {
             "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
             "modeltest" => self.modeltest_cmd(args).await?,
+            "run" => self.run_cmd(args)?,
             "clear" => {
                 self.term.clear();
             }
@@ -368,7 +369,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, clear");
 
         Ok(())
     }
@@ -464,6 +465,27 @@ impl Shell {
                 break;
             }
         }
+
+        Ok(())
+    }
+
+    fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
+        let loader = hyperion_loader::Loader::new(elf_bytes);
+
+        loader.load();
+
+        let return_code = if let Some(args) = args {
+            loader.run_blocking(&[args])
+        } else {
+            loader.run_blocking(&[])
+        };
+
+        if let Some(return_code) = return_code {
+            _ = writeln!(self.term, "returned {return_code}");
+        } else {
+            _ = writeln!(self.term, "entry point missing");
+        };
 
         Ok(())
     }

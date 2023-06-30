@@ -499,17 +499,30 @@ dependencies = [
  "hyperion-framebuffer",
  "hyperion-kernel-info",
  "hyperion-keyboard",
+ "hyperion-loader",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-mem",
  "hyperion-num-postfix",
  "hyperion-random",
+ "hyperion-sample-elf",
  "hyperion-scheduler",
  "hyperion-vfs",
  "libm",
  "snafu",
  "spin",
  "time 0.3.22",
+]
+
+[[package]]
+name = "hyperion-loader"
+version = "0.1.0"
+dependencies = [
+ "elf",
+ "hyperion-arch",
+ "hyperion-log",
+ "hyperion-mem",
+ "x86_64",
 ]
 
 [[package]]
@@ -569,6 +582,10 @@ dependencies = [
  "rand_chacha",
  "spin",
 ]
+
+[[package]]
+name = "hyperion-sample-elf"
+version = "0.1.0"
 
 [[package]]
 name = "hyperion-scheduler"
