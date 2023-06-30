@@ -1,5 +1,7 @@
 use hyperion_atomic_map::AtomicMap;
+use hyperion_mem::to_higher_half;
 use spin::{Lazy, Mutex, MutexGuard};
+use x86_64::PhysAddr;
 
 use super::{apic::ApicId, madt::MADT, ReadWrite};
 
@@ -49,8 +51,10 @@ impl IoApic {
     }
 
     pub fn init(IoApicInfo { addr, .. }: IoApicInfo) -> Self {
+        let addr = to_higher_half(PhysAddr::new(addr as u64));
+
         Self {
-            regs: unsafe { &mut *(addr as *mut IoApicRegs) },
+            regs: unsafe { &mut *addr.as_mut_ptr() },
             // id,
             // gsi_base,
         }
