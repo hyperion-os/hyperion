@@ -315,6 +315,7 @@ dependencies = [
  "hyperion-driver-pic",
  "hyperion-interrupts",
  "hyperion-log",
+ "hyperion-mem",
  "hyperion-static-str",
  "hyperion-timer",
  "hyperion-vfs",

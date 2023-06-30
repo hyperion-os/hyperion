@@ -13,6 +13,7 @@ use x86_64::instructions::random::RdRand;
 //
 
 pub mod cpu;
+pub mod paging;
 pub mod pmm;
 pub mod vmm;
 
