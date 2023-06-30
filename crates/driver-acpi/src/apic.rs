@@ -1,7 +1,9 @@
 use hyperion_atomic_map::AtomicMap;
 use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
+use hyperion_mem::to_higher_half;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use x86_64::PhysAddr;
 
 use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
 
@@ -23,7 +25,8 @@ pub fn enable() {
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
     );
 
-    let regs = unsafe { &mut *(MADT.local_apic_addr as *mut ApicRegs) };
+    let lapic_addr = to_higher_half(PhysAddr::new(MADT.local_apic_addr as u64));
+    let regs: &mut ApicRegs = unsafe { &mut *lapic_addr.as_mut_ptr() };
     let apic_id = ApicId(regs.lapic_id.read());
 
     trace!("Initializing {apic_id:?}");
