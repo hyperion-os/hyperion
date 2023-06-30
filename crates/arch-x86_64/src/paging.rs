@@ -115,9 +115,9 @@ impl<'a> Level1<'a> {
 
 //
 
-fn iter_table<'a>(
-    table: &'a PageTable,
-) -> impl Iterator<Item = (usize, bool, PageTableFlags, PhysAddr)> + 'a {
+fn iter_table(
+    table: &PageTable,
+) -> impl Iterator<Item = (usize, bool, PageTableFlags, PhysAddr)> + '_ {
     table
         .iter()
         .enumerate()

@@ -1,5 +1,5 @@
 use alloc::collections::BTreeMap;
-use core::ops::Range;
+use core::{cmp::Ordering, ops::Range};
 
 use hyperion_log::println;
 use hyperion_mem::{
@@ -166,17 +166,19 @@ impl PageMapImpl for PageMap {
             start = next_start;
             p_addr = next_p_addr;
 
-            if start == end {
-                break;
-            } else if start > end {
-                hyperion_log::error!("FIXME: over-mapped");
-                break;
+            match start.cmp(&end) {
+                Ordering::Equal => break,
+                Ordering::Greater => {
+                    hyperion_log::error!("FIXME: over-mapped");
+                    break;
+                }
+                _ => {}
             }
         }
     }
 
-    fn unmap(&self, v_addr: Range<VirtAddr>) {
-        let mut table = self.offs.write();
+    fn unmap(&self, _v_addr: Range<VirtAddr>) {
+        let mut _table = self.offs.write();
 
         todo!()
         /* let mut offs: u64 = 0;

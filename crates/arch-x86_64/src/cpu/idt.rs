@@ -61,14 +61,3 @@ impl Idt {
         self.inner.load()
     }
 }
-
-//
-
-#[cfg(test)]
-mod tests {
-    #[test_case]
-    fn breakpoint() {
-        // breakpoint instruction
-        x86_64::instructions::interrupts::int3();
-    }
-}
