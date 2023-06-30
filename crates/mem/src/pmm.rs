@@ -130,6 +130,8 @@ impl PageFrameAllocator {
 
         self.used.fetch_add(count * PAGE_SIZE, Ordering::SeqCst);
 
+        debug_assert!(addr.is_aligned(0x1000u64));
+
         PageFrame { first: addr, count }
     }
 

@@ -1,15 +1,21 @@
-use x86_64::{PhysAddr, VirtAddr};
+use core::ops::Range;
+
+use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
 
 pub trait PageMapImpl {
-    fn init() -> Self;
+    fn current() -> Self;
+
+    fn new() -> Self;
+
+    fn activate(&self);
 
     fn virt_to_phys(&self, v_addr: VirtAddr) -> Option<PhysAddr>;
     fn phys_to_virt(&self, p_addr: PhysAddr) -> VirtAddr;
 
-    fn map(&self, v_addr: VirtAddr, p_addr: PhysAddr, pages: usize);
-    fn unmap(&self, v_addr: VirtAddr, pages: usize);
+    fn map(&self, v_addr: Range<VirtAddr>, p_addr: PhysAddr, flags: PageTableFlags);
+    fn unmap(&self, v_addr: Range<VirtAddr>);
 }
 
 //

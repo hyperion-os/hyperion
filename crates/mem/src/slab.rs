@@ -20,7 +20,7 @@ use core::{
 };
 
 use spin::RwLock;
-use volatile::Volatile;
+use volatile::VolatileRef;
 use x86_64::VirtAddr;
 
 use super::{
@@ -135,7 +135,9 @@ impl SlabAllocator {
 
         // write the big alloc metadata
         let metadata: &mut [BigAllocPageMetadata] = pages.as_mut_slice();
-        Volatile::new_write_only(&mut metadata[0]).write(BigAllocPageMetadata { size });
+        VolatileRef::from_mut_ref(&mut metadata[0])
+            .as_mut_ptr()
+            .write(BigAllocPageMetadata { size });
 
         // trace!("BigAlloc    {:#x} {size}", pages.addr().as_u64());
 
@@ -151,7 +153,7 @@ impl SlabAllocator {
         v_addr -= 0x1000u64;
 
         let metadata: &BigAllocPageMetadata = unsafe { &*v_addr.as_ptr() };
-        let size = Volatile::new_read_only(&metadata).read().size;
+        let size = VolatileRef::from_ref(&metadata).as_ptr().read().size;
 
         let pages = size.div_ceil(0x1000) + 1;
         let pages = unsafe { PageFrame::new(from_higher_half(v_addr), pages) };
