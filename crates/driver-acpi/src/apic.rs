@@ -25,8 +25,9 @@ pub fn enable() {
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
     );
 
-    let lapic_addr = to_higher_half(PhysAddr::new(MADT.local_apic_addr as u64));
-    let regs: &mut ApicRegs = unsafe { &mut *lapic_addr.as_mut_ptr() };
+    // SAFETY: TODO: atm. totally unsafe, because enable could be called twice with the same CPU
+    // but this should be the first time ever this CPU checks the apic regs
+    let regs: &mut ApicRegs = unsafe { get_apic_regs() };
     let apic_id = ApicId(regs.lapic_id.read());
 
     trace!("Initializing {apic_id:?}");
@@ -58,6 +59,15 @@ pub fn enable_timer() {
     init_lvt_timer(timer_irq, lapic.regs);
 }
 
+/// # Safety
+///
+/// the caller has to make sure there are no other mutable references
+/// to the same ApicRegs
+pub unsafe fn get_apic_regs() -> &'static mut ApicRegs {
+    let lapic_addr = to_higher_half(PhysAddr::new(MADT.local_apic_addr as u64));
+    &mut *lapic_addr.as_mut_ptr()
+}
+
 //
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -80,8 +90,15 @@ impl ApicId {
 
     /// apic id of this processor
     pub fn current() -> Self {
-        let regs = unsafe { &*(MADT.local_apic_addr as *const ApicRegs) };
-        Self(regs.lapic_id.read())
+        // FIXME: technically UB, because regs could be shared,
+        // even though only lapic_id is read, and lapic_id is never allowed
+        // to be written
+        //
+        // but rust wants all mutable refs (the whole &mut ApicRegs here)
+        // to be exclusive always
+        Self(unsafe { get_apic_regs() }.lapic_id.read())
+
+        // TODO: maybe go with the same solution as Theseus OS
         /* Self(read_msr(IA32_TSC_AUX) as u32) */
     }
 
