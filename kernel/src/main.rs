@@ -95,5 +95,6 @@ async fn spinner() {
     }
 }
 
+// for clippy:
 #[lang = "eh_personality"]
 extern "C" fn eh_personality() {}

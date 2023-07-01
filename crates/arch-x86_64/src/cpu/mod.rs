@@ -1,9 +1,5 @@
 use alloc::boxed::Box;
-use core::{
-    cell::RefCell,
-    mem::MaybeUninit,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use core::{cell::RefCell, mem::MaybeUninit};
 
 use hyperion_boot_interface::Cpu;
 use hyperion_log::trace;
