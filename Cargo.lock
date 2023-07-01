@@ -395,8 +395,6 @@ dependencies = [
  "hyperion-clock",
  "hyperion-driver-acpi",
  "hyperion-driver-framebuffer",
- "hyperion-driver-pic",
- "hyperion-driver-pit",
  "hyperion-driver-ps2",
  "hyperion-driver-rtc",
  "hyperion-vfs",

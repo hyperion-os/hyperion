@@ -23,11 +23,7 @@ pub mod vmm;
 
 pub fn early_boot_cpu() {
     int::disable();
-
     cpu::init(&hyperion_boot::boot_cpu());
-
-    // TODO: enable PICS
-
     int::enable();
 }
 
