@@ -1,11 +1,12 @@
 #![no_std]
-#![feature(abi_x86_interrupt, custom_test_frameworks)]
+#![feature(abi_x86_interrupt, custom_test_frameworks, new_uninit)]
 
 //
 
 extern crate alloc;
 
 use hyperion_boot_interface::Cpu;
+use hyperion_drivers::acpi::apic::ApicId;
 use hyperion_log::{debug, error};
 use spin::{Barrier, Once};
 use x86_64::instructions::random::RdRand;
@@ -15,6 +16,7 @@ use x86_64::instructions::random::RdRand;
 pub mod cpu;
 pub mod paging;
 pub mod pmm;
+pub mod tls;
 pub mod vmm;
 
 //
@@ -30,6 +32,8 @@ pub fn early_boot_cpu() {
 }
 
 /// every LAPIC is initialized after any CPU can exit this function call
+///
+/// [`early_boot_cpu`] should have been called already
 pub fn early_per_cpu(cpu: &Cpu) {
     int::disable();
 
@@ -50,11 +54,18 @@ pub fn early_per_cpu(cpu: &Cpu) {
 
     barrier!(cpu.is_boot(), PRE_APIC);
 
-    cpu::init(cpu);
+    if !cpu.is_boot() {
+        // bsp cpu structs are already initialized
+        cpu::init(cpu);
+    }
 
     hyperion_drivers::acpi::init();
 
     barrier!(cpu.is_boot(), POST_APIC);
+
+    let mut data = tls::get_mut();
+    data.lapic = Some(ApicId::current());
+    drop(data);
 
     int::enable();
 

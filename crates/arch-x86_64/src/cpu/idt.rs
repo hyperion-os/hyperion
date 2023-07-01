@@ -4,6 +4,7 @@ use super::{ints::*, tss::Tss};
 
 //
 
+#[derive(Debug)]
 pub struct Idt {
     inner: InterruptDescriptorTable,
 }

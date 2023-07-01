@@ -4,11 +4,13 @@ use x86_64::{structures::tss::TaskStateSegment, VirtAddr};
 
 //
 
+#[derive(Debug)]
 pub struct Tss {
     pub inner: TaskStateSegment,
     pub stacks: TssStacks,
 }
 
+#[derive(Debug)]
 pub struct TssStacks {
     interrupt: [AtomicBool; 7],
     // privilege: [bool; 3],

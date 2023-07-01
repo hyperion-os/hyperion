@@ -1,11 +1,16 @@
 use alloc::boxed::Box;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    cell::RefCell,
+    mem::MaybeUninit,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use hyperion_boot_interface::Cpu;
 use hyperion_log::trace;
-use spin::Once;
+use spin::{Mutex, MutexGuard, Once};
 
 use self::{gdt::Gdt, idt::Idt, tss::Tss};
+use crate::tls::{self, ThreadLocalStorage};
 
 //
 
@@ -16,63 +21,70 @@ pub mod tss;
 
 //
 
-pub fn init(cpu: &Cpu) -> CpuState {
+pub fn init(cpu: &Cpu) {
     trace!("Loading CpuState for {cpu}");
-    let cpu_state = if cpu.is_boot() {
+    let tls = if cpu.is_boot() {
         // boot cpu doesn't need to allocate
-        CpuState::new_boot()
+        CpuState::new_boot_tls()
     } else {
         // other cpus have to allocate theirs
-        CpuState::new()
+        CpuState::new_tls()
     };
 
-    if cpu.is_boot() {
-        static BOOT_CPUSTATE: AtomicBool = AtomicBool::new(false);
-        if BOOT_CPUSTATE.swap(true, Ordering::SeqCst) {
-            return cpu_state;
-        }
-    }
-
-    cpu_state
+    tls::init(tls);
 }
 
 //
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct CpuState {
-    // tss: &'static Tss,
-    // gdt: &'static Gdt,
-    // idt: &'static Idt,
+    pub tss: &'static Tss,
+    pub gdt: &'static Gdt,
+    pub idt: &'static Idt,
 }
 
-static BOOT_TSS: Once<Tss> = Once::new();
-static BOOT_GDT: Once<Gdt> = Once::new();
-static BOOT_IDT: Once<Idt> = Once::new();
+type CpuDataAlloc = (
+    Tss,
+    MaybeUninit<Gdt>,
+    MaybeUninit<Idt>,
+    MaybeUninit<RefCell<ThreadLocalStorage>>,
+);
 
 impl CpuState {
-    fn new_boot() -> Self {
-        if BOOT_TSS.get().is_some() && BOOT_GDT.get().is_some() && BOOT_IDT.get().is_some() {
-            return Self {};
-        }
+    fn new_boot_tls() -> &'static mut RefCell<ThreadLocalStorage> {
+        static BOOT_DATA: Once<Mutex<CpuDataAlloc>> = Once::new();
 
-        let tss = BOOT_TSS.call_once(Tss::new);
+        let lock = BOOT_DATA
+            .call_once(|| Mutex::new(Self::new_uninit()))
+            .try_lock()
+            .expect("cpu structures already initialized");
 
-        let gdt = BOOT_GDT.call_once(|| Gdt::new(tss));
-        gdt.load();
-
-        let idt = BOOT_IDT.call_once(|| Idt::new(tss));
-        idt.load();
-
-        Self {}
+        Self::from_uninit(MutexGuard::leak(lock))
     }
 
-    fn new() -> Self {
-        let tss = Box::leak(Box::new(Tss::new()));
-        let gdt = Box::leak(Box::new(Gdt::new(tss)));
+    fn new_tls() -> &'static mut RefCell<ThreadLocalStorage> {
+        Self::from_uninit(Box::leak(Box::new(Self::new_uninit())))
+    }
+
+    fn new_uninit() -> CpuDataAlloc {
+        (
+            Tss::new(),
+            MaybeUninit::<Gdt>::uninit(),
+            MaybeUninit::<Idt>::uninit(),
+            MaybeUninit::<RefCell<ThreadLocalStorage>>::uninit(),
+        )
+    }
+
+    fn from_uninit(
+        (tss, gdt, idt, tls): &'static mut CpuDataAlloc,
+    ) -> &'static mut RefCell<ThreadLocalStorage> {
+        let gdt = gdt.write(Gdt::new(tss));
         gdt.load();
-        let idt = Box::leak(Box::new(Idt::new(tss)));
+        let idt = idt.write(Idt::new(tss));
         idt.load();
 
-        Self {}
+        let cpu = Self { tss, gdt, idt };
+
+        tls.write(ThreadLocalStorage::new_wrapped(cpu))
     }
 }
