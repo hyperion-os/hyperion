@@ -470,6 +470,10 @@ impl Shell {
     }
 
     fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        hyperion_log::debug!(
+            "ELF file from: {}",
+            env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF")
+        );
         let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
         let loader = hyperion_loader::Loader::new(elf_bytes);
 
