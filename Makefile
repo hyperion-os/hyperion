@@ -56,9 +56,8 @@ KERNEL_TESTING   := ${KERNEL}-testing
 KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion.d)) src/testfw.rs
 
 # gdb
-GDB_FLAGS        ?=
-GDB_FLAGS        += --eval-command="target remote localhost:1234"
-GDB_FLAGS        += --eval-command="symbol-file ${KERNEL}"
+override GDB_FLAGS += --eval-command="target remote localhost:1234"
+override GDB_FLAGS += --eval-command="symbol-file ${KERNEL}"
 
 ${KERNEL_SRC}:
 
