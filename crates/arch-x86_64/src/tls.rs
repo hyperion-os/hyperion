@@ -1,36 +1,45 @@
 use core::{
     cell::{Ref, RefCell, RefMut},
-    sync::atomic::{AtomicUsize, Ordering},
+    mem::transmute,
+    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
 use hyperion_boot::cpu_count;
-use hyperion_drivers::acpi::apic::ApicId;
-use x86_64::{registers::model_specific::GsBase, VirtAddr};
-
-use crate::cpu::CpuState;
+use hyperion_mem::pmm;
+use x86_64::{
+    registers::model_specific::{GsBase, KernelGsBase},
+    VirtAddr,
+};
 
 //
 
-pub fn init(tls: &'static mut RefCell<ThreadLocalStorage>) {
+pub fn init(tls: &'static ThreadLocalStorage) {
     /* let mut flags = Cr4::read();
     flags.insert(Cr4Flags::FSGSBASE);
     unsafe { Cr4::write(flags) };
     GS::write_base(base) */
 
-    GsBase::write(VirtAddr::new(tls as *mut _ as usize as u64));
+    // TODO: use the current stack
+    let mut stack = pmm::PageFrameAllocator::get().alloc(5);
+    let stack: &mut [u8] = stack.as_mut_slice();
+    // SAFETY: the pages are never freed
+    let stack: &'static mut [u8] = unsafe { transmute(stack) };
+
+    tls.kernel_stack
+        .store(stack.as_mut_ptr_range().end, Ordering::SeqCst);
+
+    hyperion_log::debug!("TLS: 0x{:016x}", tls as *const _ as usize);
+
+    // in kernel space, GS points to thread local storage
+    GsBase::write(VirtAddr::new(tls as *const _ as usize as u64));
+    // and before entering userland `swapgs` is used so that
+    // in user space, GS points to user data
+    KernelGsBase::write(VirtAddr::new_truncate(0));
 
     INITIALIZED.fetch_add(1, Ordering::Release);
 }
 
-pub fn get() -> Ref<'static, ThreadLocalStorage> {
-    get_cell().borrow()
-}
-
-pub fn get_mut() -> RefMut<'static, ThreadLocalStorage> {
-    get_cell().borrow_mut()
-}
-
-pub fn get_cell() -> &'static RefCell<ThreadLocalStorage> {
+pub fn get() -> &'static ThreadLocalStorage {
     if INITIALIZED.load(Ordering::Acquire) != cpu_count() {
         panic!("TLS was not initialized for every CPU");
     }
@@ -41,21 +50,12 @@ pub fn get_cell() -> &'static RefCell<ThreadLocalStorage> {
 //
 
 #[derive(Debug)]
+#[repr(align(0x1000))]
 pub struct ThreadLocalStorage {
-    pub lapic: Option<ApicId>,
-    pub cpu: CpuState,
-}
-
-//
-
-impl ThreadLocalStorage {
-    pub fn new(cpu: CpuState) -> Self {
-        Self { lapic: None, cpu }
-    }
-
-    pub fn new_wrapped(cpu: CpuState) -> RefCell<ThreadLocalStorage> {
-        Self::new(cpu).into()
-    }
+    // temporary store for user space stack
+    pub user_stack: AtomicPtr<u8>,
+    // kernel stack for syscalls
+    pub kernel_stack: AtomicPtr<u8>,
 }
 
 //

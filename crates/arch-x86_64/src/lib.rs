@@ -1,12 +1,18 @@
 #![no_std]
-#![feature(abi_x86_interrupt, custom_test_frameworks, new_uninit)]
+#![feature(
+    abi_x86_interrupt,
+    custom_test_frameworks,
+    naked_functions,
+    new_uninit,
+    asm_const,
+    const_refs_to_cell
+)]
 
 //
 
 extern crate alloc;
 
 use hyperion_boot_interface::Cpu;
-use hyperion_drivers::acpi::apic::ApicId;
 use hyperion_log::{debug, error};
 use spin::{Barrier, Once};
 use x86_64::instructions::random::RdRand;
@@ -58,10 +64,6 @@ pub fn early_per_cpu(cpu: &Cpu) {
     hyperion_drivers::acpi::init();
 
     barrier!(cpu.is_boot(), POST_APIC);
-
-    let mut data = tls::get_mut();
-    data.lapic = Some(ApicId::current());
-    drop(data);
 
     int::enable();
 
