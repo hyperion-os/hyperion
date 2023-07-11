@@ -14,12 +14,12 @@ pub struct Gdt {
     selectors: SegmentSelectors,
 }
 
-#[derive(Debug)]
-struct SegmentSelectors {
-    kernel_code: SegmentSelector,
-    kernel_data: SegmentSelector,
-    // user_code: SegmentSelector,
-    // user_data: SegmentSelector,
+#[derive(Debug, Clone, Copy)]
+pub struct SegmentSelectors {
+    pub kernel_code: SegmentSelector,
+    pub kernel_data: SegmentSelector,
+    pub user_data: SegmentSelector,
+    pub user_code: SegmentSelector,
     tss: SegmentSelector,
 }
 
@@ -32,8 +32,8 @@ impl Gdt {
         let selectors = SegmentSelectors {
             kernel_code: inner.add_entry(Descriptor::kernel_code_segment()),
             kernel_data: inner.add_entry(Descriptor::kernel_data_segment()),
-            // user_code: inner.add_entry(Descriptor::user_code_segment()),
-            // user_data: inner.add_entry(Descriptor::user_data_segment()),
+            user_data: inner.add_entry(Descriptor::user_data_segment()),
+            user_code: inner.add_entry(Descriptor::user_code_segment()),
             tss: inner.add_entry(Descriptor::tss_segment(&tss.inner)),
         };
 
