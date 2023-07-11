@@ -231,6 +231,7 @@ dependencies = [
  "hyperion-log",
  "hyperion-macros",
  "hyperion-mem",
+ "memoffset",
  "spin",
  "x86_64",
 ]
@@ -397,6 +398,7 @@ dependencies = [
  "hyperion-driver-framebuffer",
  "hyperion-driver-ps2",
  "hyperion-driver-rtc",
+ "hyperion-keyboard",
  "hyperion-vfs",
 ]
 
@@ -455,6 +457,7 @@ dependencies = [
  "hyperion-color",
  "hyperion-drivers",
  "hyperion-framebuffer",
+ "hyperion-interrupts",
  "hyperion-kernel-info",
  "hyperion-kshell",
  "hyperion-log",
@@ -523,6 +526,7 @@ version = "0.1.0"
 dependencies = [
  "elf",
  "hyperion-arch",
+ "hyperion-boot",
  "hyperion-log",
  "hyperion-mem",
  "x86_64",

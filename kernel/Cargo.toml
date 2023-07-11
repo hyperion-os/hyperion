@@ -21,16 +21,17 @@ futures-util.workspace = true
 
 hyperion-arch.path = "../crates/arch"
 hyperion-backtrace.path = "../crates/backtrace"
-hyperion-random.path = "../crates/random"
-hyperion-boot.path = "../crates/boot"
 hyperion-boot-interface.path = "../crates/boot-interface"
+hyperion-boot.path = "../crates/boot"
 hyperion-color.path = "../crates/color"
 hyperion-drivers.path = "../crates/drivers"
 hyperion-framebuffer.path = "../crates/framebuffer"
+hyperion-interrupts.path = "../crates/interrupts"
 hyperion-kernel-info.path = "../crates/kernel-info"
 hyperion-kshell.path = "../crates/kshell"
-hyperion-log.path = "../crates/log"
 hyperion-log-multi.path = "../crates/log-multi"
+hyperion-log.path = "../crates/log"
+hyperion-random.path = "../crates/random"
 hyperion-scheduler.path = "../crates/scheduler"
 
 [dependencies.hyperion-mem]

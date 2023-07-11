@@ -50,6 +50,11 @@ fn kernel_main() -> ! {
 
     hyperion_arch::early_boot_cpu();
 
+    /* // set syscall int handler
+    hyperion_interrupts::set_interrupt_handler(0xAA, || {
+        hyperion_log::println!("got syscall");
+    }); */
+
     hyperion_random::provide_entropy(&hyperion_arch::rng_seed().to_ne_bytes());
 
     hyperion_drivers::lazy_install_early();
