@@ -5,6 +5,7 @@ use x86_64::{
 };
 
 use super::tss::Tss;
+use crate::syscall;
 
 //
 
@@ -49,5 +50,8 @@ impl Gdt {
             SS::set_reg(self.selectors.kernel_data);
             load_tss(self.selectors.tss);
         }
+
+        // init syscall and sysret
+        syscall::init(self.selectors);
     }
 }
