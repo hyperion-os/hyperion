@@ -14,9 +14,9 @@ use elf::{
     segment::ProgramHeader,
     ElfBytes,
 };
-use hyperion_arch::vmm::PageMap;
-use hyperion_mem::{from_higher_half, vmm::PageMapImpl};
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use hyperion_arch::{syscall, vmm::PageMap};
+use hyperion_mem::{from_higher_half, pmm::PageFrameAllocator, vmm::PageMapImpl};
+use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
 
@@ -80,7 +80,7 @@ impl<'a> Loader<'a> {
         let segment_alloc_phys =
             from_higher_half(VirtAddr::new(segment_alloc.as_ptr() as usize as u64));
 
-        let mut flags = PageTableFlags::USER_ACCESSIBLE;
+        let mut flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
         if segment.p_flags & PF_X == 0 {
             flags.insert(PageTableFlags::NO_EXECUTE);
         }
@@ -93,8 +93,9 @@ impl<'a> Loader<'a> {
         }
 
         /* hyperion_log::debug!(
-            "Mapping segment [ 0x{v_addr:016x}..0x{v_end:016x} -> 0x{segment_alloc_phys:016x} ] ({:03b} = {flags:?})", segment.p_flags
-        ); */
+                    "Mapping segment [ 0x{v_addr:016x}..0x{v_end:016x} -> 0x{segment_alloc_phys:016x} ] ({:03b} = {flags:?}) (0x{:016x})", segment.p_flags,
+        segment.p_vaddr
+                ); */
         self.page_map.map(v_range, segment_alloc_phys, flags);
     }
 
@@ -128,15 +129,51 @@ impl<'a> Loader<'a> {
             return None;
         }
 
-        let entrypoint: fn(&[&str]) -> i64 = unsafe { transmute(entrypoint) };
+        let user_stack = PageFrameAllocator::get().alloc(1);
+        let stack_top = VirtAddr::new(0x400000000000); // VirtAddr::new(hyperion_boot::hhdm_offset());
+
+        hyperion_log::debug!("stack_top = 0x{stack_top:016x}");
+
+        self.page_map
+            .unmap(VirtAddr::new_truncate(0x0000)..VirtAddr::new_truncate(0x1000));
+        self.page_map.map(
+            stack_top - 0x1000u64..stack_top,
+            user_stack.physical_addr(),
+            PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
+        );
+        self.page_map.map(
+            stack_top - 0x2000u64..stack_top - 0x1000u64,
+            user_stack.physical_addr(),
+            PageTableFlags::empty(), // guard page
+        );
+
+        hyperion_log::debug!(
+            "null points to {:?}",
+            self.page_map.virt_to_phys(VirtAddr::new_truncate(0x0))
+        );
+        hyperion_log::debug!(
+            "null points to {:?}",
+            self.page_map.phys_to_virt(PhysAddr::new(0x8EA8CFC0))
+        );
+
+        hyperion_log::debug!(
+            "Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}"
+        );
+
+        /* let null_ptr = core::hint::black_box(0x0) as *const u8;
+        core::hint::black_box(unsafe { *null_ptr }); */
+
+        unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top) };
+
+        /* let entrypoint: fn(&[&str]) -> i64 = unsafe { transmute(entrypoint) };
 
         hyperion_log::debug!("Jumping to ELF entry at 0x{:016x}", entrypoint as usize);
 
         // TODO: userland applications without kernel permissions won't be able to read `args`
         let result = entrypoint(args);
 
-        hyperion_log::debug!("Returned {result}");
+        hyperion_log::debug!("Returned {result}"); */
 
-        Some(result)
+        Some(todo!())
     }
 }

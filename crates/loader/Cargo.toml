@@ -12,3 +12,4 @@ x86_64.workspace = true
 hyperion-arch.path = "../arch"
 hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"
+hyperion-boot.path = "../boot"
