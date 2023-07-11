@@ -34,8 +34,12 @@ impl Tss {
 
         let pfa = PageFrameAllocator::get();
 
-        // static mut PRIV_STACK_0: [u8; 4096 * 5] = [0; 4096 * 5];
-        // tss.add_priv(0, unsafe { &mut PRIV_STACK_0 });
+        // TODO: (2 unused stacks) privilege stack 0 could reuse the boot stack?
+        // just like the kernel stack that the syscall handler switches to
+        //
+        // so the syscall handler should switch to this stack here, which
+        // should be the stack that the bootloader gave
+        tss.add_priv(0, pfa);
 
         tss.add_int(0, pfa);
 
@@ -48,10 +52,11 @@ impl Tss {
         self.stacks.interrupt[idx].store(true, Ordering::SeqCst);
     }
 
-    // fn add_priv(&mut self, stacks: &mut TssStacks, idx: usize, stack: &'static mut [u8]) {
-    //     self.inner.privilege_stack_table[idx] = VirtAddr::from_ptr(stack.as_ptr_range().end);
-    //     stacks.privilege[idx] = true;
-    // }
+    fn add_priv(&mut self, idx: usize, pfa: &PageFrameAllocator) {
+        let stack = Self::alloc_stack(pfa);
+        self.inner.privilege_stack_table[idx] = VirtAddr::from_ptr(stack.as_ptr_range().end);
+        // self.stacks.privilege[idx] = true;
+    }
 
     fn alloc_stack(pfa: &PageFrameAllocator) -> &'static mut [u8] {
         let mut stack = pfa.alloc(5);
