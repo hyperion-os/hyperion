@@ -1,9 +1,13 @@
 use alloc::boxed::Box;
-use core::{cell::RefCell, mem::MaybeUninit};
+use core::{
+    mem::MaybeUninit,
+    ptr::{addr_of_mut, null_mut},
+    sync::atomic::AtomicPtr,
+};
 
 use hyperion_boot_interface::Cpu;
 use hyperion_log::trace;
-use spin::{Mutex, MutexGuard, Once};
+use spin::{Mutex, MutexGuard};
 
 use self::{gdt::Gdt, idt::Idt, tss::Tss};
 use crate::tls::{self, ThreadLocalStorage};
@@ -40,40 +44,41 @@ pub struct CpuState {
 }
 
 type CpuDataAlloc = (
-    Tss,
+    MaybeUninit<Tss>,
     MaybeUninit<Gdt>,
     MaybeUninit<Idt>,
-    MaybeUninit<RefCell<ThreadLocalStorage>>,
+    MaybeUninit<ThreadLocalStorage>,
 );
 
 impl CpuState {
-    fn new_boot_tls() -> &'static mut RefCell<ThreadLocalStorage> {
-        static BOOT_DATA: Once<Mutex<CpuDataAlloc>> = Once::new();
+    fn new_boot_tls() -> &'static ThreadLocalStorage {
+        static BOOT_DATA: Mutex<CpuDataAlloc> = Mutex::new(CpuState::new_uninit());
 
         let lock = BOOT_DATA
-            .call_once(|| Mutex::new(Self::new_uninit()))
             .try_lock()
-            .expect("cpu structures already initialized");
+            .expect("boot cpu structures already initialized");
 
         Self::from_uninit(MutexGuard::leak(lock))
     }
 
-    fn new_tls() -> &'static mut RefCell<ThreadLocalStorage> {
-        Self::from_uninit(Box::leak(Box::new(Self::new_uninit())))
+    fn new_tls() -> &'static ThreadLocalStorage {
+        // SAFETY: assume_init is safe, because each CpuDataAlloc field is MaybeUninit
+        let data = unsafe { Box::<CpuDataAlloc>::new_uninit().assume_init() };
+
+        Self::from_uninit(Box::leak(data))
     }
 
-    fn new_uninit() -> CpuDataAlloc {
+    const fn new_uninit() -> CpuDataAlloc {
         (
-            Tss::new(),
-            MaybeUninit::<Gdt>::uninit(),
-            MaybeUninit::<Idt>::uninit(),
-            MaybeUninit::<RefCell<ThreadLocalStorage>>::uninit(),
+            MaybeUninit::uninit(),
+            MaybeUninit::uninit(),
+            MaybeUninit::uninit(),
+            MaybeUninit::uninit(),
         )
     }
 
-    fn from_uninit(
-        (tss, gdt, idt, tls): &'static mut CpuDataAlloc,
-    ) -> &'static mut RefCell<ThreadLocalStorage> {
+    fn from_uninit((tss, gdt, idt, tls): &'static mut CpuDataAlloc) -> &'static ThreadLocalStorage {
+        let tss = tss.write(Tss::new());
         let gdt = gdt.write(Gdt::new(tss));
         gdt.load();
         let idt = idt.write(Idt::new(tss));
@@ -81,6 +86,16 @@ impl CpuState {
 
         let cpu = Self { tss, gdt, idt };
 
-        tls.write(ThreadLocalStorage::new_wrapped(cpu))
+        // // SAFETY: assume_init_mut is safe, because each ThreadLocalStorageUninit field is MaybeUninit
+        // let tls: &mut ThreadLocalStorageUninit = unsafe { tls.assume_init_mut() };
+
+        let tlsp = tls.as_mut_ptr();
+        unsafe {
+            addr_of_mut!((*tlsp).user_stack).write(AtomicPtr::new(null_mut()));
+            addr_of_mut!((*tlsp).kernel_stack).write(AtomicPtr::new(null_mut()));
+        }
+
+        // SAFETY: assume_init_ref is safe, because each field in ThreadLocalStorage is initializd
+        unsafe { tls.assume_init_ref() }
     }
 }
