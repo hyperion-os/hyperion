@@ -66,6 +66,10 @@ pub fn wait_keyboard_event(cx: &mut Context) -> Poll<KeyboardEvent> {
     }
 }
 
+pub fn force_init_queue() {
+    KEYBOARD_EVENT_QUEUE.get_force();
+}
+
 pub use decode::{layouts, set_layout};
 
 //
