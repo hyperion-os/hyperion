@@ -58,7 +58,7 @@ impl<'a> Level4<'a> {
                 panic!("512 GiB pages are not supported");
             }
 
-            debug!("L4       {i} = {:?}", flags);
+            // debug!("L4       {i} = {:?}", flags);
 
             let res = WalkTableIterResult::Level3(Level3(get_table(addr)));
             (i, flags, res)
@@ -74,7 +74,7 @@ impl<'a> Level3<'a> {
                 return (i, flags, WalkTableIterResult::Size1GiB(addr));
             }
 
-            debug!("  L3     {i} = {:?}", flags);
+            // debug!("  L3     {i} = {:?}", flags);
 
             let res = WalkTableIterResult::Level2(Level2(get_table(addr)));
             (i, flags, res)
@@ -90,7 +90,7 @@ impl<'a> Level2<'a> {
                 return (i, flags, WalkTableIterResult::Size2MiB(addr));
             }
 
-            debug!("    L2   {i} = {:?}", flags);
+            // debug!("    L2   {i} = {:?}", flags);
 
             let res = WalkTableIterResult::Level1(Level1(get_table(addr)));
             (i, flags, res)
