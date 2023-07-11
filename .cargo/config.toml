@@ -2,7 +2,10 @@
 # this is so that rust-analyzer wouldn't fight me constantly
 # target = "x86_64-unknown-none"
 rustflags = [
+    # TODO: remove and implement DWARF info based stack tracing
     "-C", "force-frame-pointers=true",
+    #"-C", "code-model=kernel",
+    #"-C", "relocation-model=static",
     #"-C", "linker=clang-16",
     #"-C", "link-arg=-fuse-ld=lld"
 ]

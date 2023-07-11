@@ -3,10 +3,16 @@ use std::{env::var, error::Error};
 //
 
 fn main() -> Result<(), Box<dyn Error>> {
+    println!("cargo:rerun-if-changed=kernel/build.rs");
+    println!("cargo:rerun-if-changed=Cargo.lock");
+
     let kernel = var("CARGO_PKG_NAME")?;
-    println!("cargo:rerun-if-env-changed=CARGO_PKG_NAME");
+    println!("cargo:rerun-if-env-changed=CARGO_PKG_NAME .");
     //let arch = var("CARGO_CFG_TARGET_ARCH")?;
     //println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
+
+    println!("cargo:rustc-link-arg=-no-pie");
+    //println!("cargo:rust-link-arg=-no-pie");
 
     let mut bootloader: Option<&'static str> = None;
     let mut set = |s| {
