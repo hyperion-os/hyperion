@@ -4,12 +4,15 @@ use core::{
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
+use crossbeam::atomic::AtomicCell;
 use hyperion_boot::cpu_count;
 use hyperion_mem::pmm;
 use x86_64::{
     registers::model_specific::{GsBase, KernelGsBase},
     VirtAddr,
 };
+
+use crate::vmm::PageMap;
 
 //
 
@@ -49,13 +52,18 @@ pub fn get() -> &'static ThreadLocalStorage {
 
 //
 
-#[derive(Debug)]
 #[repr(align(0x1000))]
 pub struct ThreadLocalStorage {
     // temporary store for user space stack
     pub user_stack: AtomicPtr<u8>,
     // kernel stack for syscalls
     pub kernel_stack: AtomicPtr<u8>,
+
+    // the PageMap could be read from Cr3,
+    // but that wouldn't have the lock
+    //
+    // also the page map could be shared between tasks
+    pub current_page_map: AtomicCell<PageMap>,
 }
 
 //

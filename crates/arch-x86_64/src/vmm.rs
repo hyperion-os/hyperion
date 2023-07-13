@@ -1,4 +1,4 @@
-use alloc::collections::BTreeMap;
+use alloc::{collections::BTreeMap, sync::Arc};
 use core::{cmp::Ordering, ops::Range};
 
 use hyperion_log::println;
@@ -20,13 +20,19 @@ use x86_64::{
 };
 
 use super::pmm::Pfa;
-use crate::paging::{Level4, WalkTableIterResult};
+use crate::{
+    paging::{Level4, WalkTableIterResult},
+    tls,
+};
 
 //
 
+#[derive(Clone)]
 pub struct PageMap {
-    offs: RwLock<OffsetPageTable<'static>>,
+    offs: Arc<RwLock<OffsetPageTable<'static>>>,
 }
+
+// TODO: drop
 
 //
 
@@ -51,7 +57,7 @@ impl PageMapImpl for PageMap {
 
         let offs =
             unsafe { OffsetPageTable::new(table, VirtAddr::new(hyperion_boot::hhdm_offset())) };
-        let offs = RwLock::new(offs);
+        let offs = Arc::new(RwLock::new(offs));
 
         Self { offs }
     }
@@ -64,7 +70,7 @@ impl PageMapImpl for PageMap {
 
         let offs =
             unsafe { OffsetPageTable::new(new_table, VirtAddr::new(hyperion_boot::hhdm_offset())) };
-        let offs = RwLock::new(offs);
+        let offs = Arc::new(RwLock::new(offs));
 
         let page_map = Self { offs };
 
@@ -101,6 +107,8 @@ impl PageMapImpl for PageMap {
     }
 
     fn activate(&self) {
+        tls::get().current_page_map.store(self.clone());
+
         let mut offs = self.offs.write();
 
         let virt = offs.level_4_table() as *mut PageTable as *const () as u64;

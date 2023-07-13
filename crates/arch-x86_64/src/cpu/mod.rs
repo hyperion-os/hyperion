@@ -5,12 +5,17 @@ use core::{
     sync::atomic::AtomicPtr,
 };
 
+use crossbeam::atomic::AtomicCell;
 use hyperion_boot_interface::Cpu;
 use hyperion_log::trace;
+use hyperion_mem::vmm::PageMapImpl;
 use spin::{Mutex, MutexGuard};
 
 use self::{gdt::Gdt, idt::Idt, tss::Tss};
-use crate::tls::{self, ThreadLocalStorage};
+use crate::{
+    tls::{self, ThreadLocalStorage},
+    vmm::PageMap,
+};
 
 //
 
@@ -84,8 +89,6 @@ impl CpuState {
         let idt = idt.write(Idt::new(tss));
         idt.load();
 
-        let cpu = Self { tss, gdt, idt };
-
         // // SAFETY: assume_init_mut is safe, because each ThreadLocalStorageUninit field is MaybeUninit
         // let tls: &mut ThreadLocalStorageUninit = unsafe { tls.assume_init_mut() };
 
@@ -93,7 +96,17 @@ impl CpuState {
         unsafe {
             addr_of_mut!((*tlsp).user_stack).write(AtomicPtr::new(null_mut()));
             addr_of_mut!((*tlsp).kernel_stack).write(AtomicPtr::new(null_mut()));
+            addr_of_mut!((*tlsp).current_page_map).write(AtomicCell::new(PageMap::current()));
         }
+
+        // just a compile time remider to add missing field initializers
+        #[allow(unused)]
+        if let Some(ThreadLocalStorage {
+            user_stack,
+            kernel_stack,
+            current_page_map,
+        }) = None
+        {}
 
         // SAFETY: assume_init_ref is safe, because each field in ThreadLocalStorage is initializd
         unsafe { tls.assume_init_ref() }
