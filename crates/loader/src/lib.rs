@@ -58,6 +58,11 @@ impl<'a> Loader<'a> {
         let v_range = v_addr..v_end;
         let v_size = v_end - v_addr;
 
+        if v_end > VirtAddr::new(0x400000000000) {
+            hyperion_log::error!("ELF segments cannot be mapped to higher half");
+            panic!("TODO:")
+        }
+
         // TODO: max v_size
 
         let segment_data = self.parser.segment_data(&segment).expect("TODO:");
@@ -134,8 +139,8 @@ impl<'a> Loader<'a> {
 
         hyperion_log::debug!("stack_top = 0x{stack_top:016x}");
 
-        self.page_map
-            .unmap(VirtAddr::new_truncate(0x0000)..VirtAddr::new_truncate(0x1000));
+        /* self.page_map
+        .unmap(VirtAddr::new_truncate(0x0000)..VirtAddr::new_truncate(0x1000)); */
         self.page_map.map(
             stack_top - 0x1000u64..stack_top,
             user_stack.physical_addr(),
@@ -159,9 +164,6 @@ impl<'a> Loader<'a> {
         hyperion_log::debug!(
             "Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}"
         );
-
-        /* let null_ptr = core::hint::black_box(0x0) as *const u8;
-        core::hint::black_box(unsafe { *null_ptr }); */
 
         unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top) };
 
