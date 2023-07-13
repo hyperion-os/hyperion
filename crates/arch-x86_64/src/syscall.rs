@@ -1,15 +1,12 @@
-use core::{
-    arch::asm,
-    sync::atomic::{AtomicPtr, Ordering},
-};
+use core::arch::asm;
 
+use crossbeam::atomic::AtomicCell;
 use memoffset::offset_of;
 use x86_64::{
     registers::{
-        model_specific::{Efer, EferFlags, GsBase, KernelGsBase, LStar, SFMask, Star},
+        model_specific::{Efer, EferFlags, LStar, SFMask, Star},
         rflags::RFlags,
     },
-    structures::idt::InterruptStackFrame,
     VirtAddr,
 };
 
@@ -44,6 +41,34 @@ pub fn init(selectors: SegmentSelectors) {
         });
     }
 }
+
+pub fn set_handler(f: fn(&mut SyscallRegs)) {
+    SYSCALL_HANDLER.store(f);
+}
+
+//
+
+#[allow(unused)]
+#[repr(C)]
+pub struct SyscallRegs {
+    _r15: u64,
+    _r14: u64,
+    _r13: u64,
+    _r12: u64,
+    _r11: u64,
+    _r10: u64,
+    pub arg4: u64, // r9
+    pub arg3: u64, // r8
+    _rbp: u64,
+    pub arg1: u64, // rsi
+    pub arg0: u64, // rdi
+    pub arg2: u64, // rdx
+    _rcx: u64,
+    _rbx: u64,
+    pub syscall_id: u64, // rax, also the return register
+}
+
+//
 
 #[no_mangle]
 pub unsafe extern "sysv64" fn userland(_instr_ptr: VirtAddr, _stack_ptr: VirtAddr) -> ! {
@@ -112,6 +137,7 @@ unsafe extern "C" fn syscall_wrapper() {
         "push r14",
         "push r15",
 
+        "mov rdi, rsp",
         "call {syscall}",
 
         "pop r15",
@@ -143,7 +169,22 @@ unsafe extern "C" fn syscall_wrapper() {
     );
 }
 
+#[inline(always)]
 #[no_mangle]
-extern "C" fn syscall(rdi: u64, rsi: u64, rdx: u64, _rcx_ignored: u64, r8: u64, r9: u64) {
-    hyperion_log::debug!("got syscall {rdi} {rsi} {rdx} {r8} {r9}");
+unsafe extern "C" fn syscall(regs: &mut SyscallRegs) {
+    hyperion_log::debug!(
+        "got syscall {} with args {} {} {} {} {}",
+        regs.syscall_id,
+        regs.arg0,
+        regs.arg1,
+        regs.arg2,
+        regs.arg3,
+        regs.arg4,
+    );
+
+    SYSCALL_HANDLER.load()(regs);
 }
+
+static SYSCALL_HANDLER: AtomicCell<fn(&mut SyscallRegs)> = AtomicCell::new(|_| {
+    hyperion_log::error!("Syscall handler not initialized");
+});

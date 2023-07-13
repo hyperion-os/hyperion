@@ -20,14 +20,17 @@
 //
 
 use futures_util::StreamExt;
+use hyperion_arch::{syscall::SyscallRegs, tls, vmm::PageMap};
 use hyperion_boot_interface::Cpu;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::{debug, warn};
+use hyperion_mem::vmm::PageMapImpl;
 use hyperion_random::Rng;
 use hyperion_scheduler::timer::ticks;
 use time::Duration;
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 extern crate alloc;
 
@@ -49,6 +52,8 @@ fn kernel_main() -> ! {
     debug!("{NAME} {VERSION} was booted with {}", hyperion_boot::NAME);
 
     hyperion_arch::early_boot_cpu();
+
+    hyperion_arch::syscall::set_handler(syscall);
 
     /* // set syscall int handler
     hyperion_interrupts::set_interrupt_handler(0xAA, || {
@@ -80,6 +85,49 @@ fn smp_main(cpu: Cpu) -> ! {
     }
 
     hyperion_scheduler::run_tasks();
+}
+
+fn syscall(args: &mut SyscallRegs) {
+    match args.syscall_id {
+        // syscall `log`
+        1 => {
+            let Some(end) = args.arg0.checked_add(args.arg1) else {
+                args.syscall_id = 1;
+                return;
+            };
+
+            let (start, end) = (VirtAddr::new(args.arg0), VirtAddr::new(end));
+
+            if PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {}
+
+            // TODO:
+            // SAFETY: this is most likely unsafe
+            let str: &[u8] =
+                unsafe { core::slice::from_raw_parts(start.as_ptr(), end.as_u64() as _) };
+
+            let Ok(str) = core::str::from_utf8(str) else {
+                args.syscall_id = 3;
+                return;
+            };
+
+            hyperion_log::println!("{str}");
+            args.syscall_id = 0;
+        }
+
+        // syscall `exit` (also syscall `commit_oxygen_not_reach_lungs`)
+        2 | 420 => {
+            args.syscall_id = 0;
+
+            // TODO: impl real exit instead of just halting the cpu
+
+            hyperion_arch::done();
+        }
+
+        _ => {
+            // invalid syscall id, kill the process as a f u
+            hyperion_arch::done();
+        }
+    }
 }
 
 async fn spinner() {

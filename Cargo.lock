@@ -224,6 +224,7 @@ dependencies = [
 name = "hyperion-arch-x86_64"
 version = "0.1.0"
 dependencies = [
+ "crossbeam",
  "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-drivers",
@@ -593,6 +594,9 @@ dependencies = [
 [[package]]
 name = "hyperion-sample-elf"
 version = "0.1.0"
+dependencies = [
+ "hyperion-syscall",
+]
 
 [[package]]
 name = "hyperion-scheduler"
@@ -613,6 +617,10 @@ dependencies = [
 
 [[package]]
 name = "hyperion-static-str"
+version = "0.1.0"
+
+[[package]]
+name = "hyperion-syscall"
 version = "0.1.0"
 
 [[package]]
