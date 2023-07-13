@@ -12,8 +12,9 @@ use spin::{Mutex, RwLock};
 use x86_64::{
     registers::control::{Cr3, Cr3Flags},
     structures::paging::{
-        mapper::UnmapError, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags,
-        PhysFrame, Size1GiB, Size2MiB, Size4KiB, Translate,
+        mapper::{MappedFrame, TranslateResult, UnmapError},
+        Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame, Size1GiB,
+        Size2MiB, Size4KiB, Translate,
     },
     PhysAddr, VirtAddr,
 };
@@ -211,6 +212,44 @@ impl PageMapImpl for PageMap {
                     break;
                 }
                 _ => {}
+            }
+        }
+    }
+
+    fn is_mapped(&self, v_addr: Range<VirtAddr>, contains: PageTableFlags) -> bool {
+        let offs = self.offs.write();
+
+        let Range { mut start, end } = v_addr;
+        let mut size;
+
+        loop {
+            let (frame, flags) = match offs.translate(start) {
+                TranslateResult::Mapped { frame, flags, .. } => (frame, flags),
+                TranslateResult::NotMapped => return false,
+                TranslateResult::InvalidFrameAddress(err) => {
+                    hyperion_log::error!("Invalid page table frame address: 0x{err:016x}");
+                    return false;
+                }
+            };
+
+            if !flags.contains(contains) {
+                return false;
+            }
+
+            size = match frame {
+                MappedFrame::Size4KiB(_) => Size4KiB::SIZE,
+                MappedFrame::Size2MiB(_) => Size2MiB::SIZE,
+                MappedFrame::Size1GiB(_) => Size1GiB::SIZE,
+            };
+
+            if let Some(next_start) = v_addr_checked_add(start, size) {
+                start = next_start;
+            } else {
+                return true;
+            }
+
+            if start >= end {
+                return true;
             }
         }
     }

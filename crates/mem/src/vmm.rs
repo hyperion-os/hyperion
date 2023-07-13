@@ -16,6 +16,8 @@ pub trait PageMapImpl {
 
     fn map(&self, v_addr: Range<VirtAddr>, p_addr: PhysAddr, flags: PageTableFlags);
     fn unmap(&self, v_addr: Range<VirtAddr>);
+
+    fn is_mapped(&self, v_addr: Range<VirtAddr>, has_at_least: PageTableFlags) -> bool;
 }
 
 //
