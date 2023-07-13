@@ -70,6 +70,13 @@ pub struct SyscallRegs {
 
 //
 
+/// # Safety
+/// the `_instr_ptr` (RIP) and `_stack_ptr` (RSP) arguments must be valid user space
+/// application virtual addresses
+///
+/// syscalls must also be initialized before calling this
+///
+/// this call won't return
 #[no_mangle]
 pub unsafe extern "sysv64" fn userland(_instr_ptr: VirtAddr, _stack_ptr: VirtAddr) -> ! {
     // rdi = _instr_ptr

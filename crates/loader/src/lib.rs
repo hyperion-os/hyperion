@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::mem::{transmute, MaybeUninit};
+use core::mem::MaybeUninit;
 
 use elf::{
     abi::{PF_R, PF_W, PF_X, PT_LOAD},
@@ -122,7 +122,8 @@ impl<'a> Loader<'a> {
         }
     }
 
-    pub fn run_blocking(&self, args: &[&str]) -> Option<i64> {
+    // TODO: impl args
+    pub fn enter_userland(&self, _args: &[&str]) -> Option<()> {
         self.page_map.activate();
 
         // TODO: this is HIGHLY unsafe atm.
@@ -166,16 +167,5 @@ impl<'a> Loader<'a> {
         );
 
         unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top) };
-
-        /* let entrypoint: fn(&[&str]) -> i64 = unsafe { transmute(entrypoint) };
-
-        hyperion_log::debug!("Jumping to ELF entry at 0x{:016x}", entrypoint as usize);
-
-        // TODO: userland applications without kernel permissions won't be able to read `args`
-        let result = entrypoint(args);
-
-        hyperion_log::debug!("Returned {result}"); */
-
-        Some(todo!())
     }
 }

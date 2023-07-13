@@ -1,5 +1,5 @@
 use alloc::{string::String, sync::Arc};
-use core::fmt::Write;
+use core::{fmt::Write, slice};
 
 use futures_util::stream::select;
 use hyperion_color::Color;
@@ -479,17 +479,12 @@ impl Shell {
 
         loader.load();
 
-        let return_code = if let Some(args) = args {
-            loader.run_blocking(&[args])
-        } else {
-            loader.run_blocking(&[])
-        };
-
-        if let Some(return_code) = return_code {
-            _ = writeln!(self.term, "returned {return_code}");
-        } else {
+        if loader
+            .enter_userland(args.as_ref().map(slice::from_ref).unwrap_or(&[]))
+            .is_none()
+        {
             _ = writeln!(self.term, "entry point missing");
-        };
+        }
 
         Ok(())
     }

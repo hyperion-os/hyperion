@@ -20,7 +20,7 @@
 //
 
 use futures_util::StreamExt;
-use hyperion_arch::{syscall::SyscallRegs, tls, vmm::PageMap};
+use hyperion_arch::{syscall::SyscallRegs, vmm::PageMap};
 use hyperion_boot_interface::Cpu;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;

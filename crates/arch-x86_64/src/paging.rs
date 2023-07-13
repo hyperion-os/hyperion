@@ -1,4 +1,3 @@
-use hyperion_log::debug;
 use hyperion_mem::to_higher_half;
 use x86_64::{
     structures::paging::{PageTable, PageTableFlags},

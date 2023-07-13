@@ -127,7 +127,7 @@ impl PageMapImpl for PageMap {
         to_higher_half(addr)
     }
 
-    fn map(&self, v_addr: Range<VirtAddr>, mut p_addr: PhysAddr, mut flags: PageTableFlags) {
+    fn map(&self, v_addr: Range<VirtAddr>, mut p_addr: PhysAddr, flags: PageTableFlags) {
         if !v_addr.start.is_aligned(Size4KiB::SIZE) || !p_addr.is_aligned(Size4KiB::SIZE) {
             panic!("Not aligned");
         }
@@ -136,9 +136,6 @@ impl PageMapImpl for PageMap {
         let mut pmm = Pfa(pmm::PageFrameAllocator::get());
         let table = &mut table; // to make the formatting nicer
         let pmm = &mut pmm;
-
-        // flags.insert(PageTableFlags::PRESENT);
-        // flags.insert(PageTableFlags::USER_ACCESSIBLE);
 
         let Range { mut start, end } = v_addr;
         let mut size;
@@ -425,7 +422,7 @@ where
             // hyperion_log::debug!("already not mapped");
             true
         }
-        Err(err) => {
+        Err(_err) => {
             // hyperion_log::error!("{err:?}");
             false
         }
