@@ -10,11 +10,7 @@ pub extern "C" fn _start() -> ! {
 
     hyperion_syscall::log("testing");
 
-    loop {}
-}
-
-pub fn main(args: &[&str]) -> Result<(), i64> {
-    Ok(())
+    hyperion_syscall::exit(0);
 }
 
 #[panic_handler]

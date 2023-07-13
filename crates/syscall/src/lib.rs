@@ -10,6 +10,27 @@ pub fn log(str: &str) {
 }
 
 #[inline(always)]
+pub fn exit(code: i64) -> ! {
+    unsafe {
+        trigger_syscall(2, code as u64, 0, 0, 0, 0);
+    }
+
+    unreachable!();
+}
+
+#[inline(always)]
+pub fn commit_oxygen_not_reach_lungs(code: i64) -> ! {
+    unsafe {
+        trigger_syscall(420, code as u64, 0, 0, 0, 0);
+    }
+
+    unreachable!();
+}
+
+/// # Safety
+/// the `syscall_id` and its arguments have to be valid or this program could accidentally close
+/// itself or share its memory or something
+#[inline(always)]
 pub unsafe extern "C" fn trigger_syscall(
     syscall_id: u64,
     arg0: u64,
