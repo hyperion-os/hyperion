@@ -60,10 +60,14 @@ impl Task {
         match &mut *ctx {
             TaskContext::Future { inner } => {
                 let waker = waker(self.clone());
-                let mut ctx = Context::from_waker(&waker);
 
-                if inner.as_mut().poll(&mut ctx).is_ready() {
+                if inner
+                    .as_mut()
+                    .poll(&mut Context::from_waker(&waker))
+                    .is_ready()
+                {
                     self.complete.store(true, Ordering::Release);
+                    *ctx = TaskContext::None;
                 }
             }
             TaskContext::Process {} => todo!(),
