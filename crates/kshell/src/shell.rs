@@ -295,11 +295,21 @@ impl Shell {
 
         match mode {
             "rect" => {
-                let Some(x) = next_int(&mut self.term, &mut args) else { return Ok(()) };
-                let Some(y) = next_int(&mut self.term, &mut args) else { return Ok(()) };
-                let Some(mut w) = next_int(&mut self.term, &mut args) else { return Ok(()) };
-                let Some(mut h) = next_int(&mut self.term, &mut args) else { return Ok(()) };
-                let Some(col) = next_color(&mut self.term, &mut args) else { return Ok(()) };
+                let Some(x) = next_int(&mut self.term, &mut args) else {
+                    return Ok(());
+                };
+                let Some(y) = next_int(&mut self.term, &mut args) else {
+                    return Ok(());
+                };
+                let Some(mut w) = next_int(&mut self.term, &mut args) else {
+                    return Ok(());
+                };
+                let Some(mut h) = next_int(&mut self.term, &mut args) else {
+                    return Ok(());
+                };
+                let Some(col) = next_color(&mut self.term, &mut args) else {
+                    return Ok(());
+                };
 
                 let mut fbo = Framebuffer::get().unwrap().lock();
                 if x > fbo.width || y > fbo.height || w == 0 || h == 0 {
@@ -342,11 +352,8 @@ impl Shell {
 
     fn touch_cmd(&mut self, args: Option<&str>) -> Result<()> {
         let Some(file) = args else {
-            _ = writeln!(
-                self.term,
-                "missing file arg"
-                );
-            return Ok(())
+            _ = writeln!(self.term, "missing file arg");
+            return Ok(());
         };
 
         let resource = Path::from_str(file).to_absolute(&self.current_dir);

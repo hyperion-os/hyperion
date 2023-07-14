@@ -30,7 +30,7 @@ pub fn provide_keyboard_event(ps2_byte: u8) {
 
     let Some(queue) = KEYBOARD_EVENT_QUEUE.get() else {
         warn!("Keyboard event queue not initialized! Lost '{event:?}'");
-        return
+        return;
     };
 
     if let Some(old) = queue.force_push(event) {

@@ -382,7 +382,7 @@ impl TimerN {
                 let mut config = self.config_and_caps();
                 config.set_int_enable(false);
                 self.set_config_and_caps(config);
-                return
+                return;
             };
 
             self.set_current(next_deadline);

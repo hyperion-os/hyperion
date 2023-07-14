@@ -66,9 +66,7 @@ impl Rtc {
 
     pub fn init_clock(&self) {
         for _ in 0..100 {
-            let Some(now) = self.now() else {
-                continue
-            };
+            let Some(now) = self.now() else { continue };
 
             debug!("RTC time is {now}");
 

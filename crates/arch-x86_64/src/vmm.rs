@@ -377,8 +377,8 @@ where
     for<'a> OffsetPageTable<'a>: Mapper<T>,
 {
     let Some(mapping_end) = start.as_u64().checked_add(T::SIZE - 1) else {
-            return false;
-        };
+        return false;
+    };
 
     if !(mapping_end <= end.as_u64() && start.is_aligned(T::SIZE) && p_addr.is_aligned(T::SIZE)) {
         return false;

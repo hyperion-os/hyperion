@@ -23,7 +23,7 @@ pub static TIMER_DEADLINES: IntSafeLazy<Mutex<BinaryHeap<TimerWaker>>> =
 /// interrupt provided wakeup to a sleep
 pub fn provide_sleep_wake() {
     let Some(deadlines) = TIMER_DEADLINES.get() else {
-        return
+        return;
     };
 
     let mut timers = deadlines.lock();

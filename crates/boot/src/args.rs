@@ -53,16 +53,16 @@ impl Arguments {
                                 }
                             };
                             let Some(level) = LogLevel::parse(level) else {
-                            result.had_unrecognized = true;
-                            continue;
-                        };
+                                result.had_unrecognized = true;
+                                continue;
+                            };
 
                             *dev = level;
                         } else {
                             let Some(level) = LogLevel::parse(level_or_kvp) else {
-                            result.had_unrecognized = true;
-                            continue;
-                        };
+                                result.had_unrecognized = true;
+                                continue;
+                            };
                             result.serial_log_level = level;
                             result.video_log_level = level;
                         };

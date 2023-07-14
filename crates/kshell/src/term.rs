@@ -21,7 +21,7 @@ pub struct Term {
 impl Term {
     pub fn new() -> Self {
         hyperion_log_multi::set_fbo(LogLevel::None);
-        let Some( vbo) = Framebuffer::get() else {
+        let Some(vbo) = Framebuffer::get() else {
             // TODO: serial only
             panic!("cannot run kshell without a framebuffer");
         };
