@@ -2,42 +2,42 @@ use alloc::sync::Arc;
 use core::future::Future;
 
 use crossbeam_queue::SegQueue;
-use spin::Lazy;
 
 use super::task::Task;
 
 //
 
-static EXECUTOR: Lazy<Arc<Executor>> = Lazy::new(|| Arc::new(Executor::new()));
-
-//
-
 pub fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
-    Task::spawn(EXECUTOR.clone(), fut);
+    push_task(Arc::new(Task::from_future(fut)))
 }
 
 pub fn run_tasks() -> ! {
     loop {
-        EXECUTOR.run();
+        while run_once().is_some() {}
         // arch::wait_interrupt();
     }
 }
 
+pub fn run_once() -> Option<()> {
+    pop_task()?.poll();
+    Some(())
+}
+
+pub fn push_task(task: Arc<Task>) {
+    TASK_QUEUE.push(task)
+}
+
+pub fn pop_task() -> Option<Arc<Task>> {
+    TASK_QUEUE.pop()
+}
+
 //
 
-pub struct Executor {
+/* pub struct Executor {
     tasks: SegQueue<Arc<Task>>,
 }
 
 impl Executor {
-    pub fn new() -> Self {
-        // TODO:
-        // crate::mem::force_init_allocator();
-        Self {
-            tasks: <_>::default(),
-        }
-    }
-
     pub fn add_task(&self, task: Arc<Task>) {
         self.tasks.push(task)
     }
@@ -51,10 +51,8 @@ impl Executor {
             task.poll();
         }
     }
-}
+} */
 
-impl Default for Executor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+//
+
+static TASK_QUEUE: SegQueue<Arc<Task>> = SegQueue::new();
