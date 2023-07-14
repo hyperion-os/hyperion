@@ -19,15 +19,9 @@
 
 //
 
-use futures_util::StreamExt;
 use hyperion_boot_interface::Cpu;
-use hyperion_color::Color;
-use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_kernel_info::{NAME, VERSION};
-use hyperion_log::{debug, warn};
-use hyperion_random::Rng;
-use hyperion_scheduler::timer::ticks;
-use time::Duration;
+use hyperion_log::debug;
 
 extern crate alloc;
 
@@ -67,7 +61,6 @@ fn kernel_main() -> ! {
 
     // main task(s)
     hyperion_scheduler::spawn(hyperion_kshell::kshell());
-    hyperion_scheduler::spawn(spinner());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     hyperion_boot::smp_init(smp_main);
@@ -83,24 +76,6 @@ fn smp_main(cpu: Cpu) -> ! {
     }
 
     hyperion_scheduler::run_tasks();
-}
-
-async fn spinner() {
-    let mut ticks = ticks(Duration::milliseconds(500));
-    let mut rng = hyperion_random::next_fast_rng();
-
-    while ticks.next().await.is_some() {
-        let Some(fbo) = Framebuffer::get() else {
-            warn!("failed to get fbo");
-            break;
-        };
-        let mut fbo = fbo.lock();
-
-        let (r, g, b) = rng.gen();
-        let x = fbo.width - 60;
-        let y = fbo.height - 60;
-        fbo.fill(x, y, 50, 50, Color::new(r, g, b));
-    }
 }
 
 // for clippy:
