@@ -27,10 +27,10 @@ jobs:
     - name: Install latest rust nightly
       uses: dtolnay/rust-toolchain@nightly
       with:
-        targets: x86_64-unknown-none
+        targets: x86_64-unknown-none, x86_64-unknown-linux-gnu
         components: rustfmt, clippy
       
-    - run: rustup target add x86_64-unknown-none
+    #- run: rustup target add x86_64-unknown-none
 
     #- name: Cache Build
     #  uses: Swatinem/rust-cache@v2.5.0
