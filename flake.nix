@@ -22,7 +22,7 @@
       {
         # `nix develop`
         devShells.default = pkgs.mkShell {
-          buildInput = with pkgs; [
+          buildInputs = with pkgs; [
             pkg-config
             openssl
             (rust-bin.nightly.latest.default.override {
@@ -31,6 +31,7 @@
             })
             cargo-udeps
             cargo-nextest
+            act
             lld_16
             clang_16
           ];
