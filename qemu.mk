@@ -12,7 +12,7 @@ QEMU_FLAGS      += -machine q35
 QEMU_FLAGS      += -cpu qemu64,+rdrand,+rdseed
 QEMU_FLAGS      += -smp ${CPUS}
 QEMU_FLAGS      += -m ${MEMORY}
-ifeq (${GDB},true)
+ifeq (${KVM},true)
 QEMU_FLAGS      += -M smm=off,accel=kvm
 else
 QEMU_FLAGS      += -M smm=off

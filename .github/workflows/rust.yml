@@ -56,7 +56,7 @@ jobs:
       run: make unittest
 
     - name: Run QEMU tests
-      run: make test
+      run: make KVM=false test
 
     - name: Run Clippy
       run: cargo clippy --all -- -D warnings
