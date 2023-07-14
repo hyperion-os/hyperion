@@ -1,4 +1,4 @@
-#![doc = include_str!("../../README.md")]
+#![doc = include_str!("../../../README.md")]
 //
 #![no_std]
 #![no_main]
@@ -43,14 +43,9 @@ fn kernel_main() -> ! {
     debug!("Entering kernel_main");
     debug!("{NAME} {VERSION} was booted with {}", hyperion_boot::NAME);
 
-    hyperion_arch::early_boot_cpu();
-
+    //
     hyperion_arch::syscall::set_handler(syscall::syscall);
-
-    /* // set syscall int handler
-    hyperion_interrupts::set_interrupt_handler(0xAA, || {
-        hyperion_log::println!("got syscall");
-    }); */
+    hyperion_arch::early_boot_cpu();
 
     hyperion_random::provide_entropy(&hyperion_arch::rng_seed().to_ne_bytes());
 

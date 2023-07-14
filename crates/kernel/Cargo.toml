@@ -1,0 +1,39 @@
+[package]
+name = "hyperion-kernel"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["limine"]
+limine = []
+bootboot = []
+multiboot1 = []
+multiboot2 = []
+# Pick limine OR bootboot OR multiboot1 OR multiboot2, they conflict with eachother
+
+[dependencies]
+spin.workspace = true
+x86_64.workspace = true
+time.workspace = true
+futures-util.workspace = true
+
+hyperion-arch.path = "../arch"
+hyperion-backtrace.path = "../backtrace"
+hyperion-boot-interface.path = "../boot-interface"
+hyperion-boot.path = "../boot"
+hyperion-color.path = "../color"
+hyperion-drivers.path = "../drivers"
+hyperion-framebuffer.path = "../framebuffer"
+hyperion-interrupts.path = "../interrupts"
+hyperion-kernel-info.path = "../kernel-info"
+hyperion-kshell.path = "../kshell"
+hyperion-log-multi.path = "../log-multi"
+hyperion-log.path = "../log"
+hyperion-random.path = "../random"
+hyperion-scheduler.path = "../scheduler"
+
+[dependencies.hyperion-mem]
+path = "../mem"
+features = ["set-allocator"]
