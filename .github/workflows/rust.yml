@@ -28,8 +28,8 @@ jobs:
       if: steps.cache-rustup-restore.outputs.cache-hit != 'true'
       uses: dtolnay/rust-toolchain@nightly
       with:
-        targets: "x86_64-unknown-none"
-        components: "rustfmt, clippy"
+        targets: x86_64-unknown-none
+        components: rustfmt, clippy
 
     - name: Cache Build
       uses: Swatinem/rust-cache@v2.5.0
