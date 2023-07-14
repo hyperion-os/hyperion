@@ -15,7 +15,10 @@ pub fn syscall(args: &mut SyscallRegs) {
 
             let (start, end) = (VirtAddr::new(args.arg0), VirtAddr::new(end));
 
-            if PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {}
+            if PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {
+                args.syscall_id = 2;
+                return;
+            }
 
             // TODO:
             // SAFETY: this is most likely unsafe
