@@ -30,14 +30,14 @@ jobs:
         version: 1.0
 
     - name: Cache toolchain
-      id: cache-rustup
-      uses: actions/cache@v3
+      id: cache-rustup-restore
+      uses: actions/cache/restore@v3
       with:
         path: ~/.rustup
-        key: rust-toolchain-${{ matrix.rust-version }}
+        key: rust-toolchain-${{ matrix.rust-version }}-${{ matrix.os }}
 
     - name: Install ${{ matrix.rust-version }}
-      if: ${{ steps.cache-rustup.outputs.cache-hit != 'true' }}
+      if: steps.cache-rustup-restore.outputs.cache-hit != 'true'
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -45,6 +45,13 @@ jobs:
         override: true
         target: x86_64-unknown-none
         components: rustfmt, clippy
+
+    - name: Cache toolchain
+      id: cache-rustup-save
+      uses: actions/cache/save@v3
+      with:
+        path: ~/.rustup
+        key: ${{ steps.cache-rustup-restore.outputs.cache-primary-key }}
 
     - name: Cache Build
       uses: Swatinem/rust-cache@v2.5.0
