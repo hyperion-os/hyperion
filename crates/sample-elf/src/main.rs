@@ -13,13 +13,11 @@ pub extern "C" fn _start() -> ! {
     hyperion_syscall::exit(0);
 }
 
-#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
 // for clippy:
-#[cfg(target_os = "none")]
 #[lang = "eh_personality"]
 extern "C" fn eh_personality() {}
