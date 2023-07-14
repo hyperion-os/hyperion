@@ -5,47 +5,82 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
-    match args.syscall_id {
-        // syscall `log`
-        1 => {
-            let Some(end) = args.arg0.checked_add(args.arg1) else {
-                args.syscall_id = 1;
-                return;
-            };
+    let id = args.syscall_id;
+    let (result, name) = match id {
+        1 => (log(args), "log"),
 
-            let (start, end) = (VirtAddr::new(args.arg0), VirtAddr::new(end));
+        2 => (exit(args), "exit"),
 
-            if PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {
-                args.syscall_id = 2;
-                return;
-            }
-
-            // TODO:
-            // SAFETY: this is most likely unsafe
-            let str: &[u8] =
-                unsafe { core::slice::from_raw_parts(start.as_ptr(), end.as_u64() as _) };
-
-            let Ok(str) = core::str::from_utf8(str) else {
-                args.syscall_id = 3;
-                return;
-            };
-
-            hyperion_log::println!("{str}");
-            args.syscall_id = 0;
-        }
-
-        // syscall `exit` (also syscall `commit_oxygen_not_reach_lungs`)
-        2 | 420 => {
-            args.syscall_id = 0;
-
-            // TODO: impl real exit instead of just halting the cpu
-
-            hyperion_arch::done();
-        }
+        420 => (exit(args), "commit_oxygen_not_reach_lungs"),
 
         _ => {
             // invalid syscall id, kill the process as a f u
             hyperion_arch::done();
         }
+    };
+
+    hyperion_log::debug!("syscall `{name}` (id {id}) returned {result}",);
+    args.syscall_id = result;
+}
+
+/// print a string to logs
+///
+/// # arguments
+/// - syscall_id : 1
+/// - arg0 : _utf8 string address_
+/// - arg1 : _utf8 string length_
+/// - arg2 : _ignored_
+/// - arg3 : _ignored_
+/// - arg4 : _ignored_
+///
+/// # return codes (in syscall_id after returning)
+///  - 0 : ok
+///  - 1 : invalid address range (arg0 .. arg1)
+///  - 2 : address range not mapped for the user (arg0 .. arg1)
+///  - 3 : invalid utf8
+pub fn log(args: &mut SyscallRegs) -> u64 {
+    let Some(end) = args.arg0.checked_add(args.arg1) else {
+        return 1;
+    };
+
+    let (Ok(start), Ok(end)) = (
+        VirtAddr::try_new(args.arg0),
+        VirtAddr::try_new(end),
+    ) else {
+        return 1;
+    };
+
+    if !PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {
+        return 2;
     }
+
+    // TODO:
+    // SAFETY: this is most likely unsafe
+    let str: &[u8] = unsafe { core::slice::from_raw_parts(start.as_ptr(), end.as_u64() as _) };
+
+    let Ok(str) = core::str::from_utf8(str) else {
+        return 3;
+    };
+
+    hyperion_log::println!("{str}");
+
+    0
+}
+
+/// exit and kill the current process
+///
+/// # arguments
+/// - syscall_id : 2
+/// - arg0 : _exit code_
+/// - arg1 : _ignored_
+/// - arg2 : _ignored_
+/// - arg3 : _ignored_
+/// - arg4 : _ignored_
+///
+/// # return codes (in syscall_id after returning)
+/// _won't return_
+pub fn exit(args: &mut SyscallRegs) -> u64 {
+    // TODO: impl actual exit
+
+    hyperion_arch::done()
 }
