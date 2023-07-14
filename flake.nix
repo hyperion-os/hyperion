@@ -30,6 +30,7 @@
               targets = [ "x86_64-unknown-none" ];
             })
             cargo-udeps
+            cargo-nextest
             lld_16
             clang_16
           ];

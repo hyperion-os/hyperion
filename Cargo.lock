@@ -447,31 +447,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperion-kernel"
-version = "0.1.0"
-dependencies = [
- "futures-util",
- "hyperion-arch",
- "hyperion-backtrace",
- "hyperion-boot",
- "hyperion-boot-interface",
- "hyperion-color",
- "hyperion-drivers",
- "hyperion-framebuffer",
- "hyperion-interrupts",
- "hyperion-kernel-info",
- "hyperion-kshell",
- "hyperion-log",
- "hyperion-log-multi",
- "hyperion-mem",
- "hyperion-random",
- "hyperion-scheduler",
- "spin",
- "time 0.3.22",
- "x86_64",
-]
-
-[[package]]
 name = "hyperion-kernel-extern"
 version = "0.1.0"
 

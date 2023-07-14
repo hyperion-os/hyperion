@@ -27,6 +27,8 @@ pub enum TaskContext {
         inner: Pin<Box<dyn Future<Output = ()> + Send>>,
     },
 
+    Process {},
+
     None,
 }
 
@@ -41,6 +43,8 @@ impl Task {
             }),
         }
     }
+
+    pub fn from_process() {}
 
     pub fn poll(self: Arc<Self>) {
         if self.complete.load(Ordering::Acquire) {
@@ -62,6 +66,7 @@ impl Task {
                     self.complete.store(true, Ordering::Release);
                 }
             }
+            TaskContext::Process {} => todo!(),
             TaskContext::None => {
                 self.complete.store(true, Ordering::Release);
             }
