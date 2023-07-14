@@ -179,16 +179,6 @@ unsafe extern "C" fn syscall_wrapper() {
 #[inline(always)]
 #[no_mangle]
 unsafe extern "C" fn syscall(regs: &mut SyscallRegs) {
-    hyperion_log::debug!(
-        "got syscall {} with args {} {} {} {} {}",
-        regs.syscall_id,
-        regs.arg0,
-        regs.arg1,
-        regs.arg2,
-        regs.arg3,
-        regs.arg4,
-    );
-
     SYSCALL_HANDLER.load()(regs);
 }
 
