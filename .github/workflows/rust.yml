@@ -12,12 +12,7 @@ env:
 jobs:
 
   unit-tests:
-    strategy:
-      matrix:
-        rust-version: [nightly-2023-05-15]
-        os: [ubuntu-latest]
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v3 
@@ -29,29 +24,12 @@ jobs:
         packages: jq xorriso qemu-system-x86 ripgrep
         version: 1.0
 
-    - name: Cache toolchain
-      id: cache-rustup-restore
-      uses: actions/cache/restore@v3
-      with:
-        path: ~/.rustup
-        key: rust-toolchain-${{ matrix.rust-version }}-${{ matrix.os }}
-
-    - name: Install ${{ matrix.rust-version }}
+    - name: Install latest rust nightly
       if: steps.cache-rustup-restore.outputs.cache-hit != 'true'
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@nightly
       with:
-        profile: minimal
-        toolchain: ${{ matrix.rust-version }}
-        override: true
-        target: x86_64-unknown-none
-        components: rustfmt, clippy
-
-    - name: Cache toolchain
-      id: cache-rustup-save
-      uses: actions/cache/save@v3
-      with:
-        path: ~/.rustup
-        key: ${{ steps.cache-rustup-restore.outputs.cache-primary-key }}
+        targets: "x86_64-unknown-none"
+        components: "rustfmt, clippy"
 
     - name: Cache Build
       uses: Swatinem/rust-cache@v2.5.0
