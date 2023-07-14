@@ -19,11 +19,10 @@ QEMU_FLAGS      += -M smm=off
 endif
 ifeq (${DEBUG},1)
 QEMU_FLAGS      += -d guest_errors
-else (${DEBUG},2)
+else ifeq (${DEBUG},2)
 QEMU_FLAGS      += -d int,guest_errors
-else (${DEBUG},3)
+else ifeq (${DEBUG},3)
 QEMU_FLAGS      += -d int,guest_errors,cpu_reset
-else
 endif
 QEMU_FLAGS      += -no-reboot
 # QEMU_FLAGS      += -no-shutdown

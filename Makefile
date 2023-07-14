@@ -78,8 +78,19 @@ ${KERNEL_TESTING}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 # ISO generation
 include ./${BOOT_DIR}/Makefile
 
-# ISO running
+# ISO running (including unit tests in QEMU)
 include ./qemu.mk
+
+# nextest doesn't support excluding packages
+EXCLUDED_UNITS   := sample-elf kernel
+unittest:
+	${CARGO} test \
+		--no-fail-fast \
+		--workspace $(patsubst %, --exclude hyperion-%, ${EXCLUDED_UNITS}) \
+		-- --test-threads=$(shell nproc --all) \
+		2>&1 | rg --pcre2 --multiline --multiline-dotall -e '^test' -e 'failures:.+?(?=\n\n\n)\n\n\n' \
+		2>&1 | rg -v '^test result: '
+# a crazy hack that I somehow came up with to debloat the cargo test --workspace output ^^^
 
 # build alias
 build: ${KERNEL}
@@ -109,6 +120,6 @@ src:
 	@echo "from: ${CARGO_DIR}/hyperion.d"
 	@echo "${KERNEL_SRC}" | tr " " "\n" | sort
 
-.PHONY : build iso reset-cargo-deps run test gdb kernel objdump readelf src
+.PHONY : build iso run test unittest gdb kernel objdump readelf src
 
 # end

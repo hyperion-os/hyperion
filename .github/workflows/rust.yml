@@ -12,64 +12,54 @@ env:
 jobs:
 
   unit-tests:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: [nightly-2023-05-15]
+        os: [ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+    
     steps:
     - uses: actions/checkout@v3 
+      
+    #- run: apt update # only on ACT
 
-    - name: Rust Cache
+    - uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: jq xorriso qemu-system-x86 ripgrep
+        version: 1.0
+
+    - name: Cache toolchain
+      id: cache-rustup
+      uses: actions/cache@v3
+      with:
+        path: ~/.rustup
+        key: rust-toolchain-${{ matrix.rust-version }}
+
+    - name: Install ${{ matrix.rust-version }}
+      if: ${{ steps.cache-rustup.outputs.cache-hit != 'true' }}
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.rust-version }}
+        override: true
+        target: x86_64-unknown-none
+        components: rustfmt, clippy
+
+    - name: Cache Build
       uses: Swatinem/rust-cache@v2.5.0
-
-    - name: install cargo-nextest
-      uses: taiki-e/install-action@nextest
-
-    - name: Hack to ignore kernel from test cargo compiler
-      run: sed -i -e 's/^# \(.*sed_mark_1\)/\1/' Cargo.toml && sed -i -e 's/^\(.*sed_mark_0\)/# \1/' Cargo.toml
 
     - name: Build
-      run: cargo build --verbose
+      run: make build
 
     - name: Run tests
-      run: cargo nextest run --verbose
+      run: make unittest
 
-  kernel-unit-tests:
-    if: false
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3 
-
-    - name: Add x86_64 target
-      run: rustup target add x86_64-unknown-none
-
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v2.5.0
-
-    - name: Run qemu tests
+    - name: Run QEMU tests
       run: make test
-    
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3 
 
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v2.5.0
-
-    - name: Add Clippy
-      run: rustup component add clippy
-
-    - name: Run clippy
+    - name: Run Clippy
       run: cargo clippy --all -- -D warnings
 
-  rustfmt:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3 
-
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v2.5.0
-
-    - name: Add Rustfmt
-      run: rustup component add rustfmt
-
-    - name: Run clippy
+    - name: Run Rustfmt
       run: cargo fmt --all -- --check
