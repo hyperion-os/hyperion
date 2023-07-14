@@ -33,26 +33,4 @@ pub fn pop_task() -> Option<Arc<Task>> {
 
 //
 
-/* pub struct Executor {
-    tasks: SegQueue<Arc<Task>>,
-}
-
-impl Executor {
-    pub fn add_task(&self, task: Arc<Task>) {
-        self.tasks.push(task)
-    }
-
-    pub fn take_task(&self) -> Option<Arc<Task>> {
-        self.tasks.pop()
-    }
-
-    pub fn run(&self) {
-        while let Some(task) = self.take_task() {
-            task.poll();
-        }
-    }
-} */
-
-//
-
 static TASK_QUEUE: SegQueue<Arc<Task>> = SegQueue::new();
