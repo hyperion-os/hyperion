@@ -29,6 +29,8 @@ QEMU             ?= ${QEMU_${ARCH}}
 RUST_T_x86_64    := x86_64-unknown-none
 
 # common directories
+# target dir is usually ./target/ but I like to set the cargo target directory to a shared
+# location to save disk space and build times
 TARGET_DIR       ?= $(shell cargo metadata --format-version=1  | jq -r ".target_directory")
 ifeq (${TARGET_DIR},)
 TARGET_DIR       := target
