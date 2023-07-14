@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3 
       
-    #- run: apt update # only on ACT
+    #- run: apt update # only on `act`
 
     - uses: awalsh128/cache-apt-pkgs-action@latest
       with:
