@@ -47,7 +47,7 @@ impl<K, V> AtomicMap<K, V> {
 
     pub fn insert(&self, key: K, value: V) {
         // TODO: stop if the key is already there
-        let new = Box::into_raw(Box::new(AtomicMapNode {
+        let new = Box::leak(Box::new(AtomicMapNode {
             key,
             value,
             next: AtomicPtr::new(ptr::null_mut()),
@@ -55,9 +55,7 @@ impl<K, V> AtomicMap<K, V> {
         let mut original = self.head.load(Ordering::Acquire);
 
         loop {
-            unsafe {
-                (*new).next = AtomicPtr::new(original);
-            }
+            new.next = AtomicPtr::new(original);
 
             if let Err(head_changed) =
                 self.head
