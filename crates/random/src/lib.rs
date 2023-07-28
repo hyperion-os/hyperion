@@ -18,11 +18,11 @@ pub fn provide_entropy(data: &[u8]) {
 }
 
 pub fn next_secure_rng() -> Option<ChaCha20Rng> {
-    Some(ChaCha20Rng::from_seed(get_entropy().gen_secure()?))
+    Some(ChaCha20Rng::from_seed(get_entropy().gen().ok()?))
 }
 
 pub fn next_fast_rng() -> ChaCha8Rng {
-    ChaCha8Rng::from_seed(get_entropy().gen_fast())
+    ChaCha8Rng::from_seed(get_entropy().gen().unwrap_or_else(|insecure| insecure.0))
 }
 
 //
@@ -43,6 +43,8 @@ struct EntropyCollector {
     is_insecure: AtomicBool,
 }
 
+struct InsecureError<T>(T);
+
 //
 
 impl EntropyCollector {
@@ -58,31 +60,18 @@ impl EntropyCollector {
         }
     }
 
-    fn gen_fast<T>(&self) -> T
+    fn gen<T>(&self) -> Result<T, InsecureError<T>>
     where
         Standard: Distribution<T>,
     {
-        let mut rng = self.rng.lock();
+        let is_insecure = self.is_insecure.load(Ordering::Acquire);
+        let val = self.rng.lock().gen();
 
-        if self.is_insecure.load(Ordering::Acquire) {
-            hyperion_log::error!("Using insecure PRNG seed");
+        if is_insecure {
+            Err(InsecureError(val))
+        } else {
+            Ok(val)
         }
-
-        rng.gen()
-    }
-
-    fn gen_secure<T>(&self) -> Option<T>
-    where
-        Standard: Distribution<T>,
-    {
-        let mut rng = self.rng.lock();
-
-        if self.is_insecure.load(Ordering::Acquire) {
-            hyperion_log::error!("Using insecure PRNG seed");
-            return None;
-        }
-
-        Some(rng.gen())
     }
 
     fn feed(&self, data: &[u8]) {
@@ -94,6 +83,8 @@ impl EntropyCollector {
 
         *rng = ChaChaRng::from_seed(seed);
 
+        // TODO: "secure" depends
+        // now it is "secure" when literally any data is fed to the collector
         self.is_insecure.store(false, Ordering::Release);
     }
 
