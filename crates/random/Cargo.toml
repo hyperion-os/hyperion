@@ -13,3 +13,4 @@ rand = { version = "0.8", default-features = false, features = ["rand_chacha"] }
 rand_chacha = { version = "0.3", default-features = false }
 
 hyperion-log.path = "../log"
+hyperion-macros.path = "../macros"

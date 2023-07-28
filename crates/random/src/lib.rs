@@ -4,6 +4,7 @@
 
 extern crate alloc;
 
+use rand::{distributions::Standard, prelude::Distribution};
 pub use rand::{CryptoRng, Fill, Rng, RngCore, SeedableRng};
 use rand_chacha::{ChaCha20Rng, ChaCha8Rng, ChaChaRng};
 use spin::{Mutex, Once};
@@ -14,40 +15,12 @@ pub fn provide_entropy(data: &[u8]) {
     get_entropy().feed(data)
 }
 
-/* pub fn next_u64() -> u64 {
-    get_entropy().with_rng(|rng| rng.next_u64())
-}
-
-pub fn next_fast_seed() -> [u8; 32] {
-    get_entropy().with_rng(|rng| {
-        let mut bytes = [0; 32];
-        rng.fill_bytes(&mut bytes);
-        bytes
-    })
-}
-
-pub fn next_secure_seed() -> [u8; 32] {
-    get_entropy().with_rng(|rng| {
-        let mut bytes = [0; 32];
-        rng.fill_bytes(&mut bytes);
-        bytes
-    })
-} */
-
 pub fn next_secure_rng() -> Option<ChaCha20Rng> {
-    get_entropy().with_secure_rng(|rng| {
-        let mut bytes = [0; 32];
-        rng.fill_bytes(&mut bytes);
-        ChaCha20Rng::from_seed(bytes)
-    })
+    Some(ChaCha20Rng::from_seed(get_entropy().gen_secure()?))
 }
 
 pub fn next_fast_rng() -> ChaCha8Rng {
-    get_entropy().with_rng(|rng| {
-        let mut bytes = [0; 32];
-        rng.fill_bytes(&mut bytes);
-        ChaCha8Rng::from_seed(bytes)
-    })
+    ChaCha8Rng::from_seed(get_entropy().gen_fast())
 }
 
 //
@@ -70,24 +43,30 @@ struct EntropyCollector {
 //
 
 impl EntropyCollector {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
-            sha: Mutex::new([0; 32]),
-            rng: Mutex::new((ChaChaRng::from_seed([0; 32]), true)),
+            sha: Mutex::new(INIT_DATA),
+            rng: Mutex::new((ChaChaRng::from_seed(INIT_DATA), true)),
         }
     }
 
-    pub fn with_rng<T>(&self, f: impl FnOnce(&mut ChaChaRng) -> T) -> T {
+    fn gen_fast<T>(&self) -> T
+    where
+        Standard: Distribution<T>,
+    {
         let mut rng = self.rng.lock();
 
         if rng.1 {
             hyperion_log::error!("Using insecure PRNG seed");
         }
 
-        f(&mut rng.0)
+        rng.0.gen()
     }
 
-    pub fn with_secure_rng<T>(&self, f: impl FnOnce(&mut ChaChaRng) -> T) -> Option<T> {
+    fn gen_secure<T>(&self) -> Option<T>
+    where
+        Standard: Distribution<T>,
+    {
         let mut rng = self.rng.lock();
 
         if rng.1 {
@@ -95,10 +74,10 @@ impl EntropyCollector {
             return None;
         }
 
-        Some(f(&mut rng.0))
+        Some(rng.0.gen())
     }
 
-    pub fn feed(&self, data: &[u8]) {
+    fn feed(&self, data: &[u8]) {
         let mut sha = self.sha.lock();
         let mut hasher = blake3::Hasher::new();
 
@@ -113,3 +92,18 @@ impl EntropyCollector {
         *self.rng.lock() = (ChaChaRng::from_seed(*seed), false);
     }
 }
+
+//
+
+const INIT_DATA: [u8; 32] = {
+    let mut buf = [0; 32];
+    let rev = hyperion_macros::build_rev!().as_bytes();
+
+    let mut i = 0usize;
+    while i < 32 {
+        buf[i] = rev[i];
+        i += 1;
+    }
+
+    buf
+};

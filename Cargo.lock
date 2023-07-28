@@ -586,6 +586,7 @@ version = "0.1.0"
 dependencies = [
  "blake3",
  "hyperion-log",
+ "hyperion-macros",
  "rand",
  "rand_chacha",
  "spin",
