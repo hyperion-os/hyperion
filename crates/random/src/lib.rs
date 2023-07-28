@@ -78,6 +78,8 @@ impl EntropyCollector {
     }
 
     fn feed(&self, data: &[u8]) {
+        // lock `rng` before `sha` to avoid some race condition shenanigans
+        let mut rng = self.rng.lock();
         let mut sha = self.sha.lock();
         let mut hasher = blake3::Hasher::new();
 
@@ -89,7 +91,7 @@ impl EntropyCollector {
 
         sha.copy_from_slice(seed);
 
-        *self.rng.lock() = (ChaChaRng::from_seed(*seed), false);
+        *rng = (ChaChaRng::from_seed(*seed), false);
     }
 }
 
