@@ -4,6 +4,8 @@
 
 extern crate alloc;
 
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use rand::{distributions::Standard, prelude::Distribution};
 pub use rand::{CryptoRng, Fill, Rng, RngCore, SeedableRng};
 use rand_chacha::{ChaCha20Rng, ChaCha8Rng, ChaChaRng};
@@ -36,17 +38,23 @@ static ENTROPY: Once<EntropyCollector> = Once::new();
 //
 
 struct EntropyCollector {
-    sha: Mutex<[u8; 32]>,
-    rng: Mutex<(ChaChaRng, bool)>,
+    hasher: Mutex<blake3::Hasher>,
+    rng: Mutex<ChaChaRng>,
+    is_insecure: AtomicBool,
 }
 
 //
 
 impl EntropyCollector {
     fn new() -> Self {
+        let mut hasher = blake3::Hasher::new();
+
+        let seed = Self::feed_inner(&mut hasher, hyperion_macros::build_rev!().as_bytes());
+
         Self {
-            sha: Mutex::new(INIT_DATA),
-            rng: Mutex::new((ChaChaRng::from_seed(INIT_DATA), true)),
+            hasher: Mutex::new(hasher),
+            rng: Mutex::new(ChaChaRng::from_seed(seed)),
+            is_insecure: AtomicBool::new(true),
         }
     }
 
@@ -56,11 +64,11 @@ impl EntropyCollector {
     {
         let mut rng = self.rng.lock();
 
-        if rng.1 {
+        if self.is_insecure.load(Ordering::Acquire) {
             hyperion_log::error!("Using insecure PRNG seed");
         }
 
-        rng.0.gen()
+        rng.gen()
     }
 
     fn gen_secure<T>(&self) -> Option<T>
@@ -69,43 +77,30 @@ impl EntropyCollector {
     {
         let mut rng = self.rng.lock();
 
-        if rng.1 {
+        if self.is_insecure.load(Ordering::Acquire) {
             hyperion_log::error!("Using insecure PRNG seed");
             return None;
         }
 
-        Some(rng.0.gen())
+        Some(rng.gen())
     }
 
     fn feed(&self, data: &[u8]) {
         // lock `rng` before `sha` to avoid some race condition shenanigans
         let mut rng = self.rng.lock();
-        let mut sha = self.sha.lock();
-        let mut hasher = blake3::Hasher::new();
+        let mut hasher = self.hasher.lock();
 
-        hasher.update(&*sha);
+        let seed = Self::feed_inner(&mut hasher, data);
+
+        *rng = ChaChaRng::from_seed(seed);
+
+        self.is_insecure.store(false, Ordering::Release);
+    }
+
+    fn feed_inner(hasher: &mut blake3::Hasher, data: &[u8]) -> [u8; 32] {
         hasher.update(data);
 
         let digest = hasher.finalize();
-        let seed = digest.as_bytes();
-
-        sha.copy_from_slice(seed);
-
-        *rng = (ChaChaRng::from_seed(*seed), false);
+        *digest.as_bytes()
     }
 }
-
-//
-
-const INIT_DATA: [u8; 32] = {
-    let mut buf = [0; 32];
-    let rev = hyperion_macros::build_rev!().as_bytes();
-
-    let mut i = 0usize;
-    while i < 32 {
-        buf[i] = rev[i];
-        i += 1;
-    }
-
-    buf
-};
