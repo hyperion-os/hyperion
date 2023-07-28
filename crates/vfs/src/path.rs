@@ -6,11 +6,13 @@ use alloc::{
 use core::{
     borrow::Borrow,
     fmt::{self, Write},
+    mem::transmute,
     ops::Deref,
 };
 
 //
 
+#[repr(transparent)]
 pub struct Path(pub str);
 
 #[derive(Clone, PartialEq, Eq)]
@@ -103,7 +105,9 @@ impl<'a> From<&'a str> for &'a Path {
 
 impl AsRef<Path> for str {
     fn as_ref(&self) -> &Path {
-        unsafe { &*(self as *const str as *const Path) }
+        // SAFETY: `Path` is a newtype wrapper around `str` and marked as `#[repr(transparent)]`
+        // so the compiler guarantees the same layout
+        unsafe { transmute::<&str, &Path>(self) }
     }
 }
 
