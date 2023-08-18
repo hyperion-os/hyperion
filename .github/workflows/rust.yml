@@ -45,7 +45,7 @@ jobs:
       run: make KVM=false test
 
     - name: Run Clippy
-      run: cargo clippy --all -- -D warnings
+      run: make clippy
 
     - name: Run Rustfmt
       run: cargo fmt --all -- --check
