@@ -4,6 +4,7 @@ use core::future::Future;
 use crossbeam_queue::SegQueue;
 
 use super::task::Task;
+use crate::yield_now;
 
 //
 
@@ -14,7 +15,7 @@ pub fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
 pub fn run_tasks() -> ! {
     loop {
         while run_once().is_some() {}
-        // arch::wait_interrupt();
+        yield_now();
     }
 }
 

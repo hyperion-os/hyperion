@@ -21,7 +21,7 @@
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use hyperion_arch::context::Task;
+use hyperion_boot::kernel_file;
 use hyperion_boot_interface::Cpu;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::debug;
@@ -60,22 +60,22 @@ fn kernel_main() -> ! {
     // main task(s)
     hyperion_scheduler::spawn(hyperion_kshell::kshell());
 
-    hyperion_arch::context::schedule(Task::new(move || {
+    hyperion_scheduler::spawn2(move || {
         let counter = Arc::new(AtomicUsize::new(0));
         for _ in 0..10 {
             let counter = counter.clone();
-            hyperion_arch::context::schedule(Task::new(move || {
+            hyperion_scheduler::spawn2(move || {
                 // hyperion_log::debug!("running");
                 for _i in 0..10 {
                     counter.fetch_add(1, Ordering::SeqCst);
-                    hyperion_arch::context::yield_now();
+                    hyperion_scheduler::yield_now();
                     // hyperion_log::debug!("ip: {:0x}", hyperion_arch::context::ip());
                 }
-            }));
+            });
         }
 
         loop {
-            hyperion_arch::context::yield_now();
+            hyperion_scheduler::yield_now();
 
             let counter = counter.load(Ordering::SeqCst);
             hyperion_log::debug!("counter = {counter}");
@@ -96,7 +96,7 @@ fn kernel_main() -> ! {
                 );
             }));
         } */
-    }));
+    });
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     hyperion_boot::smp_init(smp_main);
@@ -111,9 +111,9 @@ fn smp_main(cpu: Cpu) -> ! {
         hyperion_drivers::lazy_install_late();
     }
 
-    hyperion_arch::context::schedule(Task::new(move || {
+    hyperion_scheduler::spawn2(move || {
         hyperion_scheduler::run_tasks();
-    }));
+    });
     hyperion_log::debug!("context switch test");
-    hyperion_arch::context::reset();
+    hyperion_scheduler::reset();
 }

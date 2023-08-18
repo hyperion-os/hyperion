@@ -1,16 +1,5 @@
-use alloc::boxed::Box;
-use core::{
-    cell::UnsafeCell,
-    mem::swap,
-    sync::atomic::{AtomicUsize, Ordering},
-};
-
-use crossbeam::queue::SegQueue;
-use hyperion_mem::pmm::PageFrameAllocator;
 use memoffset::offset_of;
 use x86_64::{registers::control::Cr3, PhysAddr, VirtAddr};
-
-use crate::tls;
 
 //
 
@@ -22,11 +11,8 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new() -> Self {
-        let mut stack = PageFrameAllocator::get().alloc(10);
-
-        let stack_slice: &mut [u64] = stack.as_mut_slice();
-        let [top @ .., _r15, _r14, _r13, _r12, _rbx, _rbp, entry] = stack_slice else {
+    pub fn new(stack: &mut [u64], thread_entry: extern "sysv64" fn() -> !) -> Self {
+        let [top @ .., _r15, _r14, _r13, _r12, _rbx, _rbp, entry] = stack else {
             unreachable!("the stack is too small")
         };
 
@@ -37,166 +23,6 @@ impl Context {
             rsp: VirtAddr::new(top.as_ptr_range().end as u64),
         }
     }
-}
-
-impl Default for Context {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub struct Task {
-    // context is used 'unsafely' only in the switch
-    context: Box<UnsafeCell<Context>>,
-    job: Option<Box<dyn FnOnce() + Send + 'static>>,
-    pid: usize,
-}
-
-impl Task {
-    pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
-        static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
-
-        let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
-
-        Self {
-            context: Box::new(UnsafeCell::new(Context::new())),
-            job: Some(Box::new(f)),
-            pid,
-        }
-    }
-
-    pub fn debug(&mut self) {
-        hyperion_log::debug!(
-            "TASK DEBUG: context: {:0x}, job: {:?}, pid: {}",
-            unsafe { (*self.context.get()).rsp },
-            self.job.as_ref().map(|_| ()),
-            self.pid
-        )
-    }
-}
-
-pub static READY: SegQueue<Task> = SegQueue::new();
-
-/// reset this processors scheduling
-pub fn reset() -> ! {
-    let boot = Task::new(|| {});
-    *tls::get().active.lock() = Some(boot);
-    stop();
-}
-
-#[inline(always)]
-pub fn ip() -> u64 {
-    x86_64::instructions::read_rip().as_u64()
-}
-
-/// switch to another thread
-pub fn yield_now() {
-    let Some(current) = swap_current(None) else {
-        unreachable!("cannot yield from a task that doesn't exist")
-    };
-
-    // push the current thread back to the ready queue AFTER switching
-    // current.debug();
-    let context = current.context.get();
-    tls::get().free_thread.push(current);
-
-    // SAFETY: `current` is stored in the queue until the switch
-    // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe {
-        block(context);
-    }
-}
-
-/// destroy the current thread
-/// and switch to another thread
-pub fn stop() -> ! {
-    // hyperion_log::debug!("stop");
-    let Some(current) = swap_current(None) else {
-        unreachable!("cannot stop a task that doesn't exist")
-    };
-
-    // push the current thread to the drop queue AFTER switching
-    // current.debug();
-    let context = current.context.get();
-    tls::get().drop_thread.push(current);
-
-    // SAFETY: `current` is stored in the queue until the switch
-    // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe {
-        block(context);
-    }
-
-    unreachable!("a destroyed thread cannot continue executing");
-}
-
-/// schedule
-pub fn schedule(new: Task) {
-    READY.push(new);
-}
-
-pub fn swap_current(mut new: Option<Task>) -> Option<Task> {
-    swap(&mut new, &mut tls::get().active.lock());
-    new
-}
-
-/// # Safety
-///
-/// `current` must be correct and point to a valid exclusive [`Context`]
-pub unsafe fn block(current: *mut Context) {
-    let next = next_task();
-
-    // next.debug();
-    let context = next.context.get();
-    tls::get().next_thread.push(next);
-
-    // SAFETY: `next` is stored in the queue until the switch
-    // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe {
-        switch(current, context);
-    }
-
-    cleanup();
-}
-
-pub fn next_task() -> Task {
-    // loop {
-    for _ in 0..1000 {
-        if let Some(next) = READY.pop() {
-            return next;
-        }
-
-        // hyperion_log::debug!("no jobs");
-
-        // TODO: halt until the next task arrives
-    }
-
-    // give up and run a none task
-    Task::new(|| {})
-}
-
-pub fn cleanup() {
-    while let Some(free) = tls::get().free_thread.pop() {
-        READY.push(free);
-    }
-    while let Some(_next) = tls::get().drop_thread.pop() {}
-    while let Some(next) = tls::get().next_thread.pop() {
-        swap_current(Some(next));
-    }
-}
-
-extern "sysv64" fn thread_entry() -> ! {
-    cleanup();
-    {
-        let Some(mut current) = swap_current(None) else {
-            unreachable!("cannot run a task that doesn't exist")
-        };
-        let Some(job) = current.job.take() else {
-            unreachable!("cannot run a task that already ran")
-        };
-        swap_current(Some(current));
-        job();
-    }
-    stop();
 }
 
 //

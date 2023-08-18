@@ -7,13 +7,12 @@ use core::{
 use crossbeam::queue::SegQueue;
 use hyperion_boot::cpu_count;
 use hyperion_mem::pmm;
+use hyperion_scheduler_task::{CleanupTask, Task};
 use spin::Mutex;
 use x86_64::{
     registers::model_specific::{GsBase, KernelGsBase},
     VirtAddr,
 };
-
-use crate::context::Task;
 
 //
 
@@ -53,7 +52,7 @@ pub fn get() -> &'static ThreadLocalStorage {
 
 //
 
-#[repr(align(0x1000))]
+// #[repr(align(0x1000))]
 pub struct ThreadLocalStorage {
     // temporary store for user space stack
     pub user_stack: AtomicPtr<u8>,
@@ -61,9 +60,7 @@ pub struct ThreadLocalStorage {
     pub kernel_stack: AtomicPtr<u8>,
 
     pub active: Mutex<Option<Task>>,
-    pub free_thread: SegQueue<Task>,
-    pub drop_thread: SegQueue<Task>,
-    pub next_thread: SegQueue<Task>,
+    pub after_switch: SegQueue<CleanupTask>,
 }
 
 macro_rules! uninit_write_fields {
@@ -97,9 +94,7 @@ impl ThreadLocalStorage {
                 user_stack: AtomicPtr::new(null_mut()),
                 kernel_stack: AtomicPtr::new(null_mut()),
                 active: Mutex::new(None),
-                free_thread: SegQueue::new(),
-                drop_thread: SegQueue::new(),
-                next_thread: SegQueue::new(),
+                after_switch: SegQueue::new(),
             }
         )
     }
