@@ -19,18 +19,11 @@ use crate::tls;
 pub struct Context {
     pub rsp: VirtAddr,
     pub cr3: PhysAddr,
-    pub pid: usize,
 }
 
 impl Context {
-    pub fn new(pid: usize) -> Self {
+    pub fn new() -> Self {
         let mut stack = PageFrameAllocator::get().alloc(10);
-
-        // hyperion_log::trace!(
-        //     "task: {:0x}..{:x}",
-        //     stack.virtual_addr(),
-        //     stack.virtual_addr() + 0x1000u64
-        // );
 
         let stack_slice: &mut [u64] = stack.as_mut_slice();
         let [top @ .., _r15, _r14, _r13, _r12, _rbx, _rbp, entry] = stack_slice else {
@@ -42,16 +35,15 @@ impl Context {
         Self {
             cr3: Cr3::read().0.start_address(),
             rsp: VirtAddr::new(top.as_ptr_range().end as u64),
-            pid,
         }
     }
 }
 
-/* impl Drop for Context {
-    fn drop(&mut self) {
-        hyperion_log::trace!("dropping context (PID:{})", self.pid);
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
     }
-} */
+}
 
 pub struct Task {
     // context is used 'unsafely' only in the switch
@@ -67,7 +59,7 @@ impl Task {
         let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
 
         Self {
-            context: Box::new(UnsafeCell::new(Context::new(pid))),
+            context: Box::new(UnsafeCell::new(Context::new())),
             job: Some(Box::new(f)),
             pid,
         }
