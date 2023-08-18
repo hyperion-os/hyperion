@@ -1,13 +1,12 @@
 use hyperion_log::{error, info, trace};
-use hyperion_mem::is_higher_half;
+
 use x86_64::{
     registers::control::Cr2,
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
 };
 
 use crate::{
-    address::{KernelStack, UserStack},
-    done, tls,
+    tls,
 };
 
 //
@@ -80,9 +79,6 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
 }
 
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
-    error!("PAGE FAULT 0x{:#?}", stack);
-    done();
-
     let addr = Cr2::read();
 
     trace!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");

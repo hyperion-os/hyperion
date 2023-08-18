@@ -15,7 +15,7 @@ use x86_64::{
 
 use crate::{
     address::AddressSpace,
-    context::{Context, Task},
+    context::{Task},
     vmm::PageMap,
 };
 

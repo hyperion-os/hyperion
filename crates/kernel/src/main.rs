@@ -11,24 +11,20 @@
     array_chunks,
     core_intrinsics,
     custom_test_frameworks,
-    panic_can_unwind,
-    lang_items
+    panic_can_unwind
 )]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
 //
 
-use alloc::{sync::Arc};
+use alloc::sync::Arc;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use hyperion_arch::{
-    context::{Task},
-};
+use hyperion_arch::context::Task;
 use hyperion_boot_interface::Cpu;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::debug;
-
 
 extern crate alloc;
 
@@ -120,12 +116,4 @@ fn smp_main(cpu: Cpu) -> ! {
     }));
     hyperion_log::debug!("context switch test");
     hyperion_arch::context::reset();
-
-    hyperion_log::debug!("returned");
-
-    hyperion_scheduler::run_tasks();
 }
-
-// for clippy:
-#[lang = "eh_personality"]
-extern "C" fn eh_personality() {}

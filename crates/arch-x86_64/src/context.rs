@@ -1,19 +1,16 @@
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 use core::{
     cell::UnsafeCell,
     mem::swap,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use crossbeam::{atomic::AtomicCell, queue::SegQueue};
-use hyperion_atomic_map::AtomicMap;
-use hyperion_drivers::acpi::apic::ApicId;
-use hyperion_mem::{pmm::PageFrameAllocator, vmm::PageMapImpl};
+use crossbeam::queue::SegQueue;
+use hyperion_mem::pmm::PageFrameAllocator;
 use memoffset::offset_of;
-use spin::Mutex;
 use x86_64::{registers::control::Cr3, PhysAddr, VirtAddr};
 
-use crate::{done, spin_loop, tls, vmm::PageMap};
+use crate::tls;
 
 //
 
@@ -77,12 +74,12 @@ impl Task {
     }
 
     pub fn debug(&mut self) {
-        // hyperion_log::debug!(
-        //     "TASK DEBUG: context: {:0x}, job: {:?}, pid: {}",
-        //     unsafe { (&*self.context.get()).rsp },
-        //     self.job.as_ref().map(|_| ()),
-        //     self.pid
-        // )
+        hyperion_log::debug!(
+            "TASK DEBUG: context: {:0x}, job: {:?}, pid: {}",
+            unsafe { (*self.context.get()).rsp },
+            self.job.as_ref().map(|_| ()),
+            self.pid
+        )
     }
 }
 
@@ -90,7 +87,7 @@ pub static READY: SegQueue<Task> = SegQueue::new();
 
 /// reset this processors scheduling
 pub fn reset() -> ! {
-    let mut boot = Task::new(|| {});
+    let boot = Task::new(|| {});
     *tls::get().active.lock() = Some(boot);
     stop();
 }
@@ -144,7 +141,7 @@ pub fn yield_now() {
 /// and switch to another thread
 pub fn stop() -> ! {
     // hyperion_log::debug!("stop");
-    let Some(mut current) = swap_current(None) else {
+    let Some(current) = swap_current(None) else {
         unreachable!("cannot stop a task that doesn't exist")
     };
 
@@ -176,9 +173,12 @@ pub fn swap_current(mut new: Option<Task>) -> Option<Task> {
     new
 }
 
-pub unsafe fn block(mut current: *mut Context) {
+/// # Safety
+///
+/// `current` must be correct and point to a valid exclusive [`Context`]
+pub unsafe fn block(current: *mut Context) {
     // hyperion_log::debug!("block");
-    let mut next = next_task();
+    let next = next_task();
 
     // next.debug();
     let context = next.context.get();
@@ -204,22 +204,19 @@ pub unsafe fn block(mut current: *mut Context) {
 }
 
 pub fn next_task() -> Task {
-    loop {
-        // loop {
+    // loop {
+    for _ in 0..1000 {
         if let Some(next) = READY.pop() {
             return next;
         }
 
-        // for _ in 0..1_000_000 {
-        //     spin_loop()
-        // }
-
         // hyperion_log::debug!("no jobs");
-        // give up and run a none task
-        return Task::new(|| {});
 
         // TODO: halt until the next task arrives
     }
+
+    // give up and run a none task
+    Task::new(|| {})
 }
 
 pub fn cleanup() {
@@ -253,19 +250,21 @@ extern "sysv64" fn thread_entry() -> ! {
         swap_current(Some(current));
         job();
 
-        let mut rsp: u64 = 0;
-        unsafe {
-            core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
-        }
+        // let mut rsp: u64 = 0;
+        // unsafe {
+        //     core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
+        // }
         // hyperion_log::debug!("thread return (rsp:{rsp:0x})");
     }
     stop();
-
-    crate::done();
 }
 
 //
 
+/// # Safety
+///
+/// both `prev` and `next` must be correct and point to valid exclusive [`Context`] values
+/// even after switching the new address spacing according to the field `cr3` in `next`
 #[naked]
 pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {
     // TODO: fx(save/rstor)64 (rd/wr)(fs/gs)base

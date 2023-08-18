@@ -1,21 +1,12 @@
 use alloc::boxed::Box;
-use core::{
-    mem::MaybeUninit,
-    ptr::{addr_of_mut, null_mut},
-    sync::atomic::AtomicPtr,
-};
+use core::mem::MaybeUninit;
 
-use crossbeam::atomic::AtomicCell;
 use hyperion_boot_interface::Cpu;
 use hyperion_log::trace;
-use hyperion_mem::vmm::PageMapImpl;
 use spin::{Mutex, MutexGuard};
 
 use self::{gdt::Gdt, idt::Idt, tss::Tss};
-use crate::{
-    tls::{self, ThreadLocalStorage},
-    vmm::PageMap,
-};
+use crate::tls::{self, ThreadLocalStorage};
 
 //
 

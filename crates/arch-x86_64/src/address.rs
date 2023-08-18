@@ -1,7 +1,7 @@
 use alloc::{vec, vec::Vec};
-use core::{fmt::Debug, marker::PhantomData, ops::Range, sync::atomic::AtomicU64};
+use core::{fmt::Debug, marker::PhantomData, ops::Range};
 
-use crossbeam::atomic::AtomicCell;
+
 use hyperion_mem::{
     pmm::{PageFrame, PageFrameAllocator},
     vmm::PageMapImpl,

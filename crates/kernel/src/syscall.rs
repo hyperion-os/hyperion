@@ -44,15 +44,12 @@ pub fn syscall(args: &mut SyscallRegs) {
 ///  - 1 : invalid address range (arg0 .. arg1)
 ///  - 2 : address range not mapped for the user (arg0 .. arg1)
 ///  - 3 : invalid utf8
-pub fn log(args: &mut SyscallRegs) -> u64 {
+pub fn log(args: &SyscallRegs) -> u64 {
     let Some(end) = args.arg0.checked_add(args.arg1) else {
         return 1;
     };
 
-    let (Ok(start), Ok(end)) = (
-        VirtAddr::try_new(args.arg0),
-        VirtAddr::try_new(end),
-    ) else {
+    let (Ok(start), Ok(end)) = (VirtAddr::try_new(args.arg0), VirtAddr::try_new(end)) else {
         return 1;
     };
 
