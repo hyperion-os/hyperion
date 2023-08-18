@@ -65,7 +65,7 @@ impl Eq for TimerWaker {}
 
 impl PartialOrd for TimerWaker {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        other.deadline.partial_cmp(&self.deadline)
+        Some(self.cmp(other))
     }
 }
 

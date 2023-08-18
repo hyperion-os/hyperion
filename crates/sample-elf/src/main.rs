@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(lang_items)]
 
 use core::fmt::{self, Write};
 
@@ -44,7 +43,3 @@ fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
     hyperion_syscall::log("panic");
     hyperion_syscall::exit(-1);
 }
-
-// for clippy:
-#[lang = "eh_personality"]
-extern "C" fn eh_personality() {}

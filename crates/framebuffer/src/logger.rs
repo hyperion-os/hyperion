@@ -129,7 +129,7 @@ impl Writer {
         }
     }
 
-    fn size(fbo: &mut Framebuffer) -> [u16; 2] {
+    fn size(fbo: &Framebuffer) -> [u16; 2] {
         [(fbo.width / 8) as _, (fbo.height / 16) as _]
     }
 }
