@@ -99,7 +99,6 @@ pub fn ip() -> u64 {
 
 /// switch to another thread
 pub fn yield_now() {
-    // hyperion_log::debug!("yield_now");
     let Some(current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
@@ -114,27 +113,6 @@ pub fn yield_now() {
     unsafe {
         block(context);
     }
-
-    /* let mut rsp: u64 = 0;
-    unsafe {
-        core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
-    }
-    /* for n in -10i128..=10 {
-        hyperion_log::debug!("{n}: {:0x}", unsafe {
-            &*((rsp as i128 + 8 * n) as *const u64)
-        });
-    } */
-    hyperion_log::debug!("thread return (rsp:{rsp:0x})");
-    hyperion_log::debug!(
-        "yield_now return bp: 0x{:0x}",
-        x86_64::instructions::read_rip()
-    );
-
-    /* unsafe {
-        core::arch::asm!("2:", "jmp 2b");
-    } */
-
-    hyperion_log::debug!("yield_now return",); */
 }
 
 /// destroy the current thread
@@ -156,19 +134,15 @@ pub fn stop() -> ! {
         block(context);
     }
 
-    // hyperion_log::debug!("stop return");
-
     unreachable!("a destroyed thread cannot continue executing");
 }
 
 /// schedule
 pub fn schedule(new: Task) {
-    // hyperion_log::debug!("schedule");
     READY.push(new);
 }
 
 pub fn swap_current(mut new: Option<Task>) -> Option<Task> {
-    // hyperion_log::debug!("swap_current");
     swap(&mut new, &mut tls::get().active.lock());
     new
 }
@@ -177,7 +151,6 @@ pub fn swap_current(mut new: Option<Task>) -> Option<Task> {
 ///
 /// `current` must be correct and point to a valid exclusive [`Context`]
 pub unsafe fn block(current: *mut Context) {
-    // hyperion_log::debug!("block");
     let next = next_task();
 
     // next.debug();
@@ -187,20 +160,10 @@ pub unsafe fn block(current: *mut Context) {
     // SAFETY: `next` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
-        // hyperion_log::debug!(
-        //     "switch from 0x{:0x} (PID:{}) to 0x{:0x} (PID:{})",
-        //     (&*current).rsp,
-        //     (&*current).pid,
-        //     (&*context).rsp,
-        //     (&*context).pid
-        // );
         switch(current, context);
     }
-    // hyperion_log::debug!("return");
 
     cleanup();
-
-    // hyperion_log::debug!("block return");
 }
 
 pub fn next_task() -> Task {
@@ -220,25 +183,16 @@ pub fn next_task() -> Task {
 }
 
 pub fn cleanup() {
-    // hyperion_log::debug!("cleanup");
     while let Some(free) = tls::get().free_thread.pop() {
         READY.push(free);
     }
     while let Some(_next) = tls::get().drop_thread.pop() {}
     while let Some(next) = tls::get().next_thread.pop() {
-        // hyperion_log::debug!("set next");
         swap_current(Some(next));
     }
-    // hyperion_log::debug!("cleanup return");
 }
 
 extern "sysv64" fn thread_entry() -> ! {
-    /* let mut rsp: u64 = 0;
-    unsafe {
-        core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
-    }
-    hyperion_log::debug!("thread entrypoint hit (rsp:{rsp:0x})"); */
-
     cleanup();
     {
         let Some(mut current) = swap_current(None) else {
@@ -249,12 +203,6 @@ extern "sysv64" fn thread_entry() -> ! {
         };
         swap_current(Some(current));
         job();
-
-        // let mut rsp: u64 = 0;
-        // unsafe {
-        //     core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
-        // }
-        // hyperion_log::debug!("thread return (rsp:{rsp:0x})");
     }
     stop();
 }
