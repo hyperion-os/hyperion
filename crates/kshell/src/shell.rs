@@ -477,21 +477,24 @@ impl Shell {
     }
 
     fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        hyperion_log::debug!(
-            "ELF file from: {}",
-            env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF")
-        );
-        let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
-        let loader = hyperion_loader::Loader::new(elf_bytes);
+        let args = args.map(String::from);
+        hyperion_scheduler::spawn(move || {
+            let args = args.as_deref();
+            let args = args.as_ref().map(slice::from_ref).unwrap_or(&[]);
 
-        loader.load();
+            hyperion_log::debug!(
+                "ELF file from: {}",
+                env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF")
+            );
+            let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
+            let loader = hyperion_loader::Loader::new(elf_bytes);
 
-        if loader
-            .enter_userland(args.as_ref().map(slice::from_ref).unwrap_or(&[]))
-            .is_none()
-        {
-            _ = writeln!(self.term, "entry point missing");
-        }
+            loader.load();
+
+            if loader.enter_userland(args).is_none() {
+                hyperion_log::debug!("entry point missing");
+            }
+        });
 
         Ok(())
     }

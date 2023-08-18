@@ -28,7 +28,7 @@ pub mod term;
 //
 
 pub async fn kshell() {
-    hyperion_scheduler::spawn(spinner());
+    hyperion_scheduler::executor::spawn(spinner());
 
     let term = Term::new();
     let mut shell = Shell::new(term);

@@ -20,7 +20,6 @@ use core::{
 };
 
 use crossbeam_queue::SegQueue;
-pub use executor::*;
 use hyperion_arch::{context::Context, tls};
 use hyperion_mem::pmm::{PageFrame, PageFrameAllocator};
 use hyperion_scheduler_task::{AnyTask, CleanupTask, Task};
@@ -134,7 +133,7 @@ pub fn stop() -> ! {
     unreachable!("a destroyed thread cannot continue executing");
 }
 
-pub fn spawn2(f: impl FnOnce() + Send + 'static) {
+pub fn spawn(f: impl FnOnce() + Send + 'static) {
     schedule(Box::new(TaskImpl::new(f)))
 }
 
