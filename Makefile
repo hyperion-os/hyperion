@@ -101,7 +101,7 @@ build: ${KERNEL}
 iso: ${HYPERION}
 
 clippy:
-	${CARGO} clippy ${CARGO_FLAGS} -- -D warnings
+	${CARGO} clippy ${CLIPPY_FLAGS} ${CARGO_FLAGS} -- -D warnings
 
 # connect gdb to qemu
 gdb:
