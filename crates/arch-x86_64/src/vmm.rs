@@ -20,16 +20,12 @@ use x86_64::{
 };
 
 use super::pmm::Pfa;
-use crate::{
-    paging::{Level4, WalkTableIterResult},
-    tls,
-};
+use crate::paging::{Level4, WalkTableIterResult};
 
 //
 
-#[derive(Clone)]
 pub struct PageMap {
-    offs: Arc<RwLock<OffsetPageTable<'static>>>,
+    offs: RwLock<OffsetPageTable<'static>>,
 }
 
 // TODO: drop
@@ -50,6 +46,8 @@ fn _crash_after_nth(nth: usize) {
 
 impl PageMapImpl for PageMap {
     fn current() -> Self {
+        // TODO: unsound, multiple mutable references to the same table could be made
+
         let (l4, _) = Cr3::read();
         let virt = to_higher_half(l4.start_address());
         let table: *mut PageTable = virt.as_mut_ptr();
@@ -57,7 +55,7 @@ impl PageMapImpl for PageMap {
 
         let offs =
             unsafe { OffsetPageTable::new(table, VirtAddr::new(hyperion_boot::hhdm_offset())) };
-        let offs = Arc::new(RwLock::new(offs));
+        let offs = RwLock::new(offs);
 
         Self { offs }
     }
@@ -70,7 +68,7 @@ impl PageMapImpl for PageMap {
 
         let offs =
             unsafe { OffsetPageTable::new(new_table, VirtAddr::new(hyperion_boot::hhdm_offset())) };
-        let offs = Arc::new(RwLock::new(offs));
+        let offs = RwLock::new(offs);
 
         let page_map = Self { offs };
 
@@ -78,27 +76,20 @@ impl PageMapImpl for PageMap {
         page_map.unmap(VirtAddr::new(0x0000)..VirtAddr::new(0x1000));
 
         // TODO: Copy on write maps
-        // lower map, unused
-        /* page_map.map(
-            VirtAddr::new(0x1000)..VirtAddr::new(0x100000000),
-            PhysAddr::new(0x1000),
-            PageTableFlags::WRITABLE,
-        );
-        page_map.map(
-            VirtAddr::new(0xfd00000000)..VirtAddr::new(0x10000000000),
-            PhysAddr::new(0xfd00000000),
-            PageTableFlags::WRITABLE,
-        ); */
+
         hyperion_log::debug!("higher half direct map");
+        let hhdm = VirtAddr::new(hyperion_boot::hhdm_offset());
         page_map.map(
-            VirtAddr::new(hyperion_boot::hhdm_offset())
-                ..VirtAddr::new(0x10000000000 + hyperion_boot::hhdm_offset()),
+            hhdm..hhdm + 0x10000000000u64,
             PhysAddr::new(0x0),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         );
+
+        // TODO: less dumb kernel mapping
         hyperion_log::debug!("kernel map");
+        let kernel = VirtAddr::new(hyperion_boot::virt_addr() as _);
         page_map.map(
-            VirtAddr::new(hyperion_boot::virt_addr() as _)..VirtAddr::new(u64::MAX),
+            kernel..VirtAddr::new(u64::MAX),
             PhysAddr::new(hyperion_boot::phys_addr() as _),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         );
@@ -107,16 +98,19 @@ impl PageMapImpl for PageMap {
     }
 
     fn activate(&self) {
-        tls::get().current_page_map.store(self.clone());
-
         let mut offs = self.offs.write();
 
         let virt = offs.level_4_table() as *mut PageTable as *const () as u64;
         let phys = from_higher_half(VirtAddr::new(virt));
+        let cr3 = PhysFrame::containing_address(phys);
 
-        hyperion_log::trace!("Switching page maps");
+        if Cr3::read().0 == cr3 {
+            hyperion_log::trace!("page map switch avoided (same)");
+            return;
+        }
 
-        unsafe { Cr3::write(PhysFrame::containing_address(phys), Cr3Flags::empty()) };
+        hyperion_log::trace!("switching page maps");
+        unsafe { Cr3::write(cr3, Cr3Flags::empty()) };
     }
 
     fn virt_to_phys(&self, addr: VirtAddr) -> Option<PhysAddr> {
@@ -213,7 +207,7 @@ impl PageMapImpl for PageMap {
             match start.cmp(&end) {
                 Ordering::Equal => break,
                 Ordering::Greater => {
-                    hyperion_log::error!("FIXME: over-mapped");
+                    hyperion_log::error!("FIXME: over-unmapped");
                     break;
                 }
                 _ => {}

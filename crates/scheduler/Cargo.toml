@@ -11,6 +11,7 @@ futures-util.workspace = true
 time.workspace = true
 crossbeam-queue.workspace = true
 
+hyperion-arch.path = "../arch"
 hyperion-clock.path = "../clock"
 hyperion-color.path = "../color"
 hyperion-instant.path = "../instant"

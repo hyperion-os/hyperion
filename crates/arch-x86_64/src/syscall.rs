@@ -50,6 +50,7 @@ pub fn set_handler(f: fn(&mut SyscallRegs)) {
 
 #[allow(unused)]
 #[repr(C)]
+#[derive(Debug, Default)]
 pub struct SyscallRegs {
     _r15: u64,
     _r14: u64,
@@ -60,12 +61,13 @@ pub struct SyscallRegs {
     pub arg4: u64, // r9
     pub arg3: u64, // r8
     _rbp: u64,
-    pub arg1: u64, // rsi
-    pub arg0: u64, // rdi
-    pub arg2: u64, // rdx
-    _rcx: u64,
+    pub arg1: u64,           // rsi
+    pub arg0: u64,           // rdi
+    pub arg2: u64,           // rdx
+    pub user_instr_ptr: u64, // rcx
     _rbx: u64,
-    pub syscall_id: u64, // rax, also the return register
+    pub syscall_id: u64,     // rax, also the return register
+    pub user_stack_ptr: u64, // rsp
 }
 
 //

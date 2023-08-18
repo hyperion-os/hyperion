@@ -89,26 +89,10 @@ impl CpuState {
         let idt = idt.write(Idt::new(tss));
         idt.load();
 
-        // // SAFETY: assume_init_mut is safe, because each ThreadLocalStorageUninit field is MaybeUninit
-        // let tls: &mut ThreadLocalStorageUninit = unsafe { tls.assume_init_mut() };
+        let tls = ThreadLocalStorage::init(tls);
 
-        let tlsp = tls.as_mut_ptr();
-        unsafe {
-            addr_of_mut!((*tlsp).user_stack).write(AtomicPtr::new(null_mut()));
-            addr_of_mut!((*tlsp).kernel_stack).write(AtomicPtr::new(null_mut()));
-            addr_of_mut!((*tlsp).current_page_map).write(AtomicCell::new(PageMap::current()));
-        }
+        tls.current_address_space.switch_to();
 
-        // just a compile time remider to add missing field initializers
-        #[allow(unused)]
-        if let Some(ThreadLocalStorage {
-            user_stack,
-            kernel_stack,
-            current_page_map,
-        }) = None
-        {}
-
-        // SAFETY: assume_init_ref is safe, because each field in ThreadLocalStorage is initializd
-        unsafe { tls.assume_init_ref() }
+        tls
     }
 }

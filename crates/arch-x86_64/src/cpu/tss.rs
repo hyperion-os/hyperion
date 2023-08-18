@@ -42,6 +42,7 @@ impl Tss {
         tss.add_priv(0, pfa);
 
         tss.add_int(0, pfa);
+        tss.add_int(1, pfa);
 
         tss
     }
@@ -59,7 +60,7 @@ impl Tss {
     }
 
     fn alloc_stack(pfa: &PageFrameAllocator) -> &'static mut [u8] {
-        let mut stack = pfa.alloc(5);
+        let mut stack = pfa.alloc(1);
         let stack: &mut [u8] = stack.as_mut_slice();
         // SAFETY: the pages are never freed
         unsafe { transmute(stack) }

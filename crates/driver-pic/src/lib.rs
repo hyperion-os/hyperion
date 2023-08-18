@@ -27,6 +27,7 @@ const EOI: u8 = 0x20;
 pub struct Pics {
     master: Pic,
     slave: Pic,
+    state: PicsState,
 }
 
 pub struct Pic {
@@ -34,6 +35,13 @@ pub struct Pic {
     offs: u8,
     cmd: Port<u8>,
     data: Port<u8>,
+}
+
+#[derive(PartialEq, Eq)]
+enum PicsState {
+    Unknown,
+    Disabled,
+    Enabled,
 }
 
 //
@@ -52,10 +60,15 @@ impl Pics {
                 cmd: Port::new(0xA0),
                 data: Port::new(0xA1),
             },
+            state: PicsState::Unknown,
         }
     }
 
     pub fn init(&mut self) {
+        if self.state == PicsState::Enabled {
+            return;
+        }
+
         self.disable();
 
         /* // save masks
@@ -113,15 +126,25 @@ impl Pics {
     }
 
     pub fn enable(&mut self) {
+        if self.state == PicsState::Enabled {
+            return;
+        }
+
         self.master.write_mask(0);
         self.slave.write_mask(0);
         debug!("8086 PIC enabled");
+        self.state = PicsState::Enabled;
     }
 
     pub fn disable(&mut self) {
+        if self.state == PicsState::Disabled {
+            return;
+        }
+
         self.master.write_mask(0xFF);
         self.slave.write_mask(0xFF);
         debug!("8086 PIC disabled");
+        self.state = PicsState::Disabled;
     }
 
     pub fn end_of_interrupt(&mut self, int_id: u8) {

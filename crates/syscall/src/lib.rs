@@ -1,11 +1,11 @@
 #![no_std]
 
 #[inline(always)]
-pub fn log(str: &str) {
+pub fn log(str: &str) -> u64 {
     unsafe {
         // TODO: should null terminated strings be used instead to save registers?
         // decide later™
-        trigger_syscall(1, str.as_ptr() as u64, str.len() as u64, 0, 0, 0);
+        trigger_syscall(1, str.as_ptr() as u64, str.len() as u64, 0, 0, 0)
     }
 }
 

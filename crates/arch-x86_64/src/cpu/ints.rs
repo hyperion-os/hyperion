@@ -1,7 +1,13 @@
-use hyperion_log::{error, info};
+use hyperion_log::{error, info, trace};
+use hyperion_mem::is_higher_half;
 use x86_64::{
     registers::control::Cr2,
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
+};
+
+use crate::{
+    address::{KernelStack, UserStack},
+    done, tls,
 };
 
 //
@@ -65,31 +71,36 @@ pub extern "x86-interrupt" fn stack_segment_fault(stack: InterruptStackFrame, ec
 }
 
 pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFrame, e: u64) {
-    no_inline(|| {
-        let addr = Cr2::read();
+    let addr = Cr2::read();
 
-        error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
-        // unsafe { print_backtrace_from(stack.stack_pointer) };
+    error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
+    // unsafe { print_backtrace_from(stack.stack_pointer) };
 
-        panic!();
-    });
+    panic!();
 }
 
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
-    no_inline(|| {
-        let addr = Cr2::read();
+    error!("PAGE FAULT 0x{:#?}", stack);
+    done();
 
-        error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
-        // unsafe { print_backtrace_from(stack.stack_pointer) };
+    let addr = Cr2::read();
 
-        panic!();
-    });
-}
+    trace!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
 
-// emitting stack frames causes issues without this, SOMEHOW.. HOW.. WHAT
-#[inline(never)]
-pub fn no_inline(f: impl Fn()) {
-    f()
+    let space = tls::get();
+
+    if space
+        .current_address_space
+        .page_fault(addr, ec)
+        .is_handled()
+    {
+        return;
+    }
+
+    error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+    // unsafe { print_backtrace_from(stack.stack_pointer) };
+
+    panic!();
 }
 
 pub extern "x86-interrupt" fn x87_floating_point(stack: InterruptStackFrame) {

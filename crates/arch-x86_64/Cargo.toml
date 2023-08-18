@@ -11,6 +11,7 @@ x86_64.workspace = true
 crossbeam.workspace = true
 memoffset = { version = "0.9", features = ["unstable_const"] }
 
+hyperion-atomic-map.path = "../atomic-map"
 hyperion-boot-interface.path = "../boot-interface"
 hyperion-boot.path = "../boot"
 hyperion-drivers.path = "../drivers"

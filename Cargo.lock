@@ -225,6 +225,7 @@ name = "hyperion-arch-x86_64"
 version = "0.1.0"
 dependencies = [
  "crossbeam",
+ "hyperion-atomic-map",
  "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-drivers",
@@ -605,6 +606,7 @@ version = "0.1.0"
 dependencies = [
  "crossbeam-queue",
  "futures-util",
+ "hyperion-arch",
  "hyperion-clock",
  "hyperion-color",
  "hyperion-instant",

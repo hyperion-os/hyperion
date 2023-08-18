@@ -5,6 +5,8 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
+    // hyperion_log::debug!("got syscall with args: {args:#?}");
+
     let id = args.syscall_id;
     let (result, name) = match id {
         1 => (log(args), "log"),
@@ -15,11 +17,15 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         _ => {
             // invalid syscall id, kill the process as a f u
-            hyperion_arch::done();
+            args.syscall_id = 2;
+            args.arg0 = i64::MIN as _;
+            (exit(args), "invalid")
         }
     };
 
-    hyperion_log::debug!("syscall `{name}` (id {id}) returned {result}",);
+    if result != 0 {
+        hyperion_log::debug!("syscall `{name}` (id {id}) returned {result}",);
+    }
     args.syscall_id = result;
 }
 
@@ -56,13 +62,13 @@ pub fn log(args: &mut SyscallRegs) -> u64 {
 
     // TODO:
     // SAFETY: this is most likely unsafe
-    let str: &[u8] = unsafe { core::slice::from_raw_parts(start.as_ptr(), end.as_u64() as _) };
+    let str: &[u8] = unsafe { core::slice::from_raw_parts(start.as_ptr(), args.arg1 as _) };
 
     let Ok(str) = core::str::from_utf8(str) else {
         return 3;
     };
 
-    hyperion_log::println!("{str}");
+    hyperion_log::print!("{str}");
 
     0
 }
@@ -82,5 +88,8 @@ pub fn log(args: &mut SyscallRegs) -> u64 {
 pub fn exit(args: &mut SyscallRegs) -> u64 {
     // TODO: impl actual exit
 
-    hyperion_arch::done()
+    args.user_instr_ptr = 0;
+
+    0
+    // hyperion_arch::done()
 }

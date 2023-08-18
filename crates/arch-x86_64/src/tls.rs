@@ -1,17 +1,23 @@
 use core::{
-    mem::transmute,
+    mem::{transmute, MaybeUninit},
+    ptr::{addr_of_mut, null_mut},
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use crossbeam::atomic::AtomicCell;
+use crossbeam::queue::SegQueue;
 use hyperion_boot::cpu_count;
-use hyperion_mem::pmm;
+use hyperion_mem::{pmm, vmm::PageMapImpl};
+use spin::Mutex;
 use x86_64::{
     registers::model_specific::{GsBase, KernelGsBase},
     VirtAddr,
 };
 
-use crate::vmm::PageMap;
+use crate::{
+    address::AddressSpace,
+    context::{Context, Task},
+    vmm::PageMap,
+};
 
 //
 
@@ -58,11 +64,52 @@ pub struct ThreadLocalStorage {
     // kernel stack for syscalls
     pub kernel_stack: AtomicPtr<u8>,
 
-    // the PageMap could be read from Cr3,
-    // but that wouldn't have the lock
-    //
-    // also the page map could be shared between tasks
-    pub current_page_map: AtomicCell<PageMap>,
+    pub current_address_space: AddressSpace,
+
+    pub active: Mutex<Option<Task>>,
+    pub free_thread: SegQueue<Task>,
+    pub drop_thread: SegQueue<Task>,
+    pub next_thread: SegQueue<Task>,
+}
+
+macro_rules! uninit_write_fields {
+    ($uninit_struct:expr, $struct_name:ident {
+        $($field_name:ident: $field_value:expr),* $(,)?
+    }) => {{
+        let uninit = $uninit_struct;
+        let ptr = uninit.as_mut_ptr();
+        unsafe {
+            $(
+                addr_of_mut!((*ptr).$field_name).write($field_value);
+            )*
+        }
+
+        // a compile time remider to add missing field initializers
+        #[allow(unused)]
+        if let Some($struct_name {
+            $($field_name),*
+        }) = None
+        {}
+
+        unsafe { uninit.assume_init_ref() }
+    }};
+}
+
+impl ThreadLocalStorage {
+    pub fn init(uninit_tls: &mut MaybeUninit<Self>) -> &Self {
+        uninit_write_fields!(
+            uninit_tls,
+            Self {
+                user_stack: AtomicPtr::new(null_mut()),
+                kernel_stack: AtomicPtr::new(null_mut()),
+                current_address_space: AddressSpace::new(PageMap::current()),
+                active: Mutex::new(None),
+                free_thread: SegQueue::new(),
+                drop_thread: SegQueue::new(),
+                next_thread: SegQueue::new(),
+            }
+        )
+    }
 }
 
 //

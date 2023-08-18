@@ -44,6 +44,8 @@ impl<'a> Loader<'a> {
         for segment in segments.iter().filter(|segment| segment.p_type == PT_LOAD) {
             self.load_segment(segment);
         }
+
+        // TODO: reloactions
     }
 
     pub fn load_segment(&self, segment: ProgramHeader) {
