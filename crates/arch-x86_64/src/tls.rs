@@ -6,18 +6,14 @@ use core::{
 
 use crossbeam::queue::SegQueue;
 use hyperion_boot::cpu_count;
-use hyperion_mem::{pmm, vmm::PageMapImpl};
+use hyperion_mem::pmm;
 use spin::Mutex;
 use x86_64::{
     registers::model_specific::{GsBase, KernelGsBase},
     VirtAddr,
 };
 
-use crate::{
-    address::AddressSpace,
-    context::{Task},
-    vmm::PageMap,
-};
+use crate::context::Task;
 
 //
 
@@ -64,8 +60,6 @@ pub struct ThreadLocalStorage {
     // kernel stack for syscalls
     pub kernel_stack: AtomicPtr<u8>,
 
-    pub current_address_space: AddressSpace,
-
     pub active: Mutex<Option<Task>>,
     pub free_thread: SegQueue<Task>,
     pub drop_thread: SegQueue<Task>,
@@ -102,7 +96,6 @@ impl ThreadLocalStorage {
             Self {
                 user_stack: AtomicPtr::new(null_mut()),
                 kernel_stack: AtomicPtr::new(null_mut()),
-                current_address_space: AddressSpace::new(PageMap::current()),
                 active: Mutex::new(None),
                 free_thread: SegQueue::new(),
                 drop_thread: SegQueue::new(),

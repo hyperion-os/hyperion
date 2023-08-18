@@ -80,10 +80,6 @@ impl CpuState {
         let idt = idt.write(Idt::new(tss));
         idt.load();
 
-        let tls = ThreadLocalStorage::init(tls);
-
-        tls.current_address_space.switch_to();
-
-        tls
+        ThreadLocalStorage::init(tls)
     }
 }

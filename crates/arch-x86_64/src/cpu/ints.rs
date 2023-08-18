@@ -1,12 +1,7 @@
-use hyperion_log::{error, info, trace};
-
+use hyperion_log::{error, info};
 use x86_64::{
     registers::control::Cr2,
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
-};
-
-use crate::{
-    tls,
 };
 
 //
@@ -80,18 +75,6 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
 
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
     let addr = Cr2::read();
-
-    trace!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
-
-    let space = tls::get();
-
-    if space
-        .current_address_space
-        .page_fault(addr, ec)
-        .is_handled()
-    {
-        return;
-    }
 
     error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
     // unsafe { print_backtrace_from(stack.stack_pointer) };

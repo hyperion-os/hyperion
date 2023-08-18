@@ -19,7 +19,6 @@ use x86_64::instructions::random::RdRand;
 
 //
 
-pub mod address;
 pub mod context;
 pub mod cpu;
 pub mod paging;
