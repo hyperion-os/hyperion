@@ -19,18 +19,16 @@
 
 //
 
-use alloc::{boxed::Box, sync::Arc};
-use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use alloc::{sync::Arc};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 use hyperion_arch::{
-    address::AddressSpace,
-    context::{switch, Context, Task},
-    done, tls,
+    context::{Task},
 };
 use hyperion_boot_interface::Cpu;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::debug;
-use x86_64::VirtAddr;
+
 
 extern crate alloc;
 
@@ -72,7 +70,7 @@ fn kernel_main() -> ! {
             let counter = counter.clone();
             hyperion_arch::context::schedule(Task::new(move || {
                 // hyperion_log::debug!("running");
-                for i in 0..10 {
+                for _i in 0..10 {
                     counter.fetch_add(1, Ordering::SeqCst);
                     hyperion_arch::context::yield_now();
                     // hyperion_log::debug!("ip: {:0x}", hyperion_arch::context::ip());
