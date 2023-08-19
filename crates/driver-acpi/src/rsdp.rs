@@ -22,7 +22,7 @@ pub static RSDP: Lazy<Rsdp> = Lazy::new(Rsdp::init);
 /// Root/eXtended System Description Pointer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rsdp {
-    /// pointer to Root/eXtended System Descriptor Table
+    /// a physical address of the Root/eXtended System Descriptor Table
     pub ptr: usize,
     /// `ptr` is XSDT pointer instead of RSDT pointer
     pub extended: bool,

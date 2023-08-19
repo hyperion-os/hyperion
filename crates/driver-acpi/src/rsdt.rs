@@ -8,7 +8,9 @@ use core::{
 };
 
 use hyperion_log::debug;
+use hyperion_mem::to_higher_half;
 use spin::Lazy;
+use x86_64::{PhysAddr, VirtAddr};
 
 use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
 
@@ -47,10 +49,10 @@ impl Rsdt {
     }
 
     pub fn try_init() -> Result<Self, RsdtError> {
-        let ptr = RSDP.ptr;
+        let ptr = to_higher_half(PhysAddr::new(RSDP.ptr as _));
         let extended = RSDP.extended;
 
-        let mut unpacker = unsafe { StructUnpacker::from(ptr as *const RawSdtHeader) };
+        let mut unpacker = unsafe { StructUnpacker::from(ptr.as_ptr::<RawSdtHeader>()) };
 
         let expected_signature = if extended { *b"XSDT" } else { *b"RSDT" };
         RawSdtHeader::parse(&mut unpacker, Some(expected_signature))?;
@@ -63,11 +65,13 @@ impl Rsdt {
         let mut unpacker: StructUnpacker = self.unpacker;
 
         core::iter::from_fn(move || {
-            Some(if ext {
-                unpacker.next::<u64>(true)? as *const RawSdtHeader
+            let addr = if ext {
+                unpacker.next::<u64>(true)?
             } else {
-                unpacker.next::<u32>(true)? as _
-            })
+                unpacker.next::<u32>(true)? as u64
+            };
+
+            Some(to_higher_half(PhysAddr::new(addr)).as_ptr::<RawSdtHeader>())
         })
         .map(|ptr| unsafe { StructUnpacker::from(ptr) })
     }
