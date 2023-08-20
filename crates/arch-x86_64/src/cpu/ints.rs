@@ -1,8 +1,40 @@
+use crossbeam::atomic::AtomicCell;
 use hyperion_log::{error, info};
 use x86_64::{
     registers::control::Cr2,
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
 };
+
+//
+
+pub static PAGE_FAULT_HANDLER: AtomicCell<fn(usize, Privilege) -> PageFaultResult> =
+    AtomicCell::new(|_, _| PageFaultResult::NotHandled);
+
+//
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Privilege {
+    User,
+    Kernel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PageFaultResult {
+    Handled,
+    NotHandled,
+}
+
+//
+
+impl PageFaultResult {
+    pub const fn is_handled(self) -> bool {
+        matches!(self, PageFaultResult::Handled)
+    }
+
+    pub const fn is_not_handled(self) -> bool {
+        matches!(self, PageFaultResult::NotHandled)
+    }
+}
 
 //
 
@@ -76,10 +108,16 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
     let addr = Cr2::read();
 
-    error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
-    // unsafe { print_backtrace_from(stack.stack_pointer) };
+    let privilege = if ec.contains(PageFaultErrorCode::USER_MODE) {
+        Privilege::User
+    } else {
+        Privilege::Kernel
+    };
 
-    panic!();
+    if PAGE_FAULT_HANDLER.load()(addr.as_u64() as _, privilege) == PageFaultResult::NotHandled {
+        error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+        panic!();
+    }
 }
 
 pub extern "x86-interrupt" fn x87_floating_point(stack: InterruptStackFrame) {

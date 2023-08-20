@@ -1,5 +1,5 @@
 use core::{
-    mem::{transmute, MaybeUninit},
+    mem::MaybeUninit,
     ptr::{addr_of_mut, null_mut},
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
@@ -23,10 +23,7 @@ pub fn init(tls: &'static ThreadLocalStorage) {
     GS::write_base(base) */
 
     // TODO: use the current stack
-    let mut stack = pmm::PageFrameAllocator::get().alloc(5);
-    let stack: &mut [u8] = stack.as_mut_slice();
-    // SAFETY: the pages are never freed
-    let stack: &'static mut [u8] = unsafe { transmute(stack) };
+    let stack: &'static mut [u8] = pmm::PFA.alloc(5).leak();
 
     tls.kernel_stack
         .store(stack.as_mut_ptr_range().end, Ordering::SeqCst);

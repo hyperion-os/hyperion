@@ -59,7 +59,7 @@ fn kernel_main() -> ! {
     // main task(s)
     hyperion_scheduler::executor::spawn(hyperion_kshell::kshell());
 
-    hyperion_scheduler::spawn(move || {
+    /* hyperion_scheduler::spawn(move || {
         let counter = Arc::new(AtomicUsize::new(0));
         for _ in 0..10 {
             let counter = counter.clone();
@@ -95,7 +95,7 @@ fn kernel_main() -> ! {
                 );
             }));
         } */
-    });
+    }); */
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     hyperion_boot::smp_init(smp_main);
@@ -110,9 +110,14 @@ fn smp_main(cpu: Cpu) -> ! {
         hyperion_drivers::lazy_install_late();
     }
 
-    hyperion_scheduler::spawn(move || {
+    /* hyperion_scheduler::spawn(move || loop {
+        hyperion_log::debug!("useless task");
+        hyperion_scheduler::yield_now();
+    }); */
+    hyperion_scheduler::executor::run_tasks();
+    /* hyperion_scheduler::spawn(move || {
         hyperion_scheduler::executor::run_tasks();
     });
     hyperion_log::debug!("context switch test");
-    hyperion_scheduler::reset();
+    hyperion_scheduler::reset(); */
 }

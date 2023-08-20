@@ -5,14 +5,14 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use core::any::Any;
 
 //
 
 pub type Task = Box<dyn AnyTask + Send>;
 
 pub trait AnyTask {
-    /// the actual type depends on the arch
-    fn context(&mut self) -> *mut ();
+    fn as_any(&mut self) -> &mut dyn Any;
 
     fn take_job(&mut self) -> Option<Box<dyn FnOnce() + Send + 'static>>;
 

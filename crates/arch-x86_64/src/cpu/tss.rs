@@ -3,7 +3,7 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use hyperion_mem::pmm::PageFrameAllocator;
+use hyperion_mem::pmm;
 use x86_64::{structures::tss::TaskStateSegment, VirtAddr};
 
 //
@@ -32,38 +32,33 @@ impl Tss {
             },
         };
 
-        let pfa = PageFrameAllocator::get();
-
         // TODO: (2 unused stacks) privilege stack 0 could reuse the boot stack?
         // just like the kernel stack that the syscall handler switches to
         //
         // so the syscall handler should switch to this stack here, which
         // should be the stack that the bootloader gave
-        tss.add_priv(0, pfa);
+        tss.add_priv(0);
 
-        tss.add_int(0, pfa);
-        tss.add_int(1, pfa);
+        tss.add_int(0);
+        tss.add_int(1);
 
         tss
     }
 
-    fn add_int(&mut self, idx: usize, pfa: &PageFrameAllocator) {
-        let stack = Self::alloc_stack(pfa);
+    fn add_int(&mut self, idx: usize) {
+        let stack = Self::alloc_stack();
         self.inner.interrupt_stack_table[idx] = VirtAddr::from_ptr(stack.as_ptr_range().end);
         self.stacks.interrupt[idx].store(true, Ordering::SeqCst);
     }
 
-    fn add_priv(&mut self, idx: usize, pfa: &PageFrameAllocator) {
-        let stack = Self::alloc_stack(pfa);
+    fn add_priv(&mut self, idx: usize) {
+        let stack = Self::alloc_stack();
         self.inner.privilege_stack_table[idx] = VirtAddr::from_ptr(stack.as_ptr_range().end);
         // self.stacks.privilege[idx] = true;
     }
 
-    fn alloc_stack(pfa: &PageFrameAllocator) -> &'static mut [u8] {
-        let mut stack = pfa.alloc(1);
-        let stack: &mut [u8] = stack.as_mut_slice();
-        // SAFETY: the pages are never freed
-        unsafe { transmute(stack) }
+    fn alloc_stack() -> &'static mut [u8] {
+        pmm::PFA.alloc(1).leak()
     }
 }
 

@@ -5,6 +5,7 @@
 use core::{
     alloc::{AllocError, Allocator, Layout},
     fmt,
+    mem::{transmute, MaybeUninit},
     ptr::NonNull,
     slice,
     sync::atomic::{AtomicUsize, Ordering},
@@ -47,10 +48,6 @@ pub struct PageFrame {
 //
 
 impl PageFrameAllocator {
-    pub fn get() -> &'static PageFrameAllocator {
-        &PFA
-    }
-
     /// System total memory in bytes
     pub fn total_mem(&self) -> usize {
         self.total.load(Ordering::SeqCst)
@@ -87,6 +84,12 @@ impl PageFrameAllocator {
 
         let mut bitmap = self.bitmap.lock();
         let page = frame.first.as_u64() as usize / PAGE_SIZE;
+        for page in page..page + frame.count {
+            assert!(
+                bitmap.get(page).unwrap(),
+                "trying to free pages that were already free"
+            );
+        }
         // trace!("freeing pages first={page} count={}", frame.count);
         for page in page..page + frame.count {
             bitmap.set(page, false).unwrap();
@@ -118,19 +121,18 @@ impl PageFrameAllocator {
         self.alloc_from(first_page + count);
 
         let addr = PhysAddr::new((first_page * PAGE_SIZE) as u64);
+        let page_ptr: *mut MaybeUninit<u8> = to_higher_half(addr).as_mut_ptr();
+        assert!(
+            page_ptr.is_aligned_to(PAGE_SIZE),
+            "pages should be aligned to {PAGE_SIZE}"
+        );
 
-        // SAFETY: TODO:
-        let page_data: &mut [u8] = unsafe {
-            slice::from_raw_parts_mut(to_higher_half(addr).as_mut_ptr(), count * PAGE_SIZE)
-        };
-
-        // fill the page with zeros
-        // trace!("Memzeroing {:?}", page_data.as_ptr_range());
-        page_data.fill(0);
+        // Safety: the pages get protected from allocations
+        let page_data: &mut [MaybeUninit<u8>] =
+            unsafe { slice::from_raw_parts_mut(page_ptr, count * PAGE_SIZE) };
+        let page_data = fill_maybeuninit_slice(page_data, 0);
 
         self.used.fetch_add(count * PAGE_SIZE, Ordering::SeqCst);
-
-        debug_assert!(addr.is_aligned(0x1000u64));
 
         PageFrame { first: addr, count }
     }
@@ -156,9 +158,11 @@ impl PageFrameAllocator {
 
             // go reversed so that skips would be more efficient
             for offs in (0..count).rev() {
-                // SAFETY: `first_page + offs` < `first_page + count` <= `bitmap.len()`
+                /* // SAFETY: `first_page + offs` < `first_page + count` <= `bitmap.len()`
                 // => bitmap has to contain `first_page + offs`
-                if unsafe { bitmap.get(first_page + offs).unwrap_unchecked() } {
+                let pages_free = unsafe { bitmap.get(first_page + offs).unwrap_unchecked() }; */
+                let pages_free = bitmap.get(first_page + offs).unwrap();
+                if pages_free {
                     // skip all page windows which have this locked page
                     first_page = first_page + offs + 1;
                     continue 'main;
@@ -199,14 +203,14 @@ impl PageFrameAllocator {
             .find(|Memmap { len, .. }| *len >= bitmap_size)
             .expect("No place to store PageFrameAllocator bitmap")
             .base;
+        let bitmap_ptr: *mut MaybeUninit<u8> =
+            to_higher_half(PhysAddr::new(bitmap_data as _)).as_mut_ptr();
 
         // SAFETY: this bitmap is going to be initialized before it is read from
-        let bitmap = unsafe {
-            slice::from_raw_parts_mut(
-                to_higher_half(PhysAddr::new(bitmap_data as _)).as_mut_ptr(),
-                bitmap_size as _,
-            )
-        };
+        // the memory region also gets protected from allocations
+        let bitmap: &mut [MaybeUninit<u8>] =
+            unsafe { slice::from_raw_parts_mut(bitmap_ptr, bitmap_size as _) };
+        let bitmap = fill_maybeuninit_slice(bitmap, 0);
         let mut bitmap = Bitmap::new(bitmap);
         bitmap.fill(true); // initialized here
 
@@ -259,7 +263,7 @@ unsafe impl Allocator for PageFrameAllocator {
     fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
         let frame = self.alloc(layout.size() / PAGE_SIZE);
 
-        NonNull::new(to_higher_half(frame.physical_addr()).as_mut_ptr())
+        NonNull::new(frame.virtual_addr().as_mut_ptr())
             .map(|first| NonNull::slice_from_raw_parts(first, frame.byte_len()))
             .ok_or(AllocError)
     }
@@ -309,12 +313,12 @@ impl PageFrame {
     ///
     /// The caller has to make sure that it has exclusive access to bytes in physical memory range
     /// `first..first + PAGE_SIZE * count`
-    pub unsafe fn new(first: PhysAddr, count: usize) -> Self {
+    pub const unsafe fn new(first: PhysAddr, count: usize) -> Self {
         Self { first, count }
     }
 
     /// physical address of the first page
-    pub fn physical_addr(&self) -> PhysAddr {
+    pub const fn physical_addr(&self) -> PhysAddr {
         self.first
     }
 
@@ -323,54 +327,64 @@ impl PageFrame {
     }
 
     /// number of pages
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.count
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// number of bytes
-    pub fn byte_len(&self) -> usize {
+    pub const fn byte_len(&self) -> usize {
         self.count * PAGE_SIZE
     }
 
-    pub fn as_mut_slice<T>(&mut self) -> &mut [T] {
-        let addr: *mut T = to_higher_half(self.first).as_mut_ptr();
-        assert!(addr.is_aligned());
+    pub fn as_bytes(&self) -> &[u8] {
+        let addr = self.virtual_addr().as_mut_ptr();
 
-        // SAFETY: &mut self makes sure that this is the only safe mut ref
-        //
-        // Alignment of addr is checked
-        //
-        // TODO: safety incomplete
-        unsafe { slice::from_raw_parts_mut(addr, self.byte_len() / core::mem::size_of::<T>()) }
+        // Safety:
+        // &mut self makes sure that this is the only safe mut ref
+        // The page frame allocator gave exclusive access to these bytes
+        unsafe { slice::from_raw_parts(addr, self.byte_len()) }
     }
 
-    pub fn as_slice<T>(&self) -> &[T] {
-        let addr: *mut T = to_higher_half(self.first).as_mut_ptr();
-        assert!(addr.is_aligned());
+    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
+        let addr = self.virtual_addr().as_mut_ptr();
 
-        // SAFETY: the mut ref is immediately downgraded to a const ref
-        //
-        // Alignment of addr is checked
-        //
-        // TODO: safety incomplete
-        unsafe { slice::from_raw_parts(addr, self.byte_len() / core::mem::size_of::<T>()) }
+        // Safety:
+        // The page frame allocator gave exclusive access to these bytes
+        unsafe { slice::from_raw_parts_mut(addr, self.byte_len()) }
+    }
+
+    /// Leak the PageFrame to get a static mut ref to it
+    ///
+    /// # Note
+    ///
+    /// page frames are not deallocated automatically anyways,
+    /// this just takes ownership to give a safe method of getting a static ref to the data
+    pub fn leak(mut self) -> &'static mut [u8] {
+        unsafe { transmute(self.as_bytes_mut()) }
     }
 }
 
 //
 
-/* #[cfg(test)]
+fn fill_maybeuninit_slice<T: Copy>(s: &mut [MaybeUninit<T>], v: T) -> &mut [T] {
+    s.fill(MaybeUninit::new(v));
+
+    // Safety: The whole slice has been filled with copies of `v`
+    unsafe { MaybeUninit::slice_assume_init_mut(s) }
+}
+
+#[cfg(test)]
 mod tests {
-    use super::PageFrameAllocator;
+    use crate::pmm::PFA;
 
     #[test]
     fn pfa_simple() {
-        /* let pfa = PageFrameAllocator::get();
+        let pfa = PFA;
 
         let a = pfa.alloc(1);
         assert_ne!(a.physical_addr().as_u64(), 0);
@@ -392,6 +406,6 @@ mod tests {
         // pfa.free(a); // <- compile error as expected
         pfa.free(b);
         pfa.free(c);
-        pfa.free(d); */
+        pfa.free(d);
     }
-} */
+}

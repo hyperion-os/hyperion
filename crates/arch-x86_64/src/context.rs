@@ -1,5 +1,10 @@
+use core::mem::size_of;
+
+use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
 use memoffset::offset_of;
 use x86_64::{registers::control::Cr3, PhysAddr, VirtAddr};
+
+use crate::vmm::PageMap;
 
 //
 
@@ -11,21 +16,57 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(stack: &mut [u64], thread_entry: extern "sysv64" fn() -> !) -> Self {
-        let [top @ .., _r15, _r14, _r13, _r12, _rbx, _rbp, entry] = stack else {
-            unreachable!("the stack is too small")
-        };
+    pub fn new(
+        page_map: &PageMap,
+        stack_top: VirtAddr, // &mut [u64],
+        stack_top_now: PhysAddr,
+        thread_entry: extern "sysv64" fn() -> !,
+    ) -> Self {
+        hyperion_log::debug!("{stack_top:0x?} {stack_top_now:0x?}");
 
-        *entry = thread_entry as *const () as u64;
+        #[repr(C)]
+        struct StackInit {
+            _r15: u64,
+            _r14: u64,
+            _r13: u64,
+            _r12: u64,
+            _rbx: u64,
+            _rbp: u64,
+            entry: u64,
+            _pad: u64,
+        }
+
+        let rsp = stack_top - size_of::<StackInit>();
+        let now = to_higher_half(stack_top_now - size_of::<StackInit>());
+        hyperion_log::debug!(
+            "rsp:{:0x?} now:{:0x?}",
+            page_map.virt_to_phys(rsp),
+            PageMap::current().virt_to_phys(now)
+        );
+        let init: *mut StackInit = now.as_mut_ptr();
+        unsafe {
+            init.write(StackInit {
+                _r15: 1,
+                _r14: 2,
+                _r13: 3,
+                _r12: 9,
+                _rbx: 5,
+                _rbp: 6,
+                entry: thread_entry as *const () as _,
+                _pad: 7,
+            });
+        }
 
         Self {
-            cr3: Cr3::read().0.start_address(),
-            rsp: VirtAddr::new(top.as_ptr_range().end as u64),
+            cr3: page_map.cr3().start_address(),
+            rsp,
         }
     }
 }
 
 //
+
+// pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {}
 
 /// # Safety
 ///

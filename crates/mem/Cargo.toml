@@ -10,6 +10,7 @@ default = []
 set-allocator = []
 
 [dependencies]
+bytemuck.workspace = true
 spin.workspace = true
 volatile.workspace = true
 x86_64.workspace = true

@@ -7,7 +7,7 @@ use hyperion_keyboard::{
     event::{KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
-use hyperion_mem::pmm::PageFrameAllocator;
+use hyperion_mem::pmm::{self, PageFrameAllocator};
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::timer::{sleep, ticks};
@@ -228,9 +228,8 @@ impl Shell {
     }
 
     fn mem_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        let pfa = PageFrameAllocator::get();
-        let used = pfa.used_mem();
-        let usable = pfa.usable_mem();
+        let used = pmm::PFA.used_mem();
+        let usable = pmm::PFA.usable_mem();
         _ = writeln!(
             self.term,
             "Mem:\n - total: {}B\n - used: {}B ({:3.1}%)",

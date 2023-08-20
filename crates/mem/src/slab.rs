@@ -19,14 +19,13 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use bytemuck::{Pod, Zeroable};
 use spin::RwLock;
-use volatile::VolatileRef;
 use x86_64::VirtAddr;
 
 use super::{
     from_higher_half,
     pmm::{self, PageFrame},
-    to_higher_half,
 };
 
 //
@@ -49,13 +48,6 @@ pub struct Slab {
     size: usize,
 
     next: VirtAddr,
-}
-
-#[derive(Debug, Clone, Copy)]
-#[repr(transparent)]
-pub struct BigAllocPageMetadata {
-    // size of the alloc in bytes
-    size: usize,
 }
 
 //
@@ -100,7 +92,10 @@ impl SlabAllocator {
         }
     }
 
-    pub fn free(&self, v_addr: VirtAddr) {
+    /// # Safety
+    /// The `v_addr` pointer must point to an allocation that was previously allocated
+    /// with this specific [`SlabAllocator`]
+    pub unsafe fn free(&self, v_addr: VirtAddr) {
         if v_addr.as_u64() == 0 {
             return;
         }
@@ -110,9 +105,13 @@ impl SlabAllocator {
         }
 
         let page = v_addr.align_down(0x1000u64);
-        let header: &mut u8 = unsafe { &mut *page.as_mut_ptr() };
+        let header: AllocMetadata = unsafe { *page.as_ptr() };
 
-        let (slab, _) = &self.slabs[*header as usize];
+        let (slab, _) = header
+            .idx()
+            .and_then(|idx| self.slabs.get(idx as usize))
+            .expect("alloc header to be valid");
+
         slab.write().free(&self.stats, v_addr);
     }
 
@@ -124,7 +123,7 @@ impl SlabAllocator {
         // minimum number of pages for the alloc + 1 page
         // for metadata
         let pages = size.div_ceil(0x1000) + 1;
-        let mut pages = pmm::PageFrameAllocator::get().alloc(pages);
+        let mut pages = pmm::PFA.alloc(pages);
 
         self.stats
             .allocated
@@ -134,28 +133,28 @@ impl SlabAllocator {
             .fetch_add(pages.byte_len(), Ordering::SeqCst);
 
         // write the big alloc metadata
-        let metadata: &mut [BigAllocPageMetadata] = pages.as_mut_slice();
-        VolatileRef::from_mut_ref(&mut metadata[0])
-            .as_mut_ptr()
-            .write(BigAllocPageMetadata { size });
+        let metadata: &mut [BigAllocMetadata] =
+            bytemuck::try_cast_slice_mut(pages.as_bytes_mut()).expect("allocation to be aligned");
+        metadata[0] = BigAllocMetadata::new(size as u64);
 
         // trace!("BigAlloc    {:#x} {size}", pages.addr().as_u64());
 
         // pmm already zeroed the memory
         //
         // the returned memory is the next page, because this page contains the metadata
-        to_higher_half(pages.physical_addr()) + 0x1000u64
+        pages.virtual_addr() + 0x1000u64
     }
 
-    fn big_free(&self, mut v_addr: VirtAddr) {
-        // TODO: what if v_addr is invalid?
-
+    /// # Safety
+    /// The `v_addr` pointer must point to a big allocation that was previously allocated
+    /// with this specific [`SlabAllocator`]
+    unsafe fn big_free(&self, mut v_addr: VirtAddr) {
         v_addr -= 0x1000u64;
 
-        let metadata: &BigAllocPageMetadata = unsafe { &*v_addr.as_ptr() };
-        let size = VolatileRef::from_ref(&metadata).as_ptr().read().size;
+        let metadata: BigAllocMetadata = unsafe { *v_addr.as_ptr() };
+        let size = metadata.size().expect("big alloc metadata to be valid");
 
-        let pages = size.div_ceil(0x1000) + 1;
+        let pages = (size as usize).div_ceil(0x1000) + 1;
         let pages = unsafe { PageFrame::new(from_higher_half(v_addr), pages) };
 
         self.stats
@@ -167,7 +166,7 @@ impl SlabAllocator {
 
         // trace!("BigFree     {:#x} {size}", pages.addr().as_u64());
 
-        pmm::PageFrameAllocator::get().free(pages);
+        pmm::PFA.free(pages);
     }
 }
 
@@ -179,6 +178,11 @@ impl Default for SlabAllocator {
 
 impl Slab {
     pub const fn new(idx: u8, size: usize) -> Self {
+        assert!(
+            size >= core::mem::size_of::<u64>() && size % core::mem::size_of::<u64>() == 0,
+            "slab size should be a multiple of u64's size (8 bytes) and not zero"
+        );
+
         Self {
             idx,
             size,
@@ -191,17 +195,19 @@ impl Slab {
             return self.next;
         }
 
-        let mut page = pmm::PageFrameAllocator::get().alloc(1);
+        let mut page = pmm::PFA.alloc(1);
         stats.allocated.fetch_add(1, Ordering::SeqCst);
         // let page_bytes = page.byte_len();
         // let page = to_higher_half(page.addr());
 
-        let mut blocks = page.as_mut_slice().chunks_exact_mut(self.size / 8);
+        let block_parts: &mut [u64] = bytemuck::cast_slice_mut(page.as_bytes_mut());
+        let mut blocks = block_parts.chunks_exact_mut(self.size / core::mem::size_of::<u64>());
 
         // write header
 
-        let header = blocks.next().expect("Slab size too large");
-        header[0] = self.idx as u64;
+        let header = &mut blocks.next().expect("Slab size too large")[0];
+        let header: &mut AllocMetadata = bytemuck::cast_mut(header);
+        *header = AllocMetadata::new(self.idx);
 
         // create a slab chain
 
@@ -242,7 +248,10 @@ impl Slab {
         block
     }
 
-    pub fn free(&mut self, stats: &SlabAllocatorStats, block: VirtAddr) {
+    /// # Safety
+    /// The `block` pointer must point to an allocation that was previously allocated
+    /// with this specific [`Slab`]
+    pub unsafe fn free(&mut self, stats: &SlabAllocatorStats, block: VirtAddr) {
         let block_data: &mut [u64] =
             unsafe { slice::from_raw_parts_mut(block.as_mut_ptr(), self.size / 8) };
 
@@ -252,3 +261,73 @@ impl Slab {
         stats.used.fetch_sub(self.size, Ordering::SeqCst);
     }
 }
+
+//
+
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+#[repr(C)]
+struct BigAllocMetadata {
+    // a magic number to make it more likely to expose bugs
+    magic: u64,
+
+    // size of the alloc in bytes
+    size: u64,
+}
+
+const _: () = assert!(core::mem::size_of::<BigAllocMetadata>() == 16);
+
+impl BigAllocMetadata {
+    const VERIFY: Self = Self::new(0);
+
+    pub const fn new(size: u64) -> Self {
+        Self {
+            magic: 0xb424_a780_e2a1_5870,
+            size,
+        }
+    }
+
+    pub const fn size(self) -> Option<u64> {
+        if Self::VERIFY.magic != self.magic {
+            return None;
+        }
+
+        Some(self.size)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+#[repr(C)]
+struct AllocMetadata {
+    // a magic number to make it more likely to expose bugs
+    magic0: u32,
+    magic1: u16,
+    magic2: u8,
+
+    // size of the alloc in bytes
+    idx: u8,
+}
+
+impl AllocMetadata {
+    const VERIFY: Self = Self::new(0);
+
+    pub const fn new(idx: u8) -> Self {
+        Self {
+            magic0: 0x8221_eefa,
+            magic1: 0x980e,
+            magic2: 0x43,
+            idx,
+        }
+    }
+
+    pub const fn idx(self) -> Option<u8> {
+        if Self::VERIFY.magic0 != self.magic0
+            || Self::VERIFY.magic1 != self.magic1 && Self::VERIFY.magic2 != self.magic2
+        {
+            return None;
+        }
+
+        Some(self.idx)
+    }
+}
+
+const _: () = assert!(core::mem::size_of::<AllocMetadata>() == 8);

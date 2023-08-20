@@ -2,6 +2,28 @@
 
 //
 
+use alloc::{boxed::Box, sync::Arc};
+use core::{
+    any::Any,
+    cell::UnsafeCell,
+    mem::swap,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
+use crossbeam_queue::SegQueue;
+use hyperion_arch::{
+    context::Context,
+    cpu::ints::{self, PageFaultResult, Privilege},
+    stack::{AddressSpace, KernelStack, Stack},
+    tls,
+    vmm::PageMap,
+};
+use hyperion_mem::vmm::PageMapImpl;
+use hyperion_scheduler_task::{AnyTask, CleanupTask, Task};
+use x86_64::VirtAddr;
+
+//
+
 extern crate alloc;
 
 pub mod executor;
@@ -12,39 +34,43 @@ pub mod timer;
 
 //
 
-use alloc::boxed::Box;
-use core::{
-    cell::UnsafeCell,
-    mem::swap,
-    sync::atomic::{AtomicUsize, Ordering},
-};
-
-use crossbeam_queue::SegQueue;
-use hyperion_arch::{context::Context, tls};
-use hyperion_mem::pmm::{PageFrame, PageFrameAllocator};
-use hyperion_scheduler_task::{AnyTask, CleanupTask, Task};
-
-//
-
 pub struct TaskImpl {
+    address_space: Arc<AddressSpace>,
+    stack: Stack<KernelStack>,
+
     // context is used 'unsafely' only in the switch
     context: UnsafeCell<Context>,
-    stack: Option<PageFrame>,
     job: Option<Box<dyn FnOnce() + Send + 'static>>,
     pid: usize,
 }
 
 impl TaskImpl {
     pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
+        hyperion_log::trace!("new task");
         static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
         let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
 
-        let mut stack = PageFrameAllocator::get().alloc(10);
-        let context = UnsafeCell::new(Context::new(stack.as_mut_slice(), thread_entry));
-        let stack = Some(stack);
+        hyperion_log::trace!("new address space");
+        let address_space = Arc::new(AddressSpace::new(PageMap::new()));
+
+        let mut stack = address_space.kernel_stacks.take();
+        hyperion_log::trace!("initializing task stack");
+        // stack.init(&address_space.page_map);
+        stack.grow(&address_space.page_map).unwrap();
+        stack.grow(&address_space.page_map).unwrap();
+        stack.grow(&address_space.page_map).unwrap();
+        stack.grow(&address_space.page_map).unwrap();
+
+        let context = UnsafeCell::new(Context::new(
+            &address_space.page_map,
+            stack.top,
+            stack.base_alloc + 0x1000u64,
+            thread_entry,
+        ));
         let job = Some(Box::new(f) as _);
 
         Self {
+            address_space,
             context,
             stack,
             job,
@@ -54,8 +80,8 @@ impl TaskImpl {
 
     pub fn debug(&mut self) {
         hyperion_log::debug!(
-            "TASK DEBUG: context: {:0x}, job: {:?}, pid: {}",
-            unsafe { (*self.context.get()).rsp },
+            "TASK DEBUG: context: {:0x?}, job: {:?}, pid: {}",
+            unsafe { &*self.context.get() },
             self.job.as_ref().map(|_| ()),
             self.pid
         )
@@ -63,8 +89,8 @@ impl TaskImpl {
 }
 
 impl AnyTask for TaskImpl {
-    fn context(&mut self) -> *mut () {
-        self.context.get() as _
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
     }
 
     fn take_job(&mut self) -> Option<Box<dyn FnOnce() + Send + 'static>> {
@@ -76,18 +102,12 @@ impl AnyTask for TaskImpl {
     }
 }
 
-impl Drop for TaskImpl {
-    fn drop(&mut self) {
-        if let Some(stack) = self.stack.take() {
-            PageFrameAllocator::get().free(stack)
-        }
-    }
-}
-
 pub static READY: SegQueue<Task> = SegQueue::new();
 
 /// reset this processors scheduling
 pub fn reset() -> ! {
+    ints::PAGE_FAULT_HANDLER.store(page_fault_handler);
+
     let boot: Task = Box::new(TaskImpl::new(|| {}));
     *tls::get().active.lock() = Some(boot);
     stop();
@@ -96,12 +116,17 @@ pub fn reset() -> ! {
 /// switch to another thread
 pub fn yield_now() {
     let Some(mut current) = swap_current(None) else {
-        unreachable!("cannot yield from a task that doesn't exist")
+        return;
+        // unreachable!("cannot yield from a task that doesn't exist")
     };
 
+    let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
+        unreachable!("the task was from another scheduler")
+    };
+    let context = task.context.get();
+
     // push the current thread back to the ready queue AFTER switching
-    // current.debug();
-    let context = current.context() as *mut Context;
+    // task.debug();
     tls::get().after_switch.push(CleanupTask::Ready(current));
 
     // SAFETY: `current` is stored in the queue until the switch
@@ -119,9 +144,13 @@ pub fn stop() -> ! {
         unreachable!("cannot stop a task that doesn't exist")
     };
 
+    let Some(context): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
+        unreachable!("the task was from another scheduler")
+    };
+    let context = context.context.get();
+
     // push the current thread to the drop queue AFTER switching
     // current.debug();
-    let context = current.context() as *mut Context;
     tls::get().after_switch.push(CleanupTask::Drop(current));
 
     // SAFETY: `current` is stored in the queue until the switch
@@ -151,15 +180,35 @@ pub fn swap_current(mut new: Option<Task>) -> Option<Task> {
 ///
 /// `current` must be correct and point to a valid exclusive [`Context`]
 pub unsafe fn block(current: *mut Context) {
+    hyperion_log::debug!("stopping thread1");
     let mut next = next_task();
+    hyperion_log::debug!("stopping thread2");
 
-    // next.debug();
-    let context = next.context() as *mut Context;
+    let Some(task): Option<&mut TaskImpl> = next.as_any().downcast_mut() else {
+        unreachable!("the task was from another scheduler")
+    };
+    hyperion_log::debug!("stopping thread3");
+    let context = task.context.get();
+    hyperion_log::debug!("stopping thread4");
+
+    let rsp: u64;
+    unsafe {
+        core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
+    }
+    hyperion_log::debug!("DBG stop rsp (rsp:{rsp:0x})");
+
+    hyperion_log::debug!("stopping thread tls = {:0x}", tls::get() as *const _ as u64);
+    /* unsafe {
+        core::arch::asm!("2:", "jmp 2b");
+    } */
+    // task.debug();
     tls::get().after_switch.push(CleanupTask::Next(next));
+    hyperion_log::debug!("stopping thread5");
 
     // SAFETY: `next` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
+        hyperion_log::debug!("{:?}", &*context);
         hyperion_arch::context::switch(current, context);
     }
 
@@ -173,12 +222,11 @@ pub fn next_task() -> Task {
             return next;
         }
 
-        // hyperion_log::debug!("no jobs");
-
         // TODO: halt until the next task arrives
     }
 
     // give up and run a none task
+    hyperion_log::debug!("no jobs");
     Box::new(TaskImpl::new(|| {}))
 }
 
@@ -197,17 +245,68 @@ pub fn cleanup() {
     }
 }
 
+fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
+    hyperion_log::debug!("PAGE FAULT ({user:?}) 0x{addr:0x}");
+
+    let Some(mut current) = swap_current(None) else {
+        hyperion_log::debug!("no job");
+        return PageFaultResult::NotHandled;
+    };
+
+    if user == Privilege::User {
+        swap_current(Some(current));
+        stop();
+    }
+
+    let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
+        hyperion_log::debug!("no task");
+        return PageFaultResult::NotHandled;
+    };
+
+    let result = task
+        .stack
+        .page_fault(&task.address_space.page_map, addr as u64);
+
+    hyperion_log::debug!("PAGE FAULT HANDLER {result:?}");
+    swap_current(Some(current));
+
+    result
+}
+
 extern "sysv64" fn thread_entry() -> ! {
+    let rsp: u64;
+    unsafe {
+        core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
+    }
+    hyperion_log::debug!("thread_entry rsp (rsp:{rsp:0x})");
+
+    hyperion_log::debug!("thread_entry");
     cleanup();
+    stop();
+    hyperion_log::debug!("1");
     {
+        hyperion_log::debug!("2");
         let Some(mut current) = swap_current(None) else {
             unreachable!("cannot run a task that doesn't exist")
         };
+        hyperion_log::debug!("2");
         let Some(job) = current.take_job() else {
             unreachable!("cannot run a task that already ran")
         };
+        hyperion_log::debug!("3");
         swap_current(Some(current));
-        job();
+        hyperion_log::debug!("4");
+        // job();
+
+        /* #[allow(unconditional_recursion)]
+        fn stack_overflow() {
+            core::hint::black_box(stack_overflow)();
+        }
+
+        stack_overflow(); */
+
+        // hyperion_log::debug!("5: {:?}", core::hint::black_box([40u64; 64]));
     }
+
     stop();
 }

@@ -2,17 +2,12 @@ use alloc::collections::BTreeMap;
 use core::{cmp::Ordering, ops::Range};
 
 use hyperion_log::println;
-use hyperion_mem::{
-    from_higher_half,
-    pmm::{self, PageFrameAllocator},
-    to_higher_half,
-    vmm::PageMapImpl,
-};
+use hyperion_mem::{from_higher_half, pmm, to_higher_half, vmm::PageMapImpl};
 use spin::{Mutex, RwLock};
 use x86_64::{
     registers::control::{Cr3, Cr3Flags},
     structures::paging::{
-        mapper::{MappedFrame, TranslateResult, UnmapError},
+        mapper::{MapToError, MappedFrame, TranslateResult, UnmapError},
         Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame, Size1GiB,
         Size2MiB, Size4KiB, Translate,
     },
@@ -61,7 +56,7 @@ impl PageMapImpl for PageMap {
     }
 
     fn new() -> Self {
-        let frame = PageFrameAllocator::get().alloc(1);
+        let frame = pmm::PFA.alloc(1);
         let new_table: &mut PageTable = unsafe { &mut *frame.virtual_addr().as_mut_ptr() };
 
         new_table.zero();
@@ -72,8 +67,8 @@ impl PageMapImpl for PageMap {
 
         let page_map = Self { offs };
 
-        hyperion_log::debug!("null ptr guard unmap");
-        page_map.unmap(VirtAddr::new(0x0000)..VirtAddr::new(0x1000));
+        /* hyperion_log::debug!("null ptr guard unmap");
+        page_map.unmap(VirtAddr::new(0x0000)..VirtAddr::new(0x1000)); */
 
         // TODO: Copy on write maps
 
@@ -88,10 +83,16 @@ impl PageMapImpl for PageMap {
         // TODO: less dumb kernel mapping
         hyperion_log::debug!("kernel map");
         let kernel = VirtAddr::new(hyperion_boot::virt_addr() as _);
+        let top = VirtAddr::new(u64::MAX);
         page_map.map(
-            kernel..VirtAddr::new(u64::MAX),
+            kernel..top,
             PhysAddr::new(hyperion_boot::phys_addr() as _),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        );
+
+        hyperion_log::debug!(
+            "kernel per address space stack space: 0x{:0x}",
+            kernel.as_u64() - (hhdm.as_u64() + 0x10000000000u64)
         );
 
         page_map
@@ -127,9 +128,7 @@ impl PageMapImpl for PageMap {
         }
 
         let mut table = self.offs.write();
-        let mut pmm = Pfa(pmm::PageFrameAllocator::get());
         let table = &mut table; // to make the formatting nicer
-        let pmm = &mut pmm;
 
         let Range { mut start, end } = v_addr;
         let mut size;
@@ -139,16 +138,36 @@ impl PageMapImpl for PageMap {
         );
 
         loop {
-            if try_map_sized::<Size1GiB>(table, start, end, p_addr, flags, pmm) {
+            /* 'try_map: {
                 size = Size1GiB::SIZE;
-            } else if try_map_sized::<Size2MiB>(table, start, end, p_addr, flags, pmm) {
+                match try_map_sized::<Size1GiB>(table, start, end, p_addr, flags, pmm) {
+                    Ok(_) => break 'try_map,
+                    Err(TryMapSizedError::MapToError(MapToError::PageAlreadyMapped(p))) => {
+                        if p_addr == p.start_address() {
+                            break 'try_map;
+                        }
+
+                        try_unmap_sized::<Size1GiB>(table, start, end)
+                            .expect("to be able to unmap a page that had to be remapped");
+                        try_map_sized::<Size1GiB>(table, start, end, p_addr, flags, pmm)
+                            .expect("to be able to map a page after the error was resolved")
+                    }
+                    Err(_) => {}
+                }
+            } */
+
+            if try_map_sized::<Size1GiB>(table, start, end, p_addr, flags).is_ok() {
+                size = Size1GiB::SIZE;
+            } else if try_map_sized::<Size2MiB>(table, start, end, p_addr, flags).is_ok() {
                 size = Size2MiB::SIZE;
-            } else if try_map_sized::<Size4KiB>(table, start, end, p_addr, flags, pmm) {
+            } else if try_map_sized::<Size4KiB>(table, start, end, p_addr, flags).is_ok() {
                 size = Size4KiB::SIZE;
             } else {
                 hyperion_log::error!("FIXME: failed to map [ 0x{start:016x} to 0x{p_addr:016x} ]");
                 size = Size4KiB::SIZE;
             }
+
+            // hyperion_log::trace!("mapped 0x{size:0x}");
 
             if let (Some(next_start), Some(next_p_addr)) = (
                 v_addr_checked_add(start, size),
@@ -187,11 +206,11 @@ impl PageMapImpl for PageMap {
         loop {
             // hyperion_log::debug!("unmapping {start:?}..{end:?}");
 
-            if try_unmap_sized::<Size1GiB>(table, start, end) {
+            if try_unmap_sized::<Size1GiB>(table, start, end).is_ok() {
                 size = Size1GiB::SIZE;
-            } else if try_unmap_sized::<Size2MiB>(table, start, end) {
+            } else if try_unmap_sized::<Size2MiB>(table, start, end).is_ok() {
                 size = Size2MiB::SIZE;
-            } else if try_unmap_sized::<Size4KiB>(table, start, end) {
+            } else if try_unmap_sized::<Size4KiB>(table, start, end).is_ok() {
                 size = Size4KiB::SIZE;
             } else {
                 hyperion_log::error!("FIXME: failed to unmap [ 0x{start:016x} ]");
@@ -255,6 +274,15 @@ impl PageMapImpl for PageMap {
 }
 
 impl PageMap {
+    pub fn cr3(&self) -> PhysFrame {
+        let mut offs = self.offs.write();
+
+        let virt = offs.level_4_table() as *mut PageTable as *const () as u64;
+        let phys = from_higher_half(VirtAddr::new(virt));
+
+        PhysFrame::containing_address(phys)
+    }
+
     pub fn debug(&self) {
         fn travel_level(
             flags: PageTableFlags,
@@ -358,51 +386,68 @@ impl PageMap {
     }
 }
 
+#[derive(Debug)]
+pub enum TryMapSizedError<T: PageSize> {
+    Overflow,
+    NotAligned,
+    MapToError(MapToError<T>),
+}
+
 fn try_map_sized<T>(
     table: &mut OffsetPageTable,
     start: VirtAddr,
     end: VirtAddr,
     p_addr: PhysAddr,
     flags: PageTableFlags,
-    pmm: &mut Pfa,
-) -> bool
+) -> Result<(), TryMapSizedError<T>>
 where
     T: PageSize,
     for<'a> OffsetPageTable<'a>: Mapper<T>,
 {
     let Some(mapping_end) = start.as_u64().checked_add(T::SIZE - 1) else {
-        return false;
+        return Err(TryMapSizedError::Overflow);
     };
 
-    if !(mapping_end <= end.as_u64() && start.is_aligned(T::SIZE) && p_addr.is_aligned(T::SIZE)) {
-        return false;
+    if mapping_end > end.as_u64() {
+        return Err(TryMapSizedError::Overflow);
+    }
+
+    if !start.is_aligned(T::SIZE) || !p_addr.is_aligned(T::SIZE) {
+        return Err(TryMapSizedError::NotAligned);
     }
 
     let page = Page::<T>::containing_address(start);
     let frame = PhysFrame::<T>::containing_address(p_addr);
 
-    if let Ok(ok) = unsafe { table.map_to(page, frame, flags, pmm) } {
-        /* hyperion_log::debug!("mapped 1GiB at 0x{:016x}", start);
-        crash_after_nth(10); */
-        ok.flush();
+    unsafe { table.map_to(page, frame, flags, &mut Pfa) }
+        .map_err(|err| TryMapSizedError::MapToError(err))?
+        .flush();
 
-        return true;
-    }
+    /* hyperion_log::debug!("mapped 1GiB at 0x{:016x}", start);
+    crash_after_nth(10); */
 
-    false
+    Ok(())
 }
 
-fn try_unmap_sized<T>(table: &mut OffsetPageTable, start: VirtAddr, end: VirtAddr) -> bool
+fn try_unmap_sized<T>(
+    table: &mut OffsetPageTable,
+    start: VirtAddr,
+    _end: VirtAddr,
+) -> Result<(), TryMapSizedError<T>>
 where
     T: PageSize,
     for<'a> OffsetPageTable<'a>: Mapper<T>,
 {
-    let Some(mapping_end) = start.as_u64().checked_add(T::SIZE - 1) else {
-        return false;
+    let Some(_mapping_end) = start.as_u64().checked_add(T::SIZE - 1) else {
+        return Err(TryMapSizedError::Overflow);
     };
 
-    if !(mapping_end <= end.as_u64() && start.is_aligned(T::SIZE)) {
-        return false;
+    /* if mapping_end > end.as_u64() {
+        return Err(TryMapSizedError::Overflow);
+    } */
+
+    if !start.is_aligned(T::SIZE) {
+        return Err(TryMapSizedError::NotAligned);
     }
 
     let page = Page::<T>::containing_address(start);
@@ -410,15 +455,15 @@ where
     match table.unmap(page) {
         Ok((_, ok)) => {
             ok.flush();
-            true
+            Ok(())
         }
         Err(UnmapError::PageNotMapped) => {
             // hyperion_log::debug!("already not mapped");
-            true
+            Ok(())
         }
         Err(_err) => {
             // hyperion_log::error!("{err:?}");
-            false
+            panic!("{_err:?}");
         }
     }
 }

@@ -15,7 +15,7 @@ use elf::{
     ElfBytes,
 };
 use hyperion_arch::{syscall, vmm::PageMap};
-use hyperion_mem::{from_higher_half, pmm::PageFrameAllocator, vmm::PageMapImpl};
+use hyperion_mem::{from_higher_half, pmm, vmm::PageMapImpl};
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
@@ -137,7 +137,7 @@ impl<'a> Loader<'a> {
             return None;
         }
 
-        let user_stack = PageFrameAllocator::get().alloc(1);
+        let user_stack = pmm::PFA.alloc(1);
         let stack_top = VirtAddr::new(0x400000000000); // VirtAddr::new(hyperion_boot::hhdm_offset());
 
         hyperion_log::debug!("stack_top = 0x{stack_top:016x}");

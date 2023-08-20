@@ -23,9 +23,10 @@ impl Write for SyscallLog {
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    /* // page fault test:
+    writeln!(&mut SyscallLog, "sample-elf page fault test").unwrap();
+    // page fault test:
     let null_ptr = core::hint::black_box(0x0) as *const u8;
-    core::hint::black_box(unsafe { *null_ptr }); */
+    core::hint::black_box(unsafe { *null_ptr });
 
     for i in 0u64.. {
         writeln!(&mut SyscallLog, "testing `{i}`").unwrap();
