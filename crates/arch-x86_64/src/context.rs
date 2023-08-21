@@ -21,7 +21,7 @@ impl Context {
         stack_top: VirtAddr, // &mut [u64],
         thread_entry: extern "sysv64" fn() -> !,
     ) -> Self {
-        let cur = PageMap::current();
+        /* let cur = PageMap::current();
         page_map.activate();
 
         let mut res = Self {
@@ -33,9 +33,7 @@ impl Context {
         }
 
         cur.activate();
-        res
-
-        /* hyperion_log::debug!("{stack_top:0x?} {stack_top_now:0x?}");
+        res */
 
         #[repr(C)]
         struct StackInit {
@@ -51,12 +49,11 @@ impl Context {
         const OFFSET: usize = size_of::<StackInit>() + size_of::<u64>();
 
         let rsp = stack_top - OFFSET;
-        let now = to_higher_half(stack_top_now - OFFSET);
-        hyperion_log::debug!(
-            "rsp:{:0x?} now:{:0x?}",
-            page_map.virt_to_phys(rsp),
-            PageMap::current().virt_to_phys(now)
-        );
+        let now = page_map
+            .virt_to_phys(rsp)
+            .expect("stack to be mapped in the new page table");
+        let now = to_higher_half(now);
+
         let init: *mut StackInit = now.as_mut_ptr();
         unsafe {
             init.write(StackInit {
@@ -68,12 +65,12 @@ impl Context {
                 _rbp: 6,
                 entry: thread_entry as *const () as _,
             });
-        } */
+        }
 
-        /* Self {
+        Self {
             cr3: page_map.cr3().start_address(),
             rsp,
-        } */
+        }
     }
 }
 

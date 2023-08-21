@@ -31,7 +31,7 @@ impl<'a> Loader<'a> {
     pub fn new(elf_bytes: &'a [u8]) -> Self {
         Self {
             parser: ElfBytes::minimal_parse(elf_bytes).expect("TODO: error handling"),
-            page_map: PageMap::new(),
+            page_map: PageMap::current(),
         }
     }
 

@@ -42,8 +42,8 @@ pub mod timer;
 //
 
 pub struct TaskImpl {
-    _address_space: Arc<AddressSpace>,
-    _stack: Stack<KernelStack>,
+    address_space: Arc<AddressSpace>,
+    stack: Stack<KernelStack>,
 
     // context is used 'unsafely' only in the switch
     context: UnsafeCell<Context>,
@@ -75,8 +75,8 @@ impl TaskImpl {
         let job = Some(Box::new(f) as _);
 
         Self {
-            _address_space: address_space,
-            _stack: stack,
+            address_space,
+            stack,
 
             context,
             job,
@@ -200,6 +200,7 @@ pub unsafe fn block(current: *mut Context) {
     // SAFETY: `next` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
+        // hyperion_log::debug!("CONTEXT SWITCH");
         hyperion_arch::context::switch(current, context);
     }
 
@@ -239,7 +240,7 @@ pub fn cleanup() {
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    hyperion_log::debug!("PAGE FAULT ({user:?}) 0x{addr:0x}");
+    hyperion_log::debug!("scheduler handling a page fault ({user:?}) 0x{addr:0x}");
 
     let Some(mut current) = swap_current(None) else {
         hyperion_log::debug!("no job");
@@ -247,6 +248,7 @@ fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     };
 
     if user == Privilege::User {
+        hyperion_log::debug!("killing userland process");
         swap_current(Some(current));
         stop();
     }
@@ -256,15 +258,13 @@ fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
         return PageFaultResult::NotHandled;
     };
 
-    PageFaultResult::NotHandled
-    /* let result = task
+    let result = task
         .stack
         .page_fault(&task.address_space.page_map, addr as u64);
 
-    hyperion_log::debug!("PAGE FAULT HANDLER {result:?}");
     swap_current(Some(current));
 
-    result */
+    result
 }
 
 extern "sysv64" fn thread_entry() -> ! {

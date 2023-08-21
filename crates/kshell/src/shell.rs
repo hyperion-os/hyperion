@@ -494,6 +494,7 @@ impl Shell {
                 hyperion_log::debug!("entry point missing");
             }
         });
+        hyperion_log::debug!("spawned");
 
         Ok(())
     }
