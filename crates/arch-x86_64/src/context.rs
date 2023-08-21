@@ -2,7 +2,7 @@ use core::mem::size_of;
 
 use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
 use memoffset::offset_of;
-use x86_64::{registers::control::Cr3, PhysAddr, VirtAddr};
+use x86_64::{PhysAddr, VirtAddr};
 
 use crate::vmm::PageMap;
 
@@ -18,23 +18,9 @@ pub struct Context {
 impl Context {
     pub fn new(
         page_map: &PageMap,
-        stack_top: VirtAddr, // &mut [u64],
+        stack_top: VirtAddr, // TODO: could be a &mut [u64],
         thread_entry: extern "sysv64" fn() -> !,
     ) -> Self {
-        /* let cur = PageMap::current();
-        page_map.activate();
-
-        let mut res = Self {
-            cr3: page_map.cr3().start_address(),
-            rsp: stack_top,
-        };
-        unsafe {
-            init(&mut res, thread_entry as usize as u64);
-        }
-
-        cur.activate();
-        res */
-
         #[repr(C)]
         struct StackInit {
             _r15: u64,
@@ -76,7 +62,7 @@ impl Context {
 
 //
 
-#[naked]
+/* #[naked]
 pub unsafe extern "sysv64" fn init(prev: *mut Context, ra: u64) {
     core::arch::asm!(
         "mov r11, rsp",
@@ -94,7 +80,7 @@ pub unsafe extern "sysv64" fn init(prev: *mut Context, ra: u64) {
         rsp = const(offset_of!(Context, rsp)),
         options(noreturn),
     );
-}
+} */
 
 /* #[naked]
 pub unsafe extern "sysv64" fn enter(next: *mut Context) {
@@ -118,21 +104,8 @@ pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {
         "push r14",
         "push r15",
 
-
         // save prev task
         "mov [rdi+{rsp}], rsp", // save prev stack
-        // "push rdi",
-        // "push rsi",
-        // "call {debug}",
-        // "pop rsi",
-        // "pop rdi",
-        // "push rdi",
-        // "push rsi",
-        // "mov rdi, [rdi+{rsp}]",
-        // "mov rsi, [rsi+{rsp}]",
-        // "call {debug}",
-        // "pop rsi",
-        // "pop rdi",
 
         // load next task
         "mov rsp, [rsi+{rsp}]", // load next stack
@@ -158,11 +131,6 @@ pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {
 
         rsp = const(offset_of!(Context, rsp)),
         cr3 = const(offset_of!(Context, cr3)),
-        // debug = sym debug,
         options(noreturn)
     );
-}
-
-extern "sysv64" fn debug(rdi: u64, rsi: u64) {
-    hyperion_log::debug!("context switch debug: RDI:{rdi:#0x} RSI:{rsi:#0x}");
 }

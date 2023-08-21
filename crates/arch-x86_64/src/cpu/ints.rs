@@ -3,7 +3,6 @@ use hyperion_log::{error, info, trace};
 use x86_64::{
     registers::{control::Cr2, segmentation::GS},
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
-    VirtAddr,
 };
 
 //

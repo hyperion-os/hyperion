@@ -8,7 +8,7 @@ use hyperion_keyboard::{
     event::{KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
-use hyperion_mem::pmm::{self, PageFrameAllocator};
+use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::timer::{sleep, ticks};
@@ -502,7 +502,7 @@ impl Shell {
         Ok(())
     }
 
-    fn lapic_id_cmd(&mut self, args: Option<&str>) -> Result<()> {
+    fn lapic_id_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         _ = writeln!(self.term, "{:?}", ApicId::current());
         Ok(())
     }

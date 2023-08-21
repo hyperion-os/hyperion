@@ -1,7 +1,4 @@
-use core::{
-    mem::transmute,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use hyperion_mem::pmm;
 use x86_64::{structures::tss::TaskStateSegment, VirtAddr};

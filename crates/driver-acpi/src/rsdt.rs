@@ -10,7 +10,7 @@ use core::{
 use hyperion_log::debug;
 use hyperion_mem::to_higher_half;
 use spin::Lazy;
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::PhysAddr;
 
 use super::{rsdp::RSDP, RawSdtHeader, SdtError, StructUnpacker};
 

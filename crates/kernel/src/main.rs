@@ -18,13 +18,9 @@
 
 //
 
-use alloc::sync::Arc;
-use core::sync::atomic::{AtomicUsize, Ordering};
-
 use hyperion_boot_interface::Cpu;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::debug;
-use hyperion_mem::vmm::PageMapImpl;
 
 extern crate alloc;
 
