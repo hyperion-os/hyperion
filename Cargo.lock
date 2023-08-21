@@ -524,6 +524,7 @@ dependencies = [
  "futures-util",
  "glam",
  "hyperion-color",
+ "hyperion-driver-acpi",
  "hyperion-escape",
  "hyperion-framebuffer",
  "hyperion-kernel-info",

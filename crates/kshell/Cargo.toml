@@ -14,6 +14,7 @@ libm = "0.2"
 glam = { version = "0.24", default-features = false, features = ["libm"] }
 
 hyperion-color.path = "../color"
+hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-escape.path = "../escape"
 hyperion-framebuffer.path = "../framebuffer"
 hyperion-kernel-info.path = "../kernel-info"

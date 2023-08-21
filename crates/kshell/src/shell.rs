@@ -3,6 +3,7 @@ use core::{fmt::Write, slice};
 
 use futures_util::stream::select;
 use hyperion_color::Color;
+use hyperion_driver_acpi::apic::ApicId;
 use hyperion_keyboard::{
     event::{KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -123,6 +124,7 @@ impl Shell {
             "help" => self.help_cmd(args)?,
             "modeltest" => self.modeltest_cmd(args).await?,
             "run" => self.run_cmd(args)?,
+            "lapic_id" => self.lapic_id_cmd(args)?,
             "clear" => {
                 self.term.clear();
             }
@@ -375,7 +377,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, clear");
 
         Ok(())
     }
@@ -477,6 +479,7 @@ impl Shell {
 
     fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
         let args = args.map(String::from);
+
         hyperion_scheduler::spawn(move || {
             let args = args.as_deref();
             let args = args.as_ref().map(slice::from_ref).unwrap_or(&[]);
@@ -496,6 +499,11 @@ impl Shell {
         });
         hyperion_log::debug!("spawned");
 
+        Ok(())
+    }
+
+    fn lapic_id_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        _ = writeln!(self.term, "{:?}", ApicId::current());
         Ok(())
     }
 }
