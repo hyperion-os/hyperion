@@ -49,13 +49,12 @@ pub fn get() -> &'static ThreadLocalStorage {
 
 //
 
-// #[repr(align(0x1000))]
+#[repr(align(0x1000))]
 pub struct ThreadLocalStorage {
     // temporary store for user space stack
     pub user_stack: AtomicPtr<u8>,
     // kernel stack for syscalls
     pub kernel_stack: AtomicPtr<u8>,
-
     pub active: Mutex<Option<Task>>,
     pub after_switch: SegQueue<CleanupTask>,
 }

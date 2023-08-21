@@ -10,6 +10,7 @@ elf.workspace = true
 rustc-demangle = "0.1"
 spin.workspace = true
 x86_64.workspace = true
+# gimli.workspace = true
 
 hyperion-boot.path = "../boot"
 hyperion-escape.path = "../escape"

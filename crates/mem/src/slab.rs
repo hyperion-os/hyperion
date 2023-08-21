@@ -254,6 +254,7 @@ impl Slab {
     pub unsafe fn free(&mut self, stats: &SlabAllocatorStats, block: VirtAddr) {
         let block_data: &mut [u64] =
             unsafe { slice::from_raw_parts_mut(block.as_mut_ptr(), self.size / 8) };
+        block_data.fill(0);
 
         block_data[0] = self.next.as_u64();
         self.next = block;

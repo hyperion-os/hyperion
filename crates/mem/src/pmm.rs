@@ -74,10 +74,7 @@ impl PageFrameAllocator {
     }
 
     /// Free up pages
-    ///
-    /// Double frees are not possible due to [`PageFrame`] missing [`Clone`] and it cannot be
-    /// constructed manually
-    pub fn free(&self, frame: PageFrame) {
+    pub fn free(&self, mut frame: PageFrame) {
         if frame.first.as_u64() == 0 || frame.count == 0 {
             return;
         }
@@ -94,6 +91,8 @@ impl PageFrameAllocator {
         for page in page..page + frame.count {
             bitmap.set(page, false).unwrap();
         }
+
+        frame.as_bytes_mut().fill(0);
 
         self.used
             .fetch_sub(frame.count * PAGE_SIZE, Ordering::SeqCst);
@@ -130,7 +129,8 @@ impl PageFrameAllocator {
         // Safety: the pages get protected from allocations
         let page_data: &mut [MaybeUninit<u8>] =
             unsafe { slice::from_raw_parts_mut(page_ptr, count * PAGE_SIZE) };
-        let page_data = fill_maybeuninit_slice(page_data, 0);
+        /* let page_data = */
+        fill_maybeuninit_slice(page_data, 0);
 
         self.used.fetch_add(count * PAGE_SIZE, Ordering::SeqCst);
 

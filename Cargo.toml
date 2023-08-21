@@ -61,7 +61,7 @@ default-features = false
 features = ["rust_1_46"]
 
 # backtracing with DWARF
-# [dependencies.gimli]
-# version = "0.27"
+# [workspace.dependencies.gimli]
+# version = "0.28"
 # default-features = false
-# features = ["read", "write"]
+# features = ["read"]

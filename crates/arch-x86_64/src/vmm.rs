@@ -72,16 +72,16 @@ impl PageMapImpl for PageMap {
 
         // TODO: Copy on write maps
 
-        hyperion_log::debug!("higher half direct map");
+        // hyperion_log::debug!("higher half direct map");
         let hhdm = VirtAddr::new(hyperion_boot::hhdm_offset());
         page_map.map(
             hhdm..hhdm + 0x10000000000u64,
             PhysAddr::new(0x0),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
         );
 
         // TODO: less dumb kernel mapping
-        hyperion_log::debug!("kernel map");
+        // hyperion_log::debug!("kernel map");
         let kernel = VirtAddr::new(hyperion_boot::virt_addr() as _);
         let top = VirtAddr::new(u64::MAX);
         page_map.map(
@@ -90,10 +90,10 @@ impl PageMapImpl for PageMap {
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         );
 
-        hyperion_log::debug!(
+        /* hyperion_log::debug!(
             "kernel per address space stack space: 0x{:0x}",
             kernel.as_u64() - (hhdm.as_u64() + 0x10000000000u64)
-        );
+        ); */
 
         page_map
     }
@@ -133,7 +133,7 @@ impl PageMapImpl for PageMap {
         let Range { mut start, end } = v_addr;
         let mut size;
 
-        hyperion_log::debug!(
+        hyperion_log::trace!(
             "mapping [ 0x{start:016x}..0x{end:016x} ] to 0x{p_addr:016x} with {flags:?}"
         );
 
@@ -201,7 +201,7 @@ impl PageMapImpl for PageMap {
         let Range { mut start, end } = v_addr;
         let mut size;
 
-        hyperion_log::debug!("unmapping [ 0x{start:016x}..0x{end:016x} ]");
+        hyperion_log::trace!("unmapping [ 0x{start:016x}..0x{end:016x} ]");
 
         loop {
             // hyperion_log::debug!("unmapping {start:?}..{end:?}");

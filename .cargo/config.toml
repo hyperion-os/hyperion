@@ -3,7 +3,7 @@
 # target = "x86_64-unknown-none"
 rustflags = [
     # TODO: remove and implement DWARF info based stack tracing
-    "-C", "force-frame-pointers=y",
+    #"-C", "force-frame-pointers=y",
     #"-C", "code-model=kernel",
     #"-C", "relocation-model=static",
     #"-C", "linker=clang-16",

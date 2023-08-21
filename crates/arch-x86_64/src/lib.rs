@@ -121,3 +121,17 @@ pub fn done() -> ! {
         int::wait()
     }
 }
+
+#[inline(always)]
+pub fn dbg_cpu() {
+    let rsp: u64;
+    unsafe {
+        core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
+    }
+
+    let rip = x86_64::instructions::read_rip();
+
+    let cr3 = x86_64::registers::control::Cr3::read().0.start_address();
+
+    hyperion_log::debug!("rsp:0x{rsp:0x} rip:0x{rip:0x} cr3:0x{cr3:0x}");
+}

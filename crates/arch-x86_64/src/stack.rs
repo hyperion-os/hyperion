@@ -16,7 +16,7 @@ use core::{
 
 use crossbeam::queue::SegQueue;
 use hyperion_mem::{
-    pmm::{self, PageFrame, PageFrameAllocator},
+    pmm::{self, PageFrame},
     vmm::PageMapImpl,
 };
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
@@ -26,7 +26,7 @@ use crate::{cpu::ints::PageFaultResult, vmm::PageMap};
 //
 
 /// the first frame of the stack
-pub const USER_STACK_TOP: u64 = 0x8000_0000_0000;
+pub const USER_STACK_TOP: u64 = 0x7FFF_FFFF_F000; // 0x8000_0000_0000;
 
 pub const VIRTUAL_STACK_PAGES: u64 = 512;
 pub const VIRTUAL_STACK_SIZE: u64 = 0x1000 * VIRTUAL_STACK_PAGES; // 2MiB (contains the 4KiB guard page)
@@ -52,14 +52,18 @@ pub trait StackType {
 
 impl StackType for KernelStack {
     fn region() -> Range<u64> {
-        let top = hyperion_boot::virt_addr() as u64;
+        let top = hyperion_boot::virt_addr() as u64 - 0x1000;
         let bottom = top - (hyperion_boot::hhdm_offset() + 0x10000000000u64);
 
         bottom..top
+
+        // USER_HEAP_TOP..USER_STACK_TOP
     }
 
     const PAGE_FLAGS: PageTableFlags = PageTableFlags::from_bits_truncate(
-        PageTableFlags::PRESENT.bits() | PageTableFlags::WRITABLE.bits(),
+        PageTableFlags::PRESENT.bits()
+            | PageTableFlags::WRITABLE.bits()
+            | PageTableFlags::NO_EXECUTE.bits(),
     );
 }
 
@@ -71,7 +75,8 @@ impl StackType for UserStack {
     const PAGE_FLAGS: PageTableFlags = PageTableFlags::from_bits_truncate(
         PageTableFlags::USER_ACCESSIBLE.bits()
             | PageTableFlags::PRESENT.bits()
-            | PageTableFlags::WRITABLE.bits(),
+            | PageTableFlags::WRITABLE.bits()
+            | PageTableFlags::NO_EXECUTE.bits(),
     );
 }
 
@@ -205,20 +210,20 @@ impl<T: StackType + Debug> Stack<T> {
         page_map.unmap(Self::page_range(self.guard_page()));
     }
 
-    pub fn grow(&mut self, page_map: &PageMap) -> Result<(), StackLimitHit> {
-        if self.extent_4k_pages == self.limit_4k_pages {
+    pub fn grow(&mut self, page_map: &PageMap, grow_by_pages: u64) -> Result<(), StackLimitHit> {
+        if self.extent_4k_pages + grow_by_pages > self.limit_4k_pages {
             hyperion_log::trace!("stack limit hit");
             // stack cannot grow anymore
             return Err(StackLimitHit);
         }
 
-        let old_guard_page = self.guard_page();
+        let old_guard_page = Self::page_range(self.guard_page());
 
         let first_time = self.extent_4k_pages == 0;
-        self.extent_4k_pages += 1;
-        let new_guard_page = self.guard_page();
+        self.extent_4k_pages += grow_by_pages;
+        let new_guard_page = Self::page_range(self.guard_page());
 
-        let alloc = pmm::PFA.alloc(1).physical_addr();
+        let alloc = pmm::PFA.alloc(grow_by_pages as usize).physical_addr();
 
         if first_time {
             // TODO: init alloc size, default: 1 page
@@ -227,12 +232,8 @@ impl<T: StackType + Debug> Stack<T> {
             self.extra_alloc.push(alloc);
         }
 
-        page_map.map(
-            Self::page_range(old_guard_page),
-            self.base_alloc,
-            T::PAGE_FLAGS,
-        );
-        page_map.unmap(Self::page_range(new_guard_page));
+        page_map.map(new_guard_page.end..old_guard_page.end, alloc, T::PAGE_FLAGS);
+        page_map.unmap(new_guard_page);
 
         Ok(())
     }
@@ -244,7 +245,7 @@ impl<T: StackType + Debug> Stack<T> {
         // TODO: assert
         page_map.activate();
 
-        hyperion_log::trace!("stack page fault test\n{self:#?}");
+        hyperion_log::trace!("stack page fault test");
 
         let guard_page = self.guard_page();
 
@@ -254,7 +255,8 @@ impl<T: StackType + Debug> Stack<T> {
             return PageFaultResult::NotHandled;
         }
 
-        if let Err(StackLimitHit) = self.grow(page_map) {
+        // TODO: configurable grow_by_rate
+        if let Err(StackLimitHit) = self.grow(page_map, 1) {
             return PageFaultResult::NotHandled;
         }
 

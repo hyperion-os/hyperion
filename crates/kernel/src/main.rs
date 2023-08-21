@@ -24,6 +24,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use hyperion_boot_interface::Cpu;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::debug;
+use hyperion_mem::vmm::PageMapImpl;
 
 extern crate alloc;
 
@@ -110,14 +111,12 @@ fn smp_main(cpu: Cpu) -> ! {
         hyperion_drivers::lazy_install_late();
     }
 
-    /* hyperion_scheduler::spawn(move || loop {
-        hyperion_log::debug!("useless task");
+    hyperion_scheduler::spawn(move || loop {
         hyperion_scheduler::yield_now();
-    }); */
-    hyperion_scheduler::executor::run_tasks();
-    /* hyperion_scheduler::spawn(move || {
+    });
+    hyperion_scheduler::spawn(move || {
         hyperion_scheduler::executor::run_tasks();
     });
-    hyperion_log::debug!("context switch test");
-    hyperion_scheduler::reset(); */
+    hyperion_log::debug!("resetting {cpu} scheduler");
+    hyperion_scheduler::reset();
 }

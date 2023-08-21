@@ -24,5 +24,5 @@ fn panic_handler(info: &PanicInfo) -> ! {
 
 fn panic_unwind(info: &PanicInfo) {
     println!("Kernel CPU {info}");
-    hyperion_backtrace::print_backtrace();
+    // hyperion_backtrace::print_backtrace();
 }

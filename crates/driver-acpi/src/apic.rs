@@ -1,8 +1,10 @@
+use alloc::boxed::Box;
+
 use hyperion_atomic_map::AtomicMap;
 use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
 use hyperion_mem::to_higher_half;
-use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use spin::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::PhysAddr;
 
 use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
@@ -10,6 +12,33 @@ use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
 //
 
 pub const IRQ_APIC_SPURIOUS: u8 = 0xFF;
+
+//
+
+pub struct ApicTls<T: 'static> {
+    inner: Box<[(ApicId, Mutex<T>)]>,
+}
+
+impl<T: 'static> ApicTls<T> {
+    pub fn new(mut f: impl FnMut() -> T) -> Self {
+        let mut inner: Box<[(ApicId, Mutex<T>)]> =
+            ApicId::iter().map(|id| (id, Mutex::new(f()))).collect();
+
+        inner.sort_by_key(|(id, _)| *id);
+
+        Self { inner }
+    }
+
+    pub fn lock(&self) -> MutexGuard<'_, T> {
+        let key = ApicId::current();
+        let idx = self
+            .inner
+            .binary_search_by_key(&key, |(id, _)| *id)
+            .unwrap_or_else(|_| panic!("{key:?} was expected to be a registered LAPIC"));
+
+        self.inner[idx].1.lock()
+    }
+}
 
 //
 

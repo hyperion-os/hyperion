@@ -4,16 +4,12 @@
 
 use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::debug;
-use spin::{Lazy, Mutex};
+use spin::Mutex;
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
 
 //
 
-pub static PICS: Lazy<Mutex<Pics>> = Lazy::new(|| {
-    let mut pics = Pics::new();
-    pics.init();
-    Mutex::new(pics)
-});
+pub static PICS: Mutex<Pics> = Mutex::new(Pics::new());
 
 const ICW1_ICW4: u8 = 0x01; // ICW4 will be present
 const ICW1_INIT: u8 = 0x10; // Init cmd

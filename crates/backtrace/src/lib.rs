@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(naked_functions)]
 
 //
 
@@ -103,6 +104,84 @@ pub fn kernel_base() -> u64 {
     unsafe { &KERNEL_BASE as *const c_void as _ }
 }
 
+/* #[derive(Debug)]
+#[repr(C)]
+pub struct SavedRegs {
+    r15: u64,
+    r14: u64,
+    r13: u64,
+    r12: u64,
+    rbx: u64,
+    rbp: u64,
+}
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct UnwindRegs {
+    r15: u64,
+    r14: u64,
+    r13: u64,
+    r12: u64,
+    rbx: u64,
+    rbp: u64,
+    rsp: u64,
+    ra: u64,
+}
+
+pub fn current_registers(mut f: impl FnMut(UnwindRegs)) {
+    let mut f: &mut dyn FnMut(UnwindRegs) = &mut f;
+    save_current_registers(&mut f);
+
+    #[naked]
+    extern "sysv64" fn save_current_registers(_f: *mut &mut dyn FnMut(UnwindRegs)) {
+        unsafe {
+            core::arch::asm!(
+                // save callee-saved registers
+                // https://wiki.osdev.org/System_V_ABI
+                "mov rsi, rsp", // save stack before this stack save
+                "push rbp",
+                "push rbx",
+                "push r12",
+                "push r13",
+                "push r14",
+                "push r15",
+                "mov rdx, rsp", // *mut SavedRegs argument for unwind
+                "call {unwind}",
+                "pop r15",
+                "pop r14",
+                "pop r13",
+                "pop r12",
+                "pop rbx",
+                "pop rbp",
+                "ret",
+                unwind = sym unwind,
+                options(noreturn),
+            );
+        }
+    }
+
+    extern "sysv64" fn unwind(
+        _f: *mut &mut dyn FnMut(UnwindRegs),
+        stack: u64,
+        regs: *mut SavedRegs,
+    ) {
+        let f = unsafe { &mut *_f };
+        let regs = unsafe { &*regs };
+        let regs = UnwindRegs {
+            r15: regs.r15,
+            r14: regs.r14,
+            r13: regs.r13,
+            r12: regs.r12,
+            rbx: regs.rbx,
+            rbp: regs.rbp,
+            rsp: stack + 8,
+            ra: unsafe { *(stack as *const u64) },
+        };
+
+        f(regs);
+    }
+} */
+
 /// # Safety
 ///
 /// caller must ensure that `ip` points to a valid stack frame
@@ -134,8 +213,6 @@ pub unsafe fn unwind_stack_from(ip: VirtAddr, mut f: impl FnMut(FrameInfo)) {
             .unwrap_or(_frame.instr_ptr);
         f(symbol_noerr(instr_ptr));
     }
-
-    println!("{:#0x}", frame as usize);
 }
 
 pub fn unwind_stack(f: impl FnMut(FrameInfo)) {

@@ -41,7 +41,7 @@ impl Madt {
 
         // skip MADT header
         let madt: RawMadt = u.unpack(true)?;
-        trace!("{madt:#x?}");
+        // trace!("{madt:#x?}");
 
         let mut local_apic_addr = madt.local_apic_addr as usize;
         let mut io_apics = vec![];
@@ -61,7 +61,7 @@ impl Madt {
                 1 => {
                     assert_eq!(data_len, mem::size_of::<IoApic>());
                     let data: IoApic = u.unpack(false)?;
-                    trace!("{data:#x?}");
+                    // trace!("{data:#x?}");
 
                     io_apics.push(IoApicInfo {
                         addr: data.io_apic_addr,

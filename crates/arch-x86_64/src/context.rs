@@ -19,10 +19,23 @@ impl Context {
     pub fn new(
         page_map: &PageMap,
         stack_top: VirtAddr, // &mut [u64],
-        stack_top_now: PhysAddr,
         thread_entry: extern "sysv64" fn() -> !,
     ) -> Self {
-        hyperion_log::debug!("{stack_top:0x?} {stack_top_now:0x?}");
+        let cur = PageMap::current();
+        page_map.activate();
+
+        let mut res = Self {
+            cr3: page_map.cr3().start_address(),
+            rsp: stack_top,
+        };
+        unsafe {
+            init(&mut res, thread_entry as usize as u64);
+        }
+
+        cur.activate();
+        res
+
+        /* hyperion_log::debug!("{stack_top:0x?} {stack_top_now:0x?}");
 
         #[repr(C)]
         struct StackInit {
@@ -33,11 +46,12 @@ impl Context {
             _rbx: u64,
             _rbp: u64,
             entry: u64,
-            _pad: u64,
         }
 
-        let rsp = stack_top - size_of::<StackInit>();
-        let now = to_higher_half(stack_top_now - size_of::<StackInit>());
+        const OFFSET: usize = size_of::<StackInit>() + size_of::<u64>();
+
+        let rsp = stack_top - OFFSET;
+        let now = to_higher_half(stack_top_now - OFFSET);
         hyperion_log::debug!(
             "rsp:{:0x?} now:{:0x?}",
             page_map.virt_to_phys(rsp),
@@ -53,20 +67,41 @@ impl Context {
                 _rbx: 5,
                 _rbp: 6,
                 entry: thread_entry as *const () as _,
-                _pad: 7,
             });
-        }
+        } */
 
-        Self {
+        /* Self {
             cr3: page_map.cr3().start_address(),
             rsp,
-        }
+        } */
     }
 }
 
 //
 
-// pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {}
+#[naked]
+pub unsafe extern "sysv64" fn init(prev: *mut Context, ra: u64) {
+    core::arch::asm!(
+        "mov r11, rsp",
+        "mov rsp, [rdi+{rsp}]",
+        "push rsi",
+        "push rbp",
+        "push rbx",
+        "push r12",
+        "push r13",
+        "push r14",
+        "push r15",
+        "mov [rdi+{rsp}], rsp",
+        "mov rsp, r11",
+        "ret",
+        rsp = const(offset_of!(Context, rsp)),
+        options(noreturn),
+    );
+}
+
+/* #[naked]
+pub unsafe extern "sysv64" fn enter(next: *mut Context) {
+} */
 
 /// # Safety
 ///
@@ -86,8 +121,21 @@ pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {
         "push r14",
         "push r15",
 
+
         // save prev task
         "mov [rdi+{rsp}], rsp", // save prev stack
+        // "push rdi",
+        // "push rsi",
+        // "call {debug}",
+        // "pop rsi",
+        // "pop rdi",
+        // "push rdi",
+        // "push rsi",
+        // "mov rdi, [rdi+{rsp}]",
+        // "mov rsi, [rsi+{rsp}]",
+        // "call {debug}",
+        // "pop rsi",
+        // "pop rdi",
 
         // load next task
         "mov rsp, [rsi+{rsp}]", // load next stack
@@ -113,6 +161,11 @@ pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {
 
         rsp = const(offset_of!(Context, rsp)),
         cr3 = const(offset_of!(Context, cr3)),
+        // debug = sym debug,
         options(noreturn)
     );
+}
+
+extern "sysv64" fn debug(rdi: u64, rsi: u64) {
+    hyperion_log::debug!("context switch debug: RDI:{rdi:#0x} RSI:{rsi:#0x}");
 }

@@ -3,6 +3,7 @@ use hyperion_log::{error, info};
 use x86_64::{
     registers::control::Cr2,
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
+    VirtAddr,
 };
 
 //
@@ -107,6 +108,8 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
 
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
     let addr = Cr2::read();
+
+    error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
 
     let privilege = if ec.contains(PageFaultErrorCode::USER_MODE) {
         Privilege::User
