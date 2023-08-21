@@ -25,8 +25,8 @@ impl Write for SyscallLog {
 pub extern "C" fn _start() -> ! {
     writeln!(&mut SyscallLog, "sample-elf page fault test").unwrap();
     // page fault test:
-    let null_ptr = core::hint::black_box(0x0) as *const u8;
-    core::hint::black_box(unsafe { *null_ptr });
+    /* let null_ptr = core::hint::black_box(0x0) as *const u8;
+    core::hint::black_box(unsafe { *null_ptr }); */
 
     for i in 0u64.. {
         writeln!(&mut SyscallLog, "testing `{i}`").unwrap();
@@ -34,6 +34,8 @@ pub extern "C" fn _start() -> ! {
         for j in 0x0u64..0x4_000_000u64 {
             core::hint::black_box(j);
         }
+
+        hyperion_syscall::yield_now();
     }
 
     hyperion_syscall::exit(0);

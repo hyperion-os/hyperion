@@ -15,14 +15,12 @@ use crossbeam_queue::SegQueue;
 use hyperion_arch::{
     context::Context,
     cpu::ints::{self, PageFaultResult, Privilege},
-    stack::{AddressSpace, KernelStack, Stack},
+    stack::{AddressSpace, KernelStack, Stack, UserStack},
     tls,
     vmm::PageMap,
 };
-// use hyperion_driver_acpi::apic::ApicTls;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler_task::{AnyTask, CleanupTask, Task};
-// use spin::Lazy;
 
 //
 
@@ -43,7 +41,8 @@ pub mod timer;
 
 pub struct TaskImpl {
     address_space: Arc<AddressSpace>,
-    stack: Stack<KernelStack>,
+    kernel_stack: Stack<KernelStack>,
+    user_stack: Stack<UserStack>,
 
     // context is used 'unsafely' only in the switch
     context: UnsafeCell<Context>,
@@ -61,10 +60,12 @@ impl TaskImpl {
         let address_space = Arc::new(AddressSpace::new(PageMap::new()));
 
         hyperion_log::trace!("new stack");
-        let mut stack = address_space.kernel_stacks.take();
-        stack.grow(&address_space.page_map, 4).unwrap();
-        let stack_top = stack.top;
+        let mut kernel_stack = address_space.kernel_stacks.take();
+        kernel_stack.grow(&address_space.page_map, 4).unwrap();
+        let stack_top = kernel_stack.top;
         hyperion_log::trace!("stack top: 0x{:0x}", stack_top);
+
+        let user_stack = address_space.user_stacks.take();
 
         hyperion_log::trace!("initializing task stack");
         let context = UnsafeCell::new(Context::new(
@@ -76,7 +77,8 @@ impl TaskImpl {
 
         Self {
             address_space,
-            stack,
+            kernel_stack,
+            user_stack,
 
             context,
             job,
@@ -145,14 +147,16 @@ pub fn yield_now() {
 /// and switch to another thread
 pub fn stop() -> ! {
     // hyperion_log::debug!("stop");
+
+    // TODO: running out stack space after taking the task doesnt allow the stack to grow
     let Some(mut current) = swap_current(None) else {
         unreachable!("cannot stop a task that doesn't exist")
     };
 
-    let Some(context): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
+    let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
         unreachable!("the task was from another scheduler")
     };
-    let context = context.context.get();
+    let context = task.context.get();
 
     // push the current thread to the drop queue AFTER switching
     // AFTER.lock().push(CleanupTask::Drop(current));
@@ -234,34 +238,70 @@ pub fn cleanup() {
             CleanupTask::Next(next) => {
                 swap_current(Some(next));
             }
-            CleanupTask::Drop(_drop) => {}
+            CleanupTask::Drop(mut drop) => {
+                let Some(task): Option<&mut TaskImpl> = drop.as_any().downcast_mut() else {
+                    unreachable!("the task was from another scheduler")
+                };
+
+                if Arc::strong_count(&task.address_space) != 1 {
+                    continue;
+                }
+
+                // TODO: deallocate user pages
+                // task.address_space;
+            }
         };
     }
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
+    hyperion_log::debug!("scheduler page fault");
+
     let Some(mut current) = swap_current(None) else {
         hyperion_log::debug!("no job");
         return PageFaultResult::NotHandled;
     };
 
-    if user == Privilege::User {
-        hyperion_log::debug!("killing userland process");
-        swap_current(Some(current));
-        stop();
-    }
-
     let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
         hyperion_log::debug!("no task");
+        swap_current(Some(current));
         return PageFaultResult::NotHandled;
     };
 
-    let result = task
-        .stack
-        .page_fault(&task.address_space.page_map, addr as u64);
+    let res = if user == Privilege::User {
+        user_page_fault_handler(addr, task)
+    } else {
+        kernel_page_fault_handler(addr, task)
+    };
 
     swap_current(Some(current));
 
+    res
+}
+
+fn user_page_fault_handler(addr: usize, task: &mut TaskImpl) -> PageFaultResult {
+    let result = task
+        .user_stack
+        .page_fault(&task.address_space.page_map, addr as u64);
+
+    if result == PageFaultResult::Handled {
+        return result;
+    }
+
+    hyperion_log::debug!("killing user-space process");
+    stop();
+}
+
+fn kernel_page_fault_handler(addr: usize, task: &mut TaskImpl) -> PageFaultResult {
+    let result = task
+        .kernel_stack
+        .page_fault(&task.address_space.page_map, addr as u64);
+
+    if result == PageFaultResult::Handled {
+        return result;
+    }
+
+    hyperion_log::error!("page fault from kernel-space");
     result
 }
 

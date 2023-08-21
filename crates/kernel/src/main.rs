@@ -56,44 +56,6 @@ fn kernel_main() -> ! {
     // main task(s)
     hyperion_scheduler::executor::spawn(hyperion_kshell::kshell());
 
-    /* hyperion_scheduler::spawn(move || {
-        let counter = Arc::new(AtomicUsize::new(0));
-        for _ in 0..10 {
-            let counter = counter.clone();
-            hyperion_scheduler::spawn(move || {
-                // hyperion_log::debug!("running");
-                for _i in 0..10 {
-                    counter.fetch_add(1, Ordering::SeqCst);
-                    hyperion_scheduler::yield_now();
-                    // hyperion_log::debug!("ip: {:0x}", hyperion_arch::context::ip());
-                }
-            });
-        }
-
-        loop {
-            hyperion_scheduler::yield_now();
-
-            let counter = counter.load(Ordering::SeqCst);
-            hyperion_log::debug!("counter = {counter}");
-
-            if counter == 100 {
-                break;
-            }
-        }
-
-        /* for _ in 0..10 {
-            hyperion_arch::context::schedule(Task::new(move || loop {
-                hyperion_mem::pmm::PageFrameAllocator::get().alloc(10);
-                // Box::leak(Box::new([0; 128]));
-                hyperion_arch::context::yield_now();
-                hyperion_log::debug!(
-                    "free mem = {}",
-                    hyperion_mem::pmm::PageFrameAllocator::get().free_mem()
-                );
-            }));
-        } */
-    }); */
-
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     hyperion_boot::smp_init(smp_main);
 }
@@ -105,6 +67,7 @@ fn smp_main(cpu: Cpu) -> ! {
 
     if cpu.is_boot() {
         hyperion_drivers::lazy_install_late();
+        hyperion_log::debug!("boot cpu drivers installed");
     }
 
     hyperion_scheduler::spawn(move || loop {

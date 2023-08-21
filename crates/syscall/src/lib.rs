@@ -19,6 +19,13 @@ pub fn exit(code: i64) -> ! {
 }
 
 #[inline(always)]
+pub fn yield_now() {
+    unsafe {
+        trigger_syscall(3, 0, 0, 0, 0, 0);
+    }
+}
+
+#[inline(always)]
 pub fn commit_oxygen_not_reach_lungs(code: i64) -> ! {
     unsafe {
         trigger_syscall(420, code as u64, 0, 0, 0, 0);

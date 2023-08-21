@@ -8,10 +8,12 @@ pub fn syscall(args: &mut SyscallRegs) {
     // hyperion_log::debug!("got syscall with args: {args:#?}");
 
     let id = args.syscall_id;
-    let (result, name) = match id {
+    let (result, name): (u64, &str) = match id {
         1 => (log(args), "log"),
 
         2 => (exit(args), "exit"),
+
+        3 => (yield_now(args), "yield_now"),
 
         420 => (exit(args), "commit_oxygen_not_reach_lungs"),
 
@@ -82,11 +84,24 @@ pub fn log(args: &SyscallRegs) -> u64 {
 ///
 /// # return codes (in syscall_id after returning)
 /// _won't return_
-pub fn exit(args: &mut SyscallRegs) -> u64 {
-    // TODO: impl actual exit
+pub fn exit(args: &SyscallRegs) -> ! {
+    // TODO: exit code
+    hyperion_scheduler::stop();
+}
 
-    args.user_instr_ptr = 0;
-
+/// give the processor back to the kernel temporarily
+///
+/// # arguments
+/// - syscall_id : 3
+/// - arg0 : _ignored_
+/// - arg1 : _ignored_
+/// - arg2 : _ignored_
+/// - arg3 : _ignored_
+/// - arg4 : _ignored_
+///
+/// # return codes (in syscall_id after returning)
+///  - 0 : ok
+pub fn yield_now(args: &SyscallRegs) -> u64 {
+    hyperion_scheduler::yield_now();
     0
-    // hyperion_arch::done()
 }
