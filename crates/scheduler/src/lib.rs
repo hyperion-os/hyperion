@@ -240,8 +240,6 @@ pub fn cleanup() {
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    hyperion_log::debug!("scheduler handling a page fault ({user:?}) 0x{addr:0x}");
-
     let Some(mut current) = swap_current(None) else {
         hyperion_log::debug!("no job");
         return PageFaultResult::NotHandled;
