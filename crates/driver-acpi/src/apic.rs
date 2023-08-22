@@ -4,7 +4,7 @@ use hyperion_atomic_map::AtomicMap;
 use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
 use hyperion_mem::to_higher_half;
-use spin::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use spin::{Lazy, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::PhysAddr;
 
 use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
@@ -112,12 +112,21 @@ pub struct Lapic {
 //
 
 impl ApicId {
+    pub const unsafe fn new(id: u32) -> Self {
+        Self(id)
+    }
+
     pub fn iter() -> impl Iterator<Item = ApicId> {
-        LAPICS.keys().copied()
+        // LAPICS.keys().copied()
+        LAPIC_IDS.iter().copied()
     }
 
     pub fn inner(&self) -> u32 {
         self.0
+    }
+
+    pub const fn is_ioapic_compatible(self) -> bool {
+        self.0 <= 0xFF
     }
 
     /// apic id of this processor
@@ -174,6 +183,8 @@ impl Lapic {
 //
 
 static LAPICS: AtomicMap<ApicId, RwLock<Lapic>> = AtomicMap::new();
+static LAPIC_IDS: Lazy<&'static [ApicId]> =
+    Lazy::new(|| Box::leak(hyperion_boot::lapics().map(ApicId).collect::<Box<_>>()));
 
 const IA32_APIC_BASE: u32 = 0x1B;
 // const IA32_TSC_AUX: u32 = 0xC0000103; // lapic id storage - same as in Theseus

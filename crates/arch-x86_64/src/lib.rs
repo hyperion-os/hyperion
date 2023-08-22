@@ -12,7 +12,10 @@
 
 extern crate alloc;
 
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use hyperion_boot_interface::Cpu;
+use hyperion_drivers::acpi::apic::ApicId;
 use hyperion_log::{debug, error};
 use spin::{Barrier, Once};
 use x86_64::instructions::random::RdRand;
@@ -42,23 +45,6 @@ pub fn early_boot_cpu() {
 pub fn early_per_cpu(cpu: &Cpu) {
     int::disable();
 
-    let cpus = hyperion_boot::cpu_count();
-
-    macro_rules! barrier {
-        ($print:expr, $name:ident) => {
-            if $print {
-                debug!("waiting: {}", stringify!($name));
-            }
-            static $name: Once<Barrier> = Once::new();
-            $name.call_once(|| Barrier::new(cpus)).wait();
-            if $print {
-                debug!("done waiting: {}", stringify!($name));
-            }
-        };
-    }
-
-    barrier!(cpu.is_boot(), PRE_APIC);
-
     if !cpu.is_boot() {
         // bsp cpu structs are already initialized
         cpu::init(cpu);
@@ -66,14 +52,7 @@ pub fn early_per_cpu(cpu: &Cpu) {
 
     hyperion_drivers::acpi::init();
 
-    barrier!(cpu.is_boot(), POST_APIC);
-
     int::enable();
-
-    /* if cfg!(debug_assertions) {
-        warn!("[debug_assertions] {cpu} throwing a debug interrupt exception");
-        int::debug();
-    } */
 }
 
 pub fn rng_seed() -> u64 {

@@ -8,7 +8,7 @@ pub use framebuffer::framebuffer;
 pub use kernel::kernel_file;
 pub use mem::{memmap, stack};
 pub use rsdp::rsdp;
-pub use smp::{boot_cpu, cpu_count, smp_init};
+pub use smp::{boot_cpu, cpu_count, lapics, smp_init};
 pub use term::_print;
 
 //

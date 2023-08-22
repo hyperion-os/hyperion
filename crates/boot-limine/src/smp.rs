@@ -53,6 +53,14 @@ pub fn boot_cpu() -> Cpu {
     *BOOT_CPU
 }
 
+pub fn lapics() -> impl Iterator<Item = u32> {
+    REQ.get_response()
+        .get_mut()
+        .into_iter()
+        .flat_map(|resp| resp.cpus().iter())
+        .map(|cpu| cpu.lapic_id)
+}
+
 extern "C" fn smp_start(info: *const LimineSmpInfo) -> ! {
     let info = unsafe { &*info };
     SMP_DEST.load()(Cpu::new(info.processor_id, info.lapic_id));

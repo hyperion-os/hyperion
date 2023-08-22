@@ -1,4 +1,5 @@
 use hyperion_atomic_map::AtomicMap;
+use hyperion_log::error;
 use hyperion_mem::to_higher_half;
 use spin::{Lazy, Mutex, MutexGuard};
 use x86_64::PhysAddr;
@@ -62,8 +63,14 @@ impl IoApic {
 
     pub fn set_irq_any(&mut self, io_apic_irq: u8, irq: u8) -> ApicId {
         let io_apic_irq_router = ApicId::iter()
-            .find(|id| id.inner() < 0xFF)
-            .expect("No suitable APICs for handling I/O APIC interrupts");
+            .find(|id| id.is_ioapic_compatible())
+            .unwrap_or_else(|| {
+                error!(
+                    "No suitable APICs for handling I/O APIC interrupts, using fallback LAPIC 0"
+                );
+                unsafe { ApicId::new(0) }
+            });
+
         self.set_irq(io_apic_irq, io_apic_irq_router, irq);
         io_apic_irq_router
     }
