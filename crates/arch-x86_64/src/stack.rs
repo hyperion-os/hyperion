@@ -179,7 +179,7 @@ pub struct StackLimitHit;
 
 impl<T: StackType + Debug> Stack<T> {
     pub fn new(top: VirtAddr) -> Self {
-        Self::with_limit(top, 16)
+        Self::with_limit(top, VIRTUAL_STACK_PAGES)
     }
 
     pub fn with_limit(top: VirtAddr, mut limit_4k_pages: u64) -> Self {
