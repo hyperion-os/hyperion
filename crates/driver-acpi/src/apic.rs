@@ -49,6 +49,11 @@ pub fn enable() {
         // spurdo spärde keskeytys
     });
 
+    INT_EOI_HANDLER.store(|_| {
+        Lapic::current_mut().eoi();
+    });
+    INT_CONTROLLER.store(IntController::Apic);
+
     write_msr(
         IA32_APIC_BASE,
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
@@ -64,25 +69,23 @@ pub fn enable() {
     let mut lapic = LAPICS.get(&apic_id).unwrap().write();
 
     reset(lapic.regs);
-    // init_lvt_timer(timer_irq, lapic.regs);
-    trace!("Done Initializing {apic_id:?}");
+    // enable_timer(lapic);
 
-    INT_EOI_HANDLER.store(|_| {
-        Lapic::current_mut().eoi();
-    });
-    INT_CONTROLLER.store(IntController::Apic);
+    trace!("Done Initializing {apic_id:?}");
 }
 
-pub fn enable_timer() {
+pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
     let timer_irq = hyperion_interrupts::set_any_interrupt_handler(
         |irq| (0x30..=0xFF).contains(&irq),
         || {
+            hyperion_log::debug!("APIC timer");
+
             // apic timer interrupt
         },
     )
     .expect("No avail APIC timer IRQ");
 
-    let mut lapic = Lapic::current_mut();
+    // let mut lapic = Lapic::current_mut();
 
     reset(lapic.regs);
     init_lvt_timer(timer_irq, lapic.regs);
@@ -238,6 +241,7 @@ fn calibrate(regs: &mut ApicRegs) -> u32 {
 
     regs.timer_divide.write(APIC_TIMER_DIV);
 
+    hyperion_log::trace!("apic timer calibration");
     hyperion_clock::get()._apic_sleep_simple_blocking(10_000, &mut || {
         // reset right before PIT sleeping
         regs.timer_init.write(INITIAL_COUNT);
