@@ -61,7 +61,7 @@ impl TaskImpl {
 
         hyperion_log::trace!("new stack");
         let mut kernel_stack = address_space.kernel_stacks.take();
-        kernel_stack.grow(&address_space.page_map, 4).unwrap();
+        kernel_stack.grow(&address_space.page_map, 32).unwrap();
         let stack_top = kernel_stack.top;
         hyperion_log::trace!("stack top: 0x{:0x}", stack_top);
 
@@ -306,8 +306,6 @@ fn kernel_page_fault_handler(addr: usize, task: &mut TaskImpl) -> PageFaultResul
 }
 
 extern "sysv64" fn thread_entry() -> ! {
-    hyperion_log::debug!("thread_entry");
-
     cleanup();
     {
         let Some(mut current) = swap_current(None) else {
