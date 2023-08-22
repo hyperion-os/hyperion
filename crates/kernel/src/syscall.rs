@@ -11,17 +11,15 @@ pub fn syscall(args: &mut SyscallRegs) {
     let (result, name): (u64, &str) = match id {
         1 => (log(args), "log"),
 
-        2 => (exit(args), "exit"),
+        2 | 420 => exit(args),
 
         3 => (yield_now(args), "yield_now"),
-
-        420 => (exit(args), "commit_oxygen_not_reach_lungs"),
 
         _ => {
             // invalid syscall id, kill the process as a f u
             args.syscall_id = 2;
             args.arg0 = i64::MIN as _;
-            (exit(args), "invalid")
+            exit(args);
         }
     };
 
@@ -84,7 +82,7 @@ pub fn log(args: &SyscallRegs) -> u64 {
 ///
 /// # return codes (in syscall_id after returning)
 /// _won't return_
-pub fn exit(args: &SyscallRegs) -> ! {
+pub fn exit(_args: &SyscallRegs) -> ! {
     // TODO: exit code
     hyperion_scheduler::stop();
 }
@@ -101,7 +99,7 @@ pub fn exit(args: &SyscallRegs) -> ! {
 ///
 /// # return codes (in syscall_id after returning)
 ///  - 0 : ok
-pub fn yield_now(args: &SyscallRegs) -> u64 {
+pub fn yield_now(_args: &SyscallRegs) -> u64 {
     hyperion_scheduler::yield_now();
     0
 }
