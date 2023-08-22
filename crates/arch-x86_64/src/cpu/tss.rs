@@ -55,7 +55,7 @@ impl Tss {
     }
 
     fn alloc_stack() -> &'static mut [u8] {
-        pmm::PFA.alloc(1).leak()
+        pmm::PFA.alloc(8).leak()
     }
 }
 
