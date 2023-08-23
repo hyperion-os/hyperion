@@ -15,7 +15,7 @@ pub fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
 pub fn run_tasks() -> ! {
     loop {
         while run_once().is_some() {}
-        // yield_now();
+        yield_now();
     }
 }
 
