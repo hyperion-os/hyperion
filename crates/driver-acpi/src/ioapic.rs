@@ -68,7 +68,7 @@ impl IoApic {
                 error!(
                     "No suitable APICs for handling I/O APIC interrupts, using fallback LAPIC 0"
                 );
-                unsafe { ApicId::new(0) }
+                ApicId::new(0)
             });
 
         self.set_irq(io_apic_irq, io_apic_irq_router, irq);

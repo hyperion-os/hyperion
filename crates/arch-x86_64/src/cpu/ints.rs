@@ -2,7 +2,7 @@ use crossbeam::atomic::AtomicCell;
 use hyperion_log::{error, info, trace};
 use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
 use x86_64::{
-    registers::{control::Cr2, segmentation::GS},
+    registers::control::Cr2,
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
 };
 

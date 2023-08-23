@@ -12,12 +12,8 @@
 
 extern crate alloc;
 
-use core::sync::atomic::{AtomicBool, Ordering};
-
 use hyperion_boot_interface::Cpu;
-use hyperion_drivers::acpi::apic::ApicId;
-use hyperion_log::{debug, error};
-use spin::{Barrier, Once};
+use hyperion_log::error;
 use x86_64::instructions::random::RdRand;
 
 //

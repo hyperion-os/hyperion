@@ -5,7 +5,6 @@ use core::{
 };
 
 use crossbeam::queue::SegQueue;
-use hyperion_boot::cpu_count;
 use hyperion_mem::{pmm, vmm::Privilege};
 use hyperion_scheduler_task::{CleanupTask, Task};
 use spin::Mutex;

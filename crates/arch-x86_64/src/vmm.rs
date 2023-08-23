@@ -107,7 +107,9 @@ fn _crash_after_nth(nth: usize) {
 }
 
 impl PageMapImpl for PageMap {
-    fn page_fault(&self, v_addr: VirtAddr, privilege: Privilege) -> PageFaultResult {
+    fn page_fault(&self, _v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
+        // TODO: lazy allocs
+
         /* if privilege == Privilege::User {
             return PageFaultResult::NotHandled;
         }
@@ -487,7 +489,7 @@ impl PageMap {
     }
 }
 
-fn lazy_map(
+/* fn lazy_map(
     table: &mut OffsetPageTable,
     v_addr: VirtAddr,
     region: Range<VirtAddr>,
@@ -543,7 +545,7 @@ where
     }
 
     PageFaultResult::Handled
-}
+} */
 
 #[derive(Debug)]
 pub enum TryMapSizedError<T: PageSize> {
@@ -612,7 +614,7 @@ where
     let page = Page::<T>::containing_address(start);
 
     match table.unmap(page) {
-        Ok((frame, ok)) => {
+        Ok((_, ok)) => {
             ok.flush();
             Ok(())
         }

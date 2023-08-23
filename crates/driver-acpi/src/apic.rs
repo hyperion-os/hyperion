@@ -112,7 +112,7 @@ pub struct Lapic {
 //
 
 impl ApicId {
-    pub const unsafe fn new(id: u32) -> Self {
+    pub const fn new(id: u32) -> Self {
         Self(id)
     }
 
