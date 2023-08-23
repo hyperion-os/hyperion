@@ -1,40 +1,20 @@
 use crossbeam::atomic::AtomicCell;
 use hyperion_log::{error, info, trace};
+use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
 use x86_64::{
     registers::{control::Cr2, segmentation::GS},
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
+};
+
+use crate::{
+    tls::{interrupt_gs_guard, GsGuard},
+    vmm::PageMap,
 };
 
 //
 
 pub static PAGE_FAULT_HANDLER: AtomicCell<fn(usize, Privilege) -> PageFaultResult> =
     AtomicCell::new(|_, _| PageFaultResult::NotHandled);
-
-//
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Privilege {
-    User,
-    Kernel,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PageFaultResult {
-    Handled,
-    NotHandled,
-}
-
-//
-
-impl PageFaultResult {
-    pub const fn is_handled(self) -> bool {
-        matches!(self, PageFaultResult::Handled)
-    }
-
-    pub const fn is_not_handled(self) -> bool {
-        matches!(self, PageFaultResult::NotHandled)
-    }
-}
 
 //
 
@@ -111,20 +91,23 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
     trace!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
 
     let privilege = if ec.contains(PageFaultErrorCode::USER_MODE) {
-        unsafe { GS::swap() }
         Privilege::User
     } else {
         Privilege::Kernel
     };
 
-    if PAGE_FAULT_HANDLER.load()(addr.as_u64() as _, privilege) == PageFaultResult::NotHandled {
-        error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
-        panic!();
+    let _: GsGuard = unsafe { interrupt_gs_guard(privilege) };
+
+    if PageMap::current().page_fault(addr, privilege) == PageFaultResult::Handled {
+        return;
     }
 
-    if privilege == Privilege::User {
-        unsafe { GS::swap() }
+    if PAGE_FAULT_HANDLER.load()(addr.as_u64() as _, privilege) == PageFaultResult::Handled {
+        return;
     }
+
+    error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+    panic!();
 }
 
 pub extern "x86-interrupt" fn x87_floating_point(stack: InterruptStackFrame) {

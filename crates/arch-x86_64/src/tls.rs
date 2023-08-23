@@ -6,11 +6,14 @@ use core::{
 
 use crossbeam::queue::SegQueue;
 use hyperion_boot::cpu_count;
-use hyperion_mem::pmm;
+use hyperion_mem::{pmm, vmm::Privilege};
 use hyperion_scheduler_task::{CleanupTask, Task};
 use spin::Mutex;
 use x86_64::{
-    registers::model_specific::{GsBase, KernelGsBase},
+    registers::{
+        model_specific::{GsBase, KernelGsBase},
+        segmentation::GS,
+    },
     VirtAddr,
 };
 
@@ -45,6 +48,14 @@ pub fn get() -> &'static ThreadLocalStorage {
     }
 
     unsafe { &*GsBase::read().as_ptr() }
+}
+
+/// # Safety
+///
+/// - has to be called from kernel code
+/// - should be called only once from an interrupt
+pub unsafe fn interrupt_gs_guard(privilege: Privilege) -> GsGuard {
+    GsGuard::new(privilege)
 }
 
 //
@@ -93,6 +104,34 @@ impl ThreadLocalStorage {
                 after_switch: SegQueue::new(),
             }
         )
+    }
+}
+
+//
+
+pub struct GsGuard {
+    privilege: Privilege,
+}
+
+impl GsGuard {
+    /// # Safety
+    ///
+    /// - has to be called from kernel code
+    /// - should be called only once from an interrupt
+    pub unsafe fn new(privilege: Privilege) -> Self {
+        if privilege == Privilege::User {
+            unsafe { GS::swap() }
+        }
+
+        Self { privilege }
+    }
+}
+
+impl Drop for GsGuard {
+    fn drop(&mut self) {
+        if self.privilege == Privilege::User {
+            unsafe { GS::swap() }
+        }
     }
 }
 

@@ -4,7 +4,35 @@ use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Privilege {
+    User,
+    Kernel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PageFaultResult {
+    Handled,
+    NotHandled,
+}
+
+//
+
+impl PageFaultResult {
+    pub const fn is_handled(self) -> bool {
+        matches!(self, PageFaultResult::Handled)
+    }
+
+    pub const fn is_not_handled(self) -> bool {
+        matches!(self, PageFaultResult::NotHandled)
+    }
+}
+
+//
+
 pub trait PageMapImpl {
+    fn page_fault(&self, v_addr: VirtAddr, privilege: Privilege) -> PageFaultResult;
+
     fn current() -> Self;
 
     fn new() -> Self;

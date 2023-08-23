@@ -14,12 +14,12 @@ use core::{
 use crossbeam_queue::SegQueue;
 use hyperion_arch::{
     context::Context,
-    cpu::ints::{self, PageFaultResult, Privilege},
+    cpu::ints,
     stack::{AddressSpace, KernelStack, Stack, UserStack},
     tls,
     vmm::PageMap,
 };
-use hyperion_mem::vmm::PageMapImpl;
+use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
 use hyperion_scheduler_task::{AnyTask, CleanupTask, Task};
 
 //
@@ -61,7 +61,7 @@ impl TaskImpl {
 
         hyperion_log::trace!("new stack");
         let mut kernel_stack = address_space.kernel_stacks.take();
-        kernel_stack.grow(&address_space.page_map, 32).unwrap();
+        kernel_stack.grow(&address_space.page_map, 4).unwrap();
         let stack_top = kernel_stack.top;
         hyperion_log::trace!("stack top: 0x{:0x}", stack_top);
 
@@ -255,7 +255,7 @@ pub fn cleanup() {
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    hyperion_log::debug!("scheduler page fault");
+    // hyperion_log::debug!("scheduler page fault");
 
     let Some(mut current) = swap_current(None) else {
         hyperion_log::debug!("no job");

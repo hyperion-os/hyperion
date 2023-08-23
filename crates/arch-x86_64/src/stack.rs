@@ -1,11 +1,3 @@
-//! The maximum possible stack size is `0x1FF000` (2MiB page - 4KiB page)
-//!
-//! The virtual memory is split like so:
-//!
-//! | name       | virtual memory region                | virtual memory size                |
-//! |------------|--------------------------------------|------------------------------------|
-//! | main stack | `0x7FFF_FFC0_0000..0x8000_0000_0000` | `0x1FF000` (2MiB page - 4KiB page) |
-
 use alloc::{vec, vec::Vec};
 use core::{
     fmt::Debug,
@@ -17,24 +9,25 @@ use core::{
 use crossbeam::queue::SegQueue;
 use hyperion_mem::{
     pmm::{self, PageFrame},
-    vmm::PageMapImpl,
+    vmm::{PageFaultResult, PageMapImpl},
 };
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
-use crate::{cpu::ints::PageFaultResult, vmm::PageMap};
+use crate::vmm::PageMap;
 
 //
 
 /// the first frame of the stack
 pub const USER_STACK_TOP: u64 = 0x7FFF_FFFF_F000; // 0x8000_0000_0000;
 
-pub const VIRTUAL_STACK_PAGES: u64 = 512;
-pub const VIRTUAL_STACK_SIZE: u64 = 0x1000 * VIRTUAL_STACK_PAGES; // 2MiB (contains the 4KiB guard page)
+pub const VIRT_STACK_PAGES: u64 = 512;
+pub const VIRT_STACK_SIZE: u64 = 0x1000 * VIRT_STACK_PAGES; // 2MiB (contains the 4KiB guard page)
+pub const VIRT_STACK_SIZE_ALL: u64 = VIRT_STACK_SIZE * MAX_STACK_COUNT;
 
 /// also the max thread count per process
 pub const MAX_STACK_COUNT: u64 = 0x1000;
 
-pub const USER_HEAP_TOP: u64 = USER_STACK_TOP - VIRTUAL_STACK_SIZE * MAX_STACK_COUNT;
+pub const USER_HEAP_TOP: u64 = USER_STACK_TOP - VIRT_STACK_SIZE * MAX_STACK_COUNT;
 
 //
 
@@ -104,10 +97,10 @@ impl<T: StackType + Debug> Stacks<T> {
     }
 
     pub fn take(&self) -> Stack<T> {
-        let top = self.free_stacks.pop().unwrap_or_else(|| {
-            self.next_stack
-                .fetch_add(VIRTUAL_STACK_SIZE, Ordering::SeqCst)
-        });
+        let top = self
+            .free_stacks
+            .pop()
+            .unwrap_or_else(|| self.next_stack.fetch_add(VIRT_STACK_SIZE, Ordering::SeqCst));
 
         if top <= self.limit {
             todo!("recover from reached stack limit");
@@ -179,11 +172,11 @@ pub struct StackLimitHit;
 
 impl<T: StackType + Debug> Stack<T> {
     pub fn new(top: VirtAddr) -> Self {
-        Self::with_limit(top, VIRTUAL_STACK_PAGES)
+        Self::with_limit(top, VIRT_STACK_PAGES)
     }
 
     pub fn with_limit(top: VirtAddr, mut limit_4k_pages: u64) -> Self {
-        limit_4k_pages = limit_4k_pages.min(VIRTUAL_STACK_PAGES);
+        limit_4k_pages = limit_4k_pages.min(VIRT_STACK_PAGES);
 
         Self {
             extent_4k_pages: 0,

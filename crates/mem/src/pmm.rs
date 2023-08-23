@@ -2,6 +2,7 @@
 //!
 //! Page frame allocating
 
+use alloc::vec::Vec;
 use core::{
     alloc::{AllocError, Allocator, Layout},
     fmt,
@@ -17,7 +18,7 @@ use hyperion_boot_interface::Memmap;
 use hyperion_log::debug;
 use hyperion_num_postfix::NumberPostfix;
 use spin::{Lazy, Mutex};
-use x86_64::{align_up, PhysAddr, VirtAddr};
+use x86_64::{align_up, structures::paging::PhysFrame, PhysAddr, VirtAddr};
 
 use super::{from_higher_half, to_higher_half};
 
@@ -101,13 +102,19 @@ impl PageFrameAllocator {
     /// Alloc pages
     ///
     /// Use [`Self::free`] to not leak pages (-> memory)
+    // #[track_caller]
     pub fn alloc(&self, count: usize) -> PageFrame {
         if count == 0 {
             return PageFrame {
                 first: PhysAddr::new(0),
                 count: 0,
             };
-        }
+        };
+
+        /* hyperion_log::debug!(
+            "allocating {count} pages (from {})",
+            core::panic::Location::caller()
+        ); */
 
         let mut bitmap = self.bitmap.lock();
 
@@ -135,6 +142,28 @@ impl PageFrameAllocator {
         self.used.fetch_add(count * PAGE_SIZE, Ordering::SeqCst);
 
         PageFrame { first: addr, count }
+    }
+
+    pub fn allocations(&self) -> impl Iterator<Item = PhysFrame> {
+        let bitmap = self.bitmap.lock();
+        let bits = bitmap.len();
+        drop(bitmap);
+
+        let mut data = Vec::with_capacity(bits / 8);
+
+        let bitmap = self.bitmap.lock();
+        data.extend(bitmap.iter_bytes());
+
+        data.into_iter()
+            .enumerate()
+            .filter(|(_, byte)| *byte != 0)
+            .flat_map(|(i, byte)| {
+                (0..8)
+                    .enumerate()
+                    .filter(move |(_, bit)| byte & (1 << *bit) != 0)
+                    .map(move |(j, _)| i * 8 + j)
+            })
+            .map(|i| PhysFrame::containing_address(PhysAddr::new(i as u64 * 0x1000)))
     }
 
     fn alloc_from(&self, index: usize) {
