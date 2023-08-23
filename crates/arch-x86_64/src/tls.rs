@@ -43,9 +43,10 @@ pub fn init(tls: &'static ThreadLocalStorage) {
 }
 
 pub fn get() -> &'static ThreadLocalStorage {
-    if INITIALIZED.load(Ordering::Acquire) != cpu_count() {
+    // TODO: unsafe
+    /* if INITIALIZED.load(Ordering::Acquire) != cpu_count() {
         panic!("TLS was not initialized for every CPU");
-    }
+    } */
 
     unsafe { &*GsBase::read().as_ptr() }
 }
