@@ -3,17 +3,12 @@
 //
 
 use hyperion_clock::ClockSource;
-use hyperion_driver_pic::PICS;
-use spin::{Lazy, Mutex};
+use spin::Mutex;
 use x86_64::instructions::port::Port;
 
 //
 
-pub static PIT: Lazy<Pit> = Lazy::new(|| {
-    // dependencies
-    Lazy::force(&PICS);
-    Pit::new()
-});
+pub static PIT: Pit = Pit::new();
 
 // static PIT_CLOCK: AtomicUsize = AtomicUsize::new(0);
 
