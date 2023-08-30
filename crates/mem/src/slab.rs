@@ -31,7 +31,7 @@ use super::{
 //
 
 pub struct SlabAllocator {
-    slabs: [(RwLock<Slab>, usize); 11],
+    slabs: [(RwLock<Slab>, usize); 13],
     stats: SlabAllocatorStats,
 }
 
@@ -67,6 +67,8 @@ impl SlabAllocator {
                 Self::new_slab(8, 256),
                 Self::new_slab(9, 384),
                 Self::new_slab(10, 512),
+                Self::new_slab(11, 768),
+                Self::new_slab(12, 1024),
             ],
 
             stats: SlabAllocatorStats {
@@ -191,7 +193,9 @@ impl Slab {
     }
 
     pub fn next_block(&mut self, stats: &SlabAllocatorStats) -> VirtAddr {
+        // hyperion_log::trace!("allocating {}", self.size);
         if !self.next.is_null() {
+            // hyperion_log::trace!("using a preallocated slab");
             return self.next;
         }
 
