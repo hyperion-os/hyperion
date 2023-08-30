@@ -52,6 +52,8 @@ impl IoApic {
     }
 
     pub fn init(IoApicInfo { addr, .. }: IoApicInfo) -> Self {
+        hyperion_log::trace!("I/O APIC init");
+
         let addr = to_higher_half(PhysAddr::new(addr as u64));
 
         Self {
