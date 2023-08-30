@@ -123,6 +123,10 @@ pub fn reset() -> ! {
 
 /// switch to another thread
 pub fn yield_now() {
+    let Some(next) = next_task() else {
+        // no other tasks, don't switch
+        return;
+    };
     let Some(mut current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
@@ -139,7 +143,7 @@ pub fn yield_now() {
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
-        block(context);
+        block(context, next);
     }
 }
 
@@ -149,6 +153,9 @@ pub fn stop() -> ! {
     // hyperion_log::debug!("stop");
 
     // TODO: running out stack space after taking the task doesnt allow the stack to grow
+    let Some(next) = next_task() else {
+        todo!("no tasks, shutdown");
+    };
     let Some(mut current) = swap_current(None) else {
         unreachable!("cannot stop a task that doesn't exist")
     };
@@ -165,7 +172,7 @@ pub fn stop() -> ! {
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
-        block(context);
+        block(context, next);
     }
 
     unreachable!("a destroyed thread cannot continue executing");
@@ -190,9 +197,7 @@ pub fn swap_current(mut new: Option<Task>) -> Option<Task> {
 /// # Safety
 ///
 /// `current` must be correct and point to a valid exclusive [`Context`]
-pub unsafe fn block(current: *mut Context) {
-    let mut next = next_task();
-
+pub unsafe fn block(current: *mut Context, mut next: Task) {
     let Some(task): Option<&mut TaskImpl> = next.as_any().downcast_mut() else {
         unreachable!("the task was from another scheduler")
     };
@@ -211,7 +216,7 @@ pub unsafe fn block(current: *mut Context) {
     cleanup();
 }
 
-pub fn next_task() -> Task {
+pub fn next_task_wait() -> Task {
     // loop {
     for _ in 0..1000 {
         if let Some(next) = READY.pop() {
@@ -224,6 +229,10 @@ pub fn next_task() -> Task {
     // give up and run a none task
     hyperion_log::debug!("no jobs");
     Box::new(TaskImpl::new(|| {}))
+}
+
+pub fn next_task() -> Option<Task> {
+    READY.pop()
 }
 
 pub fn cleanup() {
