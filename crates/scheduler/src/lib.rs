@@ -183,11 +183,11 @@ pub fn spawn(f: impl FnOnce() + Send + 'static) {
 }
 
 /// schedule
-pub fn schedule(new: Task) {
+fn schedule(new: Task) {
     READY.push(new);
 }
 
-pub fn swap_current(mut new: Option<Task>) -> Option<Task> {
+fn swap_current(mut new: Option<Task>) -> Option<Task> {
     // let mut active = ACTIVE.lock();
     let mut active = tls::get().active.lock();
     swap(&mut new, &mut active);
@@ -197,7 +197,7 @@ pub fn swap_current(mut new: Option<Task>) -> Option<Task> {
 /// # Safety
 ///
 /// `current` must be correct and point to a valid exclusive [`Context`]
-pub unsafe fn block(current: *mut Context, mut next: Task) {
+unsafe fn block(current: *mut Context, mut next: Task) {
     let Some(task): Option<&mut TaskImpl> = next.as_any().downcast_mut() else {
         unreachable!("the task was from another scheduler")
     };
@@ -216,26 +216,11 @@ pub unsafe fn block(current: *mut Context, mut next: Task) {
     cleanup();
 }
 
-pub fn next_task_wait() -> Task {
-    // loop {
-    for _ in 0..1000 {
-        if let Some(next) = READY.pop() {
-            return next;
-        }
-
-        // TODO: halt until the next task arrives
-    }
-
-    // give up and run a none task
-    hyperion_log::debug!("no jobs");
-    Box::new(TaskImpl::new(|| {}))
-}
-
-pub fn next_task() -> Option<Task> {
+fn next_task() -> Option<Task> {
     READY.pop()
 }
 
-pub fn cleanup() {
+fn cleanup() {
     // let after = AFTER.lock();
     let after = &tls::get().after_switch;
 
@@ -325,13 +310,6 @@ extern "sysv64" fn thread_entry() -> ! {
         };
         swap_current(Some(current));
         job();
-
-        /* #[allow(unconditional_recursion)]
-        fn stack_overflow() {
-            core::hint::black_box(stack_overflow)();
-        }
-
-        stack_overflow(); */
     }
     stop();
 }
