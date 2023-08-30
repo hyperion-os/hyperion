@@ -35,8 +35,14 @@ pub async fn kshell() {
 
     shell.init();
     while let Some(ev) = KeyboardEvents.next().await {
-        shell.input(ev).await;
+        if shell.input(ev).await.is_none() {
+            break;
+        }
     }
+
+    let mut term = shell.into_inner();
+    term.clear();
+    term.flush();
 }
 
 pub async fn spinner() {

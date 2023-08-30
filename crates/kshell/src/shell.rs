@@ -45,25 +45,34 @@ impl Shell {
         }
     }
 
+    pub fn into_inner(self) -> Term {
+        self.term
+    }
+
     pub fn init(&mut self) {
         _ = self.splash_cmd(None);
         self.prompt();
         self.term.flush();
     }
 
-    pub async fn input(&mut self, ev: KeyboardEvent) {
+    pub async fn input(&mut self, ev: KeyboardEvent) -> Option<()> {
         let cmdbuf = self.cmdbuf.clone();
         let mut cmdbuf = cmdbuf.lock();
 
         let Some(ev) = ev.unicode else {
-            return;
+            return Some(());
         };
 
         if ev == '\n' {
             _ = writeln!(self.term);
-            if let Err(err) = self.run_line(&cmdbuf).await {
-                _ = writeln!(self.term, "{err}");
-            };
+            match self.run_line(&cmdbuf).await {
+                Ok(v) => {
+                    _ = v?;
+                }
+                Err(err) => {
+                    _ = writeln!(self.term, "{err}");
+                }
+            }
             self.last.clear();
             _ = write!(self.last, "{cmdbuf}");
             cmdbuf.clear();
@@ -95,13 +104,15 @@ impl Shell {
         }
 
         self.term.flush();
+
+        Some(())
     }
 
     fn prompt(&mut self) {
         _ = write!(self.term, "\n[kshell {}]# ", self.current_dir.as_str());
     }
 
-    async fn run_line(&mut self, line: &str) -> Result<()> {
+    async fn run_line(&mut self, line: &str) -> Result<Option<()>> {
         let (cmd, args) = line
             .split_once(' ')
             .map(|(cmd, args)| (cmd, Some(args)))
@@ -125,6 +136,7 @@ impl Shell {
             "modeltest" => self.modeltest_cmd(args).await?,
             "run" => self.run_cmd(args)?,
             "lapic_id" => self.lapic_id_cmd(args)?,
+            "exit" => return Ok(None),
             "clear" => {
                 self.term.clear();
             }
@@ -135,7 +147,7 @@ impl Shell {
             }
         }
 
-        Ok(())
+        Ok(Some(()))
     }
 
     fn splash_cmd(&mut self, _: Option<&str>) -> Result<()> {
@@ -377,7 +389,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, exit, clear");
 
         Ok(())
     }
