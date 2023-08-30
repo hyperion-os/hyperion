@@ -8,6 +8,7 @@ use core::{
     any::Any,
     cell::UnsafeCell,
     mem::swap,
+    ops::{Deref, DerefMut},
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -31,11 +32,6 @@ pub mod keyboard;
 pub mod process;
 pub mod task;
 pub mod timer;
-
-//
-
-// static ACTIVE: Lazy<ApicTls<Option<Task>>> = Lazy::new(|| ApicTls::new(|| None));
-// static AFTER: Lazy<ApicTls<SegQueue<CleanupTask>>> = Lazy::new(|| ApicTls::new(SegQueue::new));
 
 //
 
@@ -137,8 +133,7 @@ pub fn yield_now() {
     let context = task.context.get();
 
     // push the current thread back to the ready queue AFTER switching
-    // AFTER.lock().push(CleanupTask::Ready(current));
-    tls::get().after_switch.push(CleanupTask::Ready(current));
+    after().push(CleanupTask::Ready(current));
 
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
@@ -166,8 +161,7 @@ pub fn stop() -> ! {
     let context = task.context.get();
 
     // push the current thread to the drop queue AFTER switching
-    // AFTER.lock().push(CleanupTask::Drop(current));
-    tls::get().after_switch.push(CleanupTask::Drop(current));
+    after().push(CleanupTask::Drop(current));
 
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
@@ -188,9 +182,7 @@ fn schedule(new: Task) {
 }
 
 fn swap_current(mut new: Option<Task>) -> Option<Task> {
-    // let mut active = ACTIVE.lock();
-    let mut active = tls::get().active.lock();
-    swap(&mut new, &mut active);
+    swap(&mut new, &mut active());
     new
 }
 
@@ -203,8 +195,7 @@ unsafe fn block(current: *mut Context, mut next: Task) {
     };
     let context = task.context.get();
 
-    // AFTER.lock().push(CleanupTask::Next(next));
-    tls::get().after_switch.push(CleanupTask::Next(next));
+    after().push(CleanupTask::Next(next));
 
     // SAFETY: `next` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
@@ -221,8 +212,7 @@ fn next_task() -> Option<Task> {
 }
 
 fn cleanup() {
-    // let after = AFTER.lock();
-    let after = &tls::get().after_switch;
+    let after = after();
 
     while let Some(next) = after.pop() {
         match next {
@@ -246,6 +236,19 @@ fn cleanup() {
             }
         };
     }
+}
+
+fn active() -> impl DerefMut<Target = Option<Task>> {
+    /* static ACTIVE: Lazy<ApicTls<Mutex<Option<Task>>>> =
+        Lazy::new(|| ApicTls::new(|| Mutex::new(None)));
+    ACTIVE.lock() */
+    tls::get().active.lock()
+}
+
+fn after() -> impl Deref<Target = SegQueue<CleanupTask>> {
+    /* static AFTER: Lazy<ApicTls<SegQueue<CleanupTask>>> = Lazy::new(|| ApicTls::new(SegQueue::new));
+    Lazy::force(&AFTER).deref() */
+    &tls::get().after_switch
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
