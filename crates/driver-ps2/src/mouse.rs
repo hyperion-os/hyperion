@@ -9,6 +9,8 @@ use x86_64::instructions::port::Port;
 pub fn init() {
     static ONCE: AtomicBool = AtomicBool::new(true);
     if ONCE.swap(false, Ordering::SeqCst) {
+        hyperion_log::trace!("PS/2 mouse init");
+
         if let Some(mut io_apic) = IoApic::any() {
             let irq = hyperion_interrupts::set_any_interrupt_handler(
                 |irq| irq >= 0x20,
