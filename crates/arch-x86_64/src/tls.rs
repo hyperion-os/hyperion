@@ -1,7 +1,9 @@
+use alloc::boxed::Box;
 use core::{
     mem::MaybeUninit,
+    ops::Deref,
     ptr::{addr_of_mut, null_mut},
-    sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicPtr, AtomicUsize, Ordering},
 };
 
 use crossbeam::queue::SegQueue;
@@ -15,6 +17,30 @@ use x86_64::{
     },
     VirtAddr,
 };
+
+use crate::{cpu_count, cpu_id};
+
+//
+
+pub struct Tls<T: 'static> {
+    inner: Box<[T]>,
+}
+
+impl<T: 'static> Tls<T> {
+    pub fn new(mut f: impl FnMut() -> T) -> Self {
+        Self {
+            inner: (0..cpu_count()).map(|_| f()).collect(),
+        }
+    }
+}
+
+impl<T: 'static> Deref for Tls<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner[cpu_id()]
+    }
+}
 
 //
 
@@ -47,7 +73,20 @@ pub fn get() -> &'static ThreadLocalStorage {
         panic!("TLS was not initialized for every CPU");
     } */
 
-    unsafe { &*GsBase::read().as_ptr() }
+    let tls = GsBase::read();
+
+    assert_ne!(tls.as_u64(), 0);
+
+    unsafe { &*tls.as_ptr() }
+}
+
+pub fn dbg() {
+    let gs = GsBase::read();
+    hyperion_log::debug!("GS:{gs:016x}");
+    unsafe { GS::swap() }
+    let gs = GsBase::read();
+    hyperion_log::debug!("GSSWAP:{gs:016x}");
+    unsafe { GS::swap() }
 }
 
 /// # Safety
@@ -68,6 +107,7 @@ pub struct ThreadLocalStorage {
     pub kernel_stack: AtomicPtr<u8>,
     pub active: Mutex<Option<Task>>,
     pub after_switch: SegQueue<CleanupTask>,
+    pub can_yield: AtomicBool,
 }
 
 macro_rules! uninit_write_fields {
@@ -102,6 +142,7 @@ impl ThreadLocalStorage {
                 kernel_stack: AtomicPtr::new(null_mut()),
                 active: Mutex::new(None),
                 after_switch: SegQueue::new(),
+                can_yield: AtomicBool::new(false),
             }
         )
     }
@@ -120,6 +161,7 @@ impl GsGuard {
     /// - should be called only once from an interrupt
     pub unsafe fn new(privilege: Privilege) -> Self {
         if privilege == Privilege::User {
+            // hyperion_log::debug!("gsswap");
             unsafe { GS::swap() }
         }
 
@@ -130,6 +172,7 @@ impl GsGuard {
 impl Drop for GsGuard {
     fn drop(&mut self) {
         if self.privilege == Privilege::User {
+            // hyperion_log::debug!("drop gsswap");
             unsafe { GS::swap() }
         }
     }

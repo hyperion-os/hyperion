@@ -333,6 +333,7 @@ name = "hyperion-driver-acpi"
 version = "0.1.0"
 dependencies = [
  "bit_field",
+ "crossbeam",
  "hyperion-atomic-map",
  "hyperion-boot",
  "hyperion-boot-interface",
@@ -621,6 +622,7 @@ name = "hyperion-sample-elf"
 version = "0.1.0"
 dependencies = [
  "hyperion-syscall",
+ "x86_64",
 ]
 
 [[package]]
@@ -632,6 +634,7 @@ dependencies = [
  "hyperion-arch",
  "hyperion-clock",
  "hyperion-color",
+ "hyperion-driver-acpi",
  "hyperion-instant",
  "hyperion-int-safe-lazy",
  "hyperion-keyboard",

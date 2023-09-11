@@ -96,7 +96,7 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
         Privilege::Kernel
     };
 
-    let _: GsGuard = unsafe { interrupt_gs_guard(privilege) };
+    let g: GsGuard = unsafe { interrupt_gs_guard(privilege) };
 
     if PageMap::current().page_fault(addr, privilege) == PageFaultResult::Handled {
         return;
@@ -105,6 +105,8 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
     if PAGE_FAULT_HANDLER.load()(addr.as_u64() as _, privilege) == PageFaultResult::Handled {
         return;
     }
+
+    drop(g);
 
     error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
     panic!();
@@ -149,7 +151,10 @@ pub extern "x86-interrupt" fn security_exception(stack: InterruptStackFrame, ec:
 
 pub mod other {
     use hyperion_interrupts::interrupt_handler;
+    use hyperion_mem::vmm::Privilege;
     use x86_64::structures::idt::InterruptStackFrame;
+
+    use crate::tls::{interrupt_gs_guard, GsGuard};
 
     hyperion_macros::gen_int_handlers!("x86-interrupt");
 }

@@ -1,4 +1,4 @@
-use core::arch::asm;
+use core::{arch::asm, fmt};
 
 use crossbeam::atomic::AtomicCell;
 use memoffset::offset_of;
@@ -70,6 +70,17 @@ pub struct SyscallRegs {
     pub user_stack_ptr: u64, // rsp
 }
 
+impl fmt::Display for SyscallRegs {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "syscall: {}, args: {:?}",
+            self.syscall_id,
+            (self.arg0, self.arg1, self.arg2, self.arg3, self.arg4)
+        )
+    }
+}
+
 //
 
 /// # Safety
@@ -84,7 +95,7 @@ pub unsafe extern "sysv64" fn userland(_instr_ptr: VirtAddr, _stack_ptr: VirtAdd
     // rdi = _instr_ptr
     // rsi = _stack_ptr
     asm!(
-        "cli",
+        // "cli",
         "swapgs",
         "mov rcx, rdi", // RDI = _instr_ptr
         "mov rsp, rsi", // RSI = _stack_ptr
@@ -108,7 +119,7 @@ pub unsafe extern "sysv64" fn userland(_instr_ptr: VirtAddr, _stack_ptr: VirtAdd
         "xor r15, r15",
         // "call {halt}",
         "sysretq",
-        rflags = const(RFlags::INTERRUPT_FLAG.bits() /* | RFlags::TRAP_FLAG.bits() */),
+        rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
         options(noreturn)
     )
 }
@@ -123,7 +134,7 @@ unsafe extern "C" fn syscall_wrapper() {
     // rsp = user stack
     // r11 = rflags
     asm!(
-
+        "cli",
         "swapgs", // swap gs and kernelgs to open up a few temporary data locations
         "mov gs:{user_stack}, rsp",   // backup the user stack
         "mov rsp, gs:{kernel_stack}", // switch to the kernel stack

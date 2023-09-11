@@ -12,9 +12,11 @@
 
 extern crate alloc;
 
+use core::sync::atomic::{AtomicUsize, Ordering};
+
 use hyperion_boot_interface::Cpu;
 use hyperion_log::error;
-use x86_64::instructions::random::RdRand;
+use x86_64::{instructions::random::RdRand, registers::model_specific::Msr};
 
 //
 
@@ -29,16 +31,28 @@ pub mod vmm;
 
 //
 
+pub const IA32_TSC_AUX: u32 = 0xC0000103;
+
+//
+
 pub fn early_boot_cpu() {
     int::disable();
+
     cpu::init(&hyperion_boot::boot_cpu());
-    int::enable();
+
+    // int::enable();
 }
 
 /// every LAPIC is initialized after any CPU can exit this function call
 ///
 /// [`early_boot_cpu`] should have been called already
 pub fn early_per_cpu(cpu: &Cpu) {
+    static CPU_ID_GEN: AtomicUsize = AtomicUsize::new(0);
+    let cpu_id = CPU_ID_GEN.fetch_add(1, Ordering::Relaxed);
+    unsafe {
+        set_cpu_id(cpu_id);
+    }
+
     int::disable();
 
     if !cpu.is_boot() {
@@ -48,7 +62,24 @@ pub fn early_per_cpu(cpu: &Cpu) {
 
     hyperion_drivers::acpi::init();
 
-    int::enable();
+    // int::enable();
+}
+
+pub fn cpu_count() -> usize {
+    hyperion_boot::cpu_count()
+}
+
+pub fn cpu_id() -> usize {
+    let tsc = Msr::new(IA32_TSC_AUX);
+    unsafe { tsc.read() as _ }
+}
+
+/// # Safety
+///
+/// id's should be unique to each CPU
+pub unsafe fn set_cpu_id(id: usize) {
+    let mut tsc = Msr::new(IA32_TSC_AUX);
+    unsafe { tsc.write(id as _) }
 }
 
 pub fn rng_seed() -> u64 {

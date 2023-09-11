@@ -53,6 +53,8 @@ impl Shell {
         _ = self.splash_cmd(None);
         self.prompt();
         self.term.flush();
+
+        self.run_cmd(None);
     }
 
     pub async fn input(&mut self, ev: KeyboardEvent) -> Option<()> {

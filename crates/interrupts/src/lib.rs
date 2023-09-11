@@ -18,7 +18,7 @@ pub static INT_HANDLERS: [IntHandler; INT_COUNT] = array![IntHandler::new(); 224
 
 //
 
-pub fn set_any_interrupt_handler(can_use: impl Fn(u8) -> bool, f: fn()) -> Option<u8> {
+pub fn set_any_interrupt_handler(can_use: impl Fn(u8) -> bool, f: fn(u8)) -> Option<u8> {
     for irq in 0x20u8..=0xFF {
         if !can_use(irq) {
             continue;
@@ -32,11 +32,11 @@ pub fn set_any_interrupt_handler(can_use: impl Fn(u8) -> bool, f: fn()) -> Optio
     None
 }
 
-pub fn set_interrupt_handler_if_free(irq: u8, f: fn()) -> bool {
+pub fn set_interrupt_handler_if_free(irq: u8, f: fn(u8)) -> bool {
     handler(irq).store_if_free(f)
 }
 
-pub fn set_interrupt_handler(irq: u8, f: fn()) {
+pub fn set_interrupt_handler(irq: u8, f: fn(u8)) {
     handler(irq).store(f)
 }
 
@@ -46,8 +46,8 @@ pub fn handler(irq: u8) -> &'static IntHandler {
 
 pub fn interrupt_handler(irq: u8) {
     // debug!("interrupt {irq}");
-    INT_HANDLERS[irq as usize - 0x20].load()();
-    end_of_interrupt(irq);
+    INT_HANDLERS[irq as usize - 0x20].load()(irq);
+    // end_of_interrupt(irq);
 }
 
 pub fn end_of_interrupt(irq: u8) {
@@ -61,7 +61,9 @@ pub fn end_of_interrupt(irq: u8) {
     } */
 }
 
-pub const fn default_handler() {}
+pub fn default_handler(irq: u8) {
+    end_of_interrupt(irq)
+}
 
 //
 
@@ -80,7 +82,7 @@ pub enum IntController {
 
 pub struct IntHandler {
     free: AtomicBool,
-    f: AtomicCell<fn()>,
+    f: AtomicCell<fn(u8)>,
 }
 
 //
@@ -93,7 +95,7 @@ impl IntHandler {
         }
     }
 
-    pub fn store_if_free(&self, new: fn()) -> bool {
+    pub fn store_if_free(&self, new: fn(u8)) -> bool {
         let stored = self.free.swap(false, Ordering::SeqCst);
         if stored {
             self.f.store(new);
@@ -101,12 +103,12 @@ impl IntHandler {
         stored
     }
 
-    pub fn store(&self, new: fn()) {
+    pub fn store(&self, new: fn(u8)) {
         self.free.store(false, Ordering::SeqCst);
         self.f.store(new);
     }
 
-    pub fn load(&self) -> fn() {
+    pub fn load(&self) -> fn(u8) {
         self.f.load()
     }
 }

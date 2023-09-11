@@ -3,13 +3,13 @@
 
 //
 
-use alloc::{boxed::Box, sync::Arc};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 use core::{
     any::Any,
     cell::UnsafeCell,
     mem::swap,
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 use crossbeam_queue::SegQueue;
@@ -17,11 +17,12 @@ use hyperion_arch::{
     context::Context,
     cpu::ints,
     stack::{AddressSpace, KernelStack, Stack, UserStack},
-    tls,
+    tls::{self, Tls},
     vmm::PageMap,
 };
 use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
 use hyperion_scheduler_task::{AnyTask, CleanupTask, Task};
+use spin::{Lazy, Mutex};
 
 //
 
@@ -110,7 +111,13 @@ pub static READY: SegQueue<Task> = SegQueue::new();
 
 /// reset this processors scheduling
 pub fn reset() -> ! {
+    hyperion_arch::int::disable();
+
     ints::PAGE_FAULT_HANDLER.store(page_fault_handler);
+    hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(yield_now);
+    /* hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| {
+        hyperion_arch::dbg_cpu();
+    }); */
 
     let boot: Task = Box::new(TaskImpl::new(|| {}));
     swap_current(Some(boot));
@@ -118,11 +125,36 @@ pub fn reset() -> ! {
 }
 
 /// switch to another thread
+#[track_caller]
 pub fn yield_now() {
+    // hyperion_log::debug!("yield_now");
+    /* let is_apic = !core::panic::Location::caller().file().contains("exec");
+    if is_apic {
+        hyperion_log::debug!("{}", core::panic::Location::caller());
+        hyperion_log::debug!("yield_now, ints?: {}", hyperion_arch::int::are_enabled());
+        tls::dbg();
+        hyperion_log::debug!("yield_now, ints?: {}", hyperion_arch::int::are_enabled());
+    } */
+    if !can_yield().swap(false, Ordering::Acquire) {
+        /* if is_apic {
+            hyperion_log::debug!("cannot yield");
+        } */
+        return;
+    }
+    /* if is_apic {
+        hyperion_log::debug!("continue");
+    } */
     let Some(next) = next_task() else {
+        can_yield().store(true, Ordering::Release);
+        /* if is_apic {
+            hyperion_log::debug!("no tasks");
+        } */
         // no other tasks, don't switch
         return;
     };
+    /* if is_apic {
+        hyperion_log::debug!("continue");
+    } */
     let Some(mut current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
@@ -138,6 +170,7 @@ pub fn yield_now() {
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
+        // hyperion_log::debug!("switch");
         block(context, next);
     }
 }
@@ -145,6 +178,7 @@ pub fn yield_now() {
 /// destroy the current thread
 /// and switch to another thread
 pub fn stop() -> ! {
+    can_yield().store(false, Ordering::SeqCst);
     // hyperion_log::debug!("stop");
 
     // TODO: running out stack space after taking the task doesnt allow the stack to grow
@@ -158,6 +192,7 @@ pub fn stop() -> ! {
     let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
         unreachable!("the task was from another scheduler")
     };
+    task.debug();
     let context = task.context.get();
 
     // push the current thread to the drop queue AFTER switching
@@ -201,6 +236,7 @@ unsafe fn block(current: *mut Context, mut next: Task) {
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
         // hyperion_log::debug!("CONTEXT SWITCH");
+        can_yield().store(true, Ordering::SeqCst);
         hyperion_arch::context::switch(current, context);
     }
 
@@ -238,17 +274,37 @@ fn cleanup() {
     }
 }
 
+struct SchedulerTls {
+    active: Mutex<Option<Task>>,
+    after: SegQueue<CleanupTask>,
+    can_yield: AtomicBool,
+}
+
+static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
+    Tls::new(|| SchedulerTls {
+        active: Mutex::new(None),
+        after: SegQueue::new(),
+        can_yield: AtomicBool::new(false),
+    })
+});
+
+fn can_yield() -> &'static AtomicBool {
+    &TLS.can_yield
+}
+
 fn active() -> impl DerefMut<Target = Option<Task>> {
+    TLS.active.lock()
     /* static ACTIVE: Lazy<ApicTls<Mutex<Option<Task>>>> =
         Lazy::new(|| ApicTls::new(|| Mutex::new(None)));
     ACTIVE.lock() */
-    tls::get().active.lock()
+    // tls::get().active.lock()
 }
 
 fn after() -> impl Deref<Target = SegQueue<CleanupTask>> {
+    &TLS.after
     /* static AFTER: Lazy<ApicTls<SegQueue<CleanupTask>>> = Lazy::new(|| ApicTls::new(SegQueue::new));
     Lazy::force(&AFTER).deref() */
-    &tls::get().after_switch
+    // &tls::get().after_switch
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
@@ -312,6 +368,7 @@ extern "sysv64" fn thread_entry() -> ! {
             unreachable!("cannot run a task that already ran")
         };
         swap_current(Some(current));
+        tls::get().can_yield.store(true, Ordering::SeqCst);
         job();
     }
     stop();

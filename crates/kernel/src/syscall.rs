@@ -5,7 +5,7 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
-    // hyperion_log::debug!("got syscall with args: {args:#?}");
+    // hyperion_log::debug!("got syscall with args: {args}");
 
     let id = args.syscall_id;
     let (result, name): (u64, &str) = match id {

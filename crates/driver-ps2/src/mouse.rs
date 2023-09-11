@@ -2,6 +2,7 @@ use core::sync::atomic::{AtomicBool, AtomicI16, AtomicI8, Ordering};
 
 use crossbeam::atomic::AtomicCell;
 use hyperion_driver_acpi::ioapic::IoApic;
+use hyperion_interrupts::end_of_interrupt;
 use x86_64::instructions::port::Port;
 
 //
@@ -14,7 +15,7 @@ pub fn init() {
         if let Some(mut io_apic) = IoApic::any() {
             let irq = hyperion_interrupts::set_any_interrupt_handler(
                 |irq| irq >= 0x20,
-                || {
+                |irq| {
                     /* hyperion_log::debug!(
                         "avail?: {}",
                         unsafe { Port::<u8>::new(0x64).read() } & 0b1
@@ -42,6 +43,7 @@ pub fn init() {
                             // TODO: provide mouse event
                         }
                     }
+                    end_of_interrupt(irq);
                 },
             )
             .expect("No room for PS/2 mouse irq");

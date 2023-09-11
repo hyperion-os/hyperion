@@ -12,6 +12,7 @@ use core::{
 
 use bit_field::BitField;
 use hyperion_clock::ClockSource;
+use hyperion_interrupts::end_of_interrupt;
 use hyperion_log::{debug, trace, warn};
 use hyperion_mem::to_higher_half;
 use hyperion_timer::provide_sleep_wake;
@@ -336,9 +337,10 @@ impl TimerN {
         if let Some(mut ioapic) = IoApic::any() {
             let hpet_irq = hyperion_interrupts::set_any_interrupt_handler(
                 |irq| (0x30..=0xFF).contains(&irq),
-                || {
+                |irq| {
                     // HPET interrupt
                     HPET.int_ack();
+                    end_of_interrupt(irq);
                 },
             )
             .expect("No avail HPET IRQ");

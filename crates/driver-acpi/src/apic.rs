@@ -1,8 +1,9 @@
 use alloc::boxed::Box;
 use core::ops::Deref;
 
+use crossbeam::atomic::AtomicCell;
 use hyperion_atomic_map::AtomicMap;
-use hyperion_interrupts::{IntController, INT_CONTROLLER, INT_EOI_HANDLER};
+use hyperion_interrupts::{end_of_interrupt, IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
 use hyperion_mem::to_higher_half;
 use spin::{Lazy, RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -12,7 +13,11 @@ use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
 
 //
 
+pub static APIC_TIMER_HANDLER: AtomicCell<fn()> = AtomicCell::new(|| {});
+
 pub const IRQ_APIC_SPURIOUS: u8 = 0xFF;
+pub const APIC_CALIBRATION_MICROS: u16 = 10_000;
+pub const APIC_PERIOD_MULT: u32 = 1;
 
 //
 
@@ -48,9 +53,10 @@ impl<T: 'static> Deref for ApicTls<T> {
 
 // enable APIC for this processor
 pub fn enable() {
-    hyperion_interrupts::set_interrupt_handler(IRQ_APIC_SPURIOUS, || {
+    hyperion_interrupts::set_interrupt_handler(IRQ_APIC_SPURIOUS, |irq| {
         // apic spurious interrupt
         // spurdo spärde keskeytys
+        end_of_interrupt(irq);
     });
 
     INT_EOI_HANDLER.store(|_| {
@@ -72,8 +78,12 @@ pub fn enable() {
     LAPICS.insert(apic_id, RwLock::new(Lapic { regs }));
     let mut lapic = LAPICS.get(&apic_id).unwrap().write();
 
-    reset(lapic.regs);
-    // enable_timer(lapic);
+    const ENABLE_APIC_TASK_SWITCH: bool = true;
+    if ENABLE_APIC_TASK_SWITCH {
+        enable_timer(lapic);
+    } else {
+        reset(lapic.regs);
+    }
 
     trace!("Done Initializing {apic_id:?}");
 }
@@ -81,8 +91,24 @@ pub fn enable() {
 pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
     let timer_irq = hyperion_interrupts::set_any_interrupt_handler(
         |irq| (0x30..=0xFF).contains(&irq),
-        || {
-            hyperion_log::debug!("APIC timer");
+        |irq| {
+            // hyperion_log::debug!("APIC timer");
+
+            /* unsafe {
+                core::arch::asm!(
+                    "syscall",
+                    in("rax") syscall_id,
+                    in("rdi") arg0,
+                    in("rsi") arg1,
+                    in("rdx") arg2,
+                    in("r8") arg3,
+                    in("r9") arg4,
+                    lateout("rax") result
+                );
+            } */
+
+            end_of_interrupt(irq);
+            APIC_TIMER_HANDLER.load()();
 
             // apic timer interrupt
         },
@@ -257,13 +283,15 @@ fn calibrate(regs: &mut ApicRegs) -> u32 {
     regs.timer_divide.write(APIC_TIMER_DIV);
 
     hyperion_log::trace!("apic timer calibration");
-    hyperion_clock::get()._apic_sleep_simple_blocking(10_000, &mut || {
+    hyperion_clock::get()._apic_sleep_simple_blocking(APIC_CALIBRATION_MICROS, &mut || {
         // reset right before PIT sleeping
         regs.timer_init.write(INITIAL_COUNT);
     });
 
     regs.lvt_timer.write(APIC_DISABLE);
-    INITIAL_COUNT - regs.timer_current.read()
+    let count = INITIAL_COUNT - regs.timer_current.read();
+
+    count * APIC_PERIOD_MULT
 }
 
 fn read_msr(msr: u32) -> u64 {
