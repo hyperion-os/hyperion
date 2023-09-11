@@ -115,9 +115,6 @@ pub fn reset() -> ! {
 
     ints::PAGE_FAULT_HANDLER.store(page_fault_handler);
     hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(yield_now);
-    /* hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| {
-        hyperion_arch::dbg_cpu();
-    }); */
 
     let boot: Task = Box::new(TaskImpl::new(|| {}));
     swap_current(Some(boot));
@@ -128,33 +125,14 @@ pub fn reset() -> ! {
 #[track_caller]
 pub fn yield_now() {
     // hyperion_log::debug!("yield_now");
-    /* let is_apic = !core::panic::Location::caller().file().contains("exec");
-    if is_apic {
-        hyperion_log::debug!("{}", core::panic::Location::caller());
-        hyperion_log::debug!("yield_now, ints?: {}", hyperion_arch::int::are_enabled());
-        tls::dbg();
-        hyperion_log::debug!("yield_now, ints?: {}", hyperion_arch::int::are_enabled());
-    } */
     if !can_yield().swap(false, Ordering::Acquire) {
-        /* if is_apic {
-            hyperion_log::debug!("cannot yield");
-        } */
         return;
     }
-    /* if is_apic {
-        hyperion_log::debug!("continue");
-    } */
     let Some(next) = next_task() else {
         can_yield().store(true, Ordering::Release);
-        /* if is_apic {
-            hyperion_log::debug!("no tasks");
-        } */
         // no other tasks, don't switch
         return;
     };
-    /* if is_apic {
-        hyperion_log::debug!("continue");
-    } */
     let Some(mut current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
@@ -192,7 +170,6 @@ pub fn stop() -> ! {
     let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
         unreachable!("the task was from another scheduler")
     };
-    task.debug();
     let context = task.context.get();
 
     // push the current thread to the drop queue AFTER switching
@@ -235,9 +212,8 @@ unsafe fn block(current: *mut Context, mut next: Task) {
     // SAFETY: `next` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
-        // hyperion_log::debug!("CONTEXT SWITCH");
-        can_yield().store(true, Ordering::SeqCst);
         hyperion_arch::context::switch(current, context);
+        can_yield().store(true, Ordering::SeqCst);
     }
 
     cleanup();
@@ -368,7 +344,6 @@ extern "sysv64" fn thread_entry() -> ! {
             unreachable!("cannot run a task that already ran")
         };
         swap_current(Some(current));
-        tls::get().can_yield.store(true, Ordering::SeqCst);
         job();
     }
     stop();

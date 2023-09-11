@@ -38,11 +38,20 @@ pub extern "C" fn _start() -> ! {
     for i in 0u64.. {
         writeln!(&mut SyscallLog, "testing `{i}`").unwrap();
 
+        writeln!(
+            &mut SyscallLog,
+            "timestamp {:?}",
+            hyperion_syscall::timestamp()
+        )
+        .unwrap();
+
+        /* hyperion_syscall::nanosleep(1_000_000_000);
+
         // for _ in 0..0x1_000 {
         for j in 0x0u64..0x4_000_000u64 {
             core::hint::black_box(j);
         }
-        // }
+        // } */
     }
 
     hyperion_syscall::exit(0);

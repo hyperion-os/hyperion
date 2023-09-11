@@ -1,4 +1,5 @@
 use hyperion_arch::{syscall::SyscallRegs, vmm::PageMap};
+use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_mem::vmm::PageMapImpl;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -15,7 +16,12 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         3 => (yield_now(args), "yield_now"),
 
+        4 => (timestamp(args), "timestamp"),
+
+        5 => (nanosleep(args), "nanosleep"),
+
         _ => {
+            hyperion_log::debug!("invalid syscall");
             // invalid syscall id, kill the process as a f u
             args.syscall_id = 2;
             args.arg0 = i64::MIN as _;
@@ -101,5 +107,30 @@ pub fn exit(_args: &SyscallRegs) -> ! {
 ///  - 0 : ok
 pub fn yield_now(_args: &SyscallRegs) -> u64 {
     hyperion_scheduler::yield_now();
+    0
+}
+
+pub fn timestamp(args: &mut SyscallRegs) -> u64 {
+    let nanos = HPET.nanos();
+
+    /* let bytes = nanos.to_ne_bytes();
+    args.arg0 = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
+    args.arg1 = u64::from_ne_bytes(bytes[8..16].try_into().unwrap()); */
+    args.arg0 = nanos as u64;
+    args.arg1 = (nanos >> 64) as u64;
+
+    0
+}
+
+pub fn nanosleep(args: &SyscallRegs) -> u64 {
+    // hyperion_arch::clock;
+    let now = HPET.nanos();
+    let until = now + args.arg0 as u128;
+    loop {
+        hyperion_scheduler::yield_now();
+        if HPET.nanos() >= until {
+            break;
+        }
+    }
     0
 }

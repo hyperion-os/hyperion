@@ -70,12 +70,6 @@ fn smp_main(cpu: Cpu) -> ! {
         hyperion_log::debug!("boot cpu drivers installed");
     }
 
-    hyperion_scheduler::spawn(move || loop {
-        hyperion_scheduler::yield_now();
-    });
-    hyperion_scheduler::spawn(move || loop {
-        hyperion_scheduler::yield_now();
-    });
     hyperion_scheduler::spawn(move || {
         hyperion_scheduler::executor::run_tasks();
     });
