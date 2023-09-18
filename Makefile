@@ -112,10 +112,13 @@ kernel: ${KERNEL}
 
 # objdump
 objdump: ${KERNEL}
-	objdump -D ${KERNEL}
+	objdump -D -C ${KERNEL}
 
 readelf: ${KERNEL}
 	readelf --all ${KERNEL}
+
+addr2line: ${KERNEL}
+	addr2line -e ${KERNEL}
 
 src:
 	@echo -e "\n\033[32m--[[ Hyperion source files ]]--\033[0m"
