@@ -255,6 +255,7 @@ dependencies = [
  "hyperion-mem",
  "hyperion-scheduler-task",
  "memoffset",
+ "smallvec",
  "spin",
  "x86_64",
 ]
@@ -302,7 +303,6 @@ version = "0.1.0"
 dependencies = [
  "crossbeam",
  "hyperion-boot-interface",
- "hyperion-kernel-extern",
  "hyperion-log",
  "limine",
  "spin",
@@ -493,10 +493,6 @@ dependencies = [
  "time 0.3.22",
  "x86_64",
 ]
-
-[[package]]
-name = "hyperion-kernel-extern"
-version = "0.1.0"
 
 [[package]]
 name = "hyperion-kernel-info"
