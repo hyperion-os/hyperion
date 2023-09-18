@@ -41,20 +41,6 @@ pub fn memmap() -> impl Iterator<Item = Memmap> {
     })
 }
 
-pub fn stack() -> Range<usize> {
-    let top = STACK_TOP.load(Ordering::SeqCst);
-    top - 0x10000..top
-}
-
-#[inline(always)]
-pub fn stack_init() {
-    let stack_ptr: usize;
-    unsafe {
-        asm!("mov {}, rsp", out(reg) stack_ptr);
-    }
-    STACK_TOP.store(stack_ptr, Ordering::SeqCst);
-}
-
 fn memiter() -> impl Iterator<Item = &'static NonNullPtr<LimineMemmapEntry>> {
     static REQ: LimineMemmapRequest = LimineMemmapRequest::new(0);
     REQ.get_response()
@@ -62,7 +48,3 @@ fn memiter() -> impl Iterator<Item = &'static NonNullPtr<LimineMemmapEntry>> {
         .into_iter()
         .flat_map(|a| a.memmap())
 }
-
-//
-
-static STACK_TOP: AtomicUsize = AtomicUsize::new(0);

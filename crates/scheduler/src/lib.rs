@@ -125,11 +125,7 @@ pub fn reset() -> ! {
 #[track_caller]
 pub fn yield_now() {
     // hyperion_log::debug!("yield_now");
-    if !can_yield().swap(false, Ordering::Acquire) {
-        return;
-    }
     let Some(next) = next_task() else {
-        can_yield().store(true, Ordering::Release);
         // no other tasks, don't switch
         return;
     };
@@ -156,7 +152,6 @@ pub fn yield_now() {
 /// destroy the current thread
 /// and switch to another thread
 pub fn stop() -> ! {
-    can_yield().store(false, Ordering::SeqCst);
     // hyperion_log::debug!("stop");
 
     // TODO: running out stack space after taking the task doesnt allow the stack to grow
@@ -213,7 +208,6 @@ unsafe fn block(current: *mut Context, mut next: Task) {
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
         hyperion_arch::context::switch(current, context);
-        can_yield().store(true, Ordering::SeqCst);
     }
 
     cleanup();
@@ -253,20 +247,14 @@ fn cleanup() {
 struct SchedulerTls {
     active: Mutex<Option<Task>>,
     after: SegQueue<CleanupTask>,
-    can_yield: AtomicBool,
 }
 
 static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
     Tls::new(|| SchedulerTls {
         active: Mutex::new(None),
         after: SegQueue::new(),
-        can_yield: AtomicBool::new(false),
     })
 });
-
-fn can_yield() -> &'static AtomicBool {
-    &TLS.can_yield
-}
 
 fn active() -> impl DerefMut<Target = Option<Task>> {
     TLS.active.lock()

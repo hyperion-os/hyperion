@@ -35,25 +35,22 @@ pub const IA32_TSC_AUX: u32 = 0xC0000103;
 
 //
 
-pub fn early_boot_cpu() {
+/// should be called only once and only by the bootstrap processor before [`cpu_id`]
+pub fn init_bsp_cpu() {
     int::disable();
+
+    unsafe { set_cpu_id(0) };
 
     cpu::init(&hyperion_boot::boot_cpu());
-
-    // int::enable();
 }
 
-/// every LAPIC is initialized after any CPU can exit this function call
+/// should be called only once per cpu and before [`cpu_id`]
 ///
-/// [`early_boot_cpu`] should have been called already
-pub fn early_per_cpu(cpu: &Cpu) {
-    static CPU_ID_GEN: AtomicUsize = AtomicUsize::new(0);
-    let cpu_id = CPU_ID_GEN.fetch_add(1, Ordering::Relaxed);
-    unsafe {
-        set_cpu_id(cpu_id);
-    }
-
+/// [`init_bsp_cpu`] should have been called already
+pub fn init_smp_cpu(cpu: &Cpu) {
     int::disable();
+
+    unsafe { reset_cpu_id() };
 
     if !cpu.is_boot() {
         // bsp cpu structs are already initialized
@@ -61,14 +58,13 @@ pub fn early_per_cpu(cpu: &Cpu) {
     }
 
     hyperion_drivers::acpi::init();
-
-    // int::enable();
 }
 
 pub fn cpu_count() -> usize {
     hyperion_boot::cpu_count()
 }
 
+#[inline(always)]
 pub fn cpu_id() -> usize {
     let tsc = Msr::new(IA32_TSC_AUX);
     unsafe { tsc.read() as _ }
@@ -76,7 +72,19 @@ pub fn cpu_id() -> usize {
 
 /// # Safety
 ///
+/// should be called only once per cpu and before [`cpu_id`]
+pub unsafe fn reset_cpu_id() {
+    static CPU_ID_GEN: AtomicUsize = AtomicUsize::new(0);
+    let cpu_id = CPU_ID_GEN.fetch_add(1, Ordering::Relaxed);
+    // SAFETY: each cpu gets its own id from the CPU_ID_GEN and the last cpu's
+    // id will be lower than `cpu_count`
+    unsafe { set_cpu_id(cpu_id) };
+}
+
+/// # Safety
+///
 /// id's should be unique to each CPU
+/// and the highest id should not be higher or equal to [`cpu_count`]
 pub unsafe fn set_cpu_id(id: usize) {
     let mut tsc = Msr::new(IA32_TSC_AUX);
     unsafe { tsc.write(id as _) }

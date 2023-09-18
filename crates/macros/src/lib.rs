@@ -46,9 +46,7 @@ pub fn gen_int_handlers(input: proc_macro::TokenStream) -> proc_macro::TokenStre
         let ident = syn::Ident::new(&format!("int_handler_{i}"), Span::call_site());
         quote! {
             pub extern #ext fn #ident(_: InterruptStackFrame) {
-                let g: GsGuard = unsafe { interrupt_gs_guard(Privilege::User) };
                 interrupt_handler(#i);
-                drop(g);
             }
         }
     });

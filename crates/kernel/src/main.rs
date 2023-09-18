@@ -18,9 +18,19 @@
 
 //
 
+use alloc::sync::Arc;
+use core::sync::atomic::{AtomicUsize, Ordering};
+
+use hyperion_arch as arch;
+use hyperion_boot as boot;
 use hyperion_boot_interface::Cpu;
+use hyperion_drivers as drivers;
 use hyperion_kernel_info::{NAME, VERSION};
+use hyperion_kshell as kshell;
 use hyperion_log::debug;
+use hyperion_log_multi as log_multi;
+use hyperion_random as random;
+use hyperion_scheduler as scheduler;
 
 extern crate alloc;
 
@@ -34,45 +44,45 @@ pub mod testfw;
 //
 
 #[no_mangle]
-fn kernel_main() -> ! {
+extern "C" fn _start() -> ! {
     // enable logging and and outputs based on the kernel args,
     // any logging before won't be shown
-    hyperion_log_multi::init_logger();
+    log_multi::init_logger();
 
     debug!("Entering kernel_main");
-    debug!("{NAME} {VERSION} was booted with {}", hyperion_boot::NAME);
+    debug!("{NAME} {VERSION} was booted with {}", boot::NAME);
 
     //
-    hyperion_arch::syscall::set_handler(syscall::syscall);
-    hyperion_arch::early_boot_cpu();
+    arch::syscall::set_handler(syscall::syscall);
+    arch::init_bsp_cpu();
 
-    hyperion_random::provide_entropy(&hyperion_arch::rng_seed().to_ne_bytes());
+    random::provide_entropy(&arch::rng_seed().to_ne_bytes());
 
-    hyperion_drivers::lazy_install_early();
+    drivers::lazy_install_early();
 
     #[cfg(test)]
     test_main();
 
     // main task(s)
-    hyperion_scheduler::executor::spawn(hyperion_kshell::kshell());
+    scheduler::executor::spawn(kshell::kshell());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
-    hyperion_boot::smp_init(smp_main);
+    boot::smp_init(smp_main);
 }
 
 fn smp_main(cpu: Cpu) -> ! {
     debug!("{cpu} entering smp_main");
 
-    hyperion_arch::early_per_cpu(&cpu);
+    arch::init_smp_cpu(&cpu);
 
     if cpu.is_boot() {
-        hyperion_drivers::lazy_install_late();
-        hyperion_log::debug!("boot cpu drivers installed");
+        drivers::lazy_install_late();
+        debug!("boot cpu drivers installed");
     }
 
-    hyperion_scheduler::spawn(move || {
-        hyperion_scheduler::executor::run_tasks();
+    scheduler::spawn(move || {
+        scheduler::executor::run_tasks();
     });
-    hyperion_log::debug!("resetting {cpu} scheduler");
-    hyperion_scheduler::reset();
+    debug!("resetting {cpu} scheduler");
+    scheduler::reset();
 }

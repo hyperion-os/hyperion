@@ -62,30 +62,6 @@ impl Context {
 
 //
 
-/* #[naked]
-pub unsafe extern "sysv64" fn init(prev: *mut Context, ra: u64) {
-    core::arch::asm!(
-        "mov r11, rsp",
-        "mov rsp, [rdi+{rsp}]",
-        "push rsi",
-        "push rbp",
-        "push rbx",
-        "push r12",
-        "push r13",
-        "push r14",
-        "push r15",
-        "mov [rdi+{rsp}], rsp",
-        "mov rsp, r11",
-        "ret",
-        rsp = const(offset_of!(Context, rsp)),
-        options(noreturn),
-    );
-} */
-
-/* #[naked]
-pub unsafe extern "sysv64" fn enter(next: *mut Context) {
-} */
-
 /// # Safety
 ///
 /// both `prev` and `next` must be correct and point to valid exclusive [`Context`] values

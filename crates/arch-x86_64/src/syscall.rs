@@ -96,7 +96,6 @@ pub unsafe extern "sysv64" fn userland(_instr_ptr: VirtAddr, _stack_ptr: VirtAdd
     // rsi = _stack_ptr
     asm!(
         // "cli",
-        "swapgs",
         "mov rcx, rdi", // RDI = _instr_ptr
         "mov rsp, rsi", // RSI = _stack_ptr
         "mov r11, {rflags}",
@@ -138,8 +137,8 @@ unsafe extern "C" fn syscall_wrapper() {
         "swapgs", // swap gs and kernelgs to open up a few temporary data locations
         "mov gs:{user_stack}, rsp",   // backup the user stack
         "mov rsp, gs:{kernel_stack}", // switch to the kernel stack
-
         "push QWORD PTR gs:{user_stack}",
+        "swapgs",
 
         "push rax",
         "push rbx",
@@ -176,8 +175,8 @@ unsafe extern "C" fn syscall_wrapper() {
         "pop rbx",
         "pop rax",
 
+        "swapgs",
         "pop QWORD PTR gs:{user_stack}",
-
         "mov rsp, gs:{user_stack}",
         "swapgs",
         // TODO: fix the sysret vulnerability

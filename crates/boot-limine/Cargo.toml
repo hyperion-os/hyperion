@@ -11,5 +11,4 @@ crossbeam.workspace = true
 limine = "0.1"
 
 hyperion-boot-interface.path = "../boot-interface"
-hyperion-kernel-extern.path = "../kernel-extern"
 hyperion-log.path = "../log"

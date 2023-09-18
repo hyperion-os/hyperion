@@ -3,6 +3,8 @@
 
 use core::fmt::{self, Write};
 
+use hyperion_syscall::{exit, log, timestamp, yield_now};
+
 //
 
 struct SyscallLog;
@@ -35,30 +37,21 @@ pub extern "C" fn _start() -> ! {
     let null_ptr = core::hint::black_box(0x0) as *const u8;
     core::hint::black_box(unsafe { *null_ptr }); */
 
-    for i in 0u64.. {
-        writeln!(&mut SyscallLog, "testing `{i}`").unwrap();
-
-        writeln!(
-            &mut SyscallLog,
-            "timestamp {:?}",
-            hyperion_syscall::timestamp()
-        )
-        .unwrap();
-
-        /* hyperion_syscall::nanosleep(1_000_000_000);
-
-        // for _ in 0..0x1_000 {
-        for j in 0x0u64..0x4_000_000u64 {
-            core::hint::black_box(j);
+    let mut next = 0;
+    for i in 0.. {
+        while timestamp().unwrap() < next {
+            yield_now();
         }
-        // } */
+        next += 1_000_000_000;
+
+        writeln!(&mut SyscallLog, "testing `{i}`").unwrap();
     }
 
-    hyperion_syscall::exit(0);
+    exit(0);
 }
 
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
-    hyperion_syscall::log("panic");
-    hyperion_syscall::exit(-1);
+    log("panic");
+    exit(-1);
 }
