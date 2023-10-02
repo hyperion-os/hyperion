@@ -480,6 +480,7 @@ dependencies = [
  "hyperion-color",
  "hyperion-drivers",
  "hyperion-framebuffer",
+ "hyperion-instant",
  "hyperion-interrupts",
  "hyperion-kernel-info",
  "hyperion-kshell",
@@ -655,6 +656,7 @@ version = "0.1.0"
 name = "hyperion-timer"
 version = "0.1.0"
 dependencies = [
+ "crossbeam",
  "futures-util",
  "hyperion-instant",
  "hyperion-int-safe-lazy",

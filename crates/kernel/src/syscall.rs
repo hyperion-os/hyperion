@@ -1,7 +1,9 @@
 use hyperion_arch::{syscall::SyscallRegs, vmm::PageMap};
 use hyperion_drivers::acpi::hpet::HPET;
+use hyperion_instant::Instant;
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
+use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
@@ -18,6 +20,8 @@ pub fn syscall(args: &mut SyscallRegs) {
         4 => (timestamp(args), "timestamp"),
 
         5 => (nanosleep(args), "nanosleep"),
+
+        6 => (nanosleep_until(args), "nanosleep_until"),
 
         _ => {
             debug!("invalid syscall");
@@ -122,14 +126,11 @@ pub fn timestamp(args: &mut SyscallRegs) -> u64 {
 }
 
 pub fn nanosleep(args: &SyscallRegs) -> u64 {
-    // hyperion_arch::clock;
-    let now = HPET.nanos();
-    let until = now + args.arg0 as u128;
-    loop {
-        hyperion_scheduler::yield_now();
-        if HPET.nanos() >= until {
-            break;
-        }
-    }
+    hyperion_scheduler::sleep(Duration::nanoseconds((args.arg0 as i64).max(0)));
+    0
+}
+
+pub fn nanosleep_until(args: &SyscallRegs) -> u64 {
+    hyperion_scheduler::sleep_until(Instant::new(args.arg0 as u128));
     0
 }

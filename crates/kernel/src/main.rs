@@ -80,6 +80,13 @@ fn smp_main(cpu: Cpu) -> ! {
         debug!("boot cpu drivers installed");
     }
 
+    /* scheduler::spawn(move || loop {
+        arch::int::enable();
+        arch::int::wait();
+        arch::int::disable();
+
+        scheduler::yield_now();
+    }); */
     scheduler::spawn(move || {
         scheduler::executor::run_tasks();
     });

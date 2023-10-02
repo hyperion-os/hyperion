@@ -3,7 +3,7 @@
 
 use core::fmt::{self, Write};
 
-use hyperion_syscall::{exit, log, timestamp, yield_now};
+use hyperion_syscall::*;
 
 //
 
@@ -39,9 +39,7 @@ pub extern "C" fn _start() -> ! {
 
     let mut next = 0;
     for i in 0.. {
-        while timestamp().unwrap() < next {
-            yield_now();
-        }
+        nanosleep_until(next);
         next += 1_000_000_000;
 
         writeln!(&mut SyscallLog, "testing `{i}`").unwrap();

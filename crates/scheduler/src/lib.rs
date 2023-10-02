@@ -22,15 +22,18 @@ use crossbeam_queue::SegQueue;
 use hyperion_arch::{
     context::Context,
     cpu::ints,
+    int,
     stack::{AddressSpace, KernelStack, Stack, UserStack},
     tls::Tls,
     vmm::PageMap,
 };
 use hyperion_driver_acpi::hpet::HPET;
+use hyperion_instant::Instant;
 use hyperion_log::*;
 use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
-use hyperion_random::Rng;
+use hyperion_timer::TIMER_HANDLER;
 use spin::{Lazy, Mutex};
+use time::Duration;
 
 //
 
@@ -39,19 +42,32 @@ extern crate alloc;
 pub mod executor;
 pub mod keyboard;
 pub mod process;
+pub mod sleep;
 pub mod task;
 pub mod timer;
 
 //
 
-static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
+pub struct CleanupTask {
+    task: Task,
+    cleanup: Cleanup,
+}
 
-//
+#[derive(Debug, Clone, Copy)]
+pub enum Cleanup {
+    Next,
+    Sleep { deadline: Instant },
+    Drop,
+    Ready,
+}
 
-pub enum CleanupTask {
-    Next(Task),
-    Drop(Task),
-    Ready(Task),
+impl Cleanup {
+    pub const fn task(self, task: Task) -> CleanupTask {
+        CleanupTask {
+            task,
+            cleanup: self,
+        }
+    }
 }
 
 pub struct Task {
@@ -68,7 +84,6 @@ pub struct TaskMemory {
     address_space: AddressSpace,
     kernel_stack: Mutex<Stack<KernelStack>>,
     user_stack: Mutex<Stack<UserStack>>,
-    dbg_magic_byte: usize,
 }
 
 #[derive(Debug)]
@@ -86,10 +101,12 @@ pub struct TaskInfo {
     pub state: AtomicCell<TaskState>,
 }
 
+const _: () = assert!(AtomicCell::<TaskState>::is_lock_free());
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskState {
     Running,
-    Waiting,
+    Sleeping,
     Ready,
     Dropping,
 }
@@ -120,18 +137,7 @@ impl Task {
             address_space,
             kernel_stack: Mutex::new(kernel_stack),
             user_stack: Mutex::new(user_stack),
-            dbg_magic_byte: *MAGIC_DEBUG_BYTE,
         });
-
-        /* let alloc = PFA.alloc(1);
-        memory.address_space.page_map.map(
-            CURRENT_ADDRESS_SPACE..CURRENT_ADDRESS_SPACE + 0xFFFu64,
-            alloc.physical_addr(),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-        ); */
-        /* let current_address_space: *mut Arc<TaskMemory> =
-            to_higher_half(alloc.physical_addr()).as_mut_ptr();
-        unsafe { current_address_space.write(memory.clone()) }; */
 
         let context = Box::new(UnsafeCell::new(Context::new(
             &memory.address_space.page_map,
@@ -185,6 +191,11 @@ pub fn reset() -> ! {
     hyperion_arch::int::disable();
 
     ints::PAGE_FAULT_HANDLER.store(page_fault_handler);
+    TIMER_HANDLER.store(|| {
+        for task in sleep::finished() {
+            READY.push(task);
+        }
+    });
     // TODO: hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| yield_now());
 
     swap_current(Some(Task::new(|| {})));
@@ -194,9 +205,35 @@ pub fn reset() -> ! {
 /// switch to another thread
 pub fn yield_now() {
     let Some(next) = next_task() else {
-        // no other tasks, don't switch
+        int::enable();
+        int::wait();
+        int::disable();
         return;
     };
+    let Some(current) = swap_current(None) else {
+        unreachable!("cannot yield from a task that doesn't exist")
+    };
+    update_cpu_usage(&current);
+
+    let context = current.context.get();
+
+    // push the current thread back to the ready queue AFTER switching
+    current.info.state.store(TaskState::Ready);
+    after().push(Cleanup::Ready.task(current));
+
+    // SAFETY: `current` is stored in the queue until the switch
+    // and the boxed field `context` makes sure the context pointer doesn't move
+    unsafe {
+        block(context, next);
+    }
+}
+
+pub fn sleep(duration: Duration) {
+    sleep_until(Instant::now() + duration)
+}
+
+pub fn sleep_until(deadline: Instant) {
+    let next = wait_next_task();
     let Some(current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
@@ -208,7 +245,8 @@ pub fn yield_now() {
     let context = current.context.get();
 
     // push the current thread back to the ready queue AFTER switching
-    after().push(CleanupTask::Ready(current));
+    current.info.state.store(TaskState::Sleeping);
+    after().push(Cleanup::Sleep { deadline }.task(current));
 
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
@@ -221,18 +259,16 @@ pub fn yield_now() {
 /// and switch to another thread
 pub fn stop() -> ! {
     // TODO: running out stack space after taking the task doesnt allow the stack to grow
-    let Some(next) = next_task() else {
-        todo!("no tasks, shutdown");
-    };
+    let next = wait_next_task();
     let Some(current) = swap_current(None) else {
         unreachable!("cannot stop a task that doesn't exist")
     };
-    current.info.state.store(TaskState::Dropping);
 
     let context = current.context.get();
 
     // push the current thread to the drop queue AFTER switching
-    after().push(CleanupTask::Drop(current));
+    current.info.state.store(TaskState::Dropping);
+    after().push(Cleanup::Drop.task(current));
 
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
@@ -275,7 +311,7 @@ unsafe fn block(current: *mut Context, next: Task) {
 
     let context = next.context.get();
 
-    after().push(CleanupTask::Next(next));
+    after().push(Cleanup::Next.task(next));
 
     // SAFETY: `next` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
@@ -286,6 +322,23 @@ unsafe fn block(current: *mut Context, next: Task) {
     cleanup();
 }
 
+fn wait_next_task() -> Task {
+    loop {
+        if let Some(task) = READY.pop() {
+            return task;
+        }
+
+        debug!("no tasks, waiting for interrupts");
+        int::enable();
+        int::wait();
+        int::disable();
+
+        for task in sleep::finished() {
+            READY.push(task);
+        }
+    }
+}
+
 fn next_task() -> Option<Task> {
     READY.pop()
 }
@@ -294,15 +347,20 @@ fn cleanup() {
     let after = after();
 
     while let Some(next) = after.pop() {
-        match next {
-            CleanupTask::Ready(ready) => {
-                schedule(ready);
+        let task = next.task;
+
+        match next.cleanup {
+            Cleanup::Ready => {
+                schedule(task);
             }
-            CleanupTask::Next(next) => {
-                swap_current(Some(next));
+            Cleanup::Sleep { deadline } => {
+                sleep::push(deadline, task);
             }
-            CleanupTask::Drop(drop) => {
-                if Arc::strong_count(&drop.memory) != 1 {
+            Cleanup::Next => {
+                swap_current(Some(task));
+            }
+            Cleanup::Drop => {
+                if Arc::strong_count(&task.memory) != 1 {
                     continue;
                 }
 

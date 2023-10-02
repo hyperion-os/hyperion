@@ -6,6 +6,7 @@ extern crate alloc;
 
 use alloc::{collections::BinaryHeap, sync::Arc};
 
+use crossbeam::atomic::AtomicCell;
 use futures_util::task::AtomicWaker;
 use hyperion_instant::Instant;
 use hyperion_int_safe_lazy::IntSafeLazy;
@@ -17,6 +18,8 @@ use spin::Mutex;
 // BinaryHeap::new isnt const? it only calls Vec::new internally which is const
 pub static TIMER_DEADLINES: IntSafeLazy<Mutex<BinaryHeap<TimerWaker>>> =
     IntSafeLazy::new(|| Mutex::new(BinaryHeap::new()));
+
+pub static TIMER_HANDLER: AtomicCell<fn()> = AtomicCell::new(provide_sleep_wake);
 
 //
 
