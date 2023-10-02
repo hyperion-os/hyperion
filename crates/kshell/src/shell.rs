@@ -529,13 +529,14 @@ impl Shell {
     fn ps_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         let tasks = hyperion_scheduler::tasks();
 
-        _ = writeln!(self.term, "PID ; TIME ; CMD");
+        _ = writeln!(self.term, "PID ; TIME ; STATE ; CMD");
         for task in tasks {
             let pid = task.pid;
             let name = task.name;
             let time_used = Duration::from_nanos(task.nanos.load(Ordering::Relaxed));
+            let state = task.state.load();
 
-            _ = writeln!(self.term, "{pid} ; {time_used:?} ; {name}");
+            _ = writeln!(self.term, "{pid} ; {time_used:?} ; {state:?} ; {name}");
         }
 
         Ok(())

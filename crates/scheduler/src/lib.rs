@@ -17,6 +17,7 @@ use core::{
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
+use crossbeam::atomic::AtomicCell;
 use crossbeam_queue::SegQueue;
 use hyperion_arch::{
     context::Context,
@@ -80,6 +81,17 @@ pub struct TaskInfo {
 
     // cpu time used
     pub nanos: AtomicU64,
+
+    // proc state
+    pub state: AtomicCell<TaskState>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TaskState {
+    Running,
+    Waiting,
+    Ready,
+    Dropping,
 }
 
 impl Task {
@@ -92,6 +104,7 @@ impl Task {
             pid: Self::next_pid(),
             name,
             nanos: AtomicU64::new(0),
+            state: AtomicCell::new(TaskState::Ready),
         });
         TASKS.lock().push(Arc::downgrade(&info));
 
@@ -187,6 +200,9 @@ pub fn yield_now() {
     let Some(current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
+    if current.info.state.load() == TaskState::Running {
+        current.info.state.store(TaskState::Ready);
+    };
     update_cpu_usage(&current);
 
     let context = current.context.get();
@@ -211,6 +227,7 @@ pub fn stop() -> ! {
     let Some(current) = swap_current(None) else {
         unreachable!("cannot stop a task that doesn't exist")
     };
+    current.info.state.store(TaskState::Dropping);
 
     let context = current.context.get();
 
@@ -254,6 +271,8 @@ fn update_cpu_usage(t: &Task) {
 ///
 /// `current` must be correct and point to a valid exclusive [`Context`]
 unsafe fn block(current: *mut Context, next: Task) {
+    next.info.state.store(TaskState::Running);
+
     let context = next.context.get();
 
     after().push(CleanupTask::Next(next));

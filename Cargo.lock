@@ -624,6 +624,7 @@ dependencies = [
 name = "hyperion-scheduler"
 version = "0.1.0"
 dependencies = [
+ "crossbeam",
  "crossbeam-queue",
  "futures-util",
  "hyperion-arch",
