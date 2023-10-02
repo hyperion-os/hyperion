@@ -27,7 +27,7 @@ use hyperion_boot_interface::Cpu;
 use hyperion_drivers as drivers;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_kshell as kshell;
-use hyperion_log::debug;
+use hyperion_log::*;
 use hyperion_log_multi as log_multi;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
@@ -80,7 +80,6 @@ fn smp_main(cpu: Cpu) -> ! {
         debug!("boot cpu drivers installed");
     }
 
-    hyperion_arch::dbg_cpu();
     scheduler::spawn(move || {
         scheduler::executor::run_tasks();
     });

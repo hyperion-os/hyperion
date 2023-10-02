@@ -1,5 +1,5 @@
 use alloc::{string::String, sync::Arc};
-use core::{fmt::Write, slice};
+use core::{fmt::Write, slice, sync::atomic::Ordering, time::Duration};
 
 use futures_util::stream::select;
 use hyperion_color::Color;
@@ -19,7 +19,7 @@ use hyperion_vfs::{
 };
 use snafu::ResultExt;
 use spin::Mutex;
-use time::{Duration, OffsetDateTime};
+use time::OffsetDateTime;
 
 use super::{term::Term, *};
 use crate::snake::snake_game;
@@ -140,6 +140,7 @@ impl Shell {
             "modeltest" => self.modeltest_cmd(args).await?,
             "run" => self.run_cmd(args)?,
             "lapic_id" => self.lapic_id_cmd(args)?,
+            "ps" => self.ps_cmd(args)?,
             "exit" => return Ok(None),
             "clear" => {
                 self.term.clear();
@@ -266,7 +267,7 @@ impl Shell {
             .context(ParseSnafu {})?
             .unwrap_or(1) as _;
 
-        sleep(Duration::seconds(seconds as _)).await;
+        sleep(time::Duration::seconds(seconds as _)).await;
 
         Ok(())
     }
@@ -393,7 +394,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, exit, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, ps, exit, clear");
 
         Ok(())
     }
@@ -456,7 +457,7 @@ impl Shell {
         let mid_y = ((self.term.size.1 * CHAR_SIZE.1 as usize) / 2) as i32;
         let mut a = 0.0f32;
 
-        let ticks = ticks(Duration::milliseconds(10)).map(|_| None);
+        let ticks = ticks(time::Duration::milliseconds(10)).map(|_| None);
         let esc = KeyboardEvents.map(Some);
         let mut events = select(ticks, esc);
 
@@ -522,6 +523,21 @@ impl Shell {
 
     fn lapic_id_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         _ = writeln!(self.term, "{:?}", ApicId::current());
+        Ok(())
+    }
+
+    fn ps_cmd(&mut self, _args: Option<&str>) -> Result<()> {
+        let tasks = hyperion_scheduler::tasks();
+
+        _ = writeln!(self.term, "PID ; TIME ; CMD");
+        for task in tasks {
+            let pid = task.pid;
+            let name = task.name;
+            let time_used = Duration::from_nanos(task.nanos.load(Ordering::Relaxed));
+
+            _ = writeln!(self.term, "{pid} ; {time_used:?} ; {name}");
+        }
+
         Ok(())
     }
 }

@@ -1,15 +1,20 @@
 #![no_std]
-#![feature(new_uninit, type_name_of_val)]
+#![feature(new_uninit, type_name_of_val, extract_if)]
 
 //
 
-use alloc::{boxed::Box, sync::Arc};
+use alloc::{
+    boxed::Box,
+    sync::{Arc, Weak},
+    vec,
+    vec::Vec,
+};
 use core::{
     any::type_name_of_val,
     cell::UnsafeCell,
     mem::swap,
-    ops::{Deref, DerefMut},
-    sync::atomic::{AtomicUsize, Ordering},
+    ops::DerefMut,
+    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
 use crossbeam_queue::SegQueue;
@@ -20,6 +25,7 @@ use hyperion_arch::{
     tls::Tls,
     vmm::PageMap,
 };
+use hyperion_driver_acpi::hpet::HPET;
 use hyperion_log::*;
 use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
 use hyperion_random::Rng;
@@ -54,7 +60,7 @@ pub struct Task {
     context: Box<UnsafeCell<Context>>,
     job: Option<Box<dyn FnOnce() + Send + 'static>>,
 
-    info: TaskInfo,
+    info: Arc<TaskInfo>,
 }
 
 pub struct TaskMemory {
@@ -64,10 +70,16 @@ pub struct TaskMemory {
     dbg_magic_byte: usize,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct TaskInfo {
-    pid: usize,
-    name: &'static str,
+    // proc id
+    pub pid: usize,
+
+    // proc name
+    pub name: &'static str,
+
+    // cpu time used
+    pub nanos: AtomicU64,
 }
 
 impl Task {
@@ -76,10 +88,12 @@ impl Task {
         let job = Some(Box::new(f) as _);
         debug!("initializing task {name}");
 
-        let info = TaskInfo {
+        let info = Arc::new(TaskInfo {
             pid: Self::next_pid(),
             name,
-        };
+            nanos: AtomicU64::new(0),
+        });
+        TASKS.lock().push(Arc::downgrade(&info));
 
         let address_space = AddressSpace::new(PageMap::new());
 
@@ -126,8 +140,8 @@ impl Task {
         NEXT_PID.fetch_add(1, Ordering::Relaxed)
     }
 
-    pub fn info(&self) -> TaskInfo {
-        self.info
+    pub fn info(&self) -> &TaskInfo {
+        &self.info
     }
 
     pub fn debug(&mut self) {
@@ -142,10 +156,15 @@ impl Task {
 }
 
 pub static READY: SegQueue<Task> = SegQueue::new();
+pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
 
-pub fn current() -> TaskInfo {
-    let active = active();
-    active.as_ref().expect("to be in a task").info
+pub fn tasks() -> Vec<Arc<TaskInfo>> {
+    let mut tasks = TASKS.lock();
+
+    // remove tasks that don't exist
+    tasks.retain(|p| p.strong_count() != 0);
+
+    tasks.iter().filter_map(|p| p.upgrade()).collect()
 }
 
 /// reset this processors scheduling
@@ -153,7 +172,7 @@ pub fn reset() -> ! {
     hyperion_arch::int::disable();
 
     ints::PAGE_FAULT_HANDLER.store(page_fault_handler);
-    // hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| yield_now());
+    // TODO: hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| yield_now());
 
     swap_current(Some(Task::new(|| {})));
     stop();
@@ -168,6 +187,7 @@ pub fn yield_now() {
     let Some(current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
+    update_cpu_usage(&current);
 
     let context = current.context.get();
 
@@ -220,6 +240,16 @@ fn swap_current(mut new: Option<Task>) -> Option<Task> {
     new
 }
 
+/// increase the task info's cpu usage field
+fn update_cpu_usage(t: &Task) {
+    let now = HPET.nanos() as u64;
+    let last = last_time().swap(now, Ordering::SeqCst);
+
+    let elapsed = now - last;
+
+    t.info.nanos.fetch_add(elapsed, Ordering::Relaxed);
+}
+
 /// # Safety
 ///
 /// `current` must be correct and point to a valid exclusive [`Context`]
@@ -269,12 +299,14 @@ fn cleanup() {
 struct SchedulerTls {
     active: Mutex<Option<Task>>,
     after: SegQueue<CleanupTask>,
+    last_time: AtomicU64,
 }
 
 static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
     Tls::new(|| SchedulerTls {
         active: Mutex::new(None),
         after: SegQueue::new(),
+        last_time: AtomicU64::new(0),
     })
 });
 
@@ -282,8 +314,12 @@ fn active() -> impl DerefMut<Target = Option<Task>> {
     TLS.active.lock()
 }
 
-fn after() -> impl Deref<Target = SegQueue<CleanupTask>> {
+fn after() -> &'static SegQueue<CleanupTask> {
     &TLS.after
+}
+
+fn last_time() -> &'static AtomicU64 {
+    &TLS.last_time
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
