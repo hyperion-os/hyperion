@@ -54,7 +54,9 @@ impl Shell {
         self.prompt();
         self.term.flush();
 
-        self.run_cmd(None);
+        // TODO: the kernel shell cannot receive (keyboard) interrupts
+        // without other user space processes running, move kshell to user space
+        _ = self.run_cmd(None);
     }
 
     pub async fn input(&mut self, ev: KeyboardEvent) -> Option<()> {
@@ -69,7 +71,7 @@ impl Shell {
             _ = writeln!(self.term);
             match self.run_line(&cmdbuf).await {
                 Ok(v) => {
-                    _ = v?;
+                    v?;
                 }
                 Err(err) => {
                     _ = writeln!(self.term, "{err}");
@@ -495,13 +497,15 @@ impl Shell {
         let args = args.map(String::from);
 
         hyperion_scheduler::spawn(move || {
+            hyperion_log::debug!("run_cmd task");
+
             let args = args.as_deref();
             let args = args.as_ref().map(slice::from_ref).unwrap_or(&[]);
 
-            hyperion_log::debug!(
+            /* hyperion_log::debug!(
                 "ELF file from: {}",
                 env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF")
-            );
+            ); */
             let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
             let loader = hyperion_loader::Loader::new(elf_bytes);
 

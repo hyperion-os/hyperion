@@ -19,12 +19,6 @@ pub fn yield_now() {
 }
 
 #[inline(always)]
-pub fn commit_oxygen_not_reach_lungs(code: i64) -> ! {
-    unsafe { trigger_syscall(420, code as u64, 0, 0, 0, 0) };
-    unreachable!();
-}
-
-#[inline(always)]
 pub fn timestamp() -> Result<u128, u64> {
     let result: u64;
     let lower: u64;

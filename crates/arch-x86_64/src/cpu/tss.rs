@@ -39,6 +39,8 @@ impl Tss {
         tss.add_int(0);
         tss.add_int(1);
 
+        hyperion_log::debug!("TSS: {tss:?}");
+
         tss
     }
 

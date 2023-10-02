@@ -43,12 +43,12 @@ impl Context {
         let init: *mut StackInit = now.as_mut_ptr();
         unsafe {
             init.write(StackInit {
-                _r15: 1,
-                _r14: 2,
-                _r13: 3,
-                _r12: 9,
-                _rbx: 5,
-                _rbp: 6,
+                _r15: 0,
+                _r14: 0,
+                _r13: 0,
+                _r12: 0,
+                _rbx: 0,
+                _rbp: 0,
                 entry: thread_entry as *const () as _,
             });
         }

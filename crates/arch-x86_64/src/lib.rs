@@ -147,5 +147,7 @@ pub fn dbg_cpu() {
 
     let cr3 = x86_64::registers::control::Cr3::read().0.start_address();
 
-    hyperion_log::debug!("rsp:0x{rsp:0x} rip:0x{rip:0x} cr3:0x{cr3:0x}");
+    let ints = int::are_enabled();
+
+    hyperion_log::debug!("rsp:0x{rsp:0x} rip:0x{rip:0x} cr3:0x{cr3:0x} ints:{ints}");
 }

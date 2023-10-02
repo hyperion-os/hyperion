@@ -253,7 +253,6 @@ dependencies = [
  "hyperion-log",
  "hyperion-macros",
  "hyperion-mem",
- "hyperion-scheduler-task",
  "memoffset",
  "smallvec",
  "spin",
@@ -636,16 +635,12 @@ dependencies = [
  "hyperion-keyboard",
  "hyperion-log",
  "hyperion-mem",
- "hyperion-scheduler-task",
+ "hyperion-random",
  "hyperion-timer",
  "spin",
  "time 0.3.22",
  "x86_64",
 ]
-
-[[package]]
-name = "hyperion-scheduler-task"
-version = "0.1.0"
 
 [[package]]
 name = "hyperion-static-str"

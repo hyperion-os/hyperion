@@ -140,7 +140,7 @@ impl<'a> Loader<'a> {
         let user_stack = pmm::PFA.alloc(1);
         let stack_top = VirtAddr::new(0x400000000000); // VirtAddr::new(hyperion_boot::hhdm_offset());
 
-        hyperion_log::debug!("stack_top = 0x{stack_top:016x}");
+        // hyperion_log::debug!("stack_top = 0x{stack_top:016x}");
 
         /* self.page_map
         .unmap(VirtAddr::new_truncate(0x0000)..VirtAddr::new_truncate(0x1000)); */
@@ -155,18 +155,9 @@ impl<'a> Loader<'a> {
             PageTableFlags::empty(), // guard page
         );
 
-        hyperion_log::debug!(
-            "null points to {:?}",
-            self.page_map.virt_to_phys(VirtAddr::new_truncate(0x0))
-        );
-        hyperion_log::debug!(
-            "null points to {:?}",
-            self.page_map.phys_to_virt(PhysAddr::new(0x8EA8CFC0))
-        );
-
-        hyperion_log::debug!(
+        /* hyperion_log::debug!(
             "Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}"
-        );
+        ); */
 
         unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top) };
     }

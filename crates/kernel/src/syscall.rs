@@ -1,13 +1,12 @@
 use hyperion_arch::{syscall::SyscallRegs, vmm::PageMap};
 use hyperion_drivers::acpi::hpet::HPET;
+use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
-    // hyperion_log::debug!("got syscall with args: {args}");
-
     let id = args.syscall_id;
     let (result, name): (u64, &str) = match id {
         1 => (log(args), "log"),
@@ -21,7 +20,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         5 => (nanosleep(args), "nanosleep"),
 
         _ => {
-            hyperion_log::debug!("invalid syscall");
+            debug!("invalid syscall");
             // invalid syscall id, kill the process as a f u
             args.syscall_id = 2;
             args.arg0 = i64::MIN as _;
@@ -30,7 +29,7 @@ pub fn syscall(args: &mut SyscallRegs) {
     };
 
     if result != 0 {
-        hyperion_log::debug!("syscall `{name}` (id {id}) returned {result}",);
+        debug!("syscall `{name}` (id {id}) returned {result}",);
     }
     args.syscall_id = result;
 }

@@ -1,15 +1,15 @@
 #![no_std]
-#![feature(new_uninit)]
+#![feature(new_uninit, type_name_of_val)]
 
 //
 
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, sync::Arc};
 use core::{
-    any::Any,
+    any::type_name_of_val,
     cell::UnsafeCell,
     mem::swap,
     ops::{Deref, DerefMut},
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use crossbeam_queue::SegQueue;
@@ -17,11 +17,12 @@ use hyperion_arch::{
     context::Context,
     cpu::ints,
     stack::{AddressSpace, KernelStack, Stack, UserStack},
-    tls::{self, Tls},
+    tls::Tls,
     vmm::PageMap,
 };
+use hyperion_log::*;
 use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
-use hyperion_scheduler_task::{AnyTask, CleanupTask, Task};
+use hyperion_random::Rng;
 use spin::{Lazy, Mutex};
 
 //
@@ -36,107 +37,139 @@ pub mod timer;
 
 //
 
-pub struct TaskImpl {
-    address_space: Arc<AddressSpace>,
-    kernel_stack: Stack<KernelStack>,
-    user_stack: Stack<UserStack>,
+static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
 
-    // context is used 'unsafely' only in the switch
-    context: UnsafeCell<Context>,
-    job: Option<Box<dyn FnOnce() + Send + 'static>>,
-    pid: usize,
+//
+
+pub enum CleanupTask {
+    Next(Task),
+    Drop(Task),
+    Ready(Task),
 }
 
-impl TaskImpl {
+pub struct Task {
+    memory: Arc<TaskMemory>,
+
+    // context is used 'unsafely' only in the switch
+    context: Box<UnsafeCell<Context>>,
+    job: Option<Box<dyn FnOnce() + Send + 'static>>,
+
+    info: TaskInfo,
+}
+
+pub struct TaskMemory {
+    address_space: AddressSpace,
+    kernel_stack: Mutex<Stack<KernelStack>>,
+    user_stack: Mutex<Stack<UserStack>>,
+    dbg_magic_byte: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TaskInfo {
+    pid: usize,
+    name: &'static str,
+}
+
+impl Task {
     pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
-        hyperion_log::trace!("new task");
-        static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
-        let pid = NEXT_PID.fetch_add(1, Ordering::Relaxed);
+        let name = type_name_of_val(&f);
+        let job = Some(Box::new(f) as _);
+        debug!("initializing task {name}");
 
-        hyperion_log::trace!("new address space");
-        let address_space = Arc::new(AddressSpace::new(PageMap::new()));
+        let info = TaskInfo {
+            pid: Self::next_pid(),
+            name,
+        };
 
-        hyperion_log::trace!("new stack");
+        let address_space = AddressSpace::new(PageMap::new());
+
         let mut kernel_stack = address_space.kernel_stacks.take();
-        kernel_stack.grow(&address_space.page_map, 4).unwrap();
+        kernel_stack.grow(&address_space.page_map, 2).unwrap();
+        // kernel_stack.grow(&address_space.page_map, 6).unwrap();
         let stack_top = kernel_stack.top;
-        hyperion_log::trace!("stack top: 0x{:0x}", stack_top);
-
         let user_stack = address_space.user_stacks.take();
 
-        hyperion_log::trace!("initializing task stack");
-        let context = UnsafeCell::new(Context::new(
-            &address_space.page_map,
+        let memory = Arc::new(TaskMemory {
+            address_space,
+            kernel_stack: Mutex::new(kernel_stack),
+            user_stack: Mutex::new(user_stack),
+            dbg_magic_byte: *MAGIC_DEBUG_BYTE,
+        });
+
+        /* let alloc = PFA.alloc(1);
+        memory.address_space.page_map.map(
+            CURRENT_ADDRESS_SPACE..CURRENT_ADDRESS_SPACE + 0xFFFu64,
+            alloc.physical_addr(),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        ); */
+        /* let current_address_space: *mut Arc<TaskMemory> =
+            to_higher_half(alloc.physical_addr()).as_mut_ptr();
+        unsafe { current_address_space.write(memory.clone()) }; */
+
+        let context = Box::new(UnsafeCell::new(Context::new(
+            &memory.address_space.page_map,
             stack_top,
             thread_entry,
-        ));
-        let job = Some(Box::new(f) as _);
+        )));
 
         Self {
-            address_space,
-            kernel_stack,
-            user_stack,
+            memory,
 
             context,
             job,
-            pid,
+            info,
         }
+    }
+
+    pub fn next_pid() -> usize {
+        static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
+        NEXT_PID.fetch_add(1, Ordering::Relaxed)
+    }
+
+    pub fn info(&self) -> TaskInfo {
+        self.info
     }
 
     pub fn debug(&mut self) {
         hyperion_log::debug!(
             "TASK DEBUG: context: {:0x?}, job: {:?}, pid: {}",
-            unsafe { &*self.context.get() },
+            &self.context as *const _ as usize,
+            // unsafe { &*self.context.get() },
             self.job.as_ref().map(|_| ()),
-            self.pid
+            self.info.pid
         )
     }
 }
 
-impl AnyTask for TaskImpl {
-    fn as_any(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn take_job(&mut self) -> Option<Box<dyn FnOnce() + Send + 'static>> {
-        self.job.take()
-    }
-
-    fn pid(&self) -> usize {
-        self.pid
-    }
-}
-
 pub static READY: SegQueue<Task> = SegQueue::new();
+
+pub fn current() -> TaskInfo {
+    let active = active();
+    active.as_ref().expect("to be in a task").info
+}
 
 /// reset this processors scheduling
 pub fn reset() -> ! {
     hyperion_arch::int::disable();
 
     ints::PAGE_FAULT_HANDLER.store(page_fault_handler);
-    hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(yield_now);
+    // hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| yield_now());
 
-    let boot: Task = Box::new(TaskImpl::new(|| {}));
-    swap_current(Some(boot));
+    swap_current(Some(Task::new(|| {})));
     stop();
 }
 
 /// switch to another thread
-#[track_caller]
 pub fn yield_now() {
-    // hyperion_log::debug!("yield_now");
     let Some(next) = next_task() else {
         // no other tasks, don't switch
         return;
     };
-    let Some(mut current) = swap_current(None) else {
+    let Some(current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
 
-    let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
-        unreachable!("the task was from another scheduler")
-    };
-    let context = task.context.get();
+    let context = current.context.get();
 
     // push the current thread back to the ready queue AFTER switching
     after().push(CleanupTask::Ready(current));
@@ -144,7 +177,6 @@ pub fn yield_now() {
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
-        // hyperion_log::debug!("switch");
         block(context, next);
     }
 }
@@ -152,20 +184,15 @@ pub fn yield_now() {
 /// destroy the current thread
 /// and switch to another thread
 pub fn stop() -> ! {
-    // hyperion_log::debug!("stop");
-
     // TODO: running out stack space after taking the task doesnt allow the stack to grow
     let Some(next) = next_task() else {
         todo!("no tasks, shutdown");
     };
-    let Some(mut current) = swap_current(None) else {
+    let Some(current) = swap_current(None) else {
         unreachable!("cannot stop a task that doesn't exist")
     };
 
-    let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
-        unreachable!("the task was from another scheduler")
-    };
-    let context = task.context.get();
+    let context = current.context.get();
 
     // push the current thread to the drop queue AFTER switching
     after().push(CleanupTask::Drop(current));
@@ -180,7 +207,7 @@ pub fn stop() -> ! {
 }
 
 pub fn spawn(f: impl FnOnce() + Send + 'static) {
-    schedule(Box::new(TaskImpl::new(f)))
+    schedule(Task::new(f))
 }
 
 /// schedule
@@ -196,11 +223,8 @@ fn swap_current(mut new: Option<Task>) -> Option<Task> {
 /// # Safety
 ///
 /// `current` must be correct and point to a valid exclusive [`Context`]
-unsafe fn block(current: *mut Context, mut next: Task) {
-    let Some(task): Option<&mut TaskImpl> = next.as_any().downcast_mut() else {
-        unreachable!("the task was from another scheduler")
-    };
-    let context = task.context.get();
+unsafe fn block(current: *mut Context, next: Task) {
+    let context = next.context.get();
 
     after().push(CleanupTask::Next(next));
 
@@ -228,14 +252,12 @@ fn cleanup() {
             CleanupTask::Next(next) => {
                 swap_current(Some(next));
             }
-            CleanupTask::Drop(mut drop) => {
-                let Some(task): Option<&mut TaskImpl> = drop.as_any().downcast_mut() else {
-                    unreachable!("the task was from another scheduler")
-                };
-
-                if Arc::strong_count(&task.address_space) != 1 {
+            CleanupTask::Drop(drop) => {
+                if Arc::strong_count(&drop.memory) != 1 {
                     continue;
                 }
+
+                error!("TODO: deallocate task pages");
 
                 // TODO: deallocate user pages
                 // task.address_space;
@@ -258,47 +280,35 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
 
 fn active() -> impl DerefMut<Target = Option<Task>> {
     TLS.active.lock()
-    /* static ACTIVE: Lazy<ApicTls<Mutex<Option<Task>>>> =
-        Lazy::new(|| ApicTls::new(|| Mutex::new(None)));
-    ACTIVE.lock() */
-    // tls::get().active.lock()
 }
 
 fn after() -> impl Deref<Target = SegQueue<CleanupTask>> {
     &TLS.after
-    /* static AFTER: Lazy<ApicTls<SegQueue<CleanupTask>>> = Lazy::new(|| ApicTls::new(SegQueue::new));
-    Lazy::force(&AFTER).deref() */
-    // &tls::get().after_switch
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     // hyperion_log::debug!("scheduler page fault");
 
-    let Some(mut current) = swap_current(None) else {
-        hyperion_log::debug!("no job");
+    let active = active();
+    let Some(current) = active.as_ref() else {
+        hyperion_log::error!("page fault from kernel code");
         return PageFaultResult::NotHandled;
     };
+    /* let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
+    let current = unsafe { (*current).clone() };
+    assert_eq!(current.dbg_magic_byte, *MAGIC_DEBUG_BYTE); */
 
-    let Some(task): Option<&mut TaskImpl> = current.as_any().downcast_mut() else {
-        hyperion_log::debug!("no task");
-        swap_current(Some(current));
-        return PageFaultResult::NotHandled;
-    };
-
-    let res = if user == Privilege::User {
-        user_page_fault_handler(addr, task)
+    if user == Privilege::User {
+        user_page_fault_handler(addr, &current.memory)
     } else {
-        kernel_page_fault_handler(addr, task)
-    };
-
-    swap_current(Some(current));
-
-    res
+        kernel_page_fault_handler(addr, &current.memory)
+    }
 }
 
-fn user_page_fault_handler(addr: usize, task: &mut TaskImpl) -> PageFaultResult {
+fn user_page_fault_handler(addr: usize, task: &TaskMemory) -> PageFaultResult {
     let result = task
         .user_stack
+        .lock()
         .page_fault(&task.address_space.page_map, addr as u64);
 
     if result == PageFaultResult::Handled {
@@ -309,30 +319,28 @@ fn user_page_fault_handler(addr: usize, task: &mut TaskImpl) -> PageFaultResult 
     stop();
 }
 
-fn kernel_page_fault_handler(addr: usize, task: &mut TaskImpl) -> PageFaultResult {
+fn kernel_page_fault_handler(addr: usize, task: &TaskMemory) -> PageFaultResult {
     let result = task
         .kernel_stack
+        .lock()
         .page_fault(&task.address_space.page_map, addr as u64);
 
     if result == PageFaultResult::Handled {
         return result;
     }
 
+    hyperion_log::error!("{:?}", task.kernel_stack.lock());
     hyperion_log::error!("page fault from kernel-space");
     result
 }
 
+fn take_job() -> Option<Box<dyn FnOnce() + Send + 'static>> {
+    let mut active = active();
+    active.as_mut()?.job.take()
+}
+
 extern "sysv64" fn thread_entry() -> ! {
     cleanup();
-    {
-        let Some(mut current) = swap_current(None) else {
-            unreachable!("cannot run a task that doesn't exist")
-        };
-        let Some(job) = current.take_job() else {
-            unreachable!("cannot run a task that already ran")
-        };
-        swap_current(Some(current));
-        job();
-    }
+    (take_job().expect("no active jobs"))();
     stop();
 }

@@ -80,6 +80,7 @@ fn smp_main(cpu: Cpu) -> ! {
         debug!("boot cpu drivers installed");
     }
 
+    hyperion_arch::dbg_cpu();
     scheduler::spawn(move || {
         scheduler::executor::run_tasks();
     });
