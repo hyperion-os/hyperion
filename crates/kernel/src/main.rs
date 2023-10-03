@@ -18,9 +18,6 @@
 
 //
 
-use alloc::sync::Arc;
-use core::sync::atomic::{AtomicUsize, Ordering};
-
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_boot_interface::Cpu;

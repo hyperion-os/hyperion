@@ -7,7 +7,6 @@ use core::{
 };
 
 use crossbeam::queue::SegQueue;
-use hyperion_log::debug;
 use hyperion_mem::{
     pmm::{self, PageFrame},
     vmm::{PageFaultResult, PageMapImpl},

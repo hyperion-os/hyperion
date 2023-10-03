@@ -16,7 +16,7 @@ use elf::{
 };
 use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_mem::{from_higher_half, pmm, vmm::PageMapImpl};
-use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 

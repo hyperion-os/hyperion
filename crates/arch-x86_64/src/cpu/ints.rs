@@ -144,7 +144,6 @@ pub extern "x86-interrupt" fn security_exception(stack: InterruptStackFrame, ec:
 
 pub mod other {
     use hyperion_interrupts::interrupt_handler;
-    use hyperion_mem::vmm::Privilege;
     use x86_64::structures::idt::InterruptStackFrame;
 
     hyperion_macros::gen_int_handlers!("x86-interrupt");

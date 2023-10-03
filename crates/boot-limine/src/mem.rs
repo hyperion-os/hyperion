@@ -1,8 +1,4 @@
-use core::{
-    arch::asm,
-    ops::Range,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use hyperion_boot_interface::{Memmap, Memtype};
 use hyperion_log::trace;
