@@ -141,6 +141,7 @@ impl Shell {
             "run" => self.run_cmd(args)?,
             "lapic_id" => self.lapic_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
+            "nproc" => self.nproc_cmd(args)?,
             "exit" => return Ok(None),
             "clear" => {
                 self.term.clear();
@@ -538,6 +539,12 @@ impl Shell {
 
             _ = writeln!(self.term, "{pid} ; {time_used:?} ; {state:?} ; {name}");
         }
+
+        Ok(())
+    }
+
+    fn nproc_cmd(&mut self, _args: Option<&str>) -> Result<()> {
+        _ = writeln!(self.term, "{}", hyperion_arch::cpu_count());
 
         Ok(())
     }

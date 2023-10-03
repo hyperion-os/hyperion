@@ -13,6 +13,7 @@ spin.workspace = true
 libm = "0.2"
 glam = { version = "0.24", default-features = false, features = ["libm"] }
 
+hyperion-arch.path = "../arch"
 hyperion-color.path = "../color"
 hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-escape.path = "../escape"

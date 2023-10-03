@@ -520,6 +520,7 @@ version = "0.1.0"
 dependencies = [
  "futures-util",
  "glam",
+ "hyperion-arch",
  "hyperion-color",
  "hyperion-driver-acpi",
  "hyperion-escape",
