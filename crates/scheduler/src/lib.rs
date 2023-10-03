@@ -115,7 +115,7 @@ impl Task {
     pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
         let name = type_name_of_val(&f);
         let job = Some(Box::new(f) as _);
-        debug!("initializing task {name}");
+        trace!("initializing task {name}");
 
         let info = Arc::new(TaskInfo {
             pid: Self::next_pid(),
@@ -328,7 +328,7 @@ fn wait_next_task() -> Task {
             return task;
         }
 
-        debug!("no tasks, waiting for interrupts");
+        trace!("no tasks, waiting for interrupts");
         int::enable();
         int::wait();
         int::disable();
@@ -364,7 +364,7 @@ fn cleanup() {
                     continue;
                 }
 
-                error!("TODO: deallocate task pages");
+                trace!("TODO: deallocate task pages");
 
                 // TODO: deallocate user pages
                 // task.address_space;
