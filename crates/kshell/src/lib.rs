@@ -8,14 +8,10 @@ use alloc::string::String;
 use core::num::ParseIntError;
 
 use futures_util::StreamExt;
-use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
-use hyperion_log::warn;
-use hyperion_random::Rng;
-use hyperion_scheduler::{keyboard::KeyboardEvents, timer::ticks};
+use hyperion_scheduler::keyboard::KeyboardEvents;
 use hyperion_vfs::{error::IoError, path::PathBuf};
 use snafu::Snafu;
-use time::Duration;
 
 use self::{shell::Shell, term::Term};
 
@@ -28,7 +24,7 @@ pub mod term;
 //
 
 pub async fn kshell() {
-    hyperion_scheduler::executor::spawn(spinner());
+    // hyperion_scheduler::executor::spawn(spinner());
 
     let term = Term::new();
     let mut shell = Shell::new(term);
@@ -45,7 +41,7 @@ pub async fn kshell() {
     term.flush();
 }
 
-pub async fn spinner() {
+/* pub async fn spinner() {
     let mut ticks = ticks(Duration::milliseconds(500));
     let mut rng = hyperion_random::next_fast_rng();
 
@@ -61,7 +57,7 @@ pub async fn spinner() {
         let y = fbo.height - 60;
         fbo.fill(x, y, 50, 50, Color::new(r, g, b));
     }
-}
+} */
 
 //
 
