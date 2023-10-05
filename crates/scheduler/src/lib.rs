@@ -5,6 +5,7 @@
 
 use alloc::{
     boxed::Box,
+    string::String,
     sync::{Arc, Weak},
     vec,
     vec::Vec,
@@ -37,7 +38,7 @@ use hyperion_mem::{
 };
 use hyperion_random::Rng;
 use hyperion_timer::TIMER_HANDLER;
-use spin::{Lazy, Mutex};
+use spin::{Lazy, Mutex, RwLock};
 use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -103,7 +104,7 @@ pub struct TaskInfo {
     pub pid: usize,
 
     // proc name
-    pub name: &'static str,
+    pub name: RwLock<String>,
 
     // cpu time used
     pub nanos: AtomicU64,
@@ -170,6 +171,7 @@ impl Task {
         let name = type_name_of_val(&f);
         let job = Some(Box::new(f) as _);
         trace!("initializing task {name}");
+        let name = RwLock::new(name.into());
 
         let info = Arc::new(TaskInfo {
             pid: Self::next_pid(),
@@ -220,7 +222,7 @@ impl Task {
     }
 
     pub fn next_pid() -> usize {
-        static NEXT_PID: AtomicUsize = AtomicUsize::new(0);
+        static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
         NEXT_PID.fetch_add(1, Ordering::Relaxed)
     }
 
@@ -255,6 +257,15 @@ pub fn idle() -> impl Iterator<Item = Duration> {
     Tls::inner(&TLS)
         .iter()
         .map(|tls| Duration::nanoseconds(tls.idle_time.load(Ordering::Relaxed) as _))
+}
+
+pub fn rename(new_name: String) {
+    *active()
+        .as_ref()
+        .expect("to be in a task")
+        .info
+        .name
+        .write() = new_name;
 }
 
 /// reset this processors scheduling

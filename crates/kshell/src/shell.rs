@@ -504,7 +504,7 @@ impl Shell {
         let args = args.map(String::from);
 
         hyperion_scheduler::spawn(move || {
-            hyperion_log::debug!("run_cmd task");
+            hyperion_scheduler::rename("run".into());
 
             let args = args.as_deref();
             let args = args.as_ref().map(slice::from_ref).unwrap_or(&[]);
@@ -522,7 +522,6 @@ impl Shell {
                 hyperion_log::debug!("entry point missing");
             }
         });
-        hyperion_log::debug!("spawned");
 
         Ok(())
     }
@@ -535,14 +534,18 @@ impl Shell {
     fn ps_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         let tasks = hyperion_scheduler::tasks();
 
-        _ = writeln!(self.term, "PID ; TIME ; STATE ; CMD");
+        _ = writeln!(self.term, "\n{: >6} {: <8} {: >9} CMD", "PID", "STAT", "TIME");
         for task in tasks {
             let pid = task.pid;
-            let name = task.name;
-            let time_used = Duration::from_nanos(task.nanos.load(Ordering::Relaxed));
-            let state = task.state.load();
+            let state = task.state.load().as_str();
+            let time = time::Duration::nanoseconds(task.nanos.load(Ordering::Relaxed) as _);
+            // let time_h = time.whole_hours();
+            let time_m = time.whole_minutes() % 60;
+            let time_s = time.whole_seconds() % 60;
+            let time_ms = time.whole_milliseconds() % 1000;
+            let name = task.name.read();
 
-            _ = writeln!(self.term, "{pid} ; {time_used:?} ; {state:?} ; {name}");
+            _ = writeln!(self.term, "{pid: >6} {state: <8} {time_m: >2}:{time_s:02}.{time_ms:03} {name}");
         }
 
         Ok(())
@@ -594,19 +597,6 @@ impl Shell {
         _ = writeln!(self.term);
 
         
-        _ = writeln!(self.term, "\n{: >6} {: <8} {: >9} CMD", "PID", "STAT", "TIME");
-        for task in tasks {
-            let TaskInfo { pid, name, nanos, state } = &*task;
-            let state = state.load().as_str();
-            let time = time::Duration::nanoseconds(nanos.load(Ordering::Relaxed) as _);
-            // let time_h = time.whole_hours();
-            let time_m = time.whole_minutes() % 60;
-            let time_s = time.whole_seconds() % 60;
-            let time_ms = time.whole_milliseconds() % 1000;
-
-            _ = writeln!(self.term, "{pid: >6} {state: <8} {time_m: >2}:{time_s:02}.{time_ms:03} {name}");
-        }
-
-        Ok(())
+        self.ps_cmd(None)
     }
 }

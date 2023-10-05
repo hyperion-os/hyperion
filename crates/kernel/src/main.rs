@@ -77,21 +77,10 @@ fn smp_main(cpu: Cpu) -> ! {
     if cpu.is_boot() {
         drivers::lazy_install_late();
         debug!("boot cpu drivers installed");
-
-        scheduler::spawn(move || loop {
-            scheduler::sleep(time::Duration::milliseconds(100));
-
-            let times = scheduler::idle().fold(String::new(), |mut acc, next| {
-                use core::fmt::Write;
-                _ = write!(acc, "; {next} ");
-                acc
-            });
-
-            debug!("cpu idle times{times}");
-        });
     }
 
     scheduler::spawn(move || {
+        hyperion_scheduler::rename("<kernel futures executor>".into());
         scheduler::executor::run_tasks();
     });
     debug!("resetting {cpu} scheduler");
