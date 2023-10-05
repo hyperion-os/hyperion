@@ -561,8 +561,8 @@ impl Shell {
         let uptime = Instant::now() - Instant::new(0);
 
         let uptime_h = uptime.whole_hours();
-        let uptime_m = uptime.whole_minutes();
-        let uptime_s = uptime.whole_seconds();
+        let uptime_m = uptime.whole_minutes() % 60;
+        let uptime_s = uptime.whole_seconds() % 60;
 
         let tasks = hyperion_scheduler::tasks();
         let tasks_total = tasks.len();
@@ -577,7 +577,7 @@ impl Shell {
 
         _ = writeln!(
             self.term,
-            "top - {uptime_h}:{uptime_m}:{uptime_s} up"
+            "top - {uptime_h}:{uptime_m:02}:{uptime_s:02} up"
         );
         _ = writeln!(
             self.term, 
