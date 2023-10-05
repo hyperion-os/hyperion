@@ -2,6 +2,7 @@ use alloc::sync::Arc;
 use core::future::Future;
 
 use crossbeam_queue::SegQueue;
+use hyperion_arch::int;
 
 use super::task::Task;
 use crate::yield_now;
@@ -15,6 +16,9 @@ pub fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
 pub fn run_tasks() -> ! {
     loop {
         while run_once().is_some() {}
+
+        int::wait();
+
         yield_now();
     }
 }

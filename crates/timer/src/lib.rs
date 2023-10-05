@@ -10,7 +10,6 @@ use crossbeam::atomic::AtomicCell;
 use futures_util::task::AtomicWaker;
 use hyperion_instant::Instant;
 use hyperion_int_safe_lazy::IntSafeLazy;
-use hyperion_log::warn;
 use spin::Mutex;
 
 //
@@ -31,21 +30,16 @@ pub fn provide_sleep_wake() {
 
     let mut timers = deadlines.lock();
 
-    if let Some(TimerWaker { deadline, .. }) = timers.peek() {
-        let now = Instant::now();
-        if now < *deadline
-        /* || (*deadline) + Duration::nanoseconds(10) > now */
-        {
-            return;
-        }
+    let Some(TimerWaker { deadline, waker }) = timers.peek() else {
+        return;
+    };
+
+    if !deadline.is_reached() {
+        return;
     }
 
-    if let Some(TimerWaker { waker, .. }) = timers.pop() {
-        // assert!(now >= deadline, "{now} < {deadline}");
-        waker.wake();
-    } else {
-        warn!("Timer interrupt without active timers")
-    }
+    waker.wake();
+    _ = timers.pop();
 }
 
 //

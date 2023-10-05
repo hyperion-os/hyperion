@@ -40,6 +40,10 @@ impl Instant {
     pub fn elapsed(self) -> Duration {
         Self::now() - self
     }
+
+    pub fn is_reached(self) -> bool {
+        self < Self::now()
+    }
 }
 
 impl CheckedAdd<Duration> for Instant {

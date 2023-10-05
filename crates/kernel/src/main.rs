@@ -75,6 +75,17 @@ fn smp_main(cpu: Cpu) -> ! {
     if cpu.is_boot() {
         drivers::lazy_install_late();
         debug!("boot cpu drivers installed");
+
+        scheduler::spawn(move || loop {
+            scheduler::sleep(time::Duration::milliseconds(500));
+            // scheduler::yield_now();
+
+            debug!("cpu idle:",);
+
+            for cpu in scheduler::idle() {
+                debug!(" - {cpu}");
+            }
+        });
     }
 
     /* scheduler::spawn(move || loop {

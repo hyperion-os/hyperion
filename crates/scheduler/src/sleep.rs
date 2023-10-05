@@ -1,5 +1,7 @@
 use alloc::collections::BinaryHeap;
+use core::cmp::Reverse;
 
+use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use spin::{Lazy, Mutex};
 
@@ -10,7 +12,10 @@ use crate::Task;
 pub fn push(deadline: Instant, task: Task) {
     let mut sleep_q = SLEEP.lock();
 
-    sleep_q.push(SleepingTask { task, deadline });
+    sleep_q.push(Reverse(SleepingTask { task, deadline }));
+
+    HPET.next_timer()
+        .sleep_until(HPET.nanos_to_ticks_u(deadline.nanosecond() as _));
 }
 
 /// # Warning
@@ -21,13 +26,13 @@ pub fn finished() -> impl Iterator<Item = Task> {
     let now = Instant::now();
 
     core::iter::from_fn(move || {
-        if let Some(SleepingTask { deadline, .. }) = sleep_q.peek() {
+        if let Some(Reverse(SleepingTask { deadline, .. })) = sleep_q.peek() {
             if now < *deadline {
                 return None;
             }
         }
 
-        sleep_q.pop().map(|sleep| sleep.task)
+        sleep_q.pop().map(|sleep| sleep.0.task)
     })
 }
 
@@ -60,4 +65,5 @@ impl Ord for SleepingTask {
 
 //
 
-static SLEEP: Lazy<Mutex<BinaryHeap<SleepingTask>>> = Lazy::new(|| Mutex::new(BinaryHeap::new()));
+static SLEEP: Lazy<Mutex<BinaryHeap<Reverse<SleepingTask>>>> =
+    Lazy::new(|| Mutex::new(BinaryHeap::new()));

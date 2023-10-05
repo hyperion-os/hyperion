@@ -25,15 +25,25 @@ use hyperion_arch::{
     int,
     stack::{AddressSpace, KernelStack, Stack, UserStack},
     tls::Tls,
-    vmm::PageMap,
+    vmm::{PageMap, CURRENT_ADDRESS_SPACE},
 };
 use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
-use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
+use hyperion_mem::{
+    pmm::PFA,
+    to_higher_half,
+    vmm::{PageFaultResult, PageMapImpl, Privilege},
+};
+use hyperion_random::Rng;
 use hyperion_timer::TIMER_HANDLER;
 use spin::{Lazy, Mutex};
 use time::Duration;
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+
+//
+
+static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
 
 //
 
@@ -84,6 +94,7 @@ pub struct TaskMemory {
     address_space: AddressSpace,
     kernel_stack: Mutex<Stack<KernelStack>>,
     user_stack: Mutex<Stack<UserStack>>,
+    dbg_magic_byte: usize,
 }
 
 #[derive(Debug)]
@@ -137,6 +148,7 @@ impl Task {
             address_space,
             kernel_stack: Mutex::new(kernel_stack),
             user_stack: Mutex::new(user_stack),
+            dbg_magic_byte: *MAGIC_DEBUG_BYTE,
         });
 
         let context = Box::new(UnsafeCell::new(Context::new(
@@ -144,6 +156,16 @@ impl Task {
             stack_top,
             thread_entry,
         )));
+
+        let alloc = PFA.alloc(1);
+        memory.address_space.page_map.map(
+            CURRENT_ADDRESS_SPACE..CURRENT_ADDRESS_SPACE + 0xFFFu64,
+            alloc.physical_addr(),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        );
+        let current_address_space: *mut Arc<TaskMemory> =
+            to_higher_half(alloc.physical_addr()).as_mut_ptr();
+        unsafe { current_address_space.write(memory.clone()) };
 
         Self {
             memory,
@@ -186,6 +208,12 @@ pub fn tasks() -> Vec<Arc<TaskInfo>> {
     tasks.iter().filter_map(|p| p.upgrade()).collect()
 }
 
+pub fn idle() -> impl Iterator<Item = Duration> {
+    Tls::inner(&TLS)
+        .iter()
+        .map(|tls| Duration::nanoseconds(tls.idle_time.load(Ordering::Relaxed) as _))
+}
+
 /// reset this processors scheduling
 pub fn reset() -> ! {
     hyperion_arch::int::disable();
@@ -196,7 +224,14 @@ pub fn reset() -> ! {
             READY.push(task);
         }
     });
-    // TODO: hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| yield_now());
+    hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| {
+        /* for task in sleep::finished() {
+            READY.push(task);
+        } */
+        // debug!("apic int");
+        // hyperion_arch::dbg_cpu();
+        // yield_now();
+    });
 
     swap_current(Some(Task::new(|| {})));
     stop();
@@ -204,16 +239,15 @@ pub fn reset() -> ! {
 
 /// switch to another thread
 pub fn yield_now() {
+    update_cpu_usage();
+
     let Some(next) = next_task() else {
-        int::enable();
-        int::wait();
-        int::disable();
+        // no tasks -> keep the current task running
         return;
     };
     let Some(current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
-    update_cpu_usage(&current);
 
     let context = current.context.get();
 
@@ -223,9 +257,7 @@ pub fn yield_now() {
 
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe {
-        block(context, next);
-    }
+    unsafe { block(context, next) };
 }
 
 pub fn sleep(duration: Duration) {
@@ -233,14 +265,17 @@ pub fn sleep(duration: Duration) {
 }
 
 pub fn sleep_until(deadline: Instant) {
-    let next = wait_next_task();
+    update_cpu_usage();
+
+    let Some(next) = wait_next_task_deadline(deadline) else {
+        return;
+    };
     let Some(current) = swap_current(None) else {
         unreachable!("cannot yield from a task that doesn't exist")
     };
     if current.info.state.load() == TaskState::Running {
         current.info.state.store(TaskState::Ready);
     };
-    update_cpu_usage(&current);
 
     let context = current.context.get();
 
@@ -250,9 +285,7 @@ pub fn sleep_until(deadline: Instant) {
 
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe {
-        block(context, next);
-    }
+    unsafe { block(context, next) };
 }
 
 /// destroy the current thread
@@ -272,9 +305,7 @@ pub fn stop() -> ! {
 
     // SAFETY: `current` is stored in the queue until the switch
     // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe {
-        block(context, next);
-    }
+    unsafe { block(context, next) };
 
     unreachable!("a destroyed thread cannot continue executing");
 }
@@ -293,14 +324,34 @@ fn swap_current(mut new: Option<Task>) -> Option<Task> {
     new
 }
 
-/// increase the task info's cpu usage field
-fn update_cpu_usage(t: &Task) {
+#[must_use]
+fn cpu_time_elapsed() -> u64 {
     let now = HPET.nanos() as u64;
     let last = last_time().swap(now, Ordering::SeqCst);
 
-    let elapsed = now - last;
+    now - last
+}
 
-    t.info.nanos.fetch_add(elapsed, Ordering::Relaxed);
+fn reset_cpu_timer() {
+    _ = cpu_time_elapsed();
+}
+
+/// increase the task info's cpu usage field
+fn update_cpu_usage() {
+    let elapsed = cpu_time_elapsed();
+
+    active()
+        .as_ref()
+        .expect("to be in a task")
+        .info
+        .nanos
+        .fetch_add(elapsed, Ordering::Relaxed);
+}
+
+fn update_cpu_idle() {
+    let elapsed = cpu_time_elapsed();
+
+    idle_time().fetch_add(elapsed, Ordering::Relaxed);
 }
 
 /// # Safety
@@ -317,6 +368,7 @@ unsafe fn block(current: *mut Context, next: Task) {
     // and the boxed field `context` makes sure the context pointer doesn't move
     unsafe {
         hyperion_arch::context::switch(current, context);
+        _ = cpu_time_elapsed();
     }
 
     cleanup();
@@ -324,18 +376,35 @@ unsafe fn block(current: *mut Context, next: Task) {
 
 fn wait_next_task() -> Task {
     loop {
-        if let Some(task) = READY.pop() {
+        if let Some(task) = next_task() {
             return task;
         }
 
-        trace!("no tasks, waiting for interrupts");
-        int::enable();
-        int::wait();
-        int::disable();
+        reset_cpu_timer();
 
-        for task in sleep::finished() {
-            READY.push(task);
+        debug!("no tasks, waiting for interrupts");
+        int::wait();
+
+        update_cpu_idle();
+    }
+}
+
+fn wait_next_task_deadline(deadline: Instant) -> Option<Task> {
+    loop {
+        if let Some(task) = next_task() {
+            return Some(task);
         }
+
+        reset_cpu_timer();
+
+        debug!("no tasks, waiting for interrupts");
+        int::wait();
+
+        if deadline.is_reached() {
+            return None;
+        }
+
+        update_cpu_idle();
     }
 }
 
@@ -377,6 +446,7 @@ struct SchedulerTls {
     active: Mutex<Option<Task>>,
     after: SegQueue<CleanupTask>,
     last_time: AtomicU64,
+    idle_time: AtomicU64,
 }
 
 static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
@@ -384,6 +454,7 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
         active: Mutex::new(None),
         after: SegQueue::new(),
         last_time: AtomicU64::new(0),
+        idle_time: AtomicU64::new(0),
     })
 });
 
@@ -399,23 +470,42 @@ fn last_time() -> &'static AtomicU64 {
     &TLS.last_time
 }
 
+fn idle_time() -> &'static AtomicU64 {
+    &TLS.idle_time
+}
+
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     // hyperion_log::debug!("scheduler page fault");
 
-    let active = active();
+    /* let active = active();
     let Some(current) = active.as_ref() else {
         hyperion_log::error!("page fault from kernel code");
-        return PageFaultResult::NotHandled;
-    };
-    /* let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
-    let current = unsafe { (*current).clone() };
-    assert_eq!(current.dbg_magic_byte, *MAGIC_DEBUG_BYTE); */
 
-    if user == Privilege::User {
-        user_page_fault_handler(addr, &current.memory)
+        let page = PageMap::current();
+        let v = VirtAddr::new(addr as _);
+        let p = page.virt_to_phys(v);
+        debug!("{v:018x?} -> {p:018x?}");
+
+        return PageFaultResult::NotHandled;
+    }; */
+    let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
+    let current = unsafe { (*current).clone() };
+    assert_eq!(current.dbg_magic_byte, *MAGIC_DEBUG_BYTE);
+
+    let res = if user == Privilege::User {
+        user_page_fault_handler(addr, &current)
     } else {
-        kernel_page_fault_handler(addr, &current.memory)
+        kernel_page_fault_handler(addr, &current)
+    };
+
+    if res.is_not_handled() {
+        let page = PageMap::current();
+        let v = VirtAddr::new(addr as _);
+        let p = page.virt_to_phys(v);
+        error!("{v:018x?} -> {p:018x?}");
     }
+
+    res
 }
 
 fn user_page_fault_handler(addr: usize, task: &TaskMemory) -> PageFaultResult {

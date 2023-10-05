@@ -26,6 +26,10 @@ impl<T: 'static> Tls<T> {
             inner: (0..cpu_count()).map(|_| f()).collect(),
         }
     }
+
+    pub fn inner(this: &Self) -> &[T] {
+        &this.inner
+    }
 }
 
 impl<T: 'static> Deref for Tls<T> {

@@ -124,7 +124,6 @@ pub mod int {
     pub extern "C" fn wait() {
         // extern "C" disables red zones and red zones fuck up the stack when an interrupt happens
         // https://doc.rust-lang.org/rustc/platform-support/x86_64-unknown-none.html
-        enable();
         int::enable_and_hlt();
         disable();
     }
