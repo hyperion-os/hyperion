@@ -534,7 +534,11 @@ impl Shell {
     fn ps_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         let tasks = hyperion_scheduler::tasks();
 
-        _ = writeln!(self.term, "\n{: >6} {: <8} {: >9} CMD", "PID", "STAT", "TIME");
+        _ = writeln!(
+            self.term,
+            "\n{: >6} {: <8} {: >9} CMD",
+            "PID", "STAT", "TIME"
+        );
         for task in tasks {
             let pid = task.pid;
             let state = task.state.load().as_str();
@@ -545,7 +549,10 @@ impl Shell {
             let time_ms = time.whole_milliseconds() % 1000;
             let name = task.name.read();
 
-            _ = writeln!(self.term, "{pid: >6} {state: <8} {time_m: >2}:{time_s:02}.{time_ms:03} {name}");
+            _ = writeln!(
+                self.term,
+                "{pid: >6} {state: <8} {time_m: >2}:{time_s:02}.{time_ms:03} {name}"
+            );
         }
 
         Ok(())
@@ -575,12 +582,9 @@ impl Shell {
         let mem_free = pmm::PFA.free_mem().postfix_binary();
         let mem_used = pmm::PFA.used_mem().postfix_binary();
 
+        _ = writeln!(self.term, "top - {uptime_h}:{uptime_m:02}:{uptime_s:02} up");
         _ = writeln!(
             self.term,
-            "top - {uptime_h}:{uptime_m:02}:{uptime_s:02} up"
-        );
-        _ = writeln!(
-            self.term, 
             "Tasks: {tasks_total} total, {tasks_running} running, {tasks_sleeping} sleeping, {tasks_ready} ready"
         );
         _ = writeln!(
@@ -596,7 +600,6 @@ impl Shell {
         }
         _ = writeln!(self.term);
 
-        
         self.ps_cmd(None)
     }
 }
