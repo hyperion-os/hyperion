@@ -4,6 +4,7 @@ use core::{fmt::Write, slice, sync::atomic::Ordering, time::Duration};
 use futures_util::stream::select;
 use hyperion_color::Color;
 use hyperion_driver_acpi::apic::ApicId;
+use hyperion_instant::Instant;
 use hyperion_keyboard::{
     event::{KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -11,7 +12,10 @@ use hyperion_keyboard::{
 use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
-use hyperion_scheduler::timer::{sleep, ticks};
+use hyperion_scheduler::{
+    timer::{sleep, ticks},
+    TaskState, TaskInfo,
+};
 use hyperion_vfs::{
     self,
     path::{Path, PathBuf},
@@ -142,6 +146,7 @@ impl Shell {
             "lapic_id" => self.lapic_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
             "nproc" => self.nproc_cmd(args)?,
+            "top" => self.top_cmd(args)?,
             "exit" => return Ok(None),
             "clear" => {
                 self.term.clear();
@@ -395,7 +400,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, ps, exit, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, ps, nproc, top, exit, clear");
 
         Ok(())
     }
@@ -545,6 +550,62 @@ impl Shell {
 
     fn nproc_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         _ = writeln!(self.term, "{}", hyperion_arch::cpu_count());
+
+        Ok(())
+    }
+
+    fn top_cmd(&mut self, _args: Option<&str>) -> Result<()> {
+        let uptime = Instant::now() - Instant::new(0);
+
+        let uptime_h = uptime.whole_hours();
+        let uptime_m = uptime.whole_minutes();
+        let uptime_s = uptime.whole_seconds();
+
+        let tasks = hyperion_scheduler::tasks();
+        let tasks_total = tasks.len();
+        let task_states = tasks.iter().map(|task| task.state.load());
+        let tasks_running = task_states.clone().filter(TaskState::is_running).count();
+        let tasks_sleeping = task_states.clone().filter(TaskState::is_sleeping).count();
+        let tasks_ready = task_states.clone().filter(TaskState::is_ready).count();
+
+        let mem_total = pmm::PFA.usable_mem().postfix_binary();
+        let mem_free = pmm::PFA.free_mem().postfix_binary();
+        let mem_used = pmm::PFA.used_mem().postfix_binary();
+
+        _ = writeln!(
+            self.term,
+            "top - {uptime_h}:{uptime_m}:{uptime_s} up"
+        );
+        _ = writeln!(
+            self.term, 
+            "Tasks: {tasks_total} total, {tasks_running} running, {tasks_sleeping} sleeping, {tasks_ready} ready"
+        );
+        _ = writeln!(
+            self.term,
+            "Mem: {mem_total} total, {mem_free} free, {mem_used} used"
+        );
+
+        _ = write!(self.term, "Cpu idles: ");
+        for idle in hyperion_scheduler::idle() {
+            // round the time
+            let idle = time::Duration::milliseconds(idle.whole_milliseconds() as _);
+            _ = write!(self.term, "{idle}, ");
+        }
+        _ = writeln!(self.term);
+
+        
+        _ = writeln!(self.term, "\n{: >6} {: <8} {: >9} CMD", "PID", "STAT", "TIME");
+        for task in tasks {
+            let TaskInfo { pid, name, nanos, state } = &*task;
+            let state = state.load().as_str();
+            let time = time::Duration::nanoseconds(nanos.load(Ordering::Relaxed) as _);
+            // let time_h = time.whole_hours();
+            let time_m = time.whole_minutes() % 60;
+            let time_s = time.whole_seconds() % 60;
+            let time_ms = time.whole_milliseconds() % 1000;
+
+            _ = writeln!(self.term, "{pid: >6} {state: <8} {time_m: >2}:{time_s:02}.{time_ms:03} {name}");
+        }
 
         Ok(())
     }

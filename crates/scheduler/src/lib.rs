@@ -122,6 +122,49 @@ pub enum TaskState {
     Dropping,
 }
 
+impl TaskState {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            TaskState::Running => "running",
+            TaskState::Sleeping => "sleeping",
+            TaskState::Ready => "ready",
+            TaskState::Dropping => "dropping",
+        }
+    }
+
+    /// Returns `true` if the task state is [`Running`].
+    ///
+    /// [`Running`]: TaskState::Running
+    #[must_use]
+    pub fn is_running(&self) -> bool {
+        matches!(self, Self::Running)
+    }
+
+    /// Returns `true` if the task state is [`Sleeping`].
+    ///
+    /// [`Sleeping`]: TaskState::Sleeping
+    #[must_use]
+    pub fn is_sleeping(&self) -> bool {
+        matches!(self, Self::Sleeping)
+    }
+
+    /// Returns `true` if the task state is [`Ready`].
+    ///
+    /// [`Ready`]: TaskState::Ready
+    #[must_use]
+    pub fn is_ready(&self) -> bool {
+        matches!(self, Self::Ready)
+    }
+
+    /// Returns `true` if the task state is [`Dropping`].
+    ///
+    /// [`Dropping`]: TaskState::Dropping
+    #[must_use]
+    pub fn is_dropping(&self) -> bool {
+        matches!(self, Self::Dropping)
+    }
+}
+
 impl Task {
     pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
         let name = type_name_of_val(&f);
@@ -380,12 +423,8 @@ fn wait_next_task() -> Task {
             return task;
         }
 
-        reset_cpu_timer();
-
-        debug!("no tasks, waiting for interrupts");
-        int::wait();
-
-        update_cpu_idle();
+        // debug!("no tasks, waiting for interrupts");
+        wait();
     }
 }
 
@@ -395,17 +434,19 @@ fn wait_next_task_deadline(deadline: Instant) -> Option<Task> {
             return Some(task);
         }
 
-        reset_cpu_timer();
-
-        debug!("no tasks, waiting for interrupts");
-        int::wait();
+        // debug!("no tasks, waiting for interrupts");
+        wait();
 
         if deadline.is_reached() {
             return None;
         }
-
-        update_cpu_idle();
     }
+}
+
+fn wait() {
+    reset_cpu_timer();
+    int::wait();
+    update_cpu_idle();
 }
 
 fn next_task() -> Option<Task> {

@@ -2,10 +2,9 @@ use alloc::sync::Arc;
 use core::future::Future;
 
 use crossbeam_queue::SegQueue;
-use hyperion_arch::int;
 
 use super::task::Task;
-use crate::yield_now;
+use crate::{update_cpu_usage, wait, yield_now};
 
 //
 
@@ -17,8 +16,8 @@ pub fn run_tasks() -> ! {
     loop {
         while run_once().is_some() {}
 
-        int::wait();
-
+        update_cpu_usage();
+        wait();
         yield_now();
     }
 }

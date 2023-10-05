@@ -18,6 +18,8 @@
 
 //
 
+use alloc::string::String;
+
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_boot_interface::Cpu;
@@ -77,24 +79,18 @@ fn smp_main(cpu: Cpu) -> ! {
         debug!("boot cpu drivers installed");
 
         scheduler::spawn(move || loop {
-            scheduler::sleep(time::Duration::milliseconds(500));
-            // scheduler::yield_now();
+            scheduler::sleep(time::Duration::milliseconds(100));
 
-            debug!("cpu idle:",);
+            let times = scheduler::idle().fold(String::new(), |mut acc, next| {
+                use core::fmt::Write;
+                _ = write!(acc, "; {next} ");
+                acc
+            });
 
-            for cpu in scheduler::idle() {
-                debug!(" - {cpu}");
-            }
+            debug!("cpu idle times{times}");
         });
     }
 
-    /* scheduler::spawn(move || loop {
-        arch::int::enable();
-        arch::int::wait();
-        arch::int::disable();
-
-        scheduler::yield_now();
-    }); */
     scheduler::spawn(move || {
         scheduler::executor::run_tasks();
     });

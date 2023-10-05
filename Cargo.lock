@@ -176,6 +176,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
+name = "either"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+
+[[package]]
 name = "elf"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -525,6 +531,7 @@ dependencies = [
  "hyperion-driver-acpi",
  "hyperion-escape",
  "hyperion-framebuffer",
+ "hyperion-instant",
  "hyperion-kernel-info",
  "hyperion-keyboard",
  "hyperion-loader",
@@ -536,6 +543,7 @@ dependencies = [
  "hyperion-sample-elf",
  "hyperion-scheduler",
  "hyperion-vfs",
+ "itertools",
  "libm",
  "snafu",
  "spin",
@@ -697,6 +705,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "itertools"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
 ]
 
 [[package]]
