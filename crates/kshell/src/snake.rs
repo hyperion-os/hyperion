@@ -84,7 +84,7 @@ pub async fn snake_game(term: &mut Term) -> Result<()> {
             term.cursor.1 = term.size.1 / 2;
             term.write_bytes(b"GAME OVER\n");
             term.cursor.0 = term.size.0 / 2;
-            _ = write!(term, "\nSCORE: {}", pieces.len());
+            _ = write!(term, "SCORE: {}", pieces.len());
             break;
         }
     }
