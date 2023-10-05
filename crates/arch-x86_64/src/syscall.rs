@@ -94,33 +94,35 @@ impl fmt::Display for SyscallRegs {
 pub unsafe extern "sysv64" fn userland(_instr_ptr: VirtAddr, _stack_ptr: VirtAddr) -> ! {
     // rdi = _instr_ptr
     // rsi = _stack_ptr
-    asm!(
-        // "cli",
-        "mov rcx, rdi", // RDI = _instr_ptr
-        "mov rsp, rsi", // RSI = _stack_ptr
-        "mov r11, {rflags}",
-        // clear some registers
-        "xor rax, rax",
-        "xor rbx, rbx",
-        // no zeroing rcx, sysreq returns to the address in it (`instr_ptr`)
-        "xor rdx, rdx",
-        "xor rdi, rdi",
-        "xor rsi, rsi",
-        "xor rbp, rbp",
-        // no zeroing rsp, a stack is needed
-        "xor r8, r8",
-        "xor r9, r9",
-        "xor r10, r10",
-        // no zeroing r11, it holds RFLAGS
-        "xor r12, r12",
-        "xor r13, r13",
-        "xor r14, r14",
-        "xor r15, r15",
-        // "call {halt}",
-        "sysretq",
-        rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
-        options(noreturn)
-    )
+    unsafe {
+        asm!(
+            // "cli",
+            "mov rcx, rdi", // RDI = _instr_ptr
+            "mov rsp, rsi", // RSI = _stack_ptr
+            "mov r11, {rflags}",
+            // clear some registers
+            "xor rax, rax",
+            "xor rbx, rbx",
+            // no zeroing rcx, sysreq returns to the address in it (`instr_ptr`)
+            "xor rdx, rdx",
+            "xor rdi, rdi",
+            "xor rsi, rsi",
+            "xor rbp, rbp",
+            // no zeroing rsp, a stack is needed
+            "xor r8, r8",
+            "xor r9, r9",
+            "xor r10, r10",
+            // no zeroing r11, it holds RFLAGS
+            "xor r12, r12",
+            "xor r13, r13",
+            "xor r14, r14",
+            "xor r15, r15",
+            // "call {halt}",
+            "sysretq",
+            rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
+            options(noreturn)
+        );
+    }
 }
 
 //
@@ -132,68 +134,75 @@ unsafe extern "C" fn syscall_wrapper() {
     // rcx = return address
     // rsp = user stack
     // r11 = rflags
-    asm!(
-        "cli",
-        "swapgs", // swap gs and kernelgs to open up a few temporary data locations
-        "mov gs:{user_stack}, rsp",   // backup the user stack
-        "mov rsp, gs:{kernel_stack}", // switch to the kernel stack
-        "push QWORD PTR gs:{user_stack}",
-        "swapgs",
+    unsafe {
+        asm!(
+            "cli",
+            "swapgs", // swap gs and kernelgs to open up a few temporary data locations
+            "mov gs:{user_stack}, rsp",   // backup the user stack
+            "mov rsp, gs:{kernel_stack}", // switch to the kernel stack
+            "push QWORD PTR gs:{user_stack}",
+            "swapgs",
 
-        "push rax",
-        "push rbx",
-        "push rcx",
-        "push rdx",
-        "push rdi",
-        "push rsi",
-        "push rbp",
-        "push r8",
-        "push r9",
-        "push r10",
-        "push r11",
-        "push r12",
-        "push r13",
-        "push r14",
-        "push r15",
+            // FIXME: Context switching doesn't care about gs:kernel_stack and it probably
+            // uses the same kernel stack base for different tasks running on the same processor.
+            // Sharing a stack obviously leads to stack corruption.
 
-        "mov rdi, rsp",
-        "call {syscall}",
+            "push rax",
+            "push rbx",
+            "push rcx",
+            "push rdx",
+            "push rdi",
+            "push rsi",
+            "push rbp",
+            "push r8",
+            "push r9",
+            "push r10",
+            "push r11",
+            "push r12",
+            "push r13",
+            "push r14",
+            "push r15",
 
-        "pop r15",
-        "pop r14",
-        "pop r13",
-        "pop r12",
-        "pop r11",
-        "pop r10",
-        "pop r9",
-        "pop r8",
-        "pop rbp",
-        "pop rsi",
-        "pop rdi",
-        "pop rdx",
-        "pop rcx",
-        "pop rbx",
-        "pop rax",
+            "mov rdi, rsp",
+            "call {syscall}",
 
-        "swapgs",
-        "pop QWORD PTR gs:{user_stack}",
-        "mov rsp, gs:{user_stack}",
-        "swapgs",
-        // TODO: fix the sysret vulnerability
-        "sysretq",
-        syscall = sym syscall,
-        user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
-        kernel_stack = const(offset_of!(ThreadLocalStorage, kernel_stack)),
-        options(noreturn)
-    );
+            "pop r15",
+            "pop r14",
+            "pop r13",
+            "pop r12",
+            "pop r11",
+            "pop r10",
+            "pop r9",
+            "pop r8",
+            "pop rbp",
+            "pop rsi",
+            "pop rdi",
+            "pop rdx",
+            "pop rcx",
+            "pop rbx",
+            "pop rax",
+
+            "swapgs",
+            "pop QWORD PTR gs:{user_stack}",
+            "mov rsp, gs:{user_stack}",
+            "swapgs",
+            // TODO: fix the sysret vulnerability
+            "sysretq",
+            syscall = sym syscall,
+            user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
+            kernel_stack = const(offset_of!(ThreadLocalStorage, kernel_stack)),
+            options(noreturn)
+        );
+    }
 }
 
 #[inline(always)]
 #[no_mangle]
-unsafe extern "C" fn syscall(regs: &mut SyscallRegs) {
-    SYSCALL_HANDLER.load()(regs);
+unsafe extern "C" fn syscall(regs: *mut SyscallRegs) {
+    SYSCALL_HANDLER.load()(unsafe { &mut *regs });
 }
 
+// TODO: static linking instead of dynamic fn ptr
 static SYSCALL_HANDLER: AtomicCell<fn(&mut SyscallRegs)> = AtomicCell::new(|_| {
     hyperion_log::error!("Syscall handler not initialized");
 });

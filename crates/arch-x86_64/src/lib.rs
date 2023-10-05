@@ -7,6 +7,7 @@
     asm_const,
     const_refs_to_cell
 )]
+#![forbid(unsafe_op_in_unsafe_fn)]
 
 //
 
