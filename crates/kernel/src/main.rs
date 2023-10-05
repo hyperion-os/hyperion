@@ -18,8 +18,6 @@
 
 //
 
-use alloc::string::String;
-
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_boot_interface::Cpu;
@@ -70,7 +68,7 @@ extern "C" fn _start() -> ! {
 }
 
 fn smp_main(cpu: Cpu) -> ! {
-    debug!("{cpu} entering smp_main");
+    trace!("{cpu} entering smp_main");
 
     arch::init_smp_cpu(&cpu);
 
@@ -83,6 +81,6 @@ fn smp_main(cpu: Cpu) -> ! {
         hyperion_scheduler::rename("<kernel futures executor>".into());
         scheduler::executor::run_tasks();
     });
-    debug!("resetting {cpu} scheduler");
-    scheduler::reset();
+    trace!("resetting {cpu} scheduler");
+    scheduler::init();
 }

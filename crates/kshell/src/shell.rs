@@ -1,5 +1,5 @@
 use alloc::{string::String, sync::Arc};
-use core::{fmt::Write, slice, sync::atomic::Ordering, time::Duration};
+use core::{fmt::Write, slice, sync::atomic::Ordering};
 
 use futures_util::stream::select;
 use hyperion_color::Color;
@@ -14,7 +14,7 @@ use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::{
     timer::{sleep, ticks},
-    TaskState, TaskInfo,
+    TaskState,
 };
 use hyperion_vfs::{
     self,

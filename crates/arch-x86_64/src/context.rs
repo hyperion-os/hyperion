@@ -58,6 +58,16 @@ impl Context {
             rsp,
         }
     }
+
+    /// # Safety
+    ///
+    /// this task is not safe to switch to
+    pub unsafe fn invalid(page_map: &PageMap) -> Self {
+        Self {
+            cr3: page_map.cr3().start_address(),
+            rsp: VirtAddr::new_truncate(0),
+        }
+    }
 }
 
 //

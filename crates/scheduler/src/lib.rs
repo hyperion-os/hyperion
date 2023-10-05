@@ -15,7 +15,7 @@ use core::{
     cell::UnsafeCell,
     mem::swap,
     ops::DerefMut,
-    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 
 use crossbeam::atomic::AtomicCell;
@@ -221,6 +221,44 @@ impl Task {
         }
     }
 
+    /// # Safety
+    ///
+    /// this task is not safe to switch to
+    unsafe fn bootloader() -> Self {
+        // TODO: dropping this task should also free the bootloader stacks
+        // they are currently wasting 64KiB per processor
+
+        let info = Arc::new(TaskInfo {
+            pid: 0,
+            name: RwLock::new("bootloader".into()),
+            nanos: AtomicU64::new(0),
+            state: AtomicCell::new(TaskState::Ready),
+        });
+
+        let address_space = AddressSpace::new(PageMap::current());
+        let kernel_stack = address_space.kernel_stacks.take();
+        let user_stack = address_space.user_stacks.take();
+
+        // SAFETY: covered by this function's safety doc
+        let ctx = unsafe { Context::invalid(&address_space.page_map) };
+        let context = Box::new(UnsafeCell::new(ctx));
+
+        let memory = Arc::new(TaskMemory {
+            address_space,
+            kernel_stack: Mutex::new(kernel_stack),
+            user_stack: Mutex::new(user_stack),
+            dbg_magic_byte: 0,
+        });
+
+        Self {
+            memory,
+
+            context,
+            job: None,
+            info,
+        }
+    }
+
     pub fn next_pid() -> usize {
         static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
         NEXT_PID.fetch_add(1, Ordering::Relaxed)
@@ -268,8 +306,8 @@ pub fn rename(new_name: String) {
         .write() = new_name;
 }
 
-/// reset this processors scheduling
-pub fn reset() -> ! {
+/// init this processors scheduling
+pub fn init() -> ! {
     hyperion_arch::int::disable();
 
     ints::PAGE_FAULT_HANDLER.store(page_fault_handler);
@@ -287,7 +325,12 @@ pub fn reset() -> ! {
         // yield_now();
     });
 
-    swap_current(Some(Task::new(|| {})));
+    // SAFETY: the task is stopped and won't run
+    if TLS.initialized.swap(true, Ordering::SeqCst)
+        || swap_current(Some(unsafe { Task::bootloader() })).is_some()
+    {
+        panic!("should be called only once before any tasks are assigned to this processor")
+    }
     stop();
 }
 
@@ -499,6 +542,7 @@ struct SchedulerTls {
     after: SegQueue<CleanupTask>,
     last_time: AtomicU64,
     idle_time: AtomicU64,
+    initialized: AtomicBool,
 }
 
 static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
@@ -507,6 +551,7 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
         after: SegQueue::new(),
         last_time: AtomicU64::new(0),
         idle_time: AtomicU64::new(0),
+        initialized: AtomicBool::new(false),
     })
 });
 

@@ -56,7 +56,7 @@ pub fn init(tls: &'static ThreadLocalStorage) {
     tls.kernel_stack
         .store(stack.as_mut_ptr_range().end, Ordering::SeqCst);
 
-    hyperion_log::debug!("TLS: 0x{:016x}", tls as *const _ as usize);
+    // hyperion_log::debug!("TLS: 0x{:016x}", tls as *const _ as usize);
 
     // in kernel space, GS points to thread local storage
     KernelGsBase::write(VirtAddr::new(tls as *const _ as usize as u64));
