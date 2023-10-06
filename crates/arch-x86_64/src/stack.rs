@@ -9,7 +9,7 @@ use core::{
 use crossbeam::queue::SegQueue;
 use hyperion_mem::{
     pmm::{self, PageFrame},
-    vmm::{PageFaultResult, PageMapImpl},
+    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl},
 };
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
@@ -18,7 +18,7 @@ use crate::vmm::PageMap;
 //
 
 /// the first frame of the stack
-pub const USER_STACK_TOP: u64 = 0x7FFF_FFFF_F000; // 0x8000_0000_0000;
+pub const USER_STACK_TOP: u64 = 0x7FFD_FFFF_F000; // 0x8000_0000_0000;
 
 pub const VIRT_STACK_PAGES: u64 = 512;
 pub const VIRT_STACK_SIZE: u64 = 0x1000 * VIRT_STACK_PAGES; // 2MiB (contains the 4KiB guard page)
@@ -41,6 +41,7 @@ pub trait StackType {
     fn region() -> Range<u64>;
 
     const PAGE_FLAGS: PageTableFlags;
+    const TY: &'static str;
 }
 
 impl StackType for KernelStack {
@@ -58,6 +59,8 @@ impl StackType for KernelStack {
             | PageTableFlags::WRITABLE.bits()
             | PageTableFlags::NO_EXECUTE.bits(),
     );
+
+    const TY: &'static str = "kernel";
 }
 
 impl StackType for UserStack {
@@ -71,6 +74,8 @@ impl StackType for UserStack {
             | PageTableFlags::WRITABLE.bits()
             | PageTableFlags::NO_EXECUTE.bits(),
     );
+
+    const TY: &'static str = "user";
 }
 
 //
@@ -96,7 +101,10 @@ impl<T: StackType + Debug> Stacks<T> {
         }
     }
 
-    pub fn take(&self) -> Stack<T> {
+    /// # Safety
+    ///
+    /// the stack is not safe to use before initializing it
+    pub unsafe fn take(&self) -> Stack<T> {
         let top = self
             .free_stacks
             .pop()
@@ -107,6 +115,22 @@ impl<T: StackType + Debug> Stacks<T> {
         }
 
         Stack::new(VirtAddr::new(top))
+    }
+
+    pub fn take_lazy(&self, page_map: &PageMap) -> Stack<T> {
+        // SAFETY: the stack gets initialized
+        let stack = unsafe { self.take() };
+        stack.init(page_map);
+        stack
+    }
+
+    pub fn take_prealloc(&self, page_map: &PageMap, size_4k_pages: u64) -> Stack<T> {
+        // SAFETY: the stack gets initialized
+        let mut stack = unsafe { self.take() };
+        if let Some(grow) = size_4k_pages.checked_sub(stack.extent_4k_pages) {
+            _ = stack.grow(page_map, grow);
+        }
+        stack
     }
 
     pub fn free(&self, stack: Stack<T>) {
@@ -136,6 +160,24 @@ impl AddressSpace {
             user_stacks: Stacks::new(),
             kernel_stacks: Stacks::new(),
         }
+    }
+
+    pub fn take_user_stack_lazy(&self) -> Stack<UserStack> {
+        self.user_stacks.take_lazy(&self.page_map)
+    }
+
+    pub fn take_user_stack_prealloc(&self, size_4k_pages: u64) -> Stack<UserStack> {
+        self.user_stacks
+            .take_prealloc(&self.page_map, size_4k_pages)
+    }
+
+    pub fn take_kernel_stack_lazy(&self) -> Stack<KernelStack> {
+        self.kernel_stacks.take_lazy(&self.page_map)
+    }
+
+    pub fn take_kernel_stack_prealloc(&self, size_4k_pages: u64) -> Stack<KernelStack> {
+        self.kernel_stacks
+            .take_prealloc(&self.page_map, size_4k_pages)
     }
 }
 
@@ -199,11 +241,15 @@ impl<T: StackType + Debug> Stack<T> {
     /// won't allocate the stack,
     /// this only makes sure the guard page is there
     pub fn init(&self, page_map: &PageMap) {
-        page_map.activate();
+        hyperion_log::trace!("init a stack {:?}", T::PAGE_FLAGS);
+
+        // page_map.activate();
         page_map.unmap(Self::page_range(self.guard_page()));
     }
 
     pub fn grow(&mut self, page_map: &PageMap, grow_by_pages: u64) -> Result<(), StackLimitHit> {
+        hyperion_log::trace!("growing a stack {:?}", T::PAGE_FLAGS);
+
         if self.extent_4k_pages + grow_by_pages > self.limit_4k_pages {
             hyperion_log::trace!("stack limit hit");
             // stack cannot grow anymore
@@ -236,24 +282,30 @@ impl<T: StackType + Debug> Stack<T> {
 
         // just making sure the correct page_map was mapped
         // TODO: assert
-        page_map.activate();
+        // page_map.activate();
+        assert!(page_map.is_active());
 
-        hyperion_log::trace!("stack page fault test");
+        hyperion_log::trace!("stack page fault test ({})", T::TY);
 
         let guard_page = self.guard_page();
 
         if !(guard_page..=guard_page + 0xFFFu64).contains(&addr) {
             hyperion_log::trace!("guard page not hit (0x{guard_page:016x})");
             // guard page not hit, so its not a stack overflow
-            return PageFaultResult::NotHandled;
+            return Ok(NotHandled);
         }
 
         // TODO: configurable grow_by_rate
         if let Err(StackLimitHit) = self.grow(page_map, 1) {
-            return PageFaultResult::NotHandled;
+            return Ok(NotHandled);
         }
 
-        PageFaultResult::Handled
+        hyperion_log::trace!(
+            "now {addr:018x} maps to {:018x?}",
+            page_map.virt_to_phys(addr)
+        );
+
+        Err(Handled)
     }
 
     pub fn cleanup(&mut self, page_map: &PageMap) {

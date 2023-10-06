@@ -10,23 +10,16 @@ pub enum Privilege {
     Kernel,
 }
 
+/// inversed to make `?` more useful
+///
+/// TODO: impl try
+pub type PageFaultResult = Result<NotHandled, Handled>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PageFaultResult {
-    Handled,
-    NotHandled,
-}
+pub struct Handled;
 
-//
-
-impl PageFaultResult {
-    pub const fn is_handled(self) -> bool {
-        matches!(self, PageFaultResult::Handled)
-    }
-
-    pub const fn is_not_handled(self) -> bool {
-        matches!(self, PageFaultResult::NotHandled)
-    }
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NotHandled;
 
 //
 

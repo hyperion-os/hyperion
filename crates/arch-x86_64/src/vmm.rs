@@ -7,7 +7,8 @@
 //! | `0x0`                   | -            | `0x1000` (1KiB)              | Null ptr guard page                 |
 //! | `0x1000`                | ? (dynamic)  | TODO                         | User executable                     |
 //! | TODO                    | ? (dynamic)  | TODO                         | User heap                           |
-//! | `0x7FFD_FFFF_F000` [^1] | ? (dynamic)  | `0x2_0000_0000` (8GiB) [^2]  | User stacks                         |
+//! | `0x7FFB_FFFF_F000` [^1] | ? (dynamic)  | `0x2_0000_0000` (8GiB) [^2]  | User stacks                         |
+//! | `0x7FFD_FFFF_F000`      | ? (dynamic)  | `0x2_0000_0000` (8GiB)       | User environment                    |
 //! | `0x8000_0000_0000`      | -            | -                            | Non canonical addresses             |
 //! | `0xFFFF_8000_0000_0000` | `0x0`        | `0x7FFD_8000_0000` (~128TiB) | Higher half direct mapping          |
 //! | `0xFFFF_FFFD_8000_0000` | ? (dynamic)  | `0x2_0000_0000` (8GiB)       | Kernel stacks                       |
@@ -26,7 +27,7 @@ use core::{cmp::Ordering, ops::Range};
 use hyperion_log::println;
 use hyperion_mem::{
     from_higher_half, pmm, to_higher_half,
-    vmm::{PageFaultResult, PageMapImpl, Privilege},
+    vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
 use spin::{Lazy, Mutex, RwLock};
 use x86_64::{
@@ -127,7 +128,7 @@ impl PageMapImpl for PageMap {
             return PageFaultResult::NotHandled;
         } */
 
-        PageFaultResult::NotHandled
+        Ok(NotHandled)
     }
 
     fn current() -> Self {
@@ -385,6 +386,10 @@ impl PageMapImpl for PageMap {
 }
 
 impl PageMap {
+    pub fn is_active(&self) -> bool {
+        Cr3::read().0 == self.cr3()
+    }
+
     pub fn cr3(&self) -> PhysFrame {
         let mut offs = self.offs.write();
 

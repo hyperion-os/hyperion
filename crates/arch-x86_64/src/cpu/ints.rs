@@ -1,6 +1,6 @@
 use crossbeam::atomic::AtomicCell;
 use hyperion_log::{error, info, trace};
-use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
+use hyperion_mem::vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use x86_64::{
     registers::control::Cr2,
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
@@ -11,7 +11,7 @@ use crate::vmm::PageMap;
 //
 
 pub static PAGE_FAULT_HANDLER: AtomicCell<fn(usize, Privilege) -> PageFaultResult> =
-    AtomicCell::new(|_, _| PageFaultResult::NotHandled);
+    AtomicCell::new(|_, _| Ok(NotHandled));
 
 //
 
@@ -93,16 +93,20 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
         Privilege::Kernel
     };
 
-    if PageMap::current().page_fault(addr, privilege) == PageFaultResult::Handled {
-        return;
-    }
+    match (|| {
+        PageMap::current().page_fault(addr, privilege)?;
+        PAGE_FAULT_HANDLER.load()(addr.as_u64() as _, privilege)?;
 
-    if PAGE_FAULT_HANDLER.load()(addr.as_u64() as _, privilege) == PageFaultResult::Handled {
-        return;
-    }
-
-    error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
-    panic!();
+        Ok(NotHandled)
+    })() {
+        Ok(NotHandled) => {
+            error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+            panic!();
+        }
+        Err(Handled) => {
+            trace!("page fault handled");
+        }
+    };
 }
 
 pub extern "x86-interrupt" fn x87_floating_point(stack: InterruptStackFrame) {

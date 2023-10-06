@@ -77,8 +77,26 @@ fn smp_main(cpu: Cpu) -> ! {
         debug!("boot cpu drivers installed");
     }
 
+    /* scheduler::spawn(move || {
+        scheduler::rename("<loop>".into());
+        scheduler::spawn(move || {
+            scheduler::rename("<loop>".into());
+        });
+        loop {
+            scheduler::yield_now();
+        }
+    });
     scheduler::spawn(move || {
-        hyperion_scheduler::rename("<kernel futures executor>".into());
+        scheduler::rename("<loop>".into());
+        scheduler::spawn(move || {
+            scheduler::rename("<loop>".into());
+        });
+        loop {
+            scheduler::yield_now();
+        }
+    }); */
+    scheduler::spawn(move || {
+        scheduler::rename("<kernel futures executor>".into());
         scheduler::executor::run_tasks();
     });
     trace!("resetting {cpu} scheduler");

@@ -91,22 +91,37 @@ impl fmt::Display for SyscallRegs {
 ///
 /// this call won't return
 #[no_mangle]
-pub unsafe extern "sysv64" fn userland(_instr_ptr: VirtAddr, _stack_ptr: VirtAddr) -> ! {
+pub unsafe extern "C" fn userland(
+    _instr_ptr: VirtAddr,
+    _stack_ptr: VirtAddr,
+    _argc: u64,
+    _argv: u64,
+) -> ! {
     // rdi = _instr_ptr
     // rsi = _stack_ptr
+    // rdx = _argc
+    // rcx = _argv
     unsafe {
         asm!(
             // "cli",
-            "mov rcx, rdi", // RDI = _instr_ptr
-            "mov rsp, rsi", // RSI = _stack_ptr
+            "mov r8, rcx", // tmp save argc
+
+            // setup sysretq args
+            "mov rcx, rdi",
+            "mov rsp, rsi",
             "mov r11, {rflags}",
+
+            // setup argc,argv
+            "mov rsi, r8",
+            "mov rdi, rdx",
+
             // clear some registers
             "xor rax, rax",
             "xor rbx, rbx",
             // no zeroing rcx, sysreq returns to the address in it (`instr_ptr`)
             "xor rdx, rdx",
-            "xor rdi, rdi",
-            "xor rsi, rsi",
+            // "xor rdi, rdi",
+            // "xor rsi, rsi",
             "xor rbp, rbp",
             // no zeroing rsp, a stack is needed
             "xor r8, r8",

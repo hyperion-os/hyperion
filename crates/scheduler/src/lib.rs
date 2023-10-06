@@ -13,8 +13,9 @@ use alloc::{
 use core::{
     any::type_name_of_val,
     cell::UnsafeCell,
+    fmt::{self, Debug},
     mem::swap,
-    ops::DerefMut,
+    ops::{AddAssign, DerefMut},
     sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 
@@ -24,7 +25,7 @@ use hyperion_arch::{
     context::Context,
     cpu::ints,
     int,
-    stack::{AddressSpace, KernelStack, Stack, UserStack},
+    stack::{AddressSpace, KernelStack, Stack, StackType, UserStack},
     tls::Tls,
     vmm::{PageMap, CURRENT_ADDRESS_SPACE},
 };
@@ -34,7 +35,7 @@ use hyperion_log::*;
 use hyperion_mem::{
     pmm::PFA,
     to_higher_half,
-    vmm::{PageFaultResult, PageMapImpl, Privilege},
+    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
 use hyperion_random::Rng;
 use hyperion_timer::TIMER_HANDLER;
@@ -92,9 +93,9 @@ pub struct Task {
 }
 
 pub struct TaskMemory {
-    address_space: AddressSpace,
-    kernel_stack: Mutex<Stack<KernelStack>>,
-    user_stack: Mutex<Stack<UserStack>>,
+    pub address_space: AddressSpace,
+    pub kernel_stack: Mutex<Stack<KernelStack>>,
+    pub user_stack: Mutex<Stack<UserStack>>,
     dbg_magic_byte: usize,
 }
 
@@ -183,11 +184,9 @@ impl Task {
 
         let address_space = AddressSpace::new(PageMap::new());
 
-        let mut kernel_stack = address_space.kernel_stacks.take();
-        kernel_stack.grow(&address_space.page_map, 2).unwrap();
-        // kernel_stack.grow(&address_space.page_map, 6).unwrap();
+        let kernel_stack = address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
-        let user_stack = address_space.user_stacks.take();
+        let user_stack = address_space.take_user_stack_lazy();
 
         let memory = Arc::new(TaskMemory {
             address_space,
@@ -281,6 +280,13 @@ impl Task {
 
 pub static READY: SegQueue<Task> = SegQueue::new();
 pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
+
+pub fn task_memory() -> Arc<TaskMemory> {
+    let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
+    let current = unsafe { (*current).clone() };
+    assert_eq!(current.dbg_magic_byte, *MAGIC_DEBUG_BYTE);
+    current
+}
 
 pub fn tasks() -> Vec<Arc<TaskInfo>> {
     let mut tasks = TASKS.lock();
@@ -572,66 +578,40 @@ fn idle_time() -> &'static AtomicU64 {
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    // hyperion_log::debug!("scheduler page fault");
+    hyperion_log::trace!("scheduler page fault (from {user:?})");
+    let current = task_memory();
 
-    /* let active = active();
-    let Some(current) = active.as_ref() else {
-        hyperion_log::error!("page fault from kernel code");
+    if user == Privilege::User {
+        // `Err(Handled)` short circuits and returns
+        handle_stack_grow(&current.user_stack, &current, addr)?;
 
-        let page = PageMap::current();
-        let v = VirtAddr::new(addr as _);
-        let p = page.virt_to_phys(v);
-        debug!("{v:018x?} -> {p:018x?}");
-
-        return PageFaultResult::NotHandled;
-    }; */
-    let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
-    let current = unsafe { (*current).clone() };
-    assert_eq!(current.dbg_magic_byte, *MAGIC_DEBUG_BYTE);
-
-    let res = if user == Privilege::User {
-        user_page_fault_handler(addr, &current)
+        // user process tried to access memory thats not available to it
+        hyperion_log::warn!("killing user-space process");
+        stop();
     } else {
-        kernel_page_fault_handler(addr, &current)
+        handle_stack_grow(&current.kernel_stack, &current, addr)?;
+        handle_stack_grow(&current.user_stack, &current, addr)?;
+
+        hyperion_log::error!("{:?}", current.kernel_stack.lock());
+        hyperion_log::error!("page fault from kernel-space");
     };
 
-    if res.is_not_handled() {
-        let page = PageMap::current();
-        let v = VirtAddr::new(addr as _);
-        let p = page.virt_to_phys(v);
-        error!("{v:018x?} -> {p:018x?}");
-    }
+    let page = PageMap::current();
+    let v = VirtAddr::new(addr as _);
+    let p = page.virt_to_phys(v);
+    error!("{v:018x?} -> {p:018x?}");
 
-    res
+    Ok(NotHandled)
 }
 
-fn user_page_fault_handler(addr: usize, task: &TaskMemory) -> PageFaultResult {
-    let result = task
-        .user_stack
+fn handle_stack_grow<T: StackType + Debug>(
+    stack: &Mutex<Stack<T>>,
+    task: &TaskMemory,
+    addr: usize,
+) -> PageFaultResult {
+    stack
         .lock()
-        .page_fault(&task.address_space.page_map, addr as u64);
-
-    if result == PageFaultResult::Handled {
-        return result;
-    }
-
-    hyperion_log::debug!("killing user-space process");
-    stop();
-}
-
-fn kernel_page_fault_handler(addr: usize, task: &TaskMemory) -> PageFaultResult {
-    let result = task
-        .kernel_stack
-        .lock()
-        .page_fault(&task.address_space.page_map, addr as u64);
-
-    if result == PageFaultResult::Handled {
-        return result;
-    }
-
-    hyperion_log::error!("{:?}", task.kernel_stack.lock());
-    hyperion_log::error!("page fault from kernel-space");
-    result
+        .page_fault(&task.address_space.page_map, addr as u64)
 }
 
 fn take_job() -> Option<Box<dyn FnOnce() + Send + 'static>> {

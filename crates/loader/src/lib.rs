@@ -15,7 +15,8 @@ use elf::{
     ElfBytes,
 };
 use hyperion_arch::{syscall, vmm::PageMap};
-use hyperion_mem::{from_higher_half, pmm, vmm::PageMapImpl};
+use hyperion_log::*;
+use hyperion_mem::{from_higher_half, vmm::PageMapImpl};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
@@ -49,7 +50,7 @@ impl<'a> Loader<'a> {
     }
 
     pub fn load_segment(&self, segment: ProgramHeader) {
-        /* hyperion_log::debug!("Loading segment {segment:#?}"); */
+        /* debug!("Loading segment {segment:#?}"); */
 
         let align = segment.p_align;
         let v_addr = VirtAddr::new(segment.p_vaddr)
@@ -61,7 +62,7 @@ impl<'a> Loader<'a> {
         let v_size = v_end - v_addr;
 
         if v_end > VirtAddr::new(0x400000000000) {
-            hyperion_log::error!("ELF segments cannot be mapped to higher half");
+            error!("ELF segments cannot be mapped to higher half");
             panic!("TODO:")
         }
 
@@ -99,7 +100,7 @@ impl<'a> Loader<'a> {
             // TODO: read-only
         }
 
-        /* hyperion_log::debug!(
+        /* debug!(
                     "Mapping segment [ 0x{v_addr:016x}..0x{v_end:016x} -> 0x{segment_alloc_phys:016x} ] ({:03b} = {flags:?}) (0x{:016x})", segment.p_flags,
         segment.p_vaddr
                 ); */
@@ -118,14 +119,14 @@ impl<'a> Loader<'a> {
             .iter()
             .filter_map(|sym| strtab.get(sym.st_name as _).ok());
 
-        hyperion_log::debug!("Symbols:");
+        debug!("Symbols:");
         for symbol in dyn_symbols.chain(symbols) {
-            hyperion_log::debug!(" - {symbol}");
+            debug!(" - {symbol}");
         }
     }
 
     // TODO: impl args
-    pub fn enter_userland(&self, _args: &[&str]) -> Option<()> {
+    pub fn enter_userland(&self, args: &[&str]) -> Option<()> {
         self.page_map.activate();
 
         // TODO: this is HIGHLY unsafe atm.
@@ -133,32 +134,39 @@ impl<'a> Loader<'a> {
         let entrypoint = self.parser.ehdr.e_entry;
 
         if entrypoint == 0 {
-            hyperion_log::error!("No entrypoint");
+            error!("No entrypoint");
             return None;
         }
 
-        let user_stack = pmm::PFA.alloc(1);
-        let stack_top = VirtAddr::new(0x400000000000); // VirtAddr::new(hyperion_boot::hhdm_offset());
+        // debug!("stack_top = 0x{stack_top:016x}");
 
-        // hyperion_log::debug!("stack_top = 0x{stack_top:016x}");
+        let task = hyperion_scheduler::task_memory();
+        let mut stack_top = { task.user_stack.lock().top };
 
-        /* self.page_map
-        .unmap(VirtAddr::new_truncate(0x0000)..VirtAddr::new_truncate(0x1000)); */
-        self.page_map.map(
-            stack_top - 0x1000u64..stack_top,
-            user_stack.physical_addr(),
-            PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
-        );
-        self.page_map.map(
-            stack_top - 0x2000u64..stack_top - 0x1000u64,
-            user_stack.physical_addr(),
-            PageTableFlags::empty(), // guard page
-        );
+        for arg in args.iter().rev() {
+            for byte in arg.as_bytes().iter().rev() {
+                push(&mut stack_top, *byte);
+            }
+        }
 
-        /* hyperion_log::debug!(
-            "Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}"
-        ); */
+        for arg in args.iter().rev() {
+            push(&mut stack_top, arg.as_bytes().len());
+        }
 
-        unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top) };
+        push(&mut stack_top, args.len() as u64);
+
+        // push(&mut stack_top, 42u64);
+
+        trace!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}");
+
+        unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, stack_top.as_u64(), 69) };
     }
+}
+
+//
+
+/// push items to the stack
+pub fn push<T: Sized>(top: &mut VirtAddr, v: T) {
+    *top -= core::mem::size_of::<T>();
+    unsafe { top.as_mut_ptr::<T>().write(v) };
 }

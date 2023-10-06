@@ -559,6 +559,7 @@ dependencies = [
  "hyperion-boot",
  "hyperion-log",
  "hyperion-mem",
+ "hyperion-scheduler",
  "x86_64",
 ]
 

@@ -1,4 +1,8 @@
-use alloc::{string::String, sync::Arc};
+use alloc::{
+    string::String,
+    sync::Arc,
+    vec::{self, Vec},
+};
 use core::{fmt::Write, slice, sync::atomic::Ordering};
 
 use futures_util::stream::select;
@@ -60,7 +64,7 @@ impl Shell {
 
         // TODO: the kernel shell cannot receive (keyboard) interrupts
         // without other user space processes running, move kshell to user space
-        _ = self.run_cmd(None);
+        _ = self.run_cmd(Some("test-arg-0 test-arg-1"));
     }
 
     pub async fn input(&mut self, ev: KeyboardEvent) -> Option<()> {
@@ -506,8 +510,13 @@ impl Shell {
         hyperion_scheduler::spawn(move || {
             hyperion_scheduler::rename("run".into());
 
-            let args = args.as_deref();
-            let args = args.as_ref().map(slice::from_ref).unwrap_or(&[]);
+            let args: Vec<&str> = ["/bin/run"] // TODO: actually load binaries from vfs
+                .into_iter()
+                .chain(args.as_deref().iter().flat_map(|args| args.split(' ')))
+                .collect();
+            let args = &args[..];
+
+            hyperion_log::debug!("spawning \"run\" with args {args:?}");
 
             /* hyperion_log::debug!(
                 "ELF file from: {}",
