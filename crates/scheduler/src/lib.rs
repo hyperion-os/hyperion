@@ -22,7 +22,7 @@ use core::{
 use crossbeam::atomic::AtomicCell;
 use crossbeam_queue::SegQueue;
 use hyperion_arch::{
-    context::Context,
+    context::{switch as ctx_switch, Context},
     cpu::ints,
     int,
     stack::{AddressSpace, KernelStack, Stack, StackType, UserStack},
@@ -39,7 +39,7 @@ use hyperion_mem::{
 };
 use hyperion_random::Rng;
 use hyperion_timer::TIMER_HANDLER;
-use spin::{Lazy, Mutex, RwLock};
+use spin::{Lazy, Mutex, MutexGuard, Once, RwLock};
 use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -67,7 +67,6 @@ pub struct CleanupTask {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Cleanup {
-    Next,
     Sleep { deadline: Instant },
     Drop,
     Ready,
@@ -276,6 +275,14 @@ impl Task {
             self.info.pid
         )
     }
+
+    pub fn ctx(&self) -> *mut Context {
+        self.context.get()
+    }
+
+    pub fn set_state(&self, state: TaskState) {
+        self.info.state.store(state);
+    }
 }
 
 pub static READY: SegQueue<Task> = SegQueue::new();
@@ -304,12 +311,7 @@ pub fn idle() -> impl Iterator<Item = Duration> {
 }
 
 pub fn rename(new_name: String) {
-    *active()
-        .as_ref()
-        .expect("to be in a task")
-        .info
-        .name
-        .write() = new_name;
+    *active().info.name.write() = new_name;
 }
 
 /// init this processors scheduling
@@ -331,36 +333,38 @@ pub fn init() -> ! {
         // yield_now();
     });
 
-    // SAFETY: the task is stopped and won't run
-    if TLS.initialized.swap(true, Ordering::SeqCst)
-        || swap_current(Some(unsafe { Task::bootloader() })).is_some()
-    {
+    if TLS.initialized.swap(true, Ordering::SeqCst) {
         panic!("should be called only once before any tasks are assigned to this processor")
     }
+
     stop();
 }
 
 /// switch to another thread
 pub fn yield_now() {
+    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
+
     update_cpu_usage();
 
     let Some(next) = next_task() else {
         // no tasks -> keep the current task running
         return;
     };
-    let Some(current) = swap_current(None) else {
-        unreachable!("cannot yield from a task that doesn't exist")
-    };
+    let next_ctx = next.ctx();
+    next.set_state(TaskState::Running);
 
-    let context = current.context.get();
+    let prev = swap_current(next);
+    let prev_ctx = prev.ctx();
+    prev.set_state(TaskState::Ready);
 
     // push the current thread back to the ready queue AFTER switching
-    current.info.state.store(TaskState::Ready);
-    after().push(Cleanup::Ready.task(current));
+    after().push(Cleanup::Ready.task(prev));
 
-    // SAFETY: `current` is stored in the queue until the switch
-    // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe { block(context, next) };
+    // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
+    // the box keeps the pointer pinned in memory
+    unsafe { ctx_switch(prev_ctx, next_ctx) };
+
+    cleanup();
 }
 
 pub fn sleep(duration: Duration) {
@@ -368,47 +372,52 @@ pub fn sleep(duration: Duration) {
 }
 
 pub fn sleep_until(deadline: Instant) {
+    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
+
     update_cpu_usage();
 
     let Some(next) = wait_next_task_deadline(deadline) else {
         return;
     };
-    let Some(current) = swap_current(None) else {
-        unreachable!("cannot yield from a task that doesn't exist")
-    };
-    if current.info.state.load() == TaskState::Running {
-        current.info.state.store(TaskState::Ready);
-    };
+    let next_ctx = next.ctx();
+    next.set_state(TaskState::Running);
 
-    let context = current.context.get();
+    let prev = swap_current(next);
+    let prev_ctx = prev.ctx();
+    prev.set_state(TaskState::Sleeping);
 
     // push the current thread back to the ready queue AFTER switching
-    current.info.state.store(TaskState::Sleeping);
-    after().push(Cleanup::Sleep { deadline }.task(current));
+    after().push(Cleanup::Sleep { deadline }.task(prev));
 
-    // SAFETY: `current` is stored in the queue until the switch
-    // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe { block(context, next) };
+    // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
+    // the box keeps the pointer pinned in memory
+    unsafe { ctx_switch(prev_ctx, next_ctx) };
+
+    cleanup();
 }
 
 /// destroy the current thread
 /// and switch to another thread
 pub fn stop() -> ! {
+    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
+
+    update_cpu_usage();
+
     // TODO: running out stack space after taking the task doesnt allow the stack to grow
     let next = wait_next_task();
-    let Some(current) = swap_current(None) else {
-        unreachable!("cannot stop a task that doesn't exist")
-    };
+    let next_ctx = next.ctx();
+    next.set_state(TaskState::Running);
 
-    let context = current.context.get();
+    let prev = swap_current(next);
+    let prev_ctx = prev.ctx();
+    prev.set_state(TaskState::Dropping);
 
     // push the current thread to the drop queue AFTER switching
-    current.info.state.store(TaskState::Dropping);
-    after().push(Cleanup::Drop.task(current));
+    after().push(Cleanup::Drop.task(prev));
 
-    // SAFETY: `current` is stored in the queue until the switch
-    // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe { block(context, next) };
+    // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
+    // the box keeps the pointer pinned in memory
+    unsafe { ctx_switch(prev_ctx, next_ctx) };
 
     unreachable!("a destroyed thread cannot continue executing");
 }
@@ -422,7 +431,7 @@ fn schedule(new: Task) {
     READY.push(new);
 }
 
-fn swap_current(mut new: Option<Task>) -> Option<Task> {
+fn swap_current(mut new: Task) -> Task {
     swap(&mut new, &mut active());
     new
 }
@@ -443,38 +452,13 @@ fn reset_cpu_timer() {
 fn update_cpu_usage() {
     let elapsed = cpu_time_elapsed();
 
-    active()
-        .as_ref()
-        .expect("to be in a task")
-        .info
-        .nanos
-        .fetch_add(elapsed, Ordering::Relaxed);
+    active().info.nanos.fetch_add(elapsed, Ordering::Relaxed);
 }
 
 fn update_cpu_idle() {
     let elapsed = cpu_time_elapsed();
 
     idle_time().fetch_add(elapsed, Ordering::Relaxed);
-}
-
-/// # Safety
-///
-/// `current` must be correct and point to a valid exclusive [`Context`]
-unsafe fn block(current: *mut Context, next: Task) {
-    next.info.state.store(TaskState::Running);
-
-    let context = next.context.get();
-
-    after().push(Cleanup::Next.task(next));
-
-    // SAFETY: `next` is stored in the queue until the switch
-    // and the boxed field `context` makes sure the context pointer doesn't move
-    unsafe {
-        hyperion_arch::context::switch(current, context);
-        _ = cpu_time_elapsed();
-    }
-
-    cleanup();
 }
 
 fn wait_next_task() -> Task {
@@ -503,14 +487,14 @@ fn wait_next_task_deadline(deadline: Instant) -> Option<Task> {
     }
 }
 
+fn next_task() -> Option<Task> {
+    READY.pop()
+}
+
 fn wait() {
     reset_cpu_timer();
     int::wait();
     update_cpu_idle();
-}
-
-fn next_task() -> Option<Task> {
-    READY.pop()
 }
 
 fn cleanup() {
@@ -525,9 +509,6 @@ fn cleanup() {
             }
             Cleanup::Sleep { deadline } => {
                 sleep::push(deadline, task);
-            }
-            Cleanup::Next => {
-                swap_current(Some(task));
             }
             Cleanup::Drop => {
                 if Arc::strong_count(&task.memory) != 1 {
@@ -544,7 +525,7 @@ fn cleanup() {
 }
 
 struct SchedulerTls {
-    active: Mutex<Option<Task>>,
+    active: Once<Mutex<Task>>,
     after: SegQueue<CleanupTask>,
     last_time: AtomicU64,
     idle_time: AtomicU64,
@@ -553,7 +534,7 @@ struct SchedulerTls {
 
 static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
     Tls::new(|| SchedulerTls {
-        active: Mutex::new(None),
+        active: Once::new(),
         after: SegQueue::new(),
         last_time: AtomicU64::new(0),
         idle_time: AtomicU64::new(0),
@@ -561,8 +542,10 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
     })
 });
 
-fn active() -> impl DerefMut<Target = Option<Task>> {
-    TLS.active.lock()
+fn active() -> MutexGuard<'static, Task> {
+    TLS.active
+        .call_once(|| Mutex::new(unsafe { Task::bootloader() }))
+        .lock()
 }
 
 fn after() -> &'static SegQueue<CleanupTask> {
@@ -614,13 +597,9 @@ fn handle_stack_grow<T: StackType + Debug>(
         .page_fault(&task.address_space.page_map, addr as u64)
 }
 
-fn take_job() -> Option<Box<dyn FnOnce() + Send + 'static>> {
-    let mut active = active();
-    active.as_mut()?.job.take()
-}
-
 extern "sysv64" fn thread_entry() -> ! {
     cleanup();
-    (take_job().expect("no active jobs"))();
+    let job = active().job.take().expect("no active jobs");
+    job();
     stop();
 }
