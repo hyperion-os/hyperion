@@ -495,6 +495,7 @@ dependencies = [
  "hyperion-mem",
  "hyperion-random",
  "hyperion-scheduler",
+ "hyperion-vfs",
  "spin",
  "time 0.3.22",
  "x86_64",

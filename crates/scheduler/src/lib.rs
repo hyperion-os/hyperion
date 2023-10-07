@@ -13,9 +13,8 @@ use alloc::{
 use core::{
     any::type_name_of_val,
     cell::UnsafeCell,
-    fmt::{self, Debug},
+    fmt::Debug,
     mem::swap,
-    ops::{AddAssign, DerefMut},
     sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 
@@ -35,7 +34,7 @@ use hyperion_log::*;
 use hyperion_mem::{
     pmm::PFA,
     to_higher_half,
-    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
+    vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
 use hyperion_random::Rng;
 use hyperion_timer::TIMER_HANDLER;

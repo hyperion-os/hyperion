@@ -1,9 +1,5 @@
-use alloc::{
-    string::String,
-    sync::Arc,
-    vec::{self, Vec},
-};
-use core::{fmt::Write, slice, sync::atomic::Ordering};
+use alloc::{string::String, sync::Arc, vec::Vec};
+use core::{fmt::Write, sync::atomic::Ordering};
 
 use futures_util::stream::select;
 use hyperion_color::Color;
@@ -508,7 +504,7 @@ impl Shell {
         let args = args.map(String::from);
 
         hyperion_scheduler::spawn(move || {
-            hyperion_scheduler::rename("run".into());
+            hyperion_scheduler::rename("/bin/run".into());
 
             let args: Vec<&str> = ["/bin/run"] // TODO: actually load binaries from vfs
                 .into_iter()

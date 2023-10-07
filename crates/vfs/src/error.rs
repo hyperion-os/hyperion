@@ -3,6 +3,7 @@ use snafu::Snafu;
 //
 
 #[derive(Debug, Snafu)]
+#[repr(C)]
 pub enum IoError {
     #[snafu(display("not found"))]
     NotFound,
