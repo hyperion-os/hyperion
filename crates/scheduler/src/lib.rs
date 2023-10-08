@@ -448,7 +448,7 @@ pub fn schedule(new: impl Into<Task>) {
 
 fn swap_current(mut new: Task) -> Task {
     let mut active = active();
-    set_logger_task_name(Some(active.info.name.read().clone()));
+    set_logger_task_name(active.info.name.read().clone().into());
     swap(&mut new, &mut active);
     new
 }

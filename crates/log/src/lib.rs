@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use alloc::string::String;
+use alloc::{borrow::Cow, string::String};
 use core::fmt::{Arguments, Display};
 
 use hyperion_escape::encode::EscapeEncoder;
@@ -132,15 +132,14 @@ pub fn set_logger(new_logger: &'static dyn Logger) {
     *LOGGER.write() = new_logger;
 }
 
-pub fn set_logger_task_name(task_name: Option<String>) {
+pub fn set_logger_task_name(task_name: Cow<'static, str>) {
     *LOGGER_TASK_NAME.write() = task_name;
 }
 
 pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args: Arguments) {
-    let task = LOGGER_TASK_NAME.read();
-    let task = task
-        .as_deref()
-        .unwrap_or("")
+    let task = LOGGER_TASK_NAME
+        .read()
+        .clone()
         .true_lightgrey()
         .with_reset(false);
     let module = module.true_grey().with_reset(false);
@@ -182,7 +181,7 @@ pub fn _is_enabled(level: LogLevel) -> bool {
 //
 
 static LOGGER: RwLock<&'static dyn Logger> = RwLock::new(&NopLogger);
-static LOGGER_TASK_NAME: RwLock<Option<String>> = RwLock::new(None);
+static LOGGER_TASK_NAME: RwLock<Cow<'static, str>> = RwLock::new(Cow::Borrowed("pre-scheduler"));
 
 //
 
