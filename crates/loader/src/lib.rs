@@ -125,23 +125,12 @@ impl<'a> Loader<'a> {
         }
     }
 
-    // TODO: impl args
-    pub fn enter_userland(&self, args: &[&str]) -> Option<()> {
-        self.page_map.activate();
-
-        // TODO: this is HIGHLY unsafe atm.
-
-        let entrypoint = self.parser.ehdr.e_entry;
-
-        if entrypoint == 0 {
-            error!("No entrypoint");
-            return None;
-        }
-
-        // debug!("stack_top = 0x{stack_top:016x}");
-
-        let task = hyperion_scheduler::task_memory();
-        let mut stack_top = { task.user_stack.lock().top };
+    pub fn init_stack(args: &[&str]) -> VirtAddr {
+        let mut stack_top = {
+            let task = hyperion_scheduler::active();
+            let stack_top = task.user_stack.lock().top;
+            stack_top
+        };
 
         for arg in args.iter().rev() {
             for byte in arg.as_bytes().iter().rev() {
@@ -155,10 +144,25 @@ impl<'a> Loader<'a> {
 
         push(&mut stack_top, args.len() as u64);
 
-        // push(&mut stack_top, 42u64);
+        stack_top
+    }
+
+    // TODO: impl args
+    pub fn enter_userland(&self, args: &[&str]) -> Option<()> {
+        self.page_map.activate();
+
+        // TODO: this is HIGHLY unsafe atm.
+
+        let entrypoint = self.parser.ehdr.e_entry;
+
+        if entrypoint == 0 {
+            error!("No entrypoint");
+            return None;
+        }
+
+        let stack_top = Self::init_stack(args);
 
         trace!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}");
-
         unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, stack_top.as_u64(), 69) };
     }
 }

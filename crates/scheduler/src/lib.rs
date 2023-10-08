@@ -81,7 +81,10 @@ impl Cleanup {
 }
 
 pub struct Task {
-    memory: Arc<TaskMemory>,
+    /// memory is per process
+    pub memory: Arc<TaskMemory>,
+    /// user_stack is per thread
+    pub user_stack: Mutex<Stack<UserStack>>,
 
     // context is used 'unsafely' only in the switch
     context: Box<UnsafeCell<Context>>,
@@ -93,7 +96,6 @@ pub struct Task {
 pub struct TaskMemory {
     pub address_space: AddressSpace,
     pub kernel_stack: Mutex<Stack<KernelStack>>,
-    pub user_stack: Mutex<Stack<UserStack>>,
     dbg_magic_byte: usize,
 }
 
@@ -184,12 +186,11 @@ impl Task {
 
         let kernel_stack = address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
-        let user_stack = address_space.take_user_stack_lazy();
+        let main_thread_user_stack = address_space.take_user_stack_lazy();
 
         let memory = Arc::new(TaskMemory {
             address_space,
             kernel_stack: Mutex::new(kernel_stack),
-            user_stack: Mutex::new(user_stack),
             dbg_magic_byte: *MAGIC_DEBUG_BYTE,
         });
 
@@ -211,6 +212,7 @@ impl Task {
 
         Self {
             memory,
+            user_stack: Mutex::new(main_thread_user_stack),
 
             context,
             job,
@@ -243,12 +245,13 @@ impl Task {
         let memory = Arc::new(TaskMemory {
             address_space,
             kernel_stack: Mutex::new(kernel_stack),
-            user_stack: Mutex::new(user_stack),
             dbg_magic_byte: 0,
         });
 
         Self {
             memory,
+
+            user_stack: Mutex::new(user_stack),
 
             context,
             job: None,
@@ -324,11 +327,15 @@ pub fn init() -> ! {
         }
     });
     hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| {
-        /* for task in sleep::finished() {
+        for task in sleep::finished() {
+            warn!("TODO: fix APIC timer waking up HPET timers");
             READY.push(task);
-        } */
+        }
+
         // debug!("apic int");
         // hyperion_arch::dbg_cpu();
+
+        // round-robin
         // yield_now();
     });
 
@@ -541,7 +548,7 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
     })
 });
 
-fn active() -> MutexGuard<'static, Task> {
+pub fn active() -> MutexGuard<'static, Task> {
     TLS.active
         .call_once(|| Mutex::new(unsafe { Task::bootloader() }))
         .lock()
@@ -561,20 +568,25 @@ fn idle_time() -> &'static AtomicU64 {
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     hyperion_log::trace!("scheduler page fault (from {user:?})");
-    let current = task_memory();
 
     if user == Privilege::User {
+        let current = active();
+
         // `Err(Handled)` short circuits and returns
-        handle_stack_grow(&current.user_stack, &current, addr)?;
+        handle_stack_grow(&current.user_stack, &current.memory, addr)?;
 
         // user process tried to access memory thats not available to it
         hyperion_log::warn!("killing user-space process");
         stop();
     } else {
-        handle_stack_grow(&current.kernel_stack, &current, addr)?;
-        handle_stack_grow(&current.user_stack, &current, addr)?;
+        let current = task_memory();
 
-        hyperion_log::error!("{:?}", current.kernel_stack.lock());
+        handle_stack_grow(&current.kernel_stack, &current, addr)?;
+
+        let current = active();
+        handle_stack_grow(&current.user_stack, &current.memory, addr)?;
+
+        hyperion_log::error!("{:?}", current.memory.kernel_stack.lock());
         hyperion_log::error!("page fault from kernel-space");
     };
 
