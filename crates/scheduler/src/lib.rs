@@ -287,6 +287,15 @@ impl Task {
     }
 }
 
+impl<F> From<F> for Task
+where
+    F: FnOnce() + Send + 'static,
+{
+    fn from(value: F) -> Self {
+        Task::new(value)
+    }
+}
+
 pub static READY: SegQueue<Task> = SegQueue::new();
 pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
 
@@ -428,13 +437,13 @@ pub fn stop() -> ! {
     unreachable!("a destroyed thread cannot continue executing");
 }
 
-pub fn spawn(f: impl FnOnce() + Send + 'static) {
+/* pub fn spawn(f: impl FnOnce() + Send + 'static) {
     schedule(Task::new(f))
-}
+} */
 
-/// schedule
-fn schedule(new: Task) {
-    READY.push(new);
+/// spawn a new process running this closure or a function or a task
+pub fn schedule(new: impl Into<Task>) {
+    READY.push(new.into());
 }
 
 fn swap_current(mut new: Task) -> Task {

@@ -97,7 +97,7 @@ fn smp_main(cpu: Cpu) -> ! {
             scheduler::yield_now();
         }
     }); */
-    scheduler::spawn(move || {
+    scheduler::schedule(move || {
         scheduler::rename("<kernel futures executor>".into());
         scheduler::executor::run_tasks();
     });

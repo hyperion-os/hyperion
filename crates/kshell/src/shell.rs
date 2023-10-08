@@ -13,6 +13,7 @@ use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::{
+    schedule,
     timer::{sleep, ticks},
     TaskState,
 };
@@ -503,7 +504,7 @@ impl Shell {
     fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
         let args = args.map(String::from);
 
-        hyperion_scheduler::spawn(move || {
+        schedule(move || {
             hyperion_scheduler::rename("/bin/run".into());
 
             let args: Vec<&str> = ["/bin/run"] // TODO: actually load binaries from vfs
