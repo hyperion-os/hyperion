@@ -447,7 +447,9 @@ pub fn schedule(new: impl Into<Task>) {
 }
 
 fn swap_current(mut new: Task) -> Task {
-    swap(&mut new, &mut active());
+    let mut active = active();
+    set_logger_task_name(Some(active.info.name.read().clone()));
+    swap(&mut new, &mut active);
     new
 }
 
@@ -589,7 +591,6 @@ fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
         stop();
     } else {
         let current = task_memory();
-
         handle_stack_grow(&current.kernel_stack, &current, addr)?;
 
         let current = active();

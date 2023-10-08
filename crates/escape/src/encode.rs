@@ -51,12 +51,20 @@ where
         self.with_escape_code("\x1B[38;2;0;0;0m")
     }
 
-    fn true_white(self) -> EncodedPart<'static, Self> {
-        self.with_escape_code("\x1B[38;2;255;255;255m")
+    fn true_darkgrey(self) -> EncodedPart<'static, Self> {
+        self.with_escape_code("\x1B[38;2;64;64;64m")
     }
 
     fn true_grey(self) -> EncodedPart<'static, Self> {
         self.with_escape_code("\x1B[38;2;128;128;128m")
+    }
+
+    fn true_lightgrey(self) -> EncodedPart<'static, Self> {
+        self.with_escape_code("\x1B[38;2;192;192;192m")
+    }
+
+    fn true_white(self) -> EncodedPart<'static, Self> {
+        self.with_escape_code("\x1B[38;2;255;255;255m")
     }
 
     fn reset_after(self) -> EncodedPart<'static, Self> {
