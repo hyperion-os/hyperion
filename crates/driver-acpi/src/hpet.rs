@@ -89,7 +89,7 @@ impl Hpet {
         let hpet: RawHpet = u.unpack(true)?;
         let addr = PhysAddr::new(hpet.address.address);
 
-        trace!("HPET initialized {hpet:#x?}");
+        trace!("HPET initialized");
 
         let mut res = Self {
             addr: to_higher_half(addr).as_u64(),
@@ -278,9 +278,6 @@ impl Hpet {
         config.set_enable(true);
         self.set_config(config);
 
-        trace!("HPET caps: {:#x?}", self.caps());
-        trace!("HPET config: {:#x?}", self.config());
-        trace!("HPET int status: {:#x?}", self.interrupt_status());
         trace!("HPET freq: {}", Self::freq(self.period));
     }
 
