@@ -337,7 +337,7 @@ pub fn init() -> ! {
     });
     hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| {
         for task in sleep::finished() {
-            warn!("TODO: fix APIC timer waking up HPET timers");
+            // warn!("TODO: fix APIC timer waking up HPET timers");
             READY.push(task);
         }
 
@@ -350,7 +350,9 @@ pub fn init() -> ! {
 
         // round-robin
         // debug!("round-robin fake yield now");
-        yield_now();
+        // yield_now();
+
+        // TODO: test if the currently running task has used way too much cpu time and switch if so
     });
 
     if TLS.initialized.swap(true, Ordering::SeqCst) {
