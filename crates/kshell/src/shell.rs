@@ -58,10 +58,6 @@ impl Shell {
         _ = self.splash_cmd(None);
         self.prompt();
         self.term.flush();
-
-        // TODO: the kernel shell cannot receive (keyboard) interrupts
-        // without other user space processes running, move kshell to user space
-        _ = self.run_cmd(Some("test-arg-0 test-arg-1"));
     }
 
     pub async fn input(&mut self, ev: KeyboardEvent) -> Option<()> {
