@@ -86,12 +86,12 @@ pub unsafe fn switch(prev: *mut Context, next: *mut Context) {
 
     tls.kernel_stack.store(next_syscall_stack, Ordering::SeqCst);
 
-    debug!("ctx switch, new gs:kernel_stack={next_syscall_stack:018x?}");
-    dbg_cpu();
+    // debug!("ctx switch, new gs:kernel_stack={next_syscall_stack:018x?}");
+    // dbg_cpu();
 
     unsafe { switch_inner(prev, next) };
 
-    dbg_cpu();
+    // dbg_cpu();
 }
 
 #[naked]
