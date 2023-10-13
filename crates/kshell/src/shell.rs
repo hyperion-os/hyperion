@@ -64,6 +64,11 @@ impl Shell {
         let cmdbuf = self.cmdbuf.clone();
         let mut cmdbuf = cmdbuf.lock();
 
+        if ev.keycode == KeyCode::Home {
+            _ = self.run_cmd(None);
+            return Some(());
+        }
+
         let Some(ev) = ev.unicode else {
             return Some(());
         };
