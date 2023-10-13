@@ -13,11 +13,14 @@
 
 extern crate alloc;
 
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::{
+    ops::Range,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use hyperion_boot_interface::Cpu;
 use hyperion_log::error;
-use x86_64::{instructions::random::RdRand, registers::model_specific::Msr};
+use x86_64::{instructions::random::RdRand, registers::model_specific::Msr, VirtAddr};
 
 //
 
@@ -89,6 +92,20 @@ pub unsafe fn reset_cpu_id() {
 pub unsafe fn set_cpu_id(id: usize) {
     let mut tsc = Msr::new(IA32_TSC_AUX);
     unsafe { tsc.write(id as _) }
+}
+
+pub fn stack_pages() -> Range<VirtAddr> {
+    let rsp: u64;
+    unsafe {
+        core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
+    }
+
+    let top = VirtAddr::new(rsp).align_up(0x1000u64);
+    let bottom = top - hyperion_boot::BOOT_STACK_SIZE;
+
+    debug_assert!(bottom.is_aligned(0x1000u64));
+
+    bottom..top
 }
 
 pub fn rng_seed() -> u64 {

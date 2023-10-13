@@ -25,6 +25,7 @@ mod term;
 //
 
 pub static NAME: &str = "Limine";
+pub static BOOT_STACK_SIZE: u64 = 1 << 16;
 
 //
 

@@ -20,6 +20,8 @@
 
 //
 
+use core::ops::Range;
+
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_boot_interface::Cpu;
@@ -28,8 +30,11 @@ use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_kshell as kshell;
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
+use hyperion_mem::from_higher_half;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
+use spin::Once;
+use x86_64::VirtAddr;
 
 extern crate alloc;
 
@@ -42,8 +47,15 @@ pub mod testfw;
 
 //
 
+static BSP_BOOT_STACK: Once<Range<VirtAddr>> = Once::new();
+
+//
+
 #[no_mangle]
 extern "C" fn _start() -> ! {
+    let boot_stack = arch::stack_pages();
+    BSP_BOOT_STACK.call_once(move || boot_stack);
+
     // enable logging and and outputs based on the kernel args,
     // any logging before won't be shown
     log_multi::init_logger();
@@ -70,14 +82,23 @@ extern "C" fn _start() -> ! {
 }
 
 fn smp_main(cpu: Cpu) -> ! {
+    let mut boot_stack = arch::stack_pages();
+
     trace!("{cpu} entering smp_main");
 
     arch::init_smp_cpu(&cpu);
 
     if cpu.is_boot() {
+        boot_stack = BSP_BOOT_STACK
+            .get()
+            .expect("_start to run before smp_main")
+            .clone();
+
         drivers::lazy_install_late();
         debug!("boot cpu drivers installed");
     }
+
+    debug!("boot stack: {boot_stack:?}");
 
     /* scheduler::spawn(move || {
         scheduler::rename("<loop>".into());
@@ -99,6 +120,14 @@ fn smp_main(cpu: Cpu) -> ! {
     }); */
     scheduler::schedule(move || {
         scheduler::rename("<kernel futures executor>".into());
+
+        let first = from_higher_half(boot_stack.start);
+        let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;
+
+        let frames = unsafe { hyperion_mem::pmm::PageFrame::new(first, count) };
+        debug!("deallocating bootloader provided stack");
+        hyperion_mem::pmm::PFA.free(frames);
+
         scheduler::executor::run_tasks();
     });
     trace!("resetting {cpu} scheduler");
