@@ -341,11 +341,16 @@ pub fn init() -> ! {
             READY.push(task);
         }
 
+        if TLS.idle.load(Ordering::SeqCst) {
+            return;
+        }
+
         // debug!("apic int");
         // hyperion_arch::dbg_cpu();
 
         // round-robin
-        // yield_now();
+        // debug!("round-robin fake yield now");
+        yield_now();
     });
 
     if TLS.initialized.swap(true, Ordering::SeqCst) {
@@ -510,7 +515,9 @@ fn next_task() -> Option<Task> {
 
 fn wait() {
     reset_cpu_timer();
+    TLS.idle.store(true, Ordering::SeqCst);
     int::wait();
+    TLS.idle.store(false, Ordering::SeqCst);
     update_cpu_idle();
 }
 
@@ -547,6 +554,7 @@ struct SchedulerTls {
     last_time: AtomicU64,
     idle_time: AtomicU64,
     initialized: AtomicBool,
+    idle: AtomicBool,
 }
 
 static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
@@ -556,6 +564,7 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
         last_time: AtomicU64::new(0),
         idle_time: AtomicU64::new(0),
         initialized: AtomicBool::new(false),
+        idle: AtomicBool::new(false),
     })
 });
 
