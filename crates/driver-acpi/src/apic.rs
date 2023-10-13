@@ -16,8 +16,8 @@ use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
 pub static APIC_TIMER_HANDLER: AtomicCell<fn()> = AtomicCell::new(|| {});
 
 pub const IRQ_APIC_SPURIOUS: u8 = 0xFF;
-pub const APIC_CALIBRATION_MICROS: u16 = 10_000;
-pub const APIC_PERIOD_MULT: u32 = 1;
+pub const APIC_CALIBRATION_MICROS: u16 = 1_000;
+pub const APIC_PERIOD_MULT: u32 = 100; // 1kµs × 100 = 100ms
 
 //
 
