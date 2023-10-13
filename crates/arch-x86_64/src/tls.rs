@@ -45,18 +45,8 @@ impl<T: 'static> Deref for Tls<T> {
 //
 
 pub fn init(tls: &'static ThreadLocalStorage) {
-    /* let mut flags = Cr4::read();
-    flags.insert(Cr4Flags::FSGSBASE);
-    unsafe { Cr4::write(flags) };
-    GS::write_base(base) */
-
-    // TODO: use the current stack
-    let stack: &'static mut [u8] = pmm::PFA.alloc(5).leak();
-
     tls.kernel_stack
-        .store(stack.as_mut_ptr_range().end, Ordering::SeqCst);
-
-    // hyperion_log::debug!("TLS: 0x{:016x}", tls as *const _ as usize);
+        .store(VirtAddr::new_truncate(0).as_mut_ptr(), Ordering::SeqCst);
 
     // in kernel space, GS points to thread local storage
     KernelGsBase::write(VirtAddr::new(tls as *const _ as usize as u64));

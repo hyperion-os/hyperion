@@ -158,10 +158,6 @@ unsafe extern "C" fn syscall_wrapper() {
             "push QWORD PTR gs:{user_stack}",
             "swapgs",
 
-            // FIXME: Context switching doesn't care about gs:kernel_stack and it probably
-            // uses the same kernel stack base for different tasks running on the same processor.
-            // Sharing a stack obviously leads to stack corruption.
-
             "push rax",
             "push rbx",
             "push rcx",

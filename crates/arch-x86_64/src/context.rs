@@ -1,10 +1,11 @@
-use core::{arch::asm, mem::size_of};
+use core::{arch::asm, mem::size_of, sync::atomic::Ordering};
 
+use hyperion_log::debug;
 use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
 use memoffset::offset_of;
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::{registers::model_specific::KernelGsBase, PhysAddr, VirtAddr};
 
-use crate::vmm::PageMap;
+use crate::{dbg_cpu, tls::ThreadLocalStorage, vmm::PageMap};
 
 //
 
@@ -13,6 +14,7 @@ use crate::vmm::PageMap;
 pub struct Context {
     pub rsp: VirtAddr,
     pub cr3: PhysAddr,
+    pub syscall_stack: VirtAddr,
 }
 
 impl Context {
@@ -56,6 +58,7 @@ impl Context {
         Self {
             cr3: page_map.cr3().start_address(),
             rsp,
+            syscall_stack: stack_top,
         }
     }
 
@@ -66,6 +69,7 @@ impl Context {
         Self {
             cr3: page_map.cr3().start_address(),
             rsp: VirtAddr::new_truncate(0),
+            syscall_stack: VirtAddr::new_truncate(0),
         }
     }
 }
@@ -76,10 +80,23 @@ impl Context {
 ///
 /// both `prev` and `next` must be correct and point to valid exclusive [`Context`] values
 /// even after switching the new address spacing according to the field `cr3` in `next`
-#[naked]
-pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {
-    // TODO: fx(save/rstor)64 (rd/wr)(fs/gs)base
+pub unsafe fn switch(prev: *mut Context, next: *mut Context) {
+    let tls: &'static ThreadLocalStorage = unsafe { &*KernelGsBase::read().as_ptr() };
+    let next_syscall_stack = unsafe { (*next).syscall_stack.as_mut_ptr() };
 
+    tls.kernel_stack.store(next_syscall_stack, Ordering::SeqCst);
+
+    debug!("ctx switch, new gs:kernel_stack={next_syscall_stack:018x?}");
+    dbg_cpu();
+
+    unsafe { switch_inner(prev, next) };
+
+    dbg_cpu();
+}
+
+#[naked]
+unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
+    // TODO: fx(save/rstor)64 (rd/wr)(fs/gs)base
     unsafe {
         asm!(
             // save callee-saved registers
@@ -97,6 +114,7 @@ pub unsafe extern "sysv64" fn switch(prev: *mut Context, next: *mut Context) {
             // load next task
             "mov rsp, [rsi+{rsp}]", // load next stack
             "mov rax, [rsi+{cr3}]", // rax = next virtual address space
+
             // TODO: load TSS privilege stack
 
             // optional virtual address space switch
