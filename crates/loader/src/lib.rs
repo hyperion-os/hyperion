@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::mem::MaybeUninit;
+use core::{mem::MaybeUninit, sync::atomic::Ordering};
 
 use elf::{
     abi::{PF_R, PF_W, PF_X, PT_LOAD},
@@ -17,6 +17,7 @@ use elf::{
 use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_log::*;
 use hyperion_mem::{from_higher_half, vmm::PageMapImpl};
+use hyperion_scheduler::lock_active;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
@@ -65,6 +66,11 @@ impl<'a> Loader<'a> {
             error!("ELF segments cannot be mapped to higher half");
             panic!("TODO:")
         }
+
+        lock_active()
+            .memory
+            .heap_bottom
+            .fetch_max(v_end.as_u64() as _, Ordering::SeqCst);
 
         // TODO: max v_size
 

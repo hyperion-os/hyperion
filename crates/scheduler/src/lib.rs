@@ -36,7 +36,7 @@ use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use hyperion_timer::TIMER_HANDLER;
 use spin::{Lazy, Mutex, MutexGuard, Once, RwLock};
 use time::Duration;
-use x86_64::VirtAddr;
+use x86_64::{PhysAddr, VirtAddr};
 
 //
 
@@ -93,6 +93,11 @@ pub struct Task {
 
 pub struct TaskMemory {
     pub address_space: AddressSpace,
+
+    pub heap_bottom: AtomicUsize,
+
+    // TODO: a better way to keep track of allocated pages
+    pub allocs: Mutex<Vec<(PhysAddr, usize)>>,
     // dbg_magic_byte: usize,
 }
 
@@ -195,6 +200,10 @@ impl Task {
 
         let memory = Arc::new(TaskMemory {
             address_space,
+
+            heap_bottom: AtomicUsize::new(0),
+
+            allocs: Mutex::new(vec![]),
             // kernel_stack: Mutex::new(kernel_stack),
             // dbg_magic_byte: *MAGIC_DEBUG_BYTE,
         });
@@ -291,6 +300,8 @@ impl Task {
 
         let memory = Arc::new(TaskMemory {
             address_space,
+            heap_bottom: AtomicUsize::new(0),
+            allocs: Mutex::new(vec![]),
             // dbg_magic_byte: 0,
         });
 

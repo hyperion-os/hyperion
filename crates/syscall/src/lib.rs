@@ -54,6 +54,12 @@ pub fn nanosleep_until(deadline_nanos: u64) {
 pub fn pthread_spawn(thread_entry: extern "C" fn(u64, u64) -> !, arg: u64) {
     unsafe { trigger_syscall(8, thread_entry as usize as _, arg, 0, 0, 0) };
 }
+
+#[inline(always)]
+pub fn palloc(pages: u64) -> i64 {
+    unsafe { trigger_syscall(9, pages, 0, 0, 0, 0) as i64 }
+}
+
 /// # Safety
 /// the `syscall_id` and its arguments have to be valid or this program could accidentally close
 /// itself or share its memory or something

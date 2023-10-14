@@ -1,10 +1,10 @@
-use core::any::type_name_of_val;
+use core::{any::type_name_of_val, sync::atomic::Ordering};
 
-use hyperion_arch::{syscall::SyscallRegs, vmm::PageMap};
+use hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
-use hyperion_mem::vmm::PageMapImpl;
+use hyperion_mem::{pmm, vmm::PageMapImpl};
 use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -21,6 +21,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         6 => call_id(nanosleep_until, args),
         7 => call_id(open, args),
         8 => call_id(pthread_spawn, args),
+        9 => call_id(palloc, args),
 
         _ => {
             debug!("invalid syscall");
@@ -176,6 +177,39 @@ pub fn open(_args: &mut SyscallRegs) -> i64 {
 pub fn pthread_spawn(args: &mut SyscallRegs) -> i64 {
     hyperion_scheduler::spawn(args.arg0, args.arg1);
     return 0;
+}
+
+/// allocate physical pages and map them to virtual memory
+///
+/// # arguments
+///  - `syscall_id` : 9
+///  - `arg0` : page count
+///
+/// # return codes (in syscall_id after returning)
+///  - `-2` : out of virtual memory
+///  - `-1` : out of memory
+///  - `0..` : virtual alloc address
+pub fn palloc(args: &mut SyscallRegs) -> i64 {
+    let pages = args.arg0 as usize;
+    let alloc = pages * 0x1000;
+
+    let active = hyperion_scheduler::lock_active();
+    let alloc_bottom = active.memory.heap_bottom.fetch_add(alloc, Ordering::SeqCst);
+    let alloc_top = alloc_bottom + alloc;
+
+    if alloc_top as u64 >= USER_HEAP_TOP {
+        return -2;
+    }
+
+    let frames = pmm::PFA.alloc(pages);
+
+    active.memory.address_space.page_map.map(
+        VirtAddr::new(alloc_bottom as _)..VirtAddr::new(alloc_top as _),
+        frames.physical_addr(),
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
+    );
+
+    return alloc_bottom as _;
 }
 
 fn read_untrusted_str<'a>(ptr: u64, len: u64) -> Result<&'a str, i64> {

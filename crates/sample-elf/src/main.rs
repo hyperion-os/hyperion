@@ -4,10 +4,12 @@
 
 //
 
-// extern crate alloc;
+extern crate alloc;
 
-// use alloc::boxed::Box;
-use core::fmt::{self, Write};
+use core::{
+    alloc::GlobalAlloc,
+    fmt::{self, Write},
+};
 
 use hyperion_syscall::*;
 
@@ -35,7 +37,7 @@ pub fn main(args: CliArgs) {
 #[macro_export]
 macro_rules! println {
     ($($v:tt)*) => {
-        _print(format_args_nl!($($v)*));
+        _print(format_args_nl!($($v)*))
     };
 }
 
@@ -75,6 +77,28 @@ impl fmt::Debug for CliArgs {
         f.debug_list().entries(self.iter()).finish()
     }
 }
+
+pub struct PageAlloc;
+
+unsafe impl GlobalAlloc for PageAlloc {
+    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
+        let pages = layout.size().div_ceil(0x1000);
+        let alloc = palloc(pages as u64);
+
+        if alloc <= 0 {
+            panic!("page alloc failed: {alloc}");
+        }
+
+        alloc as *mut u8
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {
+        println!("TODO: dealloc")
+    }
+}
+
+#[global_allocator]
+static GLOBAL_ALLOC: PageAlloc = PageAlloc;
 
 //
 
