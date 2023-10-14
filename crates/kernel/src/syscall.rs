@@ -20,6 +20,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         5 => call_id(nanosleep, args),
         6 => call_id(nanosleep_until, args),
         7 => call_id(open, args),
+        8 => call_id(pthread_spawn, args),
 
         _ => {
             debug!("invalid syscall");
@@ -162,6 +163,19 @@ pub fn open(_args: &mut SyscallRegs) -> i64 {
     // hyperion_vfs::open(path, false, false);
 
     return -1 as _;
+}
+
+/// spawn a new thread
+///
+/// thread entry signature: `extern "C" fn thread_entry(stack_ptr: u64, arg1: u64) -> !`
+///
+/// # arguments
+///  - `syscall_id` : 8
+///  - `arg0` : the thread function pointer
+///  - `arg1` : the thread function argument
+pub fn pthread_spawn(args: &mut SyscallRegs) -> i64 {
+    hyperion_scheduler::spawn(args.arg0, args.arg1);
+    return 0;
 }
 
 fn read_untrusted_str<'a>(ptr: u64, len: u64) -> Result<&'a str, i64> {

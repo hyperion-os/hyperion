@@ -7,7 +7,6 @@
 use alloc::{
     borrow::Cow,
     boxed::Box,
-    string::String,
     sync::{Arc, Weak},
     vec,
     vec::Vec,
@@ -28,25 +27,20 @@ use hyperion_arch::{
     int,
     stack::{AddressSpace, KernelStack, Stack, StackType, UserStack},
     tls::Tls,
-    vmm::{PageMap, CURRENT_ADDRESS_SPACE},
+    vmm::PageMap,
 };
 use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
-use hyperion_mem::{
-    pmm::PFA,
-    to_higher_half,
-    vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
-};
-use hyperion_random::Rng;
+use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use hyperion_timer::TIMER_HANDLER;
 use spin::{Lazy, Mutex, MutexGuard, Once, RwLock};
 use time::Duration;
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::VirtAddr;
 
 //
 
-static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
+// static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
 
 //
 
@@ -87,6 +81,8 @@ pub struct Task {
     pub memory: Arc<TaskMemory>,
     /// user_stack is per thread
     pub user_stack: Mutex<Stack<UserStack>>,
+    /// kernel_stack is per thread
+    pub kernel_stack: Mutex<Stack<KernelStack>>,
 
     // context is used 'unsafely' only in the switch
     context: Box<UnsafeCell<Context>>,
@@ -97,8 +93,7 @@ pub struct Task {
 
 pub struct TaskMemory {
     pub address_space: AddressSpace,
-    pub kernel_stack: Mutex<Stack<KernelStack>>,
-    dbg_magic_byte: usize,
+    // dbg_magic_byte: usize,
 }
 
 #[derive(Debug)]
@@ -172,9 +167,16 @@ impl TaskState {
 impl Task {
     pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
         let name = type_name_of_val(&f);
-        let job = Some(Box::new(f) as _);
+        let f = Box::new(f) as _;
+
+        Self::new_any(f, Cow::Borrowed(name))
+    }
+
+    pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Self {
         trace!("initializing task {name}");
-        let name = RwLock::new(name.into());
+
+        let job = Some(f);
+        let name = RwLock::new(name);
 
         let info = Arc::new(TaskInfo {
             pid: Self::next_pid(),
@@ -188,12 +190,13 @@ impl Task {
 
         let kernel_stack = address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
+        hyperion_log::debug!("stack top: {stack_top:018x?}");
         let main_thread_user_stack = address_space.take_user_stack_lazy();
 
         let memory = Arc::new(TaskMemory {
             address_space,
-            kernel_stack: Mutex::new(kernel_stack),
-            dbg_magic_byte: *MAGIC_DEBUG_BYTE,
+            // kernel_stack: Mutex::new(kernel_stack),
+            // dbg_magic_byte: *MAGIC_DEBUG_BYTE,
         });
 
         let context = Box::new(UnsafeCell::new(Context::new(
@@ -202,7 +205,7 @@ impl Task {
             thread_entry,
         )));
 
-        let alloc = PFA.alloc(1);
+        /* let alloc = PFA.alloc(1);
         memory.address_space.page_map.map(
             CURRENT_ADDRESS_SPACE..CURRENT_ADDRESS_SPACE + 0xFFFu64,
             alloc.physical_addr(),
@@ -210,11 +213,53 @@ impl Task {
         );
         let current_address_space: *mut Arc<TaskMemory> =
             to_higher_half(alloc.physical_addr()).as_mut_ptr();
-        unsafe { current_address_space.write(memory.clone()) };
+        unsafe { current_address_space.write(memory.clone()) }; */
 
         Self {
             memory,
             user_stack: Mutex::new(main_thread_user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+
+            context,
+            job,
+            info,
+        }
+    }
+
+    pub fn thread(this: MutexGuard<'static, Self>, f: impl FnOnce() + Send + 'static) -> Self {
+        Self::thread_any(this, Box::new(f))
+    }
+
+    pub fn thread_any(
+        this: MutexGuard<'static, Self>,
+        f: Box<dyn FnOnce() + Send + 'static>,
+    ) -> Self {
+        let info = this.info.clone();
+        let memory = this.memory.clone();
+        drop(this);
+
+        let job = Some(f);
+
+        let info = info.clone();
+
+        debug!("pthread kernel stack");
+        let kernel_stack = memory.address_space.take_kernel_stack_prealloc(1);
+        let stack_top = kernel_stack.top;
+        hyperion_log::debug!("stack top: {stack_top:018x?}");
+        debug!("pthread user stack");
+        let user_stack = Mutex::new(memory.address_space.take_user_stack_lazy());
+
+        debug!("pthread ctx");
+        let context = Box::new(UnsafeCell::new(Context::new(
+            &memory.address_space.page_map,
+            stack_top,
+            thread_entry,
+        )));
+
+        Self {
+            memory,
+            user_stack,
+            kernel_stack: Mutex::new(kernel_stack),
 
             context,
             job,
@@ -246,14 +291,14 @@ impl Task {
 
         let memory = Arc::new(TaskMemory {
             address_space,
-            kernel_stack: Mutex::new(kernel_stack),
-            dbg_magic_byte: 0,
+            // dbg_magic_byte: 0,
         });
 
         Self {
             memory,
 
             user_stack: Mutex::new(user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
 
             context,
             job: None,
@@ -302,12 +347,12 @@ pub static READY: SegQueue<Task> = SegQueue::new();
 pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
 pub static RUNNING: AtomicBool = AtomicBool::new(false);
 
-pub fn task_memory() -> Arc<TaskMemory> {
+/* pub fn task_memory() -> Arc<TaskMemory> {
     let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
     let current = unsafe { (*current).clone() };
     assert_eq!(current.dbg_magic_byte, *MAGIC_DEBUG_BYTE);
     current
-}
+} */
 
 pub fn tasks() -> Vec<Arc<TaskInfo>> {
     let mut tasks = TASKS.lock();
@@ -448,10 +493,26 @@ pub fn stop() -> ! {
     unreachable!("a destroyed thread cannot continue executing");
 }
 
-/* pub fn spawn(f: impl FnOnce() + Send + 'static) {
-    schedule(Task::new(f))
-} */
+/// spawn a new thread in the currently running process
+///
+/// jumps into user space
+pub fn spawn(fn_ptr: u64, fn_arg: u64) {
+    let thread = Task::thread(lock_active(), move || {
+        let stack_top = { lock_active().user_stack.lock().top };
 
+        unsafe {
+            hyperion_arch::syscall::userland(
+                VirtAddr::new(fn_ptr),
+                stack_top,
+                stack_top.as_u64(),
+                fn_arg,
+            )
+        };
+    });
+    READY.push(thread);
+
+    debug!("spawning a pthread");
+}
 /// spawn a new process running this closure or a function or a task
 pub fn schedule(new: impl Into<Task>) {
     READY.push(new.into());
@@ -608,9 +669,9 @@ fn idle_time() -> &'static AtomicU64 {
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     hyperion_log::trace!("scheduler page fault (from {user:?})");
 
-    if user == Privilege::User {
-        let current = lock_active();
+    let current = try_lock_active().expect("TODO: active task is locked");
 
+    if user == Privilege::User {
         // `Err(Handled)` short circuits and returns
         handle_stack_grow(&current.user_stack, &current.memory, addr)?;
 
@@ -618,13 +679,10 @@ fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
         hyperion_log::warn!("killing user-space process");
         stop();
     } else {
-        let current = task_memory();
-        handle_stack_grow(&current.kernel_stack, &current, addr)?;
-
-        let current = lock_active();
+        handle_stack_grow(&current.kernel_stack, &current.memory, addr)?;
         handle_stack_grow(&current.user_stack, &current.memory, addr)?;
 
-        hyperion_log::error!("{:?}", current.memory.kernel_stack.lock());
+        hyperion_log::error!("{:?}", current.kernel_stack.lock());
         hyperion_log::error!("page fault from kernel-space");
     };
 

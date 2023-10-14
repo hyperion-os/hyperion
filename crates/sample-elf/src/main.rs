@@ -2,6 +2,11 @@
 #![no_main]
 #![feature(format_args_nl)]
 
+//
+
+// extern crate alloc;
+
+// use alloc::boxed::Box;
 use core::fmt::{self, Write};
 
 use hyperion_syscall::*;
@@ -11,6 +16,10 @@ use hyperion_syscall::*;
 pub fn main(args: CliArgs) {
     println!("sample app main");
     println!("args: {args:?}");
+
+    spawn(|| {
+        println!("print from thread 2");
+    });
 
     let mut next = timestamp().unwrap() as u64;
     for i in 0.. {
@@ -69,6 +78,14 @@ impl fmt::Debug for CliArgs {
 
 //
 
+fn spawn(_f: impl FnOnce() + Send + 'static) {
+    /* let f_fatptr: Box<dyn FnOnce() + Send + 'static> = Box::new(f);
+    let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = Box::into_raw(Box::new(f_fatptr)); */
+    let f_fatptr_box = 42;
+
+    pthread_spawn(_thread_entry, f_fatptr_box as u64);
+}
+
 fn _print(args: fmt::Arguments) {
     struct SyscallLog;
 
@@ -95,6 +112,16 @@ extern "C" fn _start(a0: u64) -> ! {
         hyperion_cli_args_ptr: a0,
     });
     exit(0);
+}
+
+extern "C" fn _thread_entry(_stack_ptr: u64, _arg: u64) -> ! {
+    unreachable!();
+    /* let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = arg as _;
+    let f_fatptr: Box<dyn FnOnce() + Send + 'static> = *unsafe { Box::from_raw(f_fatptr_box) };
+
+    f_fatptr();
+
+    exit(0); */
 }
 
 #[panic_handler]
