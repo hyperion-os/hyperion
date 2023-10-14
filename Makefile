@@ -49,6 +49,7 @@ HYPERION_TESTING := ${HYPER_DIR}/hyperion-testing.iso
 # rust/cargo
 RUST_F_debug     :=
 RUST_F_release   := --release
+RUST_F_release-lto:= --profile=release-lto
 CARGO_FLAGS      ?=
 CARGO_FLAGS      += ${RUST_F_${PROFILE}}
 CARGO_FLAGS      += --target=${RUST_T_${ARCH}}

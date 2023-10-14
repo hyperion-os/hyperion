@@ -8,6 +8,13 @@ edition = "2021"
 resolver = "2"
 members = ["crates/*"]
 
+[profile.release-lto]
+inherits = "release"
+opt-level = 3
+codegen-units = 4
+lto = true
+strip = true
+
 [workspace.dependencies]
 spin = "0.9"
 volatile = "0.5"
