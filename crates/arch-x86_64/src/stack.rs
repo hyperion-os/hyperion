@@ -108,7 +108,7 @@ impl<T: StackType + Debug> Stacks<T> {
         let top = self
             .free_stacks
             .pop()
-            .unwrap_or_else(|| self.next_stack.fetch_add(VIRT_STACK_SIZE, Ordering::SeqCst));
+            .unwrap_or_else(|| self.next_stack.fetch_sub(VIRT_STACK_SIZE, Ordering::SeqCst));
 
         if top <= self.limit {
             todo!("recover from reached stack limit");
