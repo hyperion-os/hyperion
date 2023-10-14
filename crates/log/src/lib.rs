@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use alloc::{borrow::Cow, string::String};
+use alloc::borrow::Cow;
 use core::fmt::{Arguments, Display};
 
 use hyperion_escape::encode::EscapeEncoder;

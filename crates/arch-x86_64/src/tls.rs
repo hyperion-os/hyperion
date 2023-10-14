@@ -6,7 +6,6 @@ use core::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-use hyperion_mem::pmm;
 use x86_64::{
     registers::model_specific::{GsBase, KernelGsBase},
     VirtAddr,

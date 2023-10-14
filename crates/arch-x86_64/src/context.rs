@@ -1,11 +1,10 @@
 use core::{arch::asm, mem::size_of, sync::atomic::Ordering};
 
-use hyperion_log::debug;
 use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
 use memoffset::offset_of;
 use x86_64::{registers::model_specific::KernelGsBase, PhysAddr, VirtAddr};
 
-use crate::{dbg_cpu, tls::ThreadLocalStorage, vmm::PageMap};
+use crate::{tls::ThreadLocalStorage, vmm::PageMap};
 
 //
 

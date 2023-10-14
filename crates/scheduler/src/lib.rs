@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(new_uninit, type_name_of_val, extract_if)]
+#![allow(clippy::needless_return)]
 
 //
 
