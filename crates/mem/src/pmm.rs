@@ -74,6 +74,10 @@ impl PageFrameAllocator {
         self.total_mem() - self.usable_mem()
     }
 
+    pub fn bitmap_len(&self) -> usize {
+        self.bitmap.lock().len()
+    }
+
     /// Free up pages
     pub fn free(&self, mut frame: PageFrame) {
         if frame.first.as_u64() == 0 || frame.count == 0 {

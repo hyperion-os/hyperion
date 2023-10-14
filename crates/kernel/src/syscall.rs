@@ -4,9 +4,13 @@ use hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
-use hyperion_mem::{pmm, vmm::PageMapImpl};
+use hyperion_mem::{
+    pmm::{self, PageFrame},
+    vmm::PageMapImpl,
+};
+use hyperion_num_postfix::NumberPostfix;
 use time::Duration;
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
 
@@ -22,6 +26,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         7 => call_id(open, args),
         8 => call_id(pthread_spawn, args),
         9 => call_id(palloc, args),
+        10 => call_id(pfree, args),
 
         _ => {
             debug!("invalid syscall");
@@ -33,7 +38,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         }
     };
 
-    if result != 0 {
+    if result < 0 {
         debug!("syscall `{name}` (id {id}) returned {result}",);
     }
 }
@@ -193,7 +198,8 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
     let pages = args.arg0 as usize;
     let alloc = pages * 0x1000;
 
-    let active = hyperion_scheduler::lock_active();
+    let mut active = hyperion_scheduler::lock_active();
+    let mut allocs = active.memory.allocs.lock();
     let alloc_bottom = active.memory.heap_bottom.fetch_add(alloc, Ordering::SeqCst);
     let alloc_top = alloc_bottom + alloc;
 
@@ -202,14 +208,67 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
     }
 
     let frames = pmm::PFA.alloc(pages);
-
     active.memory.address_space.page_map.map(
         VirtAddr::new(alloc_bottom as _)..VirtAddr::new(alloc_top as _),
         frames.physical_addr(),
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
     );
 
+    let page_bottom = alloc_bottom / 0x1000;
+    for page in page_bottom..page_bottom + pages {
+        allocs.set(page, true).unwrap();
+    }
+
     return alloc_bottom as _;
+}
+
+/// free allocated physical pages
+///
+/// # arguments
+///  - `syscall_id` : 10
+///  - `arg0` : page
+///  - `arg1` : page count
+///
+/// # return codes (in syscall_id after returning)
+///  - `-2` : invalid ptr
+///  - `-1` : invalid alloc
+///  - `0`  : ok
+pub fn pfree(args: &mut SyscallRegs) -> i64 {
+    let Ok(alloc_bottom) = VirtAddr::try_new(args.arg0) else {
+        return -2;
+    };
+    let pages = args.arg1 as usize;
+
+    let mut active = hyperion_scheduler::lock_active();
+    let mut allocs = active.memory.allocs.lock();
+
+    let page_bottom = alloc_bottom.as_u64() as usize / 0x1000;
+    for page in page_bottom..page_bottom + pages {
+        if !allocs.get(page).unwrap() {
+            return -1;
+        }
+
+        allocs.set(page, false).unwrap();
+    }
+
+    let Some(palloc) = active
+        .memory
+        .address_space
+        .page_map
+        .virt_to_phys(alloc_bottom)
+    else {
+        return -2;
+    };
+
+    let frames = unsafe { PageFrame::new(palloc, pages) };
+    pmm::PFA.free(frames);
+    active
+        .memory
+        .address_space
+        .page_map
+        .unmap(alloc_bottom..alloc_bottom + pages * 0x1000);
+
+    return 0;
 }
 
 fn read_untrusted_str<'a>(ptr: u64, len: u64) -> Result<&'a str, i64> {

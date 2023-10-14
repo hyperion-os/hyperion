@@ -29,10 +29,14 @@ use hyperion_arch::{
     tls::Tls,
     vmm::PageMap,
 };
+use hyperion_bitmap::Bitmap;
 use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
-use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
+use hyperion_mem::{
+    pmm,
+    vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
+};
 use hyperion_timer::TIMER_HANDLER;
 use spin::{Lazy, Mutex, MutexGuard, Once, RwLock};
 use time::Duration;
@@ -97,7 +101,7 @@ pub struct TaskMemory {
     pub heap_bottom: AtomicUsize,
 
     // TODO: a better way to keep track of allocated pages
-    pub allocs: Mutex<Vec<(PhysAddr, usize)>>,
+    pub allocs: Mutex<Bitmap<'static>>,
     // dbg_magic_byte: usize,
 }
 
@@ -198,12 +202,16 @@ impl Task {
         hyperion_log::debug!("stack top: {stack_top:018x?}");
         let main_thread_user_stack = address_space.take_user_stack_lazy();
 
+        let bitmap_alloc: Vec<u8> = (0..pmm::PFA.bitmap_len() / 8).map(|_| 0u8).collect();
+        let bitmap_alloc = Vec::leak(bitmap_alloc); // TODO: free
+        let bitmap = Bitmap::new(bitmap_alloc);
+
         let memory = Arc::new(TaskMemory {
             address_space,
 
             heap_bottom: AtomicUsize::new(0),
 
-            allocs: Mutex::new(vec![]),
+            allocs: Mutex::new(bitmap),
             // kernel_stack: Mutex::new(kernel_stack),
             // dbg_magic_byte: *MAGIC_DEBUG_BYTE,
         });
@@ -301,7 +309,7 @@ impl Task {
         let memory = Arc::new(TaskMemory {
             address_space,
             heap_bottom: AtomicUsize::new(0),
-            allocs: Mutex::new(vec![]),
+            allocs: Mutex::new(Bitmap::new(&mut [])),
             // dbg_magic_byte: 0,
         });
 

@@ -60,6 +60,11 @@ pub fn palloc(pages: u64) -> i64 {
     unsafe { trigger_syscall(9, pages, 0, 0, 0, 0) as i64 }
 }
 
+#[inline(always)]
+pub fn pfree(ptr: u64, pages: u64) -> i64 {
+    unsafe { trigger_syscall(10, ptr, pages, 0, 0, 0) as i64 }
+}
+
 /// # Safety
 /// the `syscall_id` and its arguments have to be valid or this program could accidentally close
 /// itself or share its memory or something

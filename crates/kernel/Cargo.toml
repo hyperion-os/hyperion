@@ -19,6 +19,7 @@ x86_64.workspace = true
 time.workspace = true
 futures-util.workspace = true
 
+hyperion-num-postfix.path = "../num-postfix"
 hyperion-arch.path = "../arch"
 hyperion-backtrace.path = "../backtrace"
 hyperion-boot-interface.path = "../boot-interface"

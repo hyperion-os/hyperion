@@ -6,6 +6,7 @@
 
 extern crate alloc;
 
+use alloc::boxed::Box;
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
@@ -92,8 +93,9 @@ unsafe impl GlobalAlloc for PageAlloc {
         alloc as *mut u8
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {
-        println!("TODO: dealloc")
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
+        let pages = layout.size().div_ceil(0x1000);
+        pfree(ptr as u64, pages as u64);
     }
 }
 
@@ -102,10 +104,9 @@ static GLOBAL_ALLOC: PageAlloc = PageAlloc;
 
 //
 
-fn spawn(_f: impl FnOnce() + Send + 'static) {
-    /* let f_fatptr: Box<dyn FnOnce() + Send + 'static> = Box::new(f);
-    let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = Box::into_raw(Box::new(f_fatptr)); */
-    let f_fatptr_box = 42;
+fn spawn(f: impl FnOnce() + Send + 'static) {
+    let f_fatptr: Box<dyn FnOnce() + Send + 'static> = Box::new(f);
+    let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = Box::into_raw(Box::new(f_fatptr));
 
     pthread_spawn(_thread_entry, f_fatptr_box as u64);
 }
@@ -138,14 +139,13 @@ extern "C" fn _start(a0: u64) -> ! {
     exit(0);
 }
 
-extern "C" fn _thread_entry(_stack_ptr: u64, _arg: u64) -> ! {
-    unreachable!();
-    /* let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = arg as _;
+extern "C" fn _thread_entry(_stack_ptr: u64, arg: u64) -> ! {
+    let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = arg as _;
     let f_fatptr: Box<dyn FnOnce() + Send + 'static> = *unsafe { Box::from_raw(f_fatptr_box) };
 
     f_fatptr();
 
-    exit(0); */
+    exit(0);
 }
 
 #[panic_handler]
