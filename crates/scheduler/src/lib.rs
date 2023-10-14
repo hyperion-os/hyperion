@@ -5,6 +5,7 @@
 //
 
 use alloc::{
+    borrow::Cow,
     boxed::Box,
     string::String,
     sync::{Arc, Weak},
@@ -106,7 +107,7 @@ pub struct TaskInfo {
     pub pid: usize,
 
     // proc name
-    pub name: RwLock<String>,
+    pub name: RwLock<Cow<'static, str>>,
 
     // cpu time used
     pub nanos: AtomicU64,
@@ -299,6 +300,7 @@ where
 
 pub static READY: SegQueue<Task> = SegQueue::new();
 pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
+pub static RUNNING: AtomicBool = AtomicBool::new(false);
 
 pub fn task_memory() -> Arc<TaskMemory> {
     let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
@@ -322,8 +324,8 @@ pub fn idle() -> impl Iterator<Item = Duration> {
         .map(|tls| Duration::nanoseconds(tls.idle_time.load(Ordering::Relaxed) as _))
 }
 
-pub fn rename(new_name: String) {
-    *active().info.name.write() = new_name;
+pub fn rename(new_name: Cow<'static, str>) {
+    *lock_active().info.name.write() = new_name;
 }
 
 /// init this processors scheduling
@@ -359,6 +361,7 @@ pub fn init() -> ! {
     if TLS.initialized.swap(true, Ordering::SeqCst) {
         panic!("should be called only once before any tasks are assigned to this processor")
     }
+    RUNNING.store(true, Ordering::SeqCst);
 
     stop();
 }
@@ -455,9 +458,7 @@ pub fn schedule(new: impl Into<Task>) {
 }
 
 fn swap_current(mut new: Task) -> Task {
-    let mut active = active();
-    set_logger_task_name(active.info.name.read().clone().into());
-    swap(&mut new, &mut active);
+    swap(&mut new, &mut lock_active());
     new
 }
 
@@ -477,7 +478,10 @@ fn reset_cpu_timer() {
 fn update_cpu_usage() {
     let elapsed = cpu_time_elapsed();
 
-    active().info.nanos.fetch_add(elapsed, Ordering::Relaxed);
+    lock_active()
+        .info
+        .nanos
+        .fetch_add(elapsed, Ordering::Relaxed);
 }
 
 fn update_cpu_idle() {
@@ -571,10 +575,22 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
     })
 });
 
-pub fn active() -> MutexGuard<'static, Task> {
+pub fn lock_active() -> MutexGuard<'static, Task> {
+    get_active().lock()
+}
+
+pub fn try_lock_active() -> Option<MutexGuard<'static, Task>> {
+    get_active().try_lock()
+}
+
+pub fn running() -> bool {
+    // short circuits and doesnt init TLS unless it has to
+    RUNNING.load(Ordering::SeqCst) && TLS.initialized.load(Ordering::SeqCst)
+}
+
+fn get_active() -> &'static Mutex<Task> {
     TLS.active
         .call_once(|| Mutex::new(unsafe { Task::bootloader() }))
-        .lock()
 }
 
 fn after() -> &'static SegQueue<CleanupTask> {
@@ -593,7 +609,7 @@ fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     hyperion_log::trace!("scheduler page fault (from {user:?})");
 
     if user == Privilege::User {
-        let current = active();
+        let current = lock_active();
 
         // `Err(Handled)` short circuits and returns
         handle_stack_grow(&current.user_stack, &current.memory, addr)?;
@@ -605,7 +621,7 @@ fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
         let current = task_memory();
         handle_stack_grow(&current.kernel_stack, &current, addr)?;
 
-        let current = active();
+        let current = lock_active();
         handle_stack_grow(&current.user_stack, &current.memory, addr)?;
 
         hyperion_log::error!("{:?}", current.memory.kernel_stack.lock());
@@ -632,7 +648,7 @@ fn handle_stack_grow<T: StackType + Debug>(
 
 extern "sysv64" fn thread_entry() -> ! {
     cleanup();
-    let job = active().job.take().expect("no active jobs");
+    let job = lock_active().job.take().expect("no active jobs");
     job();
     stop();
 }

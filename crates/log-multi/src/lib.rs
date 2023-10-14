@@ -2,6 +2,9 @@
 
 //
 
+extern crate alloc;
+
+use alloc::borrow::Cow;
 use core::fmt::Arguments;
 
 use crossbeam::atomic::AtomicCell;
@@ -46,6 +49,22 @@ const _: () = assert!(AtomicCell::<LogLevel>::is_lock_free());
 impl Logger for MultiLogger {
     fn is_enabled(&self, level: LogLevel) -> bool {
         self.qemu.load() >= level
+    }
+
+    fn proc_name(&self) -> Option<Cow<'static, str>> {
+        if !hyperion_scheduler::running() {
+            return None;
+        }
+
+        let Some(active) = hyperion_scheduler::try_lock_active() else {
+            return Some(Cow::Borrowed("<active-locked>"));
+        };
+
+        let Some(name) = active.info().name.try_read() else {
+            return Some(Cow::Borrowed("<name-locked>"));
+        };
+
+        Some(name.clone())
     }
 
     fn print(&self, _level: LogLevel, args: Arguments) {

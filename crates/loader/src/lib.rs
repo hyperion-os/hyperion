@@ -127,7 +127,7 @@ impl<'a> Loader<'a> {
 
     pub fn init_stack(args: &[&str]) -> VirtAddr {
         let mut stack_top = {
-            let task = hyperion_scheduler::active();
+            let task = hyperion_scheduler::lock_active();
             let stack_top = task.user_stack.lock().top;
             stack_top
         };

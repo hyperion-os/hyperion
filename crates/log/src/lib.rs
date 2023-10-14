@@ -123,6 +123,8 @@ impl Default for LogLevel {
 pub trait Logger: Send + Sync {
     fn is_enabled(&self, level: LogLevel) -> bool;
 
+    fn proc_name(&self) -> Option<Cow<'static, str>>;
+
     fn print(&self, level: LogLevel, args: Arguments);
 }
 
@@ -132,19 +134,19 @@ pub fn set_logger(new_logger: &'static dyn Logger) {
     *LOGGER.write() = new_logger;
 }
 
-pub fn set_logger_task_name(task_name: Cow<'static, str>) {
-    *LOGGER_TASK_NAME.write() = task_name;
-}
-
+#[doc(hidden)]
 pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args: Arguments) {
-    let task = LOGGER_TASK_NAME
-        .read()
-        .clone()
+    let logger = LOGGER.read();
+
+    let task = logger
+        .proc_name()
+        .unwrap_or(Cow::Borrowed("pre-scheduler"))
         .true_lightgrey()
         .with_reset(false);
+
     let module = module.true_grey().with_reset(false);
 
-    _print(
+    logger.print(
         level,
         format_args!(
             "{}{pre}{task} {} {}: {args}",
@@ -174,6 +176,7 @@ pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
     _print_log_custom(level, pre, module, args)
 }
 
+#[doc(hidden)]
 pub fn _is_enabled(level: LogLevel) -> bool {
     LOGGER.read().is_enabled(level)
 }
@@ -181,7 +184,6 @@ pub fn _is_enabled(level: LogLevel) -> bool {
 //
 
 static LOGGER: RwLock<&'static dyn Logger> = RwLock::new(&NopLogger);
-static LOGGER_TASK_NAME: RwLock<Cow<'static, str>> = RwLock::new(Cow::Borrowed("pre-scheduler"));
 
 //
 
@@ -190,6 +192,10 @@ struct NopLogger;
 impl Logger for NopLogger {
     fn is_enabled(&self, _: LogLevel) -> bool {
         false
+    }
+
+    fn proc_name(&self) -> Option<Cow<'static, str>> {
+        None
     }
 
     fn print(&self, _: LogLevel, _: Arguments) {}

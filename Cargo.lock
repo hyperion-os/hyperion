@@ -580,6 +580,7 @@ dependencies = [
  "hyperion-boot",
  "hyperion-driver-qemu",
  "hyperion-log",
+ "hyperion-scheduler",
  "spin",
 ]
 
