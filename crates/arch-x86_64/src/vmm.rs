@@ -276,6 +276,18 @@ impl PageMapImpl for PageMap {
                 size = Size4KiB::SIZE;
             } else {
                 hyperion_log::error!("FIXME: failed to map [ 0x{start:016x} to 0x{p_addr:016x} ]");
+                hyperion_log::error!(
+                    "1GiB: {:?}",
+                    try_map_sized::<Size1GiB>(table, start, end, p_addr, flags)
+                );
+                hyperion_log::error!(
+                    "2MiB: {:?}",
+                    try_map_sized::<Size2MiB>(table, start, end, p_addr, flags)
+                );
+                hyperion_log::error!(
+                    "4KiB: {:?}",
+                    try_map_sized::<Size4KiB>(table, start, end, p_addr, flags)
+                );
                 size = Size4KiB::SIZE;
             }
 
@@ -585,7 +597,15 @@ where
     let page = Page::<T>::containing_address(start);
     let frame = PhysFrame::<T>::containing_address(p_addr);
 
-    unsafe { table.map_to(page, frame, flags, &mut Pfa) }
+    let result = unsafe { table.map_to(page, frame, flags, &mut Pfa) };
+
+    if let Err(MapToError::PageAlreadyMapped(old_frame)) = result {
+        if old_frame == frame {
+            return Ok(());
+        }
+    }
+
+    result
         .map_err(|err| TryMapSizedError::MapToError(err))?
         .flush();
 
