@@ -14,8 +14,8 @@ use alloc::{
 use core::{
     any::type_name_of_val,
     cell::UnsafeCell,
-    fmt::Debug,
-    mem::swap,
+    fmt::{self, Debug},
+    mem::{swap, ManuallyDrop},
     sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 
@@ -40,7 +40,7 @@ use hyperion_mem::{
 use hyperion_timer::TIMER_HANDLER;
 use spin::{Lazy, Mutex, MutexGuard, Once, RwLock};
 use time::Duration;
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::VirtAddr;
 
 //
 
@@ -82,7 +82,7 @@ impl Cleanup {
 
 pub struct Task {
     /// memory is per process
-    pub memory: Arc<TaskMemory>,
+    pub memory: ManuallyDrop<Arc<TaskMemory>>,
     /// user_stack is per thread
     pub user_stack: Mutex<Stack<UserStack>>,
     /// kernel_stack is per thread
@@ -105,10 +105,38 @@ pub struct TaskMemory {
     // dbg_magic_byte: usize,
 }
 
+impl TaskMemory {
+    pub fn new_arc(address_space: AddressSpace) -> Arc<Self> {
+        Arc::new(Self {
+            address_space,
+
+            heap_bottom: AtomicUsize::new(0),
+
+            simple_ipc: vec![],
+
+            allocs: Mutex::new(Bitmap::new(&mut [])),
+            // kernel_stack: Mutex::new(kernel_stack),
+            // dbg_magic_byte: *MAGIC_DEBUG_BYTE,
+        })
+    }
+
+    pub fn init_allocs(&self) {
+        let bitmap_alloc: Vec<u8> = (0..pmm::PFA.bitmap_len() / 8).map(|_| 0u8).collect();
+        let bitmap_alloc = Vec::leak(bitmap_alloc); // TODO: free
+        *self.allocs.lock() = Bitmap::new(bitmap_alloc);
+    }
+}
+
+impl Drop for TaskMemory {
+    fn drop(&mut self) {
+        // TODO: drop the bitmap
+    }
+}
+
 #[derive(Debug)]
 pub struct TaskInfo {
     // proc id
-    pub pid: usize,
+    pub pid: Pid,
 
     // proc name
     pub name: RwLock<Cow<'static, str>>,
@@ -118,6 +146,22 @@ pub struct TaskInfo {
 
     // proc state
     pub state: AtomicCell<TaskState>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Pid(usize);
+
+impl Pid {
+    pub fn next() -> Self {
+        static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
+        Pid(NEXT_PID.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl fmt::Display for Pid {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
 }
 
 const _: () = assert!(AtomicCell::<TaskState>::is_lock_free());
@@ -188,7 +232,7 @@ impl Task {
         let name = RwLock::new(name);
 
         let info = Arc::new(TaskInfo {
-            pid: Self::next_pid(),
+            pid: Pid::next(),
             name,
             nanos: AtomicU64::new(0),
             state: AtomicCell::new(TaskState::Ready),
@@ -202,19 +246,9 @@ impl Task {
         hyperion_log::debug!("stack top: {stack_top:018x?}");
         let main_thread_user_stack = address_space.take_user_stack_lazy();
 
-        let bitmap_alloc: Vec<u8> = (0..pmm::PFA.bitmap_len() / 8).map(|_| 0u8).collect();
-        let bitmap_alloc = Vec::leak(bitmap_alloc); // TODO: free
-        let bitmap = Bitmap::new(bitmap_alloc);
-
-        let memory = Arc::new(TaskMemory {
-            address_space,
-
-            heap_bottom: AtomicUsize::new(0),
-
-            allocs: Mutex::new(bitmap),
-            // kernel_stack: Mutex::new(kernel_stack),
-            // dbg_magic_byte: *MAGIC_DEBUG_BYTE,
-        });
+        let memory = ManuallyDrop::new(TaskMemory::new_arc(address_space));
+        TASK_MEM.lock().insert(info.pid, Arc::downgrade(&memory));
+        memory.init_allocs();
 
         let context = Box::new(UnsafeCell::new(Context::new(
             &memory.address_space.page_map,
@@ -292,7 +326,7 @@ impl Task {
         // they are currently wasting 64KiB per processor
 
         let info = Arc::new(TaskInfo {
-            pid: 0,
+            pid: Pid(0),
             name: RwLock::new("bootloader".into()),
             nanos: AtomicU64::new(0),
             state: AtomicCell::new(TaskState::Ready),
@@ -306,12 +340,7 @@ impl Task {
         let ctx = unsafe { Context::invalid(&address_space.page_map) };
         let context = Box::new(UnsafeCell::new(ctx));
 
-        let memory = Arc::new(TaskMemory {
-            address_space,
-            heap_bottom: AtomicUsize::new(0),
-            allocs: Mutex::new(Bitmap::new(&mut [])),
-            // dbg_magic_byte: 0,
-        });
+        let memory = ManuallyDrop::new(TaskMemory::new_arc(address_space));
 
         Self {
             memory,
@@ -325,18 +354,13 @@ impl Task {
         }
     }
 
-    pub fn next_pid() -> usize {
-        static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
-        NEXT_PID.fetch_add(1, Ordering::Relaxed)
-    }
-
     pub fn info(&self) -> &TaskInfo {
         &self.info
     }
 
     pub fn debug(&mut self) {
         hyperion_log::debug!(
-            "TASK DEBUG: context: {:0x?}, job: {:?}, pid: {}",
+            "TASK DEBUG: context: {:0x?}, job: {:?}, pid: {:?}",
             &self.context as *const _ as usize,
             // unsafe { &*self.context.get() },
             self.job.as_ref().map(|_| ()),
@@ -362,9 +386,26 @@ where
     }
 }
 
+impl Drop for Task {
+    fn drop(&mut self) {
+        // TODO: drop pages
+
+        // SAFETY: self.memory is not used anymore
+        let memory = unsafe { ManuallyDrop::take(&mut self.memory) };
+
+        if Arc::into_inner(memory).is_some() {
+            TASK_MEM.lock().remove(&self.info.pid);
+        }
+    }
+}
+
 pub static READY: SegQueue<Task> = SegQueue::new();
-pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
 pub static RUNNING: AtomicBool = AtomicBool::new(false);
+
+/// task info
+pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
+
+//
 
 /* pub fn task_memory() -> Arc<TaskMemory> {
     let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
@@ -432,29 +473,13 @@ pub fn init() -> ! {
 
 /// switch to another thread
 pub fn yield_now() {
-    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
-
     update_cpu_usage();
 
     let Some(next) = next_task() else {
         // no tasks -> keep the current task running
         return;
     };
-    let next_ctx = next.ctx();
-    next.set_state(TaskState::Running);
-
-    let prev = swap_current(next);
-    let prev_ctx = prev.ctx();
-    prev.set_state(TaskState::Ready);
-
-    // push the current thread back to the ready queue AFTER switching
-    after().push(Cleanup::Ready.task(prev));
-
-    // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
-    // the box keeps the pointer pinned in memory
-    unsafe { ctx_switch(prev_ctx, next_ctx) };
-
-    cleanup();
+    switch_because(next, TaskState::Ready, Cleanup::Ready);
 }
 
 pub fn sleep(duration: Duration) {
@@ -462,54 +487,44 @@ pub fn sleep(duration: Duration) {
 }
 
 pub fn sleep_until(deadline: Instant) {
-    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
-
     update_cpu_usage();
 
-    let Some(next) = wait_next_task_deadline(deadline) else {
+    let Some(next) = wait_next_task(|| deadline.is_reached()) else {
         return;
     };
-    let next_ctx = next.ctx();
-    next.set_state(TaskState::Running);
-
-    let prev = swap_current(next);
-    let prev_ctx = prev.ctx();
-    prev.set_state(TaskState::Sleeping);
-
-    // push the current thread back to the ready queue AFTER switching
-    after().push(Cleanup::Sleep { deadline }.task(prev));
-
-    // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
-    // the box keeps the pointer pinned in memory
-    unsafe { ctx_switch(prev_ctx, next_ctx) };
-
-    cleanup();
+    switch_because(next, TaskState::Sleeping, Cleanup::Sleep { deadline });
 }
 
 /// destroy the current thread
 /// and switch to another thread
 pub fn stop() -> ! {
-    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
-
     update_cpu_usage();
 
-    // TODO: running out stack space after taking the task doesnt allow the stack to grow
-    let next = wait_next_task();
+    let next = wait_next_task(|| false).unwrap();
+    switch_because(next, TaskState::Dropping, Cleanup::Drop);
+
+    unreachable!("a destroyed thread cannot continue executing");
+}
+
+pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     let next_ctx = next.ctx();
     next.set_state(TaskState::Running);
 
+    // TODO: running out stack space after switching the task
+    // doesnt allow the kernel stack to grow anymore
     let prev = swap_current(next);
     let prev_ctx = prev.ctx();
-    prev.set_state(TaskState::Dropping);
+    prev.set_state(new_state);
 
     // push the current thread to the drop queue AFTER switching
-    after().push(Cleanup::Drop.task(prev));
+    after().push(cleanup.task(prev));
 
     // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
     // the box keeps the pointer pinned in memory
+    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
     unsafe { ctx_switch(prev_ctx, next_ctx) };
 
-    unreachable!("a destroyed thread cannot continue executing");
+    crate::cleanup();
 }
 
 /// spawn a new thread in the currently running process
@@ -570,18 +585,7 @@ fn update_cpu_idle() {
     idle_time().fetch_add(elapsed, Ordering::Relaxed);
 }
 
-fn wait_next_task() -> Task {
-    loop {
-        if let Some(task) = next_task() {
-            return task;
-        }
-
-        // debug!("no tasks, waiting for interrupts");
-        wait();
-    }
-}
-
-fn wait_next_task_deadline(deadline: Instant) -> Option<Task> {
+fn wait_next_task(mut should_abort: impl FnMut() -> bool) -> Option<Task> {
     loop {
         if let Some(task) = next_task() {
             return Some(task);
@@ -590,7 +594,7 @@ fn wait_next_task_deadline(deadline: Instant) -> Option<Task> {
         // debug!("no tasks, waiting for interrupts");
         wait();
 
-        if deadline.is_reached() {
+        if should_abort() {
             return None;
         }
     }
