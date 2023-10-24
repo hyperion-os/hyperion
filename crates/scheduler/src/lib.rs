@@ -184,9 +184,17 @@ pub struct TaskInfo {
 pub struct Pid(usize);
 
 impl Pid {
+    pub const fn new(num: usize) -> Self {
+        Self(num)
+    }
+
     pub fn next() -> Self {
         static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
         Pid(NEXT_PID.fetch_add(1, Ordering::Relaxed))
+    }
+
+    pub const fn num(self) -> usize {
+        self.0
     }
 }
 

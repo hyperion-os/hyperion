@@ -82,33 +82,67 @@ extern "C" fn _start() -> ! {
     scheduler::executor::spawn(kshell::kshell());
 
     scheduler::schedule(move || {
-        scheduler::rename("<spammer>".into());
-        static INC: AtomicUsize = AtomicUsize::new(0);
+        scheduler::rename("<Get_Input>".into());
 
         let pid = scheduler::lock_active().info().pid;
         info!("I am pid:{pid}");
+        debug_assert!(pid.num() == 1);
+        arch::dbg_cpu();
+
         loop {
-            // broadcast b"hello n" to every process running
-            for task in scheduler::tasks() {
-                scheduler::send(
-                    task.pid,
-                    Vec::from(format!("hello {}", INC.fetch_add(1, Ordering::SeqCst))).into(),
-                );
-            }
-            scheduler::recv(); // this also sends to itself so this never blocks
+            let messy_string = format!("abc3de5fgh@lmno&pqr%stuv(w)xyz");
+            info!("<Get_Input>: '{messy_string}'");
+            scheduler::send(scheduler::Pid::new(2), Vec::from(messy_string).into())
+                .expect("send err");
 
             // wait 200ms
             scheduler::sleep(time::Duration::milliseconds(200));
         }
     });
     scheduler::schedule(move || {
-        scheduler::rename("<reader>".into());
+        scheduler::rename("<Clean_Input>".into());
 
         let pid = scheduler::lock_active().info().pid;
         info!("I am pid:{pid}");
+        debug_assert!(pid.num() == 2);
+        arch::dbg_cpu();
+
         loop {
-            // block on recv and print out the result
-            info!("got {:?}", core::str::from_utf8(&scheduler::recv()));
+            let messy_data = scheduler::recv();
+            let messy_string = core::str::from_utf8(&messy_data).expect("data to be UTF-8");
+
+            let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), "");
+            scheduler::send(scheduler::Pid::new(3), Vec::from(clean_string).into())
+                .expect("send err");
+        }
+    });
+    scheduler::schedule(move || {
+        scheduler::rename("<Find_Missing>".into());
+
+        let pid = scheduler::lock_active().info().pid;
+        info!("I am pid:{pid}");
+        debug_assert!(pid.num() == 3);
+        arch::dbg_cpu();
+
+        loop {
+            let data = scheduler::recv();
+            let string = core::str::from_utf8(&data).expect("data to be UTF-8");
+
+            let mut found = [false; 26];
+            for c in string.chars() {
+                found[((c as u8).to_ascii_lowercase() - b'a') as usize] = true;
+            }
+            info!("<Find_Missing>: \\/");
+            print!(" - '");
+            for missing in found
+                .iter()
+                .enumerate()
+                .filter(|(_, found)| !*found)
+                .map(|(i, _)| i)
+            {
+                print!("{}", (missing as u8 + b'a') as char);
+            }
+            println!("'");
         }
     });
 
@@ -133,26 +167,7 @@ fn smp_main(cpu: Cpu) -> ! {
         debug!("boot cpu drivers installed");
     }
 
-    debug!("boot stack: {boot_stack:?}");
-
-    /* scheduler::spawn(move || {
-        scheduler::rename("<loop>".into());
-        scheduler::spawn(move || {
-            scheduler::rename("<loop>".into());
-        });
-        loop {
-            scheduler::yield_now();
-        }
-    });
-    scheduler::spawn(move || {
-        scheduler::rename("<loop>".into());
-        scheduler::spawn(move || {
-            scheduler::rename("<loop>".into());
-        });
-        loop {
-            scheduler::yield_now();
-        }
-    }); */
+    trace!("boot stack: {boot_stack:?}");
 
     scheduler::schedule(move || {
         scheduler::rename("<kernel futures executor>".into());
