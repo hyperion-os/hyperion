@@ -20,11 +20,11 @@ pub fn main(args: CliArgs) {
     println!("sample app main");
     println!("args: {args:?}");
 
-    for n in 0..8 {
+    /* for n in 0..8 {
         spawn(move || {
             println!("print from thread {n}");
         });
-    }
+    } */
 
     let mut next = timestamp().unwrap() as u64;
     for i in 0.. {
@@ -106,6 +106,7 @@ static GLOBAL_ALLOC: PageAlloc = PageAlloc;
 
 //
 
+#[allow(unused)]
 fn spawn(f: impl FnOnce() + Send + 'static) {
     let f_fatptr: Box<dyn FnOnce() + Send + 'static> = Box::new(f);
     let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = Box::into_raw(Box::new(f_fatptr));
