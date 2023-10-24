@@ -8,9 +8,8 @@ use hyperion_mem::{
     pmm::{self, PageFrame},
     vmm::PageMapImpl,
 };
-use hyperion_num_postfix::NumberPostfix;
 use time::Duration;
-use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
@@ -198,7 +197,7 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
     let pages = args.arg0 as usize;
     let alloc = pages * 0x1000;
 
-    let mut active = hyperion_scheduler::lock_active();
+    let active = hyperion_scheduler::lock_active();
     let mut allocs = active.memory.allocs.lock();
     let alloc_bottom = active.memory.heap_bottom.fetch_add(alloc, Ordering::SeqCst);
     let alloc_top = alloc_bottom + alloc;
@@ -239,7 +238,7 @@ pub fn pfree(args: &mut SyscallRegs) -> i64 {
     };
     let pages = args.arg1 as usize;
 
-    let mut active = hyperion_scheduler::lock_active();
+    let active = hyperion_scheduler::lock_active();
     let mut allocs = active.memory.allocs.lock();
 
     let page_bottom = alloc_bottom.as_u64() as usize / 0x1000;
