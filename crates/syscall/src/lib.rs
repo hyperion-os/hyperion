@@ -1,5 +1,8 @@
 #![no_std]
 
+//
+
+/// print a string kernel logs
 #[inline(always)]
 pub fn log(str: &str) -> u64 {
     // TODO: should null terminated strings be used instead to save registers?
@@ -7,17 +10,20 @@ pub fn log(str: &str) -> u64 {
     unsafe { trigger_syscall(1, str.as_ptr() as u64, str.len() as u64, 0, 0, 0) }
 }
 
+/// exit the process with a code
 #[inline(always)]
 pub fn exit(code: i64) -> ! {
     unsafe { trigger_syscall(2, code as u64, 0, 0, 0, 0) };
     unreachable!();
 }
 
+/// context switch from this process, no guarantees about actually switching
 #[inline(always)]
 pub fn yield_now() {
     unsafe { trigger_syscall(3, 0, 0, 0, 0, 0) };
 }
 
+/// u128 nanoseconds since boot
 #[inline(always)]
 pub fn timestamp() -> Result<u128, u64> {
     let result: u64;
@@ -40,26 +46,33 @@ pub fn timestamp() -> Result<u128, u64> {
     }
 }
 
+/// context switch from this process and switch back when `nanos` nanoseconds have passed
 #[inline(always)]
 pub fn nanosleep(nanos: u64) {
     unsafe { trigger_syscall(5, nanos, 0, 0, 0, 0) };
 }
 
+/// context switch from this process and switch back when [`timestamp()`] > `deadline_nanos`
+///
+/// might not happen immediately when it is true
 #[inline(always)]
 pub fn nanosleep_until(deadline_nanos: u64) {
     unsafe { trigger_syscall(6, deadline_nanos, 0, 0, 0, 0) };
 }
 
+/// spawn a new pthread for the same process
 #[inline(always)]
 pub fn pthread_spawn(thread_entry: extern "C" fn(u64, u64) -> !, arg: u64) {
     unsafe { trigger_syscall(8, thread_entry as usize as _, arg, 0, 0, 0) };
 }
 
+/// allocate physical pages and map to heap
 #[inline(always)]
 pub fn palloc(pages: u64) -> i64 {
     unsafe { trigger_syscall(9, pages, 0, 0, 0, 0) as i64 }
 }
 
+/// deallocate physical pages and unmap from heap
 #[inline(always)]
 pub fn pfree(ptr: u64, pages: u64) -> i64 {
     unsafe { trigger_syscall(10, ptr, pages, 0, 0, 0) as i64 }
