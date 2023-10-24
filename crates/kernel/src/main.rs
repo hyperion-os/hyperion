@@ -20,7 +20,11 @@
 
 //
 
-use core::ops::Range;
+use alloc::{format, vec::Vec};
+use core::{
+    ops::Range,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use hyperion_arch as arch;
 use hyperion_boot as boot;
@@ -77,6 +81,37 @@ extern "C" fn _start() -> ! {
     // main task(s)
     scheduler::executor::spawn(kshell::kshell());
 
+    scheduler::schedule(move || {
+        scheduler::rename("<spammer>".into());
+        static INC: AtomicUsize = AtomicUsize::new(0);
+
+        let pid = scheduler::lock_active().info().pid;
+        info!("I am pid:{pid}");
+        loop {
+            // broadcast b"hello n" to every process running
+            for task in scheduler::tasks() {
+                scheduler::send(
+                    task.pid,
+                    Vec::from(format!("hello {}", INC.fetch_add(1, Ordering::SeqCst))).into(),
+                );
+            }
+            scheduler::recv(); // this also sends to itself so this never blocks
+
+            // wait 200ms
+            scheduler::sleep(time::Duration::milliseconds(200));
+        }
+    });
+    scheduler::schedule(move || {
+        scheduler::rename("<reader>".into());
+
+        let pid = scheduler::lock_active().info().pid;
+        info!("I am pid:{pid}");
+        loop {
+            // block on recv and print out the result
+            info!("got {:?}", core::str::from_utf8(&scheduler::recv()));
+        }
+    });
+
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     boot::smp_init(smp_main);
 }
@@ -118,6 +153,7 @@ fn smp_main(cpu: Cpu) -> ! {
             scheduler::yield_now();
         }
     }); */
+
     scheduler::schedule(move || {
         scheduler::rename("<kernel futures executor>".into());
 

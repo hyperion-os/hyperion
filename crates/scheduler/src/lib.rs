@@ -7,6 +7,7 @@
 use alloc::{
     borrow::Cow,
     boxed::Box,
+    collections::BTreeMap,
     sync::{Arc, Weak},
     vec,
     vec::Vec,
@@ -16,7 +17,8 @@ use core::{
     cell::UnsafeCell,
     fmt::{self, Debug},
     mem::{swap, ManuallyDrop},
-    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    ptr,
+    sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering},
 };
 
 use crossbeam::atomic::AtomicCell;
@@ -67,6 +69,7 @@ pub struct CleanupTask {
 #[derive(Debug, Clone, Copy)]
 pub enum Cleanup {
     Sleep { deadline: Instant },
+    SimpleIpcWait { pid: Pid },
     Drop,
     Ready,
 }
@@ -78,15 +81,37 @@ impl Cleanup {
             cleanup: self,
         }
     }
+
+    pub fn run(self, task: Task) {
+        match self {
+            Self::Sleep { deadline } => {
+                sleep::push(deadline, task);
+                for ready in sleep::finished() {
+                    READY.push(ready);
+                }
+            }
+            Self::SimpleIpcWait { pid } => {
+                let memory = task.memory.clone();
+                SIMPLE_IPC_WAITING.lock().insert(pid, task);
+                if !memory.simple_ipc.lock().is_empty() {
+                    if let Some(task) = SIMPLE_IPC_WAITING.lock().remove(&pid) {
+                        READY.push(task);
+                    }
+                }
+            }
+            Self::Drop => {}
+            Self::Ready => {
+                schedule(task);
+            }
+        }
+    }
 }
 
 pub struct Task {
     /// memory is per process
     pub memory: ManuallyDrop<Arc<TaskMemory>>,
-    /// user_stack is per thread
-    pub user_stack: Mutex<Stack<UserStack>>,
-    /// kernel_stack is per thread
-    pub kernel_stack: Mutex<Stack<KernelStack>>,
+    /// per thread
+    pub thread: Box<TaskThread>,
 
     // context is used 'unsafely' only in the switch
     context: Box<UnsafeCell<Context>>,
@@ -95,10 +120,17 @@ pub struct Task {
     info: Arc<TaskInfo>,
 }
 
+pub struct TaskThread {
+    pub user_stack: Mutex<Stack<UserStack>>,
+    pub kernel_stack: Mutex<Stack<KernelStack>>,
+}
+
 pub struct TaskMemory {
     pub address_space: AddressSpace,
 
     pub heap_bottom: AtomicUsize,
+
+    pub simple_ipc: Mutex<Vec<Cow<'static, [u8]>>>,
 
     // TODO: a better way to keep track of allocated pages
     pub allocs: Mutex<Bitmap<'static>>,
@@ -112,7 +144,7 @@ impl TaskMemory {
 
             heap_bottom: AtomicUsize::new(0),
 
-            simple_ipc: vec![],
+            simple_ipc: Mutex::new(vec![]),
 
             allocs: Mutex::new(Bitmap::new(&mut [])),
             // kernel_stack: Mutex::new(kernel_stack),
@@ -243,8 +275,11 @@ impl Task {
 
         let kernel_stack = address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
-        hyperion_log::debug!("stack top: {stack_top:018x?}");
         let main_thread_user_stack = address_space.take_user_stack_lazy();
+        let thread = Box::new(TaskThread {
+            user_stack: Mutex::new(main_thread_user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+        });
 
         let memory = ManuallyDrop::new(TaskMemory::new_arc(address_space));
         TASK_MEM.lock().insert(info.pid, Arc::downgrade(&memory));
@@ -268,8 +303,7 @@ impl Task {
 
         Self {
             memory,
-            user_stack: Mutex::new(main_thread_user_stack),
-            kernel_stack: Mutex::new(kernel_stack),
+            thread,
 
             context,
             job,
@@ -298,7 +332,11 @@ impl Task {
         let stack_top = kernel_stack.top;
         hyperion_log::debug!("stack top: {stack_top:018x?}");
         debug!("pthread user stack");
-        let user_stack = Mutex::new(memory.address_space.take_user_stack_lazy());
+        let user_stack = memory.address_space.take_user_stack_lazy();
+        let thread = Box::new(TaskThread {
+            user_stack: Mutex::new(user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+        });
 
         debug!("pthread ctx");
         let context = Box::new(UnsafeCell::new(Context::new(
@@ -309,8 +347,7 @@ impl Task {
 
         Self {
             memory,
-            user_stack,
-            kernel_stack: Mutex::new(kernel_stack),
+            thread,
 
             context,
             job,
@@ -333,8 +370,16 @@ impl Task {
         });
 
         let address_space = AddressSpace::new(PageMap::current());
-        let kernel_stack = address_space.kernel_stacks.take();
-        let user_stack = address_space.user_stacks.take();
+        let mut kernel_stack = address_space
+            .kernel_stacks
+            .take_lazy(&address_space.page_map);
+        let mut user_stack = address_space.user_stacks.take_lazy(&address_space.page_map);
+        kernel_stack.limit_4k_pages = 0;
+        user_stack.limit_4k_pages = 0;
+        let thread = Box::new(TaskThread {
+            user_stack: Mutex::new(user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+        });
 
         // SAFETY: covered by this function's safety doc
         let ctx = unsafe { Context::invalid(&address_space.page_map) };
@@ -344,9 +389,7 @@ impl Task {
 
         Self {
             memory,
-
-            user_stack: Mutex::new(user_stack),
-            kernel_stack: Mutex::new(kernel_stack),
+            thread,
 
             context,
             job: None,
@@ -405,7 +448,52 @@ pub static RUNNING: AtomicBool = AtomicBool::new(false);
 /// task info
 pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
 
+// TODO: concurrent map
+pub static TASK_MEM: Mutex<BTreeMap<Pid, Weak<TaskMemory>>> = Mutex::new(BTreeMap::new());
+
+pub static SIMPLE_IPC_WAITING: Mutex<BTreeMap<Pid, Task>> = Mutex::new(BTreeMap::new());
+
 //
+
+pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
+    let mem = TASK_MEM
+        .lock()
+        .get(&target_pid)
+        .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
+        .ok_or("no such process")?;
+
+    mem.simple_ipc.lock().push(data);
+
+    if let Some(recv_task) = SIMPLE_IPC_WAITING.lock().remove(&target_pid) {
+        READY.push(recv_task);
+        // switch_because(recv_task, TaskState::Ready, Cleanup::Ready);
+    }
+
+    Ok(())
+}
+
+pub fn recv() -> Cow<'static, [u8]> {
+    let (pid, mem): (Pid, Arc<TaskMemory>) = {
+        let active = lock_active();
+        (active.info.pid, (*active.memory).clone())
+    };
+
+    if let Some(data) = mem.simple_ipc.lock().pop() {
+        return data;
+    }
+
+    let mut data = None; // data while waiting for the next task
+    let Some(next) = wait_next_task(|| {
+        data = mem.simple_ipc.lock().pop();
+        data.is_some()
+    }) else {
+        return data.unwrap();
+    };
+    switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait { pid });
+
+    // data after a signal of receiving data
+    lock_active().memory.simple_ipc.lock().pop().unwrap()
+}
 
 /* pub fn task_memory() -> Arc<TaskMemory> {
     let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
@@ -510,8 +598,11 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     let next_ctx = next.ctx();
     next.set_state(TaskState::Running);
 
-    // TODO: running out stack space after switching the task
-    // doesnt allow the kernel stack to grow anymore
+    // tell the page fault handler that the actual current task is still this one
+    TLS.switch_last_active.store(
+        &*lock_active().thread as *const TaskThread as *mut TaskThread,
+        Ordering::SeqCst,
+    );
     let prev = swap_current(next);
     let prev_ctx = prev.ctx();
     prev.set_state(new_state);
@@ -524,6 +615,10 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     debug_assert!(TLS.initialized.load(Ordering::Relaxed));
     unsafe { ctx_switch(prev_ctx, next_ctx) };
 
+    // invalidate the page fault handler's old task store
+    TLS.switch_last_active
+        .store(ptr::null_mut(), Ordering::SeqCst);
+
     crate::cleanup();
 }
 
@@ -532,7 +627,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 /// jumps into user space
 pub fn spawn(fn_ptr: u64, fn_arg: u64) {
     let thread = Task::thread(lock_active(), move || {
-        let stack_top = { lock_active().user_stack.lock().top };
+        let stack_top = { lock_active().thread.user_stack.lock().top };
 
         unsafe {
             hyperion_arch::syscall::userland(
@@ -616,26 +711,7 @@ fn cleanup() {
     let after = after();
 
     while let Some(next) = after.pop() {
-        let task = next.task;
-
-        match next.cleanup {
-            Cleanup::Ready => {
-                schedule(task);
-            }
-            Cleanup::Sleep { deadline } => {
-                sleep::push(deadline, task);
-            }
-            Cleanup::Drop => {
-                if Arc::strong_count(&task.memory) != 1 {
-                    continue;
-                }
-
-                trace!("TODO: deallocate task pages");
-
-                // TODO: deallocate user pages
-                // task.address_space;
-            }
-        };
+        next.cleanup.run(next.task);
     }
 }
 
@@ -646,6 +722,8 @@ struct SchedulerTls {
     idle_time: AtomicU64,
     initialized: AtomicBool,
     idle: AtomicBool,
+
+    switch_last_active: AtomicPtr<TaskThread>,
 }
 
 static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
@@ -656,6 +734,8 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
         idle_time: AtomicU64::new(0),
         initialized: AtomicBool::new(false),
         idle: AtomicBool::new(false),
+
+        switch_last_active: AtomicPtr::new(ptr::null_mut()),
     })
 });
 
@@ -692,18 +772,35 @@ fn idle_time() -> &'static AtomicU64 {
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     hyperion_log::trace!("scheduler page fault (from {user:?})");
 
+    let actual_current = TLS.switch_last_active.load(Ordering::SeqCst);
+    if !actual_current.is_null() {
+        let current: &TaskThread = unsafe { &*actual_current };
+
+        // try handling the page fault first if it happened during a task switch
+        if user == Privilege::User {
+            // `Err(Handled)` short circuits and returns
+            handle_stack_grow(&current.user_stack, addr)?;
+        } else {
+            handle_stack_grow(&current.kernel_stack, addr)?;
+            handle_stack_grow(&current.user_stack, addr)?;
+        }
+
+        // otherwise fall back to handling this task's page fault
+    }
+
     let current = try_lock_active().expect("TODO: active task is locked");
+    let current = &current.thread;
 
     if user == Privilege::User {
         // `Err(Handled)` short circuits and returns
-        handle_stack_grow(&current.user_stack, &current.memory, addr)?;
+        handle_stack_grow(&current.user_stack, addr)?;
 
         // user process tried to access memory thats not available to it
         hyperion_log::warn!("killing user-space process");
         stop();
     } else {
-        handle_stack_grow(&current.kernel_stack, &current.memory, addr)?;
-        handle_stack_grow(&current.user_stack, &current.memory, addr)?;
+        handle_stack_grow(&current.kernel_stack, addr)?;
+        handle_stack_grow(&current.user_stack, addr)?;
 
         hyperion_log::error!("{:?}", current.kernel_stack.lock());
         hyperion_log::error!("page fault from kernel-space");
@@ -719,12 +816,10 @@ fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
 
 fn handle_stack_grow<T: StackType + Debug>(
     stack: &Mutex<Stack<T>>,
-    task: &TaskMemory,
     addr: usize,
 ) -> PageFaultResult {
-    stack
-        .lock()
-        .page_fault(&task.address_space.page_map, addr as u64)
+    let page_map = PageMap::current(); // technically maybe perhaps possibly UB
+    stack.lock().page_fault(&page_map, addr as u64)
 }
 
 extern "sysv64" fn thread_entry() -> ! {
