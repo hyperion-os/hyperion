@@ -20,9 +20,11 @@ pub fn main(args: CliArgs) {
     println!("sample app main");
     println!("args: {args:?}");
 
-    spawn(|| {
-        println!("print from thread 2");
-    });
+    for n in 0..8 {
+        spawn(move || {
+            println!("print from thread {n}");
+        });
+    }
 
     let mut next = timestamp().unwrap() as u64;
     for i in 0.. {
