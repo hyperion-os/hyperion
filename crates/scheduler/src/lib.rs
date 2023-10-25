@@ -92,20 +92,15 @@ impl Cleanup {
                 }
             }
             Self::SimpleIpcWait => {
-                // debug!("cleanup");
                 let memory = task.memory.clone();
 
-                let mut ipc_waiting = memory
-                    .simple_ipc_waiting
-                    // .lock_named("cleanup waiter")
-                    .lock();
+                let mut ipc_waiting = memory.simple_ipc_waiting.lock();
 
                 if !memory.simple_ipc.lock().is_empty() {
                     READY.push(task);
                 } else {
                     *ipc_waiting = Some(task);
                 }
-                // debug!("cleanup done");
             }
             Self::Drop => {}
             Self::Ready => {
@@ -469,9 +464,7 @@ pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
 // TODO: concurrent map
 pub static TASK_MEM: Mutex<BTreeMap<Pid, Weak<TaskMemory>>> = Mutex::new(BTreeMap::new());
 
-// pub static SIMPLE_IPC_WAITING: Mutex<BTreeMap<Pid, Task>> = Mutex::new(BTreeMap::new());
-
-pub trait LockNamed<T: ?Sized> {
+/* pub trait LockNamed<T: ?Sized> {
     fn lock_named(&self, name: &'static str) -> NamedMutexGuard<T>;
 }
 
@@ -508,89 +501,48 @@ impl<'a, T: ?Sized> Drop for NamedMutexGuard<'a, T> {
     fn drop(&mut self) {
         debug!("unlocking {}", self.name);
     }
-}
+} */
 
 //
 
 pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
-    // debug!("send begin to pid:{target_pid}");
     let mem = TASK_MEM
-        // .lock_named("send task mem map")
         .lock()
         .get(&target_pid)
         .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
         .ok_or("no such process")?;
 
-    mem.simple_ipc
-        // .lock_named("send channel")
-        .lock()
-        .push(data);
+    mem.simple_ipc.lock().push(data);
 
-    if let Some(recv_task) = mem
-        .simple_ipc_waiting
-        // .lock_named("send waiter")
-        .lock()
-        .take()
-    {
-        /* }
-
-        if let Some(recv_task) = SIMPLE_IPC_WAITING
-            .lock_named("send ipc queue")
-            // .lock()
-            .remove(&target_pid)
-        { */
+    if let Some(recv_task) = mem.simple_ipc_waiting.lock().take() {
         READY.push(recv_task);
         // switch_because(recv_task, TaskState::Ready, Cleanup::Ready);
     }
 
-    // debug!("send end");
     Ok(())
 }
 
 pub fn recv() -> Cow<'static, [u8]> {
-    // debug!("recv begin");
     let (_pid, mem): (Pid, Arc<TaskMemory>) = {
         let active = lock_active();
         (active.info.pid, (*active.memory).clone())
     };
-    // debug!("recv begin from pid:{pid}");
-    // debug!("recv from pid:{pid}");
 
-    if let Some(data) = mem
-        .simple_ipc
-        // .lock_named("recv channel")
-        .lock()
-        .pop()
-    {
-        // debug!("recv end");
+    if let Some(data) = mem.simple_ipc.lock().pop() {
         return data;
     }
 
     let mut data = None; // data while waiting for the next task
     let Some(next) = wait_next_task(|| {
-        data = mem
-            .simple_ipc
-            // .lock_named("recv channel (wait)")
-            .lock()
-            .pop();
+        data = mem.simple_ipc.lock().pop();
         data.is_some()
     }) else {
-        // debug!("recv end");
         return data.unwrap();
     };
-    // debug!("recv switch");
     switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait);
 
     // data after a signal of receiving data
-    let data = lock_active()
-        .memory
-        .simple_ipc
-        // .lock_named("recv channel (last)")
-        .lock()
-        .pop()
-        .unwrap();
-    // debug!("recv end");
-    data
+    lock_active().memory.simple_ipc.lock().pop().unwrap()
 }
 
 /* pub fn task_memory() -> Arc<TaskMemory> {
