@@ -20,7 +20,7 @@
 
 //
 
-use alloc::{format, vec::Vec};
+use alloc::{format, string::String, vec::Vec};
 use core::{
     ops::Range,
     sync::atomic::{AtomicUsize, Ordering},
@@ -96,7 +96,7 @@ extern "C" fn _start() -> ! {
                 .expect("send err");
 
             // wait 200ms
-            scheduler::sleep(time::Duration::milliseconds(200));
+            scheduler::sleep(time::Duration::milliseconds(1));
         }
     });
     scheduler::schedule(move || {
@@ -132,17 +132,17 @@ extern "C" fn _start() -> ! {
             for c in string.chars() {
                 found[((c as u8).to_ascii_lowercase() - b'a') as usize] = true;
             }
-            info!("<Find_Missing>: \\/");
-            print!(" - '");
+
+            let mut buf = String::new();
             for missing in found
                 .iter()
                 .enumerate()
                 .filter(|(_, found)| !*found)
                 .map(|(i, _)| i)
             {
-                print!("{}", (missing as u8 + b'a') as char);
+                buf.push((missing as u8 + b'a') as char);
             }
-            println!("'");
+            info!("<Find_Missing>: '{buf}'");
         }
     });
 
@@ -176,7 +176,7 @@ fn smp_main(cpu: Cpu) -> ! {
         let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;
 
         let frames = unsafe { hyperion_mem::pmm::PageFrame::new(first, count) };
-        debug!("deallocating bootloader provided stack");
+        // debug!("deallocating bootloader provided stack");
         hyperion_mem::pmm::PFA.free(frames);
 
         scheduler::executor::run_tasks();

@@ -17,6 +17,7 @@ use core::{
     cell::UnsafeCell,
     fmt::{self, Debug},
     mem::{swap, ManuallyDrop},
+    ops::{Deref, DerefMut},
     ptr,
     sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering},
 };
@@ -69,7 +70,7 @@ pub struct CleanupTask {
 #[derive(Debug, Clone, Copy)]
 pub enum Cleanup {
     Sleep { deadline: Instant },
-    SimpleIpcWait { pid: Pid },
+    SimpleIpcWait,
     Drop,
     Ready,
 }
@@ -90,14 +91,21 @@ impl Cleanup {
                     READY.push(ready);
                 }
             }
-            Self::SimpleIpcWait { pid } => {
+            Self::SimpleIpcWait => {
+                // debug!("cleanup");
                 let memory = task.memory.clone();
-                SIMPLE_IPC_WAITING.lock().insert(pid, task);
+
+                let mut ipc_waiting = memory
+                    .simple_ipc_waiting
+                    // .lock_named("cleanup waiter")
+                    .lock();
+
                 if !memory.simple_ipc.lock().is_empty() {
-                    if let Some(task) = SIMPLE_IPC_WAITING.lock().remove(&pid) {
-                        READY.push(task);
-                    }
+                    READY.push(task);
+                } else {
+                    *ipc_waiting = Some(task);
                 }
+                // debug!("cleanup done");
             }
             Self::Drop => {}
             Self::Ready => {
@@ -131,6 +139,7 @@ pub struct TaskMemory {
     pub heap_bottom: AtomicUsize,
 
     pub simple_ipc: Mutex<Vec<Cow<'static, [u8]>>>,
+    pub simple_ipc_waiting: Mutex<Option<Task>>,
 
     // TODO: a better way to keep track of allocated pages
     pub allocs: Mutex<Bitmap<'static>>,
@@ -145,6 +154,7 @@ impl TaskMemory {
             heap_bottom: AtomicUsize::new(0),
 
             simple_ipc: Mutex::new(vec![]),
+            simple_ipc_waiting: Mutex::new(None),
 
             allocs: Mutex::new(Bitmap::new(&mut [])),
             // kernel_stack: Mutex::new(kernel_stack),
@@ -459,48 +469,128 @@ pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
 // TODO: concurrent map
 pub static TASK_MEM: Mutex<BTreeMap<Pid, Weak<TaskMemory>>> = Mutex::new(BTreeMap::new());
 
-pub static SIMPLE_IPC_WAITING: Mutex<BTreeMap<Pid, Task>> = Mutex::new(BTreeMap::new());
+// pub static SIMPLE_IPC_WAITING: Mutex<BTreeMap<Pid, Task>> = Mutex::new(BTreeMap::new());
+
+pub trait LockNamed<T: ?Sized> {
+    fn lock_named(&self, name: &'static str) -> NamedMutexGuard<T>;
+}
+
+impl<T: ?Sized> LockNamed<T> for Mutex<T> {
+    fn lock_named(&self, name: &'static str) -> NamedMutexGuard<T> {
+        debug!("locking {name}");
+        NamedMutexGuard {
+            inner: self.lock(),
+            name,
+        }
+    }
+}
+
+pub struct NamedMutexGuard<'a, T: ?Sized + 'a> {
+    inner: MutexGuard<'a, T>,
+    name: &'static str,
+}
+
+impl<'a, T: ?Sized> Deref for NamedMutexGuard<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<'a, T: ?Sized> DerefMut for NamedMutexGuard<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl<'a, T: ?Sized> Drop for NamedMutexGuard<'a, T> {
+    fn drop(&mut self) {
+        debug!("unlocking {}", self.name);
+    }
+}
 
 //
 
 pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
+    // debug!("send begin to pid:{target_pid}");
     let mem = TASK_MEM
+        // .lock_named("send task mem map")
         .lock()
         .get(&target_pid)
         .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
         .ok_or("no such process")?;
 
-    mem.simple_ipc.lock().push(data);
+    mem.simple_ipc
+        // .lock_named("send channel")
+        .lock()
+        .push(data);
 
-    if let Some(recv_task) = SIMPLE_IPC_WAITING.lock().remove(&target_pid) {
+    if let Some(recv_task) = mem
+        .simple_ipc_waiting
+        // .lock_named("send waiter")
+        .lock()
+        .take()
+    {
+        /* }
+
+        if let Some(recv_task) = SIMPLE_IPC_WAITING
+            .lock_named("send ipc queue")
+            // .lock()
+            .remove(&target_pid)
+        { */
         READY.push(recv_task);
         // switch_because(recv_task, TaskState::Ready, Cleanup::Ready);
     }
 
+    // debug!("send end");
     Ok(())
 }
 
 pub fn recv() -> Cow<'static, [u8]> {
-    let (pid, mem): (Pid, Arc<TaskMemory>) = {
+    // debug!("recv begin");
+    let (_pid, mem): (Pid, Arc<TaskMemory>) = {
         let active = lock_active();
         (active.info.pid, (*active.memory).clone())
     };
+    // debug!("recv begin from pid:{pid}");
+    // debug!("recv from pid:{pid}");
 
-    if let Some(data) = mem.simple_ipc.lock().pop() {
+    if let Some(data) = mem
+        .simple_ipc
+        // .lock_named("recv channel")
+        .lock()
+        .pop()
+    {
+        // debug!("recv end");
         return data;
     }
 
     let mut data = None; // data while waiting for the next task
     let Some(next) = wait_next_task(|| {
-        data = mem.simple_ipc.lock().pop();
+        data = mem
+            .simple_ipc
+            // .lock_named("recv channel (wait)")
+            .lock()
+            .pop();
         data.is_some()
     }) else {
+        // debug!("recv end");
         return data.unwrap();
     };
-    switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait { pid });
+    // debug!("recv switch");
+    switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait);
 
     // data after a signal of receiving data
-    lock_active().memory.simple_ipc.lock().pop().unwrap()
+    let data = lock_active()
+        .memory
+        .simple_ipc
+        // .lock_named("recv channel (last)")
+        .lock()
+        .pop()
+        .unwrap();
+    // debug!("recv end");
+    data
 }
 
 /* pub fn task_memory() -> Arc<TaskMemory> {
