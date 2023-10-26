@@ -60,7 +60,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     }
 
     let next_ctx = next.context.get();
-    if next.state.swap(TaskState::Running) == TaskState::Running {
+    if next.swap_state(TaskState::Running) == TaskState::Running {
         panic!("this task is already running");
     }
 
@@ -75,7 +75,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 
     let prev = swap_current(next);
     let prev_ctx = prev.context.get();
-    if prev.state.swap(new_state) != TaskState::Running {
+    if prev.swap_state(new_state) != TaskState::Running {
         panic!("previous task wasn't running");
     }
 
