@@ -135,6 +135,8 @@ pub struct TaskInner {
     job: Option<Box<dyn FnOnce() + Send + 'static>>,
 
     info: Arc<TaskInfo>,
+
+    valid: bool,
 }
 
 impl TaskInner {
@@ -196,6 +198,8 @@ impl TaskInner {
             context,
             job,
             info,
+
+            valid: true,
         }
     }
 
@@ -240,13 +244,12 @@ impl TaskInner {
             context,
             job,
             info,
+
+            valid: true,
         }
     }
 
-    /// # Safety
-    ///
-    /// this task is not safe to switch to
-    pub unsafe fn bootloader() -> Self {
+    pub fn bootloader() -> Self {
         // TODO: dropping this task should also free the bootloader stacks
         // they are currently wasting 64KiB per processor
 
@@ -269,7 +272,8 @@ impl TaskInner {
             kernel_stack: Mutex::new(kernel_stack),
         });
 
-        // SAFETY: covered by this function's safety doc
+        // SAFETY: this task is unsafe to switch to,
+        // switching is allowed only if `self.is_valid()` returns true
         let ctx = unsafe { Context::invalid(&address_space.page_map) };
         let context = Box::new(UnsafeCell::new(ctx));
 
@@ -282,6 +286,8 @@ impl TaskInner {
             context,
             job: None,
             info,
+
+            valid: false,
         }
     }
 
@@ -309,6 +315,10 @@ impl TaskInner {
 
     pub fn set_state(&self, state: TaskState) {
         self.info.state.store(state);
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.valid
     }
 }
 

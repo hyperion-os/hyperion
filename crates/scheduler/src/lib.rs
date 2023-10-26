@@ -250,6 +250,10 @@ pub fn stop() -> ! {
 }
 
 pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
+    if !next.is_valid() {
+        panic!("this task is not safe to switch to");
+    }
+
     let next_ctx = next.ctx();
     next.set_state(TaskState::Running);
 
@@ -409,7 +413,7 @@ pub fn running() -> bool {
 
 fn get_active() -> &'static Mutex<Task> {
     TLS.active
-        .call_once(|| Mutex::new(unsafe { Task::new(TaskInner::bootloader()) }))
+        .call_once(|| Mutex::new(Task::new(TaskInner::bootloader())))
 }
 
 fn after() -> &'static SegQueue<CleanupTask> {
