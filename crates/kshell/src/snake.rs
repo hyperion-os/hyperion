@@ -2,9 +2,9 @@ use alloc::collections::VecDeque;
 use core::fmt::Write;
 
 use futures_util::{stream::select, StreamExt};
+use hyperion_futures::{keyboard::KeyboardEvents, timer::ticks};
 use hyperion_keyboard::event::{ElementState, KeyCode, KeyboardEvent};
 use hyperion_random::Rng;
-use hyperion_scheduler::{keyboard::KeyboardEvents, timer::ticks};
 use time::Duration;
 
 use crate::{term::Term, Result};

@@ -451,6 +451,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-futures"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "crossbeam-queue",
+ "futures-util",
+ "hyperion-arch",
+ "hyperion-bitmap",
+ "hyperion-clock",
+ "hyperion-color",
+ "hyperion-driver-acpi",
+ "hyperion-instant",
+ "hyperion-int-safe-lazy",
+ "hyperion-keyboard",
+ "hyperion-log",
+ "hyperion-mem",
+ "hyperion-random",
+ "hyperion-scheduler",
+ "hyperion-timer",
+ "spin",
+ "time 0.3.22",
+ "x86_64",
+]
+
+[[package]]
 name = "hyperion-instant"
 version = "0.1.0"
 dependencies = [
@@ -486,6 +511,7 @@ dependencies = [
  "hyperion-color",
  "hyperion-drivers",
  "hyperion-framebuffer",
+ "hyperion-futures",
  "hyperion-instant",
  "hyperion-interrupts",
  "hyperion-kernel-info",
@@ -533,6 +559,7 @@ dependencies = [
  "hyperion-driver-acpi",
  "hyperion-escape",
  "hyperion-framebuffer",
+ "hyperion-futures",
  "hyperion-instant",
  "hyperion-kernel-info",
  "hyperion-keyboard",

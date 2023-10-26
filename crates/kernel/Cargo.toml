@@ -35,6 +35,7 @@ hyperion-log-multi.path = "../log-multi"
 hyperion-log.path = "../log"
 hyperion-random.path = "../random"
 hyperion-scheduler.path = "../scheduler"
+hyperion-futures.path = "../futures"
 hyperion-vfs.path = "../vfs"
 
 [dependencies.hyperion-mem]

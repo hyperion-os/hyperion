@@ -17,7 +17,6 @@ use core::{
     cell::UnsafeCell,
     fmt::{self, Debug},
     mem::{swap, ManuallyDrop},
-    ops::{Deref, DerefMut},
     ptr,
     sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering},
 };
@@ -53,12 +52,8 @@ use x86_64::VirtAddr;
 
 extern crate alloc;
 
-pub mod executor;
-pub mod keyboard;
 pub mod process;
 pub mod sleep;
-pub mod task;
-pub mod timer;
 
 //
 

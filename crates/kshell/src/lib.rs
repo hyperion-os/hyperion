@@ -9,7 +9,7 @@ use core::num::ParseIntError;
 
 use futures_util::StreamExt;
 use hyperion_framebuffer::framebuffer::Framebuffer;
-use hyperion_scheduler::keyboard::KeyboardEvents;
+use hyperion_futures::keyboard::KeyboardEvents;
 use hyperion_vfs::{error::IoError, path::PathBuf};
 use snafu::Snafu;
 

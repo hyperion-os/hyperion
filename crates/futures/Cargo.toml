@@ -1,0 +1,30 @@
+[package]
+name = "hyperion-futures"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spin.workspace = true
+futures-util.workspace = true
+time.workspace = true
+crossbeam.workspace = true
+crossbeam-queue.workspace = true
+x86_64.workspace = true
+
+hyperion-arch.path = "../arch"
+hyperion-bitmap.path = "../bitmap"
+#hyperion-backtrace.path = "../backtrace"
+hyperion-clock.path = "../clock"
+hyperion-color.path = "../color"
+#hyperion-defer.path = "../defer"
+hyperion-driver-acpi.path = "../driver-acpi"
+hyperion-instant.path = "../instant"
+hyperion-int-safe-lazy.path = "../int-safe-lazy"
+hyperion-keyboard.path = "../keyboard"
+hyperion-log.path = "../log"
+hyperion-mem.path = "../mem"
+hyperion-random.path = "../random"
+hyperion-timer.path = "../timer"
+hyperion-scheduler.path = "../scheduler"

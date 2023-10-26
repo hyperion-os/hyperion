@@ -4,6 +4,7 @@ use core::{fmt::Write, sync::atomic::Ordering};
 use futures_util::stream::select;
 use hyperion_color::Color;
 use hyperion_driver_acpi::apic::ApicId;
+use hyperion_futures::timer::{sleep, ticks};
 use hyperion_instant::Instant;
 use hyperion_keyboard::{
     event::{KeyCode, KeyboardEvent},
@@ -12,11 +13,7 @@ use hyperion_keyboard::{
 use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
-use hyperion_scheduler::{
-    schedule,
-    timer::{sleep, ticks},
-    TaskState,
-};
+use hyperion_scheduler::{idle, schedule, TaskState};
 use hyperion_vfs::{
     self,
     path::{Path, PathBuf},
@@ -600,7 +597,7 @@ impl Shell {
         );
 
         _ = write!(self.term, "Cpu idles: ");
-        for idle in hyperion_scheduler::idle() {
+        for idle in idle() {
             // round the time
             let idle = time::Duration::milliseconds(idle.whole_milliseconds() as _);
             _ = write!(self.term, "{idle}, ");

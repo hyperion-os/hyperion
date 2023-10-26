@@ -30,6 +30,7 @@ use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_boot_interface::Cpu;
 use hyperion_drivers as drivers;
+use hyperion_futures as futures;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_kshell as kshell;
 use hyperion_log::*;
@@ -79,7 +80,7 @@ extern "C" fn _start() -> ! {
     test_main();
 
     // main task(s)
-    scheduler::executor::spawn(kshell::kshell());
+    futures::executor::spawn(kshell::kshell());
 
     scheduler::schedule(move || {
         scheduler::rename("<Get_Input>".into());
@@ -179,7 +180,7 @@ fn smp_main(cpu: Cpu) -> ! {
         // debug!("deallocating bootloader provided stack");
         hyperion_mem::pmm::PFA.free(frames);
 
-        scheduler::executor::run_tasks();
+        futures::executor::run_tasks();
     });
     trace!("resetting {cpu} scheduler");
     scheduler::init();

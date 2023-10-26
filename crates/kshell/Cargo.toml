@@ -16,10 +16,11 @@ itertools = { version = "0.11", default-features = false }
 
 hyperion-arch.path = "../arch"
 hyperion-color.path = "../color"
-hyperion-instant.path = "../instant"
 hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-escape.path = "../escape"
 hyperion-framebuffer.path = "../framebuffer"
+hyperion-futures.path = "../futures"
+hyperion-instant.path = "../instant"
 hyperion-kernel-info.path = "../kernel-info"
 hyperion-keyboard.path = "../keyboard"
 hyperion-loader.path = "../loader"
