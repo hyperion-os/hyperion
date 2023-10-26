@@ -20,7 +20,7 @@ impl Context {
     pub fn new(
         page_map: &PageMap,
         stack_top: VirtAddr, // TODO: could be a &mut [u64],
-        thread_entry: extern "sysv64" fn() -> !,
+        thread_entry: extern "C" fn() -> !,
     ) -> Self {
         #[repr(C)]
         struct StackInit {
@@ -44,12 +44,12 @@ impl Context {
         let init: *mut StackInit = now.as_mut_ptr();
         unsafe {
             init.write(StackInit {
-                _r15: 0,
-                _r14: 0,
-                _r13: 0,
-                _r12: 0,
-                _rbx: 0,
-                _rbp: 0,
+                _r15: 5,
+                _r14: 5,
+                _r13: 5,
+                _r12: 5,
+                _rbx: 5,
+                _rbp: 5,
                 entry: thread_entry as *const () as _,
             });
         }

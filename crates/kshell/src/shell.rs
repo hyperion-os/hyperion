@@ -536,9 +536,9 @@ impl Shell {
     }
 
     fn ps_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        let tasks = hyperion_scheduler::tasks();
+        // let tasks = hyperion_scheduler::tasks();
 
-        _ = writeln!(
+        /* _ = writeln!(
             self.term,
             "\n{: >6} {: <8} {: >9} CMD",
             "PID", "STAT", "TIME"
@@ -557,7 +557,7 @@ impl Shell {
                 self.term,
                 "{pid: >6} {state: <8} {time_m: >2}:{time_s:02}.{time_ms:03} {name}"
             );
-        }
+        } */
 
         Ok(())
     }
@@ -575,7 +575,7 @@ impl Shell {
         let uptime_m = uptime.whole_minutes() % 60;
         let uptime_s = uptime.whole_seconds() % 60;
 
-        let tasks = hyperion_scheduler::tasks();
+        /* let tasks = hyperion_scheduler::tasks();
         let tasks_total = tasks.len();
         let task_states = tasks.iter().map(|task| task.state.load());
         let tasks_running = task_states.clone().filter(TaskState::is_running).count();
@@ -602,7 +602,7 @@ impl Shell {
             let idle = time::Duration::milliseconds(idle.whole_milliseconds() as _);
             _ = write!(self.term, "{idle}, ");
         }
-        _ = writeln!(self.term);
+        _ = writeln!(self.term); */
 
         self.ps_cmd(None)
     }

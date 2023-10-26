@@ -80,9 +80,10 @@ extern "C" fn _start() -> ! {
     futures::executor::spawn(kshell::kshell());
 
     scheduler::schedule(move || {
+        debug!("<Get_Input>");
         scheduler::rename("<Get_Input>".into());
 
-        let pid = scheduler::lock_active().info().pid;
+        let pid = scheduler::process().pid;
         info!("I am pid:{pid}");
         debug_assert!(pid.num() == 1);
         arch::dbg_cpu();
@@ -98,9 +99,10 @@ extern "C" fn _start() -> ! {
         }
     });
     scheduler::schedule(move || {
+        debug!("<Clean_Input>");
         scheduler::rename("<Clean_Input>".into());
 
-        let pid = scheduler::lock_active().info().pid;
+        let pid = scheduler::process().pid;
         info!("I am pid:{pid}");
         debug_assert!(pid.num() == 2);
         arch::dbg_cpu();
@@ -117,9 +119,10 @@ extern "C" fn _start() -> ! {
         }
     });
     scheduler::schedule(move || {
+        debug!("<Find_Missing>");
         scheduler::rename("<Find_Missing>".into());
 
-        let pid = scheduler::lock_active().info().pid;
+        let pid = scheduler::process().pid;
         info!("I am pid:{pid}");
         debug_assert!(pid.num() == 3);
         arch::dbg_cpu();
@@ -170,6 +173,7 @@ fn smp_main(cpu: Cpu) -> ! {
     trace!("boot stack: {boot_stack:?}");
 
     scheduler::schedule(move || {
+        debug!("<kernel futures executor>");
         scheduler::rename("<kernel futures executor>".into());
 
         let first = from_higher_half(boot_stack.start);

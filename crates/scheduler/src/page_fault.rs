@@ -9,7 +9,7 @@ use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use spin::Mutex;
 use x86_64::VirtAddr;
 
-use crate::{stop, task::TaskThread, try_lock_active, TLS};
+use crate::{stop, task::TaskInner, task_try, TLS};
 
 //
 
@@ -18,7 +18,7 @@ pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
 
     let actual_current = TLS.switch_last_active.load(Ordering::SeqCst);
     if !actual_current.is_null() {
-        let current: &TaskThread = unsafe { &*actual_current };
+        let current: &TaskInner = unsafe { &*actual_current };
 
         // try handling the page fault first if it happened during a task switch
         if user == Privilege::User {
@@ -32,8 +32,7 @@ pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
         // otherwise fall back to handling this task's page fault
     }
 
-    let current = try_lock_active().expect("TODO: active task is locked");
-    let current = &current.thread;
+    let current = task_try().expect("TODO: active task is locked");
 
     if user == Privilege::User {
         // `Err(Handled)` short circuits and returns

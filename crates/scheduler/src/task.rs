@@ -1,14 +1,21 @@
-use alloc::{borrow::Cow, boxed::Box, sync::Arc, vec, vec::Vec};
+use alloc::{
+    borrow::Cow,
+    boxed::Box,
+    collections::BTreeMap,
+    sync::{Arc, Weak},
+    vec::Vec,
+};
 use core::{
     any::type_name_of_val,
     cell::UnsafeCell,
     fmt,
-    mem::ManuallyDrop,
+    ops::Deref,
     ptr,
-    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
 use crossbeam::atomic::AtomicCell;
+use crossbeam_queue::SegQueue;
 use hyperion_arch::{
     context::{switch as ctx_switch, Context},
     stack::{AddressSpace, KernelStack, Stack, UserStack},
@@ -17,36 +24,42 @@ use hyperion_arch::{
 use hyperion_bitmap::Bitmap;
 use hyperion_log::*;
 use hyperion_mem::{pmm, vmm::PageMapImpl};
-use spin::{Mutex, MutexGuard, RwLock};
+use spin::{Mutex, MutexGuard, Once, RwLock};
 
-use crate::{
-    after, cleanup::Cleanup, lock_active, swap_current, thread_entry, TASKS, TASK_MEM, TLS,
-};
+use crate::{after, cleanup::Cleanup, stop, swap_current, task, TakeOnce, TLS};
 
 //
 
 // static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
 
+// TODO: get rid of the slow dumbass spinlock mutexes everywhere
+pub static PROCESSES: Mutex<BTreeMap<Pid, Weak<Process>>> = Mutex::new(BTreeMap::new());
+
 //
 
 pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
-    if !next.is_valid() {
+    // debug!("switching to {}", next.name.read().clone());
+    if !next.is_valid {
         panic!("this task is not safe to switch to");
     }
 
-    let next_ctx = next.ctx();
-    if next.swap_state(TaskState::Running) == TaskState::Running {
+    let next_ctx = next.context.get();
+    if next.state.swap(TaskState::Running) == TaskState::Running {
         panic!("this task is already running");
     }
 
     // tell the page fault handler that the actual current task is still this one
+    let task = task();
+    let task_inner: &TaskInner = Box::as_ref(&task);
     TLS.switch_last_active.store(
-        &*lock_active().thread as *const TaskThread as *mut TaskThread,
+        task_inner as *const TaskInner as *mut TaskInner,
         Ordering::SeqCst,
     );
+    drop(task);
+
     let prev = swap_current(next);
-    let prev_ctx = prev.ctx();
-    if prev.swap_state(new_state) != TaskState::Running {
+    let prev_ctx = prev.context.get();
+    if prev.state.swap(new_state) != TaskState::Running {
         panic!("previous task wasn't running");
     }
 
@@ -58,6 +71,8 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     debug_assert!(TLS.initialized.load(Ordering::Relaxed));
     unsafe { ctx_switch(prev_ctx, next_ctx) };
 
+    // the ctx_switch can continue either in `thread_entry` or here:
+
     // invalidate the page fault handler's old task store
     TLS.switch_last_active
         .store(ptr::null_mut(), Ordering::SeqCst);
@@ -65,75 +80,35 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     crate::cleanup();
 }
 
-//
+extern "C" fn thread_entry() -> ! {
+    TLS.switch_last_active
+        .store(ptr::null_mut(), Ordering::SeqCst);
 
-pub struct TaskThread {
-    pub user_stack: Mutex<Stack<UserStack>>,
-    pub kernel_stack: Mutex<Stack<KernelStack>>,
+    crate::cleanup();
+    let job = task().job.take().expect("no active jobs");
+    job();
+    stop();
 }
 
 //
 
-pub struct TaskMemory {
-    pub address_space: AddressSpace,
-
-    pub heap_bottom: AtomicUsize,
-
-    pub simple_ipc: Mutex<Vec<Cow<'static, [u8]>>>,
-    pub simple_ipc_waiting: Mutex<Option<Task>>,
-
+#[derive(Debug, Default)]
+pub struct PageAllocs {
     // TODO: a better way to keep track of allocated pages
-    pub allocs: Mutex<Bitmap<'static>>,
-    // dbg_magic_byte: usize,
+    bitmap: Once<Mutex<Bitmap<'static>>>,
 }
 
-impl TaskMemory {
-    pub fn new_arc(address_space: AddressSpace) -> Arc<Self> {
-        Arc::new(Self {
-            address_space,
-
-            heap_bottom: AtomicUsize::new(0),
-
-            simple_ipc: Mutex::new(vec![]),
-            simple_ipc_waiting: Mutex::new(None),
-
-            allocs: Mutex::new(Bitmap::new(&mut [])),
-            // kernel_stack: Mutex::new(kernel_stack),
-            // dbg_magic_byte: *MAGIC_DEBUG_BYTE,
-        })
-    }
-
-    pub fn init_allocs(&self) {
-        let bitmap_alloc: Vec<u8> = (0..pmm::PFA.bitmap_len() / 8).map(|_| 0u8).collect();
-        let bitmap_alloc = Vec::leak(bitmap_alloc); // TODO: free
-        *self.allocs.lock() = Bitmap::new(bitmap_alloc);
+impl PageAllocs {
+    pub fn bitmap(&self) -> MutexGuard<Bitmap<'static>> {
+        self.bitmap
+            .call_once(|| {
+                let bitmap_alloc: Vec<u8> = (0..pmm::PFA.bitmap_len() / 8).map(|_| 0u8).collect();
+                let bitmap_alloc = Vec::leak(bitmap_alloc); // TODO: free
+                Mutex::new(Bitmap::new(bitmap_alloc))
+            })
+            .lock()
     }
 }
-
-impl Drop for TaskMemory {
-    fn drop(&mut self) {
-        // TODO: drop the bitmap
-    }
-}
-
-//
-
-#[derive(Debug)]
-pub struct TaskInfo {
-    // proc id
-    pub pid: Pid,
-
-    // proc name
-    pub name: RwLock<Cow<'static, str>>,
-
-    // cpu time used
-    pub nanos: AtomicU64,
-
-    // proc state
-    pub state: AtomicCell<TaskState>,
-}
-
-const _: () = assert!(AtomicCell::<TaskState>::is_lock_free());
 
 //
 
@@ -163,84 +138,132 @@ impl fmt::Display for Pid {
 
 //
 
+/// A process, each process can have multiple 'tasks' (pthreads)
+pub struct Process {
+    /// process id
+    pub pid: Pid,
+
+    // process name
+    pub name: RwLock<Cow<'static, str>>,
+
+    /// process address space
+    pub address_space: AddressSpace,
+
+    /// process heap beginning, the end of the user process
+    pub heap_bottom: AtomicUsize,
+
+    /// naïve PID based IPC
+    pub simple_ipc: SimpleIpc,
+
+    /// a store for all allocated (and mapped) physical pages
+    pub allocs: PageAllocs,
+}
+
+impl Drop for Process {
+    fn drop(&mut self) {
+        PROCESSES.lock().remove(&self.pid);
+    }
+}
+
+//
+
+/// simple P2P 2-copy IPC channel
+#[derive(Debug, Default)]
+pub struct SimpleIpc {
+    /// the actual data channel
+    pub channel: SegQueue<Cow<'static, [u8]>>,
+
+    /// task waiting list when the channel is empty and processes are reading from it
+    pub waiting: SegQueue<Task>,
+}
+
+//
+
 pub type Task = Box<TaskInner>;
 
 pub struct TaskInner {
-    /// memory is per process
-    pub memory: ManuallyDrop<Arc<TaskMemory>>,
-    /// per thread
-    pub thread: Box<TaskThread>,
+    /// a shared process ref, multiple tasks can point to the same process
+    pub process: Arc<Process>,
+
+    /// cpu time this task has used in nanoseconds
+    pub nanos: AtomicU64,
+
+    /// task state, 'is the task waiting or what?'
+    pub state: AtomicCell<TaskState>,
+
+    /// lazy initialized user-space stack
+    pub user_stack: Mutex<Stack<UserStack>>,
+
+    /// lazy initialized kernel-space stack,
+    /// also used when entering kernel-space from a `syscall` but not from a interrupt
+    /// each CPU has its privilege stack in TSS, page faults also have their own stacks per CPU
+    pub kernel_stack: Mutex<Stack<KernelStack>>,
+
+    /// thread_entry runs this function once, and stops the process after returning
+    pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>>,
 
     // context is used 'unsafely' only in the switch
-    context: Box<UnsafeCell<Context>>,
-    job: Option<Box<dyn FnOnce() + Send + 'static>>,
+    // TaskInner is pinned in heap using a Box to make sure a pointer to this (`context`)
+    // is valid after switching task before switching context
+    context: UnsafeCell<Context>,
 
-    info: Arc<TaskInfo>,
+    // context is valid to switch to only if this is true
+    is_valid: bool,
+}
 
-    valid: bool,
+impl Deref for TaskInner {
+    type Target = Process;
+
+    fn deref(&self) -> &Self::Target {
+        &self.process
+    }
 }
 
 impl TaskInner {
     pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
         let name = type_name_of_val(&f);
-        let f = Box::new(f) as _;
-
-        Self::new_any(f, Cow::Borrowed(name))
+        Self::new_any(Box::new(f) as _, name.into())
     }
 
     pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Self {
         trace!("initializing task {name}");
 
-        let job = Some(f);
-        let name = RwLock::new(name);
-
-        let info = Arc::new(TaskInfo {
+        let process = Arc::new(Process {
             pid: Pid::next(),
-            name,
-            nanos: AtomicU64::new(0),
-            state: AtomicCell::new(TaskState::Ready),
+            name: RwLock::new(name),
+            address_space: AddressSpace::new(PageMap::new()),
+            heap_bottom: AtomicUsize::new(0x1000),
+            simple_ipc: SimpleIpc::default(),
+            allocs: PageAllocs::default(),
         });
-        TASKS.lock().push(Arc::downgrade(&info));
+        PROCESSES
+            .lock()
+            .insert(process.pid, Arc::downgrade(&process));
 
-        let address_space = AddressSpace::new(PageMap::new());
-
-        let kernel_stack = address_space.take_kernel_stack_prealloc(1);
+        let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
-        let main_thread_user_stack = address_space.take_user_stack_lazy();
-        let thread = Box::new(TaskThread {
-            user_stack: Mutex::new(main_thread_user_stack),
-            kernel_stack: Mutex::new(kernel_stack),
-        });
+        let user_stack = process.address_space.take_user_stack_lazy();
 
-        let memory = ManuallyDrop::new(TaskMemory::new_arc(address_space));
-        TASK_MEM.lock().insert(info.pid, Arc::downgrade(&memory));
-        memory.init_allocs();
-
-        let context = Box::new(UnsafeCell::new(Context::new(
-            &memory.address_space.page_map,
+        let context = UnsafeCell::new(Context::new(
+            &process.address_space.page_map,
             stack_top,
             thread_entry,
-        )));
+        ));
 
-        /* let alloc = PFA.alloc(1);
-        memory.address_space.page_map.map(
-            CURRENT_ADDRESS_SPACE..CURRENT_ADDRESS_SPACE + 0xFFFu64,
-            alloc.physical_addr(),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        trace!(
+            "task rsp:{stack_top:#x} cr3:{:#x}",
+            process.address_space.page_map.cr3().start_address()
         );
-        let current_address_space: *mut Arc<TaskMemory> =
-            to_higher_half(alloc.physical_addr()).as_mut_ptr();
-        unsafe { current_address_space.write(memory.clone()) }; */
 
         Self {
-            memory,
-            thread,
-
+            process,
+            nanos: AtomicU64::new(0),
+            state: AtomicCell::new(TaskState::Ready),
+            user_stack: Mutex::new(user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+            job: TakeOnce::new(f),
             context,
-            job,
-            info,
-
-            valid: true,
+            is_valid: true,
         }
     }
 
@@ -252,114 +275,75 @@ impl TaskInner {
         this: MutexGuard<'static, Task>,
         f: Box<dyn FnOnce() + Send + 'static>,
     ) -> Self {
-        let info = this.info.clone();
-        let memory = this.memory.clone();
-        drop(this);
+        trace!(
+            "initializing secondary thread for process {}",
+            this.name.read().clone()
+        );
 
-        let job = Some(f);
+        let process = this.process.clone();
 
-        let info = info.clone();
-
-        debug!("pthread kernel stack");
-        let kernel_stack = memory.address_space.take_kernel_stack_prealloc(1);
+        let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
-        hyperion_log::debug!("stack top: {stack_top:018x?}");
-        debug!("pthread user stack");
-        let user_stack = memory.address_space.take_user_stack_lazy();
-        let thread = Box::new(TaskThread {
-            user_stack: Mutex::new(user_stack),
-            kernel_stack: Mutex::new(kernel_stack),
-        });
+        let user_stack = process.address_space.take_user_stack_lazy();
 
-        debug!("pthread ctx");
-        let context = Box::new(UnsafeCell::new(Context::new(
-            &memory.address_space.page_map,
+        let context = UnsafeCell::new(Context::new(
+            &process.address_space.page_map,
             stack_top,
             thread_entry,
-        )));
+        ));
 
         Self {
-            memory,
-            thread,
-
+            process,
+            nanos: AtomicU64::new(0),
+            state: AtomicCell::new(TaskState::Ready),
+            user_stack: Mutex::new(user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+            job: TakeOnce::new(f),
             context,
-            job,
-            info,
-
-            valid: true,
+            is_valid: true,
         }
     }
 
     pub fn bootloader() -> Self {
         // TODO: dropping this task should also free the bootloader stacks
-        // they are currently wasting 64KiB per processor
+        // they are currently dropped by a task in kernel/src/main.rs
 
-        let info = Arc::new(TaskInfo {
+        trace!("initializing bootloader task");
+
+        let process = Arc::new(Process {
             pid: Pid(0),
             name: RwLock::new("bootloader".into()),
-            nanos: AtomicU64::new(0),
-            state: AtomicCell::new(TaskState::Running),
+            address_space: AddressSpace::new(PageMap::current()),
+            heap_bottom: AtomicUsize::new(0x1000),
+            simple_ipc: SimpleIpc::default(),
+            allocs: PageAllocs::default(),
         });
 
-        let address_space = AddressSpace::new(PageMap::current());
-        let mut kernel_stack = address_space
+        let mut kernel_stack = process
+            .address_space
             .kernel_stacks
-            .take_lazy(&address_space.page_map);
-        let mut user_stack = address_space.user_stacks.take_lazy(&address_space.page_map);
+            .take_lazy(&process.address_space.page_map);
+        let mut user_stack = process
+            .address_space
+            .user_stacks
+            .take_lazy(&process.address_space.page_map);
         kernel_stack.limit_4k_pages = 0;
         user_stack.limit_4k_pages = 0;
-        let thread = Box::new(TaskThread {
-            user_stack: Mutex::new(user_stack),
-            kernel_stack: Mutex::new(kernel_stack),
-        });
 
         // SAFETY: this task is unsafe to switch to,
         // switching is allowed only if `self.is_valid()` returns true
-        let ctx = unsafe { Context::invalid(&address_space.page_map) };
-        let context = Box::new(UnsafeCell::new(ctx));
-
-        let memory = ManuallyDrop::new(TaskMemory::new_arc(address_space));
+        let context = UnsafeCell::new(unsafe { Context::invalid(&process.address_space.page_map) });
 
         Self {
-            memory,
-            thread,
-
+            process,
+            nanos: AtomicU64::new(0),
+            state: AtomicCell::new(TaskState::Running),
+            user_stack: Mutex::new(user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+            job: TakeOnce::none(),
             context,
-            job: None,
-            info,
-
-            valid: false,
+            is_valid: false,
         }
-    }
-
-    pub fn info(&self) -> &TaskInfo {
-        &self.info
-    }
-
-    pub fn take_job(&mut self) -> Option<Box<dyn FnOnce() + Send + 'static>> {
-        self.job.take()
-    }
-
-    pub fn debug(&mut self) {
-        hyperion_log::debug!(
-            "TASK DEBUG: context: {:0x?}, job: {:?}, pid: {:?}",
-            &self.context as *const _ as usize,
-            // unsafe { &*self.context.get() },
-            self.job.as_ref().map(|_| ()),
-            self.info.pid
-        )
-    }
-
-    pub fn ctx(&self) -> *mut Context {
-        self.context.get()
-    }
-
-    pub fn swap_state(&self, state: TaskState) -> TaskState {
-        self.info.state.swap(state)
-    }
-
-    pub fn is_valid(&self) -> bool {
-        self.valid
     }
 }
 
@@ -377,11 +361,11 @@ impl Drop for TaskInner {
         // TODO: drop pages
 
         // SAFETY: self.memory is not used anymore
-        let memory = unsafe { ManuallyDrop::take(&mut self.memory) };
+        // let memory = unsafe { ManuallyDrop::take(&mut self.memory) };
 
-        if Arc::into_inner(memory).is_some() {
-            TASK_MEM.lock().remove(&self.info.pid);
-        }
+        // if Arc::into_inner(memory).is_some() {
+        //     TASK_MEM.lock().remove(&self.info.pid);
+        // }
     }
 }
 
@@ -394,6 +378,8 @@ pub enum TaskState {
     Ready,
     Dropping,
 }
+
+const _: () = assert!(AtomicCell::<TaskState>::is_lock_free());
 
 impl TaskState {
     pub const fn as_str(self) -> &'static str {

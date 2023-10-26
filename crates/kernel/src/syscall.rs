@@ -197,9 +197,9 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
     let pages = args.arg0 as usize;
     let alloc = pages * 0x1000;
 
-    let active = hyperion_scheduler::lock_active();
-    let mut allocs = active.memory.allocs.lock();
-    let alloc_bottom = active.memory.heap_bottom.fetch_add(alloc, Ordering::SeqCst);
+    let active = hyperion_scheduler::process();
+    let mut allocs = active.allocs.bitmap();
+    let alloc_bottom = active.heap_bottom.fetch_add(alloc, Ordering::SeqCst);
     let alloc_top = alloc_bottom + alloc;
 
     if alloc_top as u64 >= USER_HEAP_TOP {
@@ -207,7 +207,7 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
     }
 
     let frames = pmm::PFA.alloc(pages);
-    active.memory.address_space.page_map.map(
+    active.address_space.page_map.map(
         VirtAddr::new(alloc_bottom as _)..VirtAddr::new(alloc_top as _),
         frames.physical_addr(),
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
@@ -238,8 +238,8 @@ pub fn pfree(args: &mut SyscallRegs) -> i64 {
     };
     let pages = args.arg1 as usize;
 
-    let active = hyperion_scheduler::lock_active();
-    let mut allocs = active.memory.allocs.lock();
+    let active = hyperion_scheduler::process();
+    let mut allocs = active.allocs.bitmap();
 
     let page_bottom = alloc_bottom.as_u64() as usize / 0x1000;
     for page in page_bottom..page_bottom + pages {
@@ -250,19 +250,13 @@ pub fn pfree(args: &mut SyscallRegs) -> i64 {
         allocs.set(page, false).unwrap();
     }
 
-    let Some(palloc) = active
-        .memory
-        .address_space
-        .page_map
-        .virt_to_phys(alloc_bottom)
-    else {
+    let Some(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) else {
         return -2;
     };
 
     let frames = unsafe { PageFrame::new(palloc, pages) };
     pmm::PFA.free(frames);
     active
-        .memory
         .address_space
         .page_map
         .unmap(alloc_bottom..alloc_bottom + pages * 0x1000);

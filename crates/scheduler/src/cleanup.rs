@@ -42,14 +42,12 @@ impl Cleanup {
                 }
             }
             Self::SimpleIpcWait => {
-                let memory = task.memory.clone();
+                let proc = task.process.clone();
 
-                let mut ipc_waiting = memory.simple_ipc_waiting.lock();
-
-                if !memory.simple_ipc.lock().is_empty() {
+                if !proc.simple_ipc.channel.is_empty() {
                     READY.push(task);
                 } else {
-                    *ipc_waiting = Some(task);
+                    proc.simple_ipc.waiting.push(task);
                 }
             }
             Self::Drop => {}

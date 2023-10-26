@@ -4,13 +4,7 @@
 
 //
 
-use alloc::{
-    borrow::Cow,
-    collections::BTreeMap,
-    sync::{Arc, Weak},
-    vec,
-    vec::Vec,
-};
+use alloc::{borrow::Cow, sync::Arc};
 use core::{
     mem::swap,
     ptr,
@@ -18,7 +12,7 @@ use core::{
 };
 
 use crossbeam_queue::SegQueue;
-use hyperion_arch::{context::switch as ctx_switch, cpu::ints, int, tls::Tls};
+use hyperion_arch::{cpu::ints, int, tls::Tls};
 use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
@@ -29,16 +23,15 @@ use x86_64::VirtAddr;
 
 use self::{
     cleanup::{Cleanup, CleanupTask},
-    task::{Pid, Task, TaskInfo, TaskMemory, TaskState},
+    task::{Pid, Process, Task, TaskState, PROCESSES},
 };
-use crate::task::{switch_because, TaskInner, TaskThread};
+use crate::task::{switch_because, TaskInner};
 
 //
 
 extern crate alloc;
 
 pub mod cleanup;
-pub mod process;
 pub mod sleep;
 pub mod task;
 
@@ -50,61 +43,58 @@ pub static READY: SegQueue<Task> = SegQueue::new();
 pub static RUNNING: AtomicBool = AtomicBool::new(false);
 
 /// task info
-pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
+// pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
 
 // TODO: concurrent map
-pub static TASK_MEM: Mutex<BTreeMap<Pid, Weak<TaskMemory>>> = Mutex::new(BTreeMap::new());
+// pub static TASK_MEM: Mutex<BTreeMap<Pid, Weak<TaskMemory>>> = Mutex::new(BTreeMap::new());
 
-/* pub trait LockNamed<T: ?Sized> {
-    fn lock_named(&self, name: &'static str) -> NamedMutexGuard<T>;
+//
+
+pub struct TakeOnce<T> {
+    val: Mutex<Option<T>>,
+    taken: AtomicBool,
 }
 
-impl<T: ?Sized> LockNamed<T> for Mutex<T> {
-    fn lock_named(&self, name: &'static str) -> NamedMutexGuard<T> {
-        debug!("locking {name}");
-        NamedMutexGuard {
-            inner: self.lock(),
-            name,
+impl<T> TakeOnce<T> {
+    pub const fn new(val: T) -> Self {
+        Self {
+            val: Mutex::new(Some(val)),
+            taken: AtomicBool::new(false),
         }
     }
-}
 
-pub struct NamedMutexGuard<'a, T: ?Sized + 'a> {
-    inner: MutexGuard<'a, T>,
-    name: &'static str,
-}
+    pub const fn none() -> Self {
+        Self {
+            val: Mutex::new(None),
+            taken: AtomicBool::new(true),
+        }
+    }
 
-impl<'a, T: ?Sized> core::ops::Deref for NamedMutexGuard<'a, T> {
-    type Target = T;
+    pub fn take(&self) -> Option<T> {
+        if self.taken.swap(true, Ordering::AcqRel) {
+            None
+        } else {
+            self.take_lock()
+        }
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+    #[cold]
+    fn take_lock(&self) -> Option<T> {
+        self.val.lock().take()
     }
 }
-
-impl<'a, T: ?Sized> core::ops::DerefMut for NamedMutexGuard<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
-impl<'a, T: ?Sized> Drop for NamedMutexGuard<'a, T> {
-    fn drop(&mut self) {
-        debug!("unlocking {}", self.name);
-    }
-} */
 
 //
 
 pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
-    let mem = TASK_MEM
+    let proc = PROCESSES
         .lock()
         .get(&target_pid)
         .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
         .ok_or("no such process")?;
 
-    mem.simple_ipc.lock().push(data);
-    let recv_task = mem.simple_ipc_waiting.lock().take();
+    proc.simple_ipc.channel.push(data);
+    let recv_task = proc.simple_ipc.waiting.pop();
 
     if let Some(recv_task) = recv_task {
         // READY.push(recv_task);
@@ -115,43 +105,34 @@ pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static st
 }
 
 pub fn recv() -> Cow<'static, [u8]> {
-    let mem: Arc<TaskMemory> = {
-        let active = lock_active();
-        (*active.memory).clone()
-    };
+    let proc = process();
 
-    if let Some(data) = mem.simple_ipc.lock().pop() {
-        return data;
+    loop {
+        if let Some(data) = proc.simple_ipc.channel.pop() {
+            return data;
+        }
+
+        let mut data = None; // data while waiting for the next task
+        let Some(next) = wait_next_task(|| {
+            data = proc.simple_ipc.channel.pop();
+            data.is_some()
+        }) else {
+            return data.unwrap();
+        };
+
+        // start waiting for events on the channel
+        switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait);
     }
-
-    let mut data = None; // data while waiting for the next task
-    let Some(next) = wait_next_task(|| {
-        data = mem.simple_ipc.lock().pop();
-        data.is_some()
-    }) else {
-        return data.unwrap();
-    };
-    switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait);
-
-    // data after a signal of receiving data
-    lock_active().memory.simple_ipc.lock().pop().unwrap()
 }
 
-/* pub fn task_memory() -> Arc<TaskMemory> {
-    let current: *const Arc<TaskMemory> = CURRENT_ADDRESS_SPACE.as_ptr();
-    let current = unsafe { (*current).clone() };
-    assert_eq!(current.dbg_magic_byte, *MAGIC_DEBUG_BYTE);
-    current
-} */
-
-pub fn tasks() -> Vec<Arc<TaskInfo>> {
+/* pub fn tasks() -> Vec<Arc<TaskInfo>> {
     let mut tasks = TASKS.lock();
 
     // remove tasks that don't exist
     tasks.retain(|p| p.strong_count() != 0);
 
     tasks.iter().filter_map(|p| p.upgrade()).collect()
-}
+} */
 
 pub fn idle() -> impl Iterator<Item = Duration> {
     Tls::inner(&TLS)
@@ -160,7 +141,7 @@ pub fn idle() -> impl Iterator<Item = Duration> {
 }
 
 pub fn rename(new_name: Cow<'static, str>) {
-    *lock_active().info().name.write() = new_name;
+    *process().name.write() = new_name;
 }
 
 /// init this processors scheduling
@@ -193,7 +174,7 @@ pub fn init() -> ! {
         // TODO: test if the currently running task has used way too much cpu time and switch if so
     });
 
-    _ = get_active();
+    _ = task_try();
     if TLS.initialized.swap(true, Ordering::SeqCst) {
         panic!("should be called only once before any tasks are assigned to this processor")
     }
@@ -253,8 +234,8 @@ pub fn stop() -> ! {
 ///
 /// jumps into user space
 pub fn spawn(fn_ptr: u64, fn_arg: u64) {
-    let thread = Task::new(TaskInner::thread(lock_active(), move || {
-        let stack_top = { lock_active().thread.user_stack.lock().top };
+    let thread = Task::new(TaskInner::thread(task(), move || {
+        let stack_top = task().user_stack.lock().top;
 
         unsafe {
             hyperion_arch::syscall::userland(
@@ -275,7 +256,7 @@ pub fn schedule(new: impl Into<Task>) {
 }
 
 fn swap_current(mut new: Task) -> Task {
-    swap(&mut new, &mut lock_active());
+    swap(&mut new, &mut task());
     new
 }
 
@@ -295,10 +276,7 @@ fn reset_cpu_timer() {
 fn update_cpu_usage() {
     let elapsed = cpu_time_elapsed();
 
-    lock_active()
-        .info()
-        .nanos
-        .fetch_add(elapsed, Ordering::Relaxed);
+    task().nanos.fetch_add(elapsed, Ordering::Relaxed);
 }
 
 fn update_cpu_idle() {
@@ -350,7 +328,7 @@ struct SchedulerTls {
     initialized: AtomicBool,
     idle: AtomicBool,
 
-    switch_last_active: AtomicPtr<TaskThread>,
+    switch_last_active: AtomicPtr<TaskInner>,
 }
 
 static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
@@ -366,12 +344,20 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
     })
 });
 
-pub fn lock_active() -> MutexGuard<'static, Task> {
-    get_active().lock()
+pub fn task() -> MutexGuard<'static, Task> {
+    get_task().lock()
 }
 
-pub fn try_lock_active() -> Option<MutexGuard<'static, Task>> {
-    get_active().try_lock()
+pub fn task_try() -> Option<MutexGuard<'static, Task>> {
+    get_task().try_lock()
+}
+
+pub fn process() -> Arc<Process> {
+    task().process.clone()
+}
+
+pub fn process_try() -> Option<Arc<Process>> {
+    task_try().map(|task| task.process.clone())
 }
 
 pub fn running() -> bool {
@@ -379,7 +365,7 @@ pub fn running() -> bool {
     RUNNING.load(Ordering::SeqCst) && TLS.initialized.load(Ordering::SeqCst)
 }
 
-fn get_active() -> &'static Mutex<Task> {
+fn get_task() -> &'static Mutex<Task> {
     TLS.active
         .call_once(|| Mutex::new(Task::new(TaskInner::bootloader())))
 }
@@ -394,11 +380,4 @@ fn last_time() -> &'static AtomicU64 {
 
 fn idle_time() -> &'static AtomicU64 {
     &TLS.idle_time
-}
-
-extern "sysv64" fn thread_entry() -> ! {
-    cleanup();
-    let job = lock_active().take_job().expect("no active jobs");
-    job();
-    stop();
 }

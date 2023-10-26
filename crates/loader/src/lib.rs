@@ -17,7 +17,6 @@ use elf::{
 use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_log::*;
 use hyperion_mem::{from_higher_half, vmm::PageMapImpl};
-use hyperion_scheduler::lock_active;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
@@ -67,8 +66,7 @@ impl<'a> Loader<'a> {
             panic!("TODO:")
         }
 
-        lock_active()
-            .memory
+        hyperion_scheduler::process()
             .heap_bottom
             .fetch_max(v_end.as_u64() as _, Ordering::SeqCst);
 
@@ -132,11 +130,7 @@ impl<'a> Loader<'a> {
     }
 
     pub fn init_stack(args: &[&str]) -> VirtAddr {
-        let mut stack_top = {
-            let task = hyperion_scheduler::lock_active();
-            let stack_top = task.thread.user_stack.lock().top;
-            stack_top
-        };
+        let mut stack_top = hyperion_scheduler::task().user_stack.lock().top;
 
         for arg in args.iter().rev() {
             for byte in arg.as_bytes().iter().rev() {
