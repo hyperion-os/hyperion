@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::future::Future;
 
 use crossbeam_queue::SegQueue;
-use hyperion_scheduler::{yield_now, yield_now_wait};
+use hyperion_scheduler::yield_now_wait;
 
 use super::task::Task;
 

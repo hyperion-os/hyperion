@@ -12,25 +12,16 @@ use alloc::{
     vec::Vec,
 };
 use core::{
-    fmt::Debug,
     mem::swap,
     ptr,
     sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering},
 };
 
 use crossbeam_queue::SegQueue;
-use hyperion_arch::{
-    context::switch as ctx_switch,
-    cpu::ints,
-    int,
-    stack::{Stack, StackType},
-    tls::Tls,
-    vmm::PageMap,
-};
+use hyperion_arch::{context::switch as ctx_switch, cpu::ints, int, tls::Tls};
 use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
-use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use hyperion_timer::TIMER_HANDLER;
 use spin::{Lazy, Mutex, MutexGuard, Once};
 use time::Duration;
@@ -50,6 +41,8 @@ pub mod cleanup;
 pub mod process;
 pub mod sleep;
 pub mod task;
+
+mod page_fault;
 
 //
 
@@ -174,7 +167,7 @@ pub fn rename(new_name: Cow<'static, str>) {
 pub fn init() -> ! {
     hyperion_arch::int::disable();
 
-    ints::PAGE_FAULT_HANDLER.store(page_fault_handler);
+    ints::PAGE_FAULT_HANDLER.store(page_fault::page_fault_handler);
     TIMER_HANDLER.store(|| {
         for task in sleep::finished() {
             READY.push(task);
@@ -429,59 +422,6 @@ fn last_time() -> &'static AtomicU64 {
 
 fn idle_time() -> &'static AtomicU64 {
     &TLS.idle_time
-}
-
-fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    trace!("scheduler page fault (from {user:?})");
-
-    let actual_current = TLS.switch_last_active.load(Ordering::SeqCst);
-    if !actual_current.is_null() {
-        let current: &TaskThread = unsafe { &*actual_current };
-
-        // try handling the page fault first if it happened during a task switch
-        if user == Privilege::User {
-            // `Err(Handled)` short circuits and returns
-            handle_stack_grow(&current.user_stack, addr)?;
-        } else {
-            handle_stack_grow(&current.kernel_stack, addr)?;
-            handle_stack_grow(&current.user_stack, addr)?;
-        }
-
-        // otherwise fall back to handling this task's page fault
-    }
-
-    let current = try_lock_active().expect("TODO: active task is locked");
-    let current = &current.thread;
-
-    if user == Privilege::User {
-        // `Err(Handled)` short circuits and returns
-        handle_stack_grow(&current.user_stack, addr)?;
-
-        // user process tried to access memory thats not available to it
-        hyperion_log::warn!("killing user-space process");
-        stop();
-    } else {
-        handle_stack_grow(&current.kernel_stack, addr)?;
-        handle_stack_grow(&current.user_stack, addr)?;
-
-        hyperion_log::error!("{:?}", current.kernel_stack.lock());
-        hyperion_log::error!("page fault from kernel-space");
-    };
-
-    let page = PageMap::current();
-    let v = VirtAddr::new(addr as _);
-    let p = page.virt_to_phys(v);
-    error!("{v:018x?} -> {p:018x?}");
-
-    Ok(NotHandled)
-}
-
-fn handle_stack_grow<T: StackType + Debug>(
-    stack: &Mutex<Stack<T>>,
-    addr: usize,
-) -> PageFaultResult {
-    let page_map = PageMap::current(); // technically maybe perhaps possibly UB
-    stack.lock().page_fault(&page_map, addr as u64)
 }
 
 extern "sysv64" fn thread_entry() -> ! {

@@ -21,10 +21,7 @@
 //
 
 use alloc::{format, string::String, vec::Vec};
-use core::{
-    ops::Range,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use core::ops::Range;
 
 use hyperion_arch as arch;
 use hyperion_boot as boot;
