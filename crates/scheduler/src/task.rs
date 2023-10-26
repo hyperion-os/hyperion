@@ -122,7 +122,9 @@ impl fmt::Display for Pid {
 
 //
 
-pub struct Task {
+pub type Task = Box<TaskInner>;
+
+pub struct TaskInner {
     /// memory is per process
     pub memory: ManuallyDrop<Arc<TaskMemory>>,
     /// per thread
@@ -135,7 +137,7 @@ pub struct Task {
     info: Arc<TaskInfo>,
 }
 
-impl Task {
+impl TaskInner {
     pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
         let name = type_name_of_val(&f);
         let f = Box::new(f) as _;
@@ -197,12 +199,12 @@ impl Task {
         }
     }
 
-    pub fn thread(this: MutexGuard<'static, Self>, f: impl FnOnce() + Send + 'static) -> Self {
+    pub fn thread(this: MutexGuard<'static, Task>, f: impl FnOnce() + Send + 'static) -> Self {
         Self::thread_any(this, Box::new(f))
     }
 
     pub fn thread_any(
-        this: MutexGuard<'static, Self>,
+        this: MutexGuard<'static, Task>,
         f: Box<dyn FnOnce() + Send + 'static>,
     ) -> Self {
         let info = this.info.clone();
@@ -315,11 +317,11 @@ where
     F: FnOnce() + Send + 'static,
 {
     fn from(value: F) -> Self {
-        Task::new(value)
+        Task::new(TaskInner::new(value))
     }
 }
 
-impl Drop for Task {
+impl Drop for TaskInner {
     fn drop(&mut self) {
         // TODO: drop pages
 

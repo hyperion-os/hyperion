@@ -31,7 +31,7 @@ use self::{
     cleanup::{Cleanup, CleanupTask},
     task::{Pid, Task, TaskInfo, TaskMemory, TaskState},
 };
-use crate::task::TaskThread;
+use crate::task::{TaskInner, TaskThread};
 
 //
 
@@ -281,7 +281,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 ///
 /// jumps into user space
 pub fn spawn(fn_ptr: u64, fn_arg: u64) {
-    let thread = Task::thread(lock_active(), move || {
+    let thread = Task::new(TaskInner::thread(lock_active(), move || {
         let stack_top = { lock_active().thread.user_stack.lock().top };
 
         unsafe {
@@ -292,7 +292,7 @@ pub fn spawn(fn_ptr: u64, fn_arg: u64) {
                 fn_arg,
             )
         };
-    });
+    }));
     READY.push(thread);
 
     debug!("spawning a pthread");
@@ -409,7 +409,7 @@ pub fn running() -> bool {
 
 fn get_active() -> &'static Mutex<Task> {
     TLS.active
-        .call_once(|| Mutex::new(unsafe { Task::bootloader() }))
+        .call_once(|| Mutex::new(unsafe { Task::new(TaskInner::bootloader()) }))
 }
 
 fn after() -> &'static SegQueue<CleanupTask> {
