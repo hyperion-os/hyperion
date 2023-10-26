@@ -31,7 +31,7 @@ use self::{
     cleanup::{Cleanup, CleanupTask},
     task::{Pid, Task, TaskInfo, TaskMemory, TaskState},
 };
-use crate::task::{TaskInner, TaskThread};
+use crate::task::{switch_because, TaskInner, TaskThread};
 
 //
 
@@ -247,38 +247,6 @@ pub fn stop() -> ! {
     switch_because(next, TaskState::Dropping, Cleanup::Drop);
 
     unreachable!("a destroyed thread cannot continue executing");
-}
-
-pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
-    if !next.is_valid() {
-        panic!("this task is not safe to switch to");
-    }
-
-    let next_ctx = next.ctx();
-    next.set_state(TaskState::Running);
-
-    // tell the page fault handler that the actual current task is still this one
-    TLS.switch_last_active.store(
-        &*lock_active().thread as *const TaskThread as *mut TaskThread,
-        Ordering::SeqCst,
-    );
-    let prev = swap_current(next);
-    let prev_ctx = prev.ctx();
-    prev.set_state(new_state);
-
-    // push the current thread to the drop queue AFTER switching
-    after().push(cleanup.task(prev));
-
-    // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
-    // the box keeps the pointer pinned in memory
-    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
-    unsafe { ctx_switch(prev_ctx, next_ctx) };
-
-    // invalidate the page fault handler's old task store
-    TLS.switch_last_active
-        .store(ptr::null_mut(), Ordering::SeqCst);
-
-    crate::cleanup();
 }
 
 /// spawn a new thread in the currently running process

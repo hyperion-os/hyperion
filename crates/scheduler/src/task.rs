@@ -4,12 +4,13 @@ use core::{
     cell::UnsafeCell,
     fmt,
     mem::ManuallyDrop,
-    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
+    ptr,
+    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 
 use crossbeam::atomic::AtomicCell;
 use hyperion_arch::{
-    context::Context,
+    context::{switch as ctx_switch, Context},
     stack::{AddressSpace, KernelStack, Stack, UserStack},
     vmm::PageMap,
 };
@@ -18,11 +19,51 @@ use hyperion_log::*;
 use hyperion_mem::{pmm, vmm::PageMapImpl};
 use spin::{Mutex, MutexGuard, RwLock};
 
-use crate::{thread_entry, TASKS, TASK_MEM};
+use crate::{
+    after, cleanup::Cleanup, lock_active, swap_current, thread_entry, TASKS, TASK_MEM, TLS,
+};
 
 //
 
 // static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
+
+//
+
+pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
+    if !next.is_valid() {
+        panic!("this task is not safe to switch to");
+    }
+
+    let next_ctx = next.ctx();
+    if next.swap_state(TaskState::Running) == TaskState::Running {
+        panic!("this task is already running");
+    }
+
+    // tell the page fault handler that the actual current task is still this one
+    TLS.switch_last_active.store(
+        &*lock_active().thread as *const TaskThread as *mut TaskThread,
+        Ordering::SeqCst,
+    );
+    let prev = swap_current(next);
+    let prev_ctx = prev.ctx();
+    if prev.swap_state(new_state) != TaskState::Running {
+        panic!("previous task wasn't running");
+    }
+
+    // push the current thread to the drop queue AFTER switching
+    after().push(cleanup.task(prev));
+
+    // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
+    // the box keeps the pointer pinned in memory
+    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
+    unsafe { ctx_switch(prev_ctx, next_ctx) };
+
+    // invalidate the page fault handler's old task store
+    TLS.switch_last_active
+        .store(ptr::null_mut(), Ordering::SeqCst);
+
+    crate::cleanup();
+}
 
 //
 
@@ -257,7 +298,7 @@ impl TaskInner {
             pid: Pid(0),
             name: RwLock::new("bootloader".into()),
             nanos: AtomicU64::new(0),
-            state: AtomicCell::new(TaskState::Ready),
+            state: AtomicCell::new(TaskState::Running),
         });
 
         let address_space = AddressSpace::new(PageMap::current());
@@ -313,8 +354,8 @@ impl TaskInner {
         self.context.get()
     }
 
-    pub fn set_state(&self, state: TaskState) {
-        self.info.state.store(state);
+    pub fn swap_state(&self, state: TaskState) -> TaskState {
+        self.info.state.swap(state)
     }
 
     pub fn is_valid(&self) -> bool {
