@@ -13,7 +13,10 @@ use hyperion_keyboard::{
 use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
-use hyperion_scheduler::{idle, schedule, task::TaskState};
+use hyperion_scheduler::{
+    idle, schedule,
+    task::{processes, TaskState, PROCESSES, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
+};
 use hyperion_vfs::{
     self,
     path::{Path, PathBuf},
@@ -536,28 +539,23 @@ impl Shell {
     }
 
     fn ps_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        // let tasks = hyperion_scheduler::tasks();
+        let processes = processes();
 
-        /* _ = writeln!(
-            self.term,
-            "\n{: >6} {: <8} {: >9} CMD",
-            "PID", "STAT", "TIME"
-        );
-        for task in tasks {
-            let pid = task.pid;
-            let state = task.state.load().as_str();
-            let time = time::Duration::nanoseconds(task.nanos.load(Ordering::Relaxed) as _);
+        _ = writeln!(self.term, "\n{: >6} {: >9} CMD", "PID", "TIME");
+        for proc in processes {
+            let pid = proc.pid;
+            let time = time::Duration::nanoseconds(proc.nanos.load(Ordering::Relaxed) as _);
             // let time_h = time.whole_hours();
             let time_m = time.whole_minutes() % 60;
             let time_s = time.whole_seconds() % 60;
             let time_ms = time.whole_milliseconds() % 1000;
-            let name = task.name.read();
+            let name = proc.name.read();
 
             _ = writeln!(
                 self.term,
-                "{pid: >6} {state: <8} {time_m: >2}:{time_s:02}.{time_ms:03} {name}"
+                "{pid: >6} {time_m: >2}:{time_s:02}.{time_ms:03} {name}"
             );
-        } */
+        }
 
         Ok(())
     }
@@ -576,11 +574,11 @@ impl Shell {
         let uptime_s = uptime.whole_seconds() % 60;
 
         /* let tasks = hyperion_scheduler::tasks();
-        let tasks_total = tasks.len();
-        let task_states = tasks.iter().map(|task| task.state.load());
-        let tasks_running = task_states.clone().filter(TaskState::is_running).count();
-        let tasks_sleeping = task_states.clone().filter(TaskState::is_sleeping).count();
-        let tasks_ready = task_states.clone().filter(TaskState::is_ready).count();
+        let task_states = tasks.iter().map(|task| task.state.load()); */
+        let tasks_running = TASKS_RUNNING.load(Ordering::Relaxed);
+        let tasks_sleeping = TASKS_SLEEPING.load(Ordering::Relaxed);
+        let tasks_ready = TASKS_READY.load(Ordering::Relaxed);
+        let tasks_total = tasks_running + tasks_sleeping + tasks_ready;
 
         let mem_total = pmm::PFA.usable_mem().postfix_binary();
         let mem_free = pmm::PFA.free_mem().postfix_binary();
@@ -602,7 +600,7 @@ impl Shell {
             let idle = time::Duration::milliseconds(idle.whole_milliseconds() as _);
             _ = write!(self.term, "{idle}, ");
         }
-        _ = writeln!(self.term); */
+        _ = writeln!(self.term);
 
         self.ps_cmd(None)
     }

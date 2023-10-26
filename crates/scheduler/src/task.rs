@@ -34,8 +34,24 @@ use crate::{after, cleanup::Cleanup, stop, swap_current, task, TakeOnce, TLS};
 
 // TODO: get rid of the slow dumbass spinlock mutexes everywhere
 pub static PROCESSES: Mutex<BTreeMap<Pid, Weak<Process>>> = Mutex::new(BTreeMap::new());
+// pub static TASKS: Mutex<Vec<Weak<Process>>> = Mutex::new(Vec::new());
+
+pub static TASKS_RUNNING: AtomicUsize = AtomicUsize::new(0);
+pub static TASKS_SLEEPING: AtomicUsize = AtomicUsize::new(0);
+pub static TASKS_READY: AtomicUsize = AtomicUsize::new(0);
+pub static TASKS_DROPPING: AtomicUsize = AtomicUsize::new(0);
 
 //
+
+pub fn processes() -> Vec<Arc<Process>> {
+    let processes = PROCESSES.lock();
+    // processes.retain(|_, proc| proc.upgrade().is_some());
+
+    processes
+        .values()
+        .filter_map(|proc| proc.upgrade())
+        .collect()
+}
 
 pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     // debug!("switching to {}", next.name.read().clone());
@@ -73,6 +89,10 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 
     // the ctx_switch can continue either in `thread_entry` or here:
 
+    post_ctx_switch();
+}
+
+fn post_ctx_switch() {
     // invalidate the page fault handler's old task store
     TLS.switch_last_active
         .store(ptr::null_mut(), Ordering::SeqCst);
@@ -81,12 +101,11 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 }
 
 extern "C" fn thread_entry() -> ! {
-    TLS.switch_last_active
-        .store(ptr::null_mut(), Ordering::SeqCst);
+    post_ctx_switch();
 
-    crate::cleanup();
     let job = task().job.take().expect("no active jobs");
     job();
+
     stop();
 }
 
@@ -146,6 +165,9 @@ pub struct Process {
     // process name
     pub name: RwLock<Cow<'static, str>>,
 
+    /// cpu time this process (all tasks) has used in nanoseconds
+    pub nanos: AtomicU64,
+
     /// process address space
     pub address_space: AddressSpace,
 
@@ -184,9 +206,6 @@ pub type Task = Box<TaskInner>;
 pub struct TaskInner {
     /// a shared process ref, multiple tasks can point to the same process
     pub process: Arc<Process>,
-
-    /// cpu time this task has used in nanoseconds
-    pub nanos: AtomicU64,
 
     /// task state, 'is the task waiting or what?'
     pub state: AtomicCell<TaskState>,
@@ -231,6 +250,7 @@ impl TaskInner {
         let process = Arc::new(Process {
             pid: Pid::next(),
             name: RwLock::new(name),
+            nanos: AtomicU64::new(0),
             address_space: AddressSpace::new(PageMap::new()),
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::default(),
@@ -255,9 +275,9 @@ impl TaskInner {
             process.address_space.page_map.cr3().start_address()
         );
 
+        TASKS_READY.fetch_add(1, Ordering::Relaxed);
         Self {
             process,
-            nanos: AtomicU64::new(0),
             state: AtomicCell::new(TaskState::Ready),
             user_stack: Mutex::new(user_stack),
             kernel_stack: Mutex::new(kernel_stack),
@@ -292,9 +312,9 @@ impl TaskInner {
             thread_entry,
         ));
 
+        TASKS_READY.fetch_add(1, Ordering::Relaxed);
         Self {
             process,
-            nanos: AtomicU64::new(0),
             state: AtomicCell::new(TaskState::Ready),
             user_stack: Mutex::new(user_stack),
             kernel_stack: Mutex::new(kernel_stack),
@@ -313,6 +333,7 @@ impl TaskInner {
         let process = Arc::new(Process {
             pid: Pid(0),
             name: RwLock::new("bootloader".into()),
+            nanos: AtomicU64::new(0),
             address_space: AddressSpace::new(PageMap::current()),
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::default(),
@@ -334,9 +355,9 @@ impl TaskInner {
         // switching is allowed only if `self.is_valid()` returns true
         let context = UnsafeCell::new(unsafe { Context::invalid(&process.address_space.page_map) });
 
+        TASKS_RUNNING.fetch_add(1, Ordering::Relaxed);
         Self {
             process,
-            nanos: AtomicU64::new(0),
             state: AtomicCell::new(TaskState::Running),
             user_stack: Mutex::new(user_stack),
             kernel_stack: Mutex::new(kernel_stack),
@@ -344,6 +365,28 @@ impl TaskInner {
             context,
             is_valid: false,
         }
+    }
+
+    pub fn swap_state(&self, new: TaskState) -> TaskState {
+        match new {
+            TaskState::Running => &TASKS_RUNNING,
+            TaskState::Sleeping => &TASKS_SLEEPING,
+            TaskState::Ready => &TASKS_READY,
+            TaskState::Dropping => &TASKS_DROPPING,
+        }
+        .fetch_add(1, Ordering::Relaxed);
+
+        let old = self.state.swap(new);
+
+        match old {
+            TaskState::Running => &TASKS_RUNNING,
+            TaskState::Sleeping => &TASKS_SLEEPING,
+            TaskState::Ready => &TASKS_READY,
+            TaskState::Dropping => &TASKS_DROPPING,
+        }
+        .fetch_sub(1, Ordering::Relaxed);
+
+        old
     }
 }
 
@@ -358,6 +401,9 @@ where
 
 impl Drop for TaskInner {
     fn drop(&mut self) {
+        assert_eq!(self.state.load(), TaskState::Dropping);
+        TASKS_DROPPING.fetch_sub(1, Ordering::Relaxed);
+
         // TODO: drop pages
 
         // SAFETY: self.memory is not used anymore
