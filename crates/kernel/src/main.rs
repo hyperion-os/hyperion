@@ -93,11 +93,11 @@ extern "C" fn _start() -> ! {
         loop {
             let messy_string = format!("abc3de5fgh@lmno&pqr%stuv(w)xyz");
             info!("<Get_Input>: '{messy_string}'");
-            scheduler::send(scheduler::Pid::new(2), Vec::from(messy_string).into())
+            scheduler::send(scheduler::task::Pid::new(2), Vec::from(messy_string).into())
                 .expect("send err");
 
             // wait 200ms
-            scheduler::sleep(time::Duration::milliseconds(1));
+            scheduler::sleep(time::Duration::milliseconds(200));
         }
     });
     scheduler::schedule(move || {
@@ -113,7 +113,9 @@ extern "C" fn _start() -> ! {
             let messy_string = core::str::from_utf8(&messy_data).expect("data to be UTF-8");
 
             let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), "");
-            scheduler::send(scheduler::Pid::new(3), Vec::from(clean_string).into())
+            info!("<Clean_Input>: '{clean_string}'");
+
+            scheduler::send(scheduler::task::Pid::new(3), Vec::from(clean_string).into())
                 .expect("send err");
         }
     });

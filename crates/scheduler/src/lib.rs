@@ -6,449 +6,52 @@
 
 use alloc::{
     borrow::Cow,
-    boxed::Box,
     collections::BTreeMap,
     sync::{Arc, Weak},
     vec,
     vec::Vec,
 };
 use core::{
-    any::type_name_of_val,
-    cell::UnsafeCell,
-    fmt::{self, Debug},
-    mem::{swap, ManuallyDrop},
+    fmt::Debug,
+    mem::swap,
     ptr,
-    sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering},
 };
 
-use crossbeam::atomic::AtomicCell;
 use crossbeam_queue::SegQueue;
 use hyperion_arch::{
-    context::{switch as ctx_switch, Context},
+    context::switch as ctx_switch,
     cpu::ints,
     int,
-    stack::{AddressSpace, KernelStack, Stack, StackType, UserStack},
+    stack::{Stack, StackType},
     tls::Tls,
     vmm::PageMap,
 };
-use hyperion_bitmap::Bitmap;
 use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
-use hyperion_mem::{
-    pmm,
-    vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
-};
+use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use hyperion_timer::TIMER_HANDLER;
-use spin::{Lazy, Mutex, MutexGuard, Once, RwLock};
+use spin::{Lazy, Mutex, MutexGuard, Once};
 use time::Duration;
 use x86_64::VirtAddr;
 
-//
-
-// static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
+use self::{
+    cleanup::{Cleanup, CleanupTask},
+    task::{Pid, Task, TaskInfo, TaskMemory, TaskState},
+};
+use crate::task::TaskThread;
 
 //
 
 extern crate alloc;
 
+pub mod cleanup;
 pub mod process;
 pub mod sleep;
+pub mod task;
 
 //
-
-pub struct CleanupTask {
-    task: Task,
-    cleanup: Cleanup,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Cleanup {
-    Sleep { deadline: Instant },
-    SimpleIpcWait,
-    Drop,
-    Ready,
-}
-
-impl Cleanup {
-    pub const fn task(self, task: Task) -> CleanupTask {
-        CleanupTask {
-            task,
-            cleanup: self,
-        }
-    }
-
-    pub fn run(self, task: Task) {
-        match self {
-            Self::Sleep { deadline } => {
-                sleep::push(deadline, task);
-                for ready in sleep::finished() {
-                    READY.push(ready);
-                }
-            }
-            Self::SimpleIpcWait => {
-                let memory = task.memory.clone();
-
-                let mut ipc_waiting = memory.simple_ipc_waiting.lock();
-
-                if !memory.simple_ipc.lock().is_empty() {
-                    READY.push(task);
-                } else {
-                    *ipc_waiting = Some(task);
-                }
-            }
-            Self::Drop => {}
-            Self::Ready => {
-                schedule(task);
-            }
-        }
-    }
-}
-
-pub struct Task {
-    /// memory is per process
-    pub memory: ManuallyDrop<Arc<TaskMemory>>,
-    /// per thread
-    pub thread: Box<TaskThread>,
-
-    // context is used 'unsafely' only in the switch
-    context: Box<UnsafeCell<Context>>,
-    job: Option<Box<dyn FnOnce() + Send + 'static>>,
-
-    info: Arc<TaskInfo>,
-}
-
-pub struct TaskThread {
-    pub user_stack: Mutex<Stack<UserStack>>,
-    pub kernel_stack: Mutex<Stack<KernelStack>>,
-}
-
-pub struct TaskMemory {
-    pub address_space: AddressSpace,
-
-    pub heap_bottom: AtomicUsize,
-
-    pub simple_ipc: Mutex<Vec<Cow<'static, [u8]>>>,
-    pub simple_ipc_waiting: Mutex<Option<Task>>,
-
-    // TODO: a better way to keep track of allocated pages
-    pub allocs: Mutex<Bitmap<'static>>,
-    // dbg_magic_byte: usize,
-}
-
-impl TaskMemory {
-    pub fn new_arc(address_space: AddressSpace) -> Arc<Self> {
-        Arc::new(Self {
-            address_space,
-
-            heap_bottom: AtomicUsize::new(0),
-
-            simple_ipc: Mutex::new(vec![]),
-            simple_ipc_waiting: Mutex::new(None),
-
-            allocs: Mutex::new(Bitmap::new(&mut [])),
-            // kernel_stack: Mutex::new(kernel_stack),
-            // dbg_magic_byte: *MAGIC_DEBUG_BYTE,
-        })
-    }
-
-    pub fn init_allocs(&self) {
-        let bitmap_alloc: Vec<u8> = (0..pmm::PFA.bitmap_len() / 8).map(|_| 0u8).collect();
-        let bitmap_alloc = Vec::leak(bitmap_alloc); // TODO: free
-        *self.allocs.lock() = Bitmap::new(bitmap_alloc);
-    }
-}
-
-impl Drop for TaskMemory {
-    fn drop(&mut self) {
-        // TODO: drop the bitmap
-    }
-}
-
-#[derive(Debug)]
-pub struct TaskInfo {
-    // proc id
-    pub pid: Pid,
-
-    // proc name
-    pub name: RwLock<Cow<'static, str>>,
-
-    // cpu time used
-    pub nanos: AtomicU64,
-
-    // proc state
-    pub state: AtomicCell<TaskState>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Pid(usize);
-
-impl Pid {
-    pub const fn new(num: usize) -> Self {
-        Self(num)
-    }
-
-    pub fn next() -> Self {
-        static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
-        Pid(NEXT_PID.fetch_add(1, Ordering::Relaxed))
-    }
-
-    pub const fn num(self) -> usize {
-        self.0
-    }
-}
-
-impl fmt::Display for Pid {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-const _: () = assert!(AtomicCell::<TaskState>::is_lock_free());
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TaskState {
-    Running,
-    Sleeping,
-    Ready,
-    Dropping,
-}
-
-impl TaskState {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            TaskState::Running => "running",
-            TaskState::Sleeping => "sleeping",
-            TaskState::Ready => "ready",
-            TaskState::Dropping => "dropping",
-        }
-    }
-
-    /// Returns `true` if the task state is [`Running`].
-    ///
-    /// [`Running`]: TaskState::Running
-    #[must_use]
-    pub fn is_running(&self) -> bool {
-        matches!(self, Self::Running)
-    }
-
-    /// Returns `true` if the task state is [`Sleeping`].
-    ///
-    /// [`Sleeping`]: TaskState::Sleeping
-    #[must_use]
-    pub fn is_sleeping(&self) -> bool {
-        matches!(self, Self::Sleeping)
-    }
-
-    /// Returns `true` if the task state is [`Ready`].
-    ///
-    /// [`Ready`]: TaskState::Ready
-    #[must_use]
-    pub fn is_ready(&self) -> bool {
-        matches!(self, Self::Ready)
-    }
-
-    /// Returns `true` if the task state is [`Dropping`].
-    ///
-    /// [`Dropping`]: TaskState::Dropping
-    #[must_use]
-    pub fn is_dropping(&self) -> bool {
-        matches!(self, Self::Dropping)
-    }
-}
-
-impl Task {
-    pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
-        let name = type_name_of_val(&f);
-        let f = Box::new(f) as _;
-
-        Self::new_any(f, Cow::Borrowed(name))
-    }
-
-    pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Self {
-        trace!("initializing task {name}");
-
-        let job = Some(f);
-        let name = RwLock::new(name);
-
-        let info = Arc::new(TaskInfo {
-            pid: Pid::next(),
-            name,
-            nanos: AtomicU64::new(0),
-            state: AtomicCell::new(TaskState::Ready),
-        });
-        TASKS.lock().push(Arc::downgrade(&info));
-
-        let address_space = AddressSpace::new(PageMap::new());
-
-        let kernel_stack = address_space.take_kernel_stack_prealloc(1);
-        let stack_top = kernel_stack.top;
-        let main_thread_user_stack = address_space.take_user_stack_lazy();
-        let thread = Box::new(TaskThread {
-            user_stack: Mutex::new(main_thread_user_stack),
-            kernel_stack: Mutex::new(kernel_stack),
-        });
-
-        let memory = ManuallyDrop::new(TaskMemory::new_arc(address_space));
-        TASK_MEM.lock().insert(info.pid, Arc::downgrade(&memory));
-        memory.init_allocs();
-
-        let context = Box::new(UnsafeCell::new(Context::new(
-            &memory.address_space.page_map,
-            stack_top,
-            thread_entry,
-        )));
-
-        /* let alloc = PFA.alloc(1);
-        memory.address_space.page_map.map(
-            CURRENT_ADDRESS_SPACE..CURRENT_ADDRESS_SPACE + 0xFFFu64,
-            alloc.physical_addr(),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-        );
-        let current_address_space: *mut Arc<TaskMemory> =
-            to_higher_half(alloc.physical_addr()).as_mut_ptr();
-        unsafe { current_address_space.write(memory.clone()) }; */
-
-        Self {
-            memory,
-            thread,
-
-            context,
-            job,
-            info,
-        }
-    }
-
-    pub fn thread(this: MutexGuard<'static, Self>, f: impl FnOnce() + Send + 'static) -> Self {
-        Self::thread_any(this, Box::new(f))
-    }
-
-    pub fn thread_any(
-        this: MutexGuard<'static, Self>,
-        f: Box<dyn FnOnce() + Send + 'static>,
-    ) -> Self {
-        let info = this.info.clone();
-        let memory = this.memory.clone();
-        drop(this);
-
-        let job = Some(f);
-
-        let info = info.clone();
-
-        debug!("pthread kernel stack");
-        let kernel_stack = memory.address_space.take_kernel_stack_prealloc(1);
-        let stack_top = kernel_stack.top;
-        hyperion_log::debug!("stack top: {stack_top:018x?}");
-        debug!("pthread user stack");
-        let user_stack = memory.address_space.take_user_stack_lazy();
-        let thread = Box::new(TaskThread {
-            user_stack: Mutex::new(user_stack),
-            kernel_stack: Mutex::new(kernel_stack),
-        });
-
-        debug!("pthread ctx");
-        let context = Box::new(UnsafeCell::new(Context::new(
-            &memory.address_space.page_map,
-            stack_top,
-            thread_entry,
-        )));
-
-        Self {
-            memory,
-            thread,
-
-            context,
-            job,
-            info,
-        }
-    }
-
-    /// # Safety
-    ///
-    /// this task is not safe to switch to
-    unsafe fn bootloader() -> Self {
-        // TODO: dropping this task should also free the bootloader stacks
-        // they are currently wasting 64KiB per processor
-
-        let info = Arc::new(TaskInfo {
-            pid: Pid(0),
-            name: RwLock::new("bootloader".into()),
-            nanos: AtomicU64::new(0),
-            state: AtomicCell::new(TaskState::Ready),
-        });
-
-        let address_space = AddressSpace::new(PageMap::current());
-        let mut kernel_stack = address_space
-            .kernel_stacks
-            .take_lazy(&address_space.page_map);
-        let mut user_stack = address_space.user_stacks.take_lazy(&address_space.page_map);
-        kernel_stack.limit_4k_pages = 0;
-        user_stack.limit_4k_pages = 0;
-        let thread = Box::new(TaskThread {
-            user_stack: Mutex::new(user_stack),
-            kernel_stack: Mutex::new(kernel_stack),
-        });
-
-        // SAFETY: covered by this function's safety doc
-        let ctx = unsafe { Context::invalid(&address_space.page_map) };
-        let context = Box::new(UnsafeCell::new(ctx));
-
-        let memory = ManuallyDrop::new(TaskMemory::new_arc(address_space));
-
-        Self {
-            memory,
-            thread,
-
-            context,
-            job: None,
-            info,
-        }
-    }
-
-    pub fn info(&self) -> &TaskInfo {
-        &self.info
-    }
-
-    pub fn debug(&mut self) {
-        hyperion_log::debug!(
-            "TASK DEBUG: context: {:0x?}, job: {:?}, pid: {:?}",
-            &self.context as *const _ as usize,
-            // unsafe { &*self.context.get() },
-            self.job.as_ref().map(|_| ()),
-            self.info.pid
-        )
-    }
-
-    pub fn ctx(&self) -> *mut Context {
-        self.context.get()
-    }
-
-    pub fn set_state(&self, state: TaskState) {
-        self.info.state.store(state);
-    }
-}
-
-impl<F> From<F> for Task
-where
-    F: FnOnce() + Send + 'static,
-{
-    fn from(value: F) -> Self {
-        Task::new(value)
-    }
-}
-
-impl Drop for Task {
-    fn drop(&mut self) {
-        // TODO: drop pages
-
-        // SAFETY: self.memory is not used anymore
-        let memory = unsafe { ManuallyDrop::take(&mut self.memory) };
-
-        if Arc::into_inner(memory).is_some() {
-            TASK_MEM.lock().remove(&self.info.pid);
-        }
-    }
-}
 
 pub static READY: SegQueue<Task> = SegQueue::new();
 pub static RUNNING: AtomicBool = AtomicBool::new(false);
@@ -478,7 +81,7 @@ pub struct NamedMutexGuard<'a, T: ?Sized + 'a> {
     name: &'static str,
 }
 
-impl<'a, T: ?Sized> Deref for NamedMutexGuard<'a, T> {
+impl<'a, T: ?Sized> core::ops::Deref for NamedMutexGuard<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -486,7 +89,7 @@ impl<'a, T: ?Sized> Deref for NamedMutexGuard<'a, T> {
     }
 }
 
-impl<'a, T: ?Sized> DerefMut for NamedMutexGuard<'a, T> {
+impl<'a, T: ?Sized> core::ops::DerefMut for NamedMutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
@@ -508,19 +111,20 @@ pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static st
         .ok_or("no such process")?;
 
     mem.simple_ipc.lock().push(data);
+    let recv_task = mem.simple_ipc_waiting.lock().take();
 
-    if let Some(recv_task) = mem.simple_ipc_waiting.lock().take() {
-        READY.push(recv_task);
-        // switch_because(recv_task, TaskState::Ready, Cleanup::Ready);
+    if let Some(recv_task) = recv_task {
+        // READY.push(recv_task);
+        switch_because(recv_task, TaskState::Ready, Cleanup::Ready);
     }
 
     Ok(())
 }
 
 pub fn recv() -> Cow<'static, [u8]> {
-    let (_pid, mem): (Pid, Arc<TaskMemory>) = {
+    let mem: Arc<TaskMemory> = {
         let active = lock_active();
-        (active.info.pid, (*active.memory).clone())
+        (*active.memory).clone()
     };
 
     if let Some(data) = mem.simple_ipc.lock().pop() {
@@ -563,7 +167,7 @@ pub fn idle() -> impl Iterator<Item = Duration> {
 }
 
 pub fn rename(new_name: Cow<'static, str>) {
-    *lock_active().info.name.write() = new_name;
+    *lock_active().info().name.write() = new_name;
 }
 
 /// init this processors scheduling
@@ -596,6 +200,7 @@ pub fn init() -> ! {
         // TODO: test if the currently running task has used way too much cpu time and switch if so
     });
 
+    _ = get_active();
     if TLS.initialized.swap(true, Ordering::SeqCst) {
         panic!("should be called only once before any tasks are assigned to this processor")
     }
@@ -606,6 +211,18 @@ pub fn init() -> ! {
 
 /// switch to another thread
 pub fn yield_now() {
+    update_cpu_usage();
+
+    let Some(next) = next_task() else {
+        // no tasks -> keep the current task running
+        return;
+    };
+    switch_because(next, TaskState::Ready, Cleanup::Ready);
+}
+
+pub fn yield_now_wait() {
+    update_cpu_usage();
+    wait();
     update_cpu_usage();
 
     let Some(next) = next_task() else {
@@ -714,7 +331,7 @@ fn update_cpu_usage() {
     let elapsed = cpu_time_elapsed();
 
     lock_active()
-        .info
+        .info()
         .nanos
         .fetch_add(elapsed, Ordering::Relaxed);
 }
@@ -756,7 +373,7 @@ fn cleanup() {
     let after = after();
 
     while let Some(next) = after.pop() {
-        next.cleanup.run(next.task);
+        next.run();
     }
 }
 
@@ -815,7 +432,7 @@ fn idle_time() -> &'static AtomicU64 {
 }
 
 fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    hyperion_log::trace!("scheduler page fault (from {user:?})");
+    trace!("scheduler page fault (from {user:?})");
 
     let actual_current = TLS.switch_last_active.load(Ordering::SeqCst);
     if !actual_current.is_null() {
@@ -869,7 +486,7 @@ fn handle_stack_grow<T: StackType + Debug>(
 
 extern "sysv64" fn thread_entry() -> ! {
     cleanup();
-    let job = lock_active().job.take().expect("no active jobs");
+    let job = lock_active().take_job().expect("no active jobs");
     job();
     stop();
 }

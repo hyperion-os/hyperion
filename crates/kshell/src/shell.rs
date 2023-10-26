@@ -13,7 +13,7 @@ use hyperion_keyboard::{
 use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
-use hyperion_scheduler::{idle, schedule, TaskState};
+use hyperion_scheduler::{idle, schedule, task::TaskState};
 use hyperion_vfs::{
     self,
     path::{Path, PathBuf},

@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::future::Future;
 
 use crossbeam_queue::SegQueue;
-use hyperion_scheduler::yield_now;
+use hyperion_scheduler::{yield_now, yield_now_wait};
 
 use super::task::Task;
 
@@ -16,9 +16,7 @@ pub fn run_tasks() -> ! {
     loop {
         while run_once().is_some() {}
 
-        /* update_cpu_usage();
-        wait(); */
-        yield_now();
+        yield_now_wait();
     }
 }
 
