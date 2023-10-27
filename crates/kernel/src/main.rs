@@ -94,8 +94,8 @@ extern "C" fn _start() -> ! {
             scheduler::send(scheduler::task::Pid::new(2), Vec::from(messy_string).into())
                 .expect("send err");
 
-            // wait 200ms
-            scheduler::sleep(time::Duration::milliseconds(200));
+            // wait 2500ms
+            scheduler::sleep(time::Duration::milliseconds(2500));
         }
     });
     scheduler::schedule(move || {

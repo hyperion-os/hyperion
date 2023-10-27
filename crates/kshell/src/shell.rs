@@ -1,4 +1,10 @@
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{
+    borrow::{Cow, ToOwned},
+    format,
+    string::String,
+    sync::Arc,
+    vec::Vec,
+};
 use core::{fmt::Write, sync::atomic::Ordering};
 
 use futures_util::stream::select;
@@ -149,6 +155,7 @@ impl Shell {
             "ps" => self.ps_cmd(args)?,
             "nproc" => self.nproc_cmd(args)?,
             "top" => self.top_cmd(args)?,
+            "send" => self.send_cmd(args)?,
             "exit" => return Ok(None),
             "clear" => {
                 self.term.clear();
@@ -402,7 +409,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, ps, nproc, top, exit, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, ps, nproc, top, send, exit, clear");
 
         Ok(())
     }
@@ -603,5 +610,40 @@ impl Shell {
         _ = writeln!(self.term);
 
         self.ps_cmd(None)
+    }
+
+    fn send_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        let Some(args) = args else {
+            // _ = writeln!(self.term, "expected arg: PID");
+            return Err(Error::Other {
+                msg: "expected arg: PID".into(),
+            });
+        };
+
+        let Some((pid, data)) = args.split_once(' ') else {
+            return Err(Error::Other {
+                msg: "expected arg: DATA".into(),
+            });
+        };
+
+        let pid: usize = match pid.parse() {
+            Ok(pid) => pid,
+            Err(err) => {
+                return Err(Error::Other {
+                    msg: format!("failed to parse PID: {err}"),
+                });
+            }
+        };
+
+        if let Err(err) = hyperion_scheduler::send(
+            hyperion_scheduler::task::Pid::new(pid),
+            data.as_bytes().to_vec().into(),
+        ) {
+            return Err(Error::Other {
+                msg: format!("failed send data: {err}"),
+            });
+        };
+
+        Ok(())
     }
 }
