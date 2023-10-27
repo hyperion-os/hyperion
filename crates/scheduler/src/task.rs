@@ -161,7 +161,7 @@ pub struct Process {
     /// process id
     pub pid: Pid,
 
-    // process name
+    /// process name
     pub name: RwLock<Cow<'static, str>>,
 
     /// cpu time this process (all tasks) has used in nanoseconds
