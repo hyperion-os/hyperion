@@ -1,7 +1,6 @@
 use hyperion_instant::Instant;
-use hyperion_log::*;
 
-use crate::{schedule, sleep, task::Task, READY};
+use crate::{ipc, schedule, sleep, task::Task};
 
 //
 
@@ -36,21 +35,8 @@ impl Cleanup {
 
     pub fn run(self, task: Task) {
         match self {
-            Self::Sleep { deadline } => {
-                sleep::push(deadline, task);
-                for ready in sleep::finished() {
-                    READY.push(ready);
-                }
-            }
-            Self::SimpleIpcWait => {
-                let proc = task.process.clone();
-
-                if !proc.simple_ipc.channel.is_empty() {
-                    READY.push(task);
-                } else {
-                    proc.simple_ipc.waiting.push(task);
-                }
-            }
+            Self::Sleep { deadline } => sleep::push(deadline, task),
+            Self::SimpleIpcWait => ipc::start_waiting(task),
             Self::Drop => {}
             Self::Ready => {
                 schedule(task);

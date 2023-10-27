@@ -15,7 +15,6 @@ use core::{
 };
 
 use crossbeam::atomic::AtomicCell;
-use crossbeam_queue::SegQueue;
 use hyperion_arch::{
     context::{switch as ctx_switch, Context},
     stack::{AddressSpace, KernelStack, Stack, UserStack},
@@ -26,7 +25,7 @@ use hyperion_log::*;
 use hyperion_mem::{pmm, vmm::PageMapImpl};
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
-use crate::{after, cleanup::Cleanup, stop, swap_current, task, TakeOnce, TLS};
+use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TakeOnce, TLS};
 
 //
 
@@ -185,18 +184,6 @@ impl Drop for Process {
     fn drop(&mut self) {
         PROCESSES.lock().remove(&self.pid);
     }
-}
-
-//
-
-/// simple P2P 2-copy IPC channel
-#[derive(Debug, Default)]
-pub struct SimpleIpc {
-    /// the actual data channel
-    pub channel: SegQueue<Cow<'static, [u8]>>,
-
-    /// task waiting list when the channel is empty and processes are reading from it
-    pub waiting: SegQueue<Task>,
 }
 
 //

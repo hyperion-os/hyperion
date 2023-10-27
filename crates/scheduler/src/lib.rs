@@ -23,7 +23,7 @@ use x86_64::VirtAddr;
 
 use self::{
     cleanup::{Cleanup, CleanupTask},
-    task::{Pid, Process, Task, TaskState, PROCESSES},
+    task::{Pid, Process, Task, TaskState},
 };
 use crate::task::{switch_because, TaskInner};
 
@@ -32,6 +32,7 @@ use crate::task::{switch_because, TaskInner};
 extern crate alloc;
 
 pub mod cleanup;
+pub mod ipc;
 pub mod sleep;
 pub mod task;
 
@@ -80,45 +81,6 @@ impl<T> TakeOnce<T> {
 
 //
 
-pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
-    let proc = PROCESSES
-        .lock()
-        .get(&target_pid)
-        .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
-        .ok_or("no such process")?;
-
-    proc.simple_ipc.channel.push(data);
-    let recv_task = proc.simple_ipc.waiting.pop();
-
-    if let Some(recv_task) = recv_task {
-        // READY.push(recv_task);
-        switch_because(recv_task, TaskState::Ready, Cleanup::Ready);
-    }
-
-    Ok(())
-}
-
-pub fn recv() -> Cow<'static, [u8]> {
-    let proc = process();
-
-    loop {
-        if let Some(data) = proc.simple_ipc.channel.pop() {
-            return data;
-        }
-
-        let mut data = None; // data while waiting for the next task
-        let Some(next) = wait_next_task(|| {
-            data = proc.simple_ipc.channel.pop();
-            data.is_some()
-        }) else {
-            return data.unwrap();
-        };
-
-        // start waiting for events on the channel
-        switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait);
-    }
-}
-
 pub fn idle() -> impl Iterator<Item = Duration> {
     Tls::inner(&TLS).iter().map(|tls| {
         fn _assert_sync<T: Sync>(_: T) {}
@@ -146,15 +108,10 @@ pub fn init() -> ! {
 
     ints::PAGE_FAULT_HANDLER.store(page_fault::page_fault_handler);
     TIMER_HANDLER.store(|| {
-        for task in sleep::finished() {
-            READY.push(task);
-        }
+        sleep::wake_up_completed(None);
     });
     hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| {
-        for task in sleep::finished() {
-            // warn!("TODO: fix APIC timer waking up HPET timers");
-            READY.push(task);
-        }
+        sleep::wake_up_completed(None);
 
         if TLS.idle.load(Ordering::SeqCst) {
             return;
@@ -177,6 +134,14 @@ pub fn init() -> ! {
     RUNNING.store(true, Ordering::SeqCst);
 
     stop();
+}
+
+pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
+    ipc::send(target_pid, data)
+}
+
+pub fn recv() -> Cow<'static, [u8]> {
+    ipc::recv()
 }
 
 /// switch to another thread
