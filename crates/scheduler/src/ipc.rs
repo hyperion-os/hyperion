@@ -90,11 +90,11 @@ pub fn recv_to(buf: &mut [u8]) {
 
 fn recv_with(proc: &Process) -> Cow<'static, [u8]> {
     loop {
-        if let Some(data) = try_recv_with(&proc) {
+        if let Some(data) = try_recv_with(proc) {
             return data;
         }
 
-        let next = match wait_next_task(|| try_recv_with(&proc)) {
+        let next = match wait_next_task(|| try_recv_with(proc)) {
             Ok(task) => task,
             Err(data) => return data,
         };
@@ -105,7 +105,8 @@ fn recv_with(proc: &Process) -> Cow<'static, [u8]> {
 }
 
 fn try_recv_with(proc: &Process) -> Option<Cow<'static, [u8]>> {
-    proc.simple_ipc.tail.pop()?;
-    proc.simple_ipc.channel.pop()?;
-    None
+    proc.simple_ipc
+        .tail
+        .pop()
+        .or_else(|| proc.simple_ipc.channel.pop())
 }
