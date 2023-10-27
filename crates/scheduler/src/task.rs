@@ -66,7 +66,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 
     // tell the page fault handler that the actual current task is still this one
     let task = task();
-    let task_inner: &TaskInner = Box::as_ref(&task);
+    let task_inner: &TaskInner = &task;
     TLS.switch_last_active.store(
         task_inner as *const TaskInner as *mut TaskInner,
         Ordering::SeqCst,
@@ -201,8 +201,6 @@ pub struct SimpleIpc {
 
 //
 
-pub type Task = Box<TaskInner>;
-
 pub struct TaskInner {
     /// a shared process ref, multiple tasks can point to the same process
     pub process: Arc<Process>,
@@ -238,13 +236,43 @@ impl Deref for TaskInner {
     }
 }
 
-impl TaskInner {
-    pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
+unsafe impl Sync for TaskInner {}
+
+impl Drop for TaskInner {
+    #[track_caller]
+    fn drop(&mut self) {
+        assert_eq!(
+            self.state.load(),
+            TaskState::Dropping,
+            "{} {}",
+            self.name.read().clone(),
+            core::panic::Location::caller(),
+        );
+        TASKS_DROPPING.fetch_sub(1, Ordering::Relaxed);
+
+        // TODO: drop pages
+
+        // SAFETY: self.memory is not used anymore
+        // let memory = unsafe { ManuallyDrop::take(&mut self.memory) };
+
+        // if Arc::into_inner(memory).is_some() {
+        //     TASK_MEM.lock().remove(&self.info.pid);
+        // }
+    }
+}
+
+//
+
+#[derive(Clone)]
+pub struct Task(Arc<TaskInner>);
+
+impl Task {
+    pub fn new(f: impl FnOnce() + Send + 'static) -> Task {
         let name = type_name_of_val(&f);
         Self::new_any(Box::new(f) as _, name.into())
     }
 
-    pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Self {
+    pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Task {
         trace!("initializing task {name}");
 
         let process = Arc::new(Process {
@@ -276,7 +304,7 @@ impl TaskInner {
         );
 
         TASKS_READY.fetch_add(1, Ordering::Relaxed);
-        Self {
+        Self(Arc::new(TaskInner {
             process,
             state: AtomicCell::new(TaskState::Ready),
             user_stack: Mutex::new(user_stack),
@@ -284,17 +312,14 @@ impl TaskInner {
             job: TakeOnce::new(f),
             context,
             is_valid: true,
-        }
+        }))
     }
 
-    pub fn thread(this: MutexGuard<'static, Task>, f: impl FnOnce() + Send + 'static) -> Self {
+    pub fn thread(this: Task, f: impl FnOnce() + Send + 'static) -> Task {
         Self::thread_any(this, Box::new(f))
     }
 
-    pub fn thread_any(
-        this: MutexGuard<'static, Task>,
-        f: Box<dyn FnOnce() + Send + 'static>,
-    ) -> Self {
+    pub fn thread_any(this: Task, f: Box<dyn FnOnce() + Send + 'static>) -> Task {
         trace!(
             "initializing secondary thread for process {}",
             this.name.read().clone()
@@ -313,7 +338,7 @@ impl TaskInner {
         ));
 
         TASKS_READY.fetch_add(1, Ordering::Relaxed);
-        Self {
+        Self(Arc::new(TaskInner {
             process,
             state: AtomicCell::new(TaskState::Ready),
             user_stack: Mutex::new(user_stack),
@@ -321,10 +346,10 @@ impl TaskInner {
             job: TakeOnce::new(f),
             context,
             is_valid: true,
-        }
+        }))
     }
 
-    pub fn bootloader() -> Self {
+    pub fn bootloader() -> Task {
         // TODO: dropping this task should also free the bootloader stacks
         // they are currently dropped by a task in kernel/src/main.rs
 
@@ -356,7 +381,7 @@ impl TaskInner {
         let context = UnsafeCell::new(unsafe { Context::invalid(&process.address_space.page_map) });
 
         TASKS_RUNNING.fetch_add(1, Ordering::Relaxed);
-        Self {
+        Self(Arc::new(TaskInner {
             process,
             state: AtomicCell::new(TaskState::Running),
             user_stack: Mutex::new(user_stack),
@@ -364,7 +389,7 @@ impl TaskInner {
             job: TakeOnce::none(),
             context,
             is_valid: false,
-        }
+        }))
     }
 
     pub fn swap_state(&self, new: TaskState) -> TaskState {
@@ -390,28 +415,20 @@ impl TaskInner {
     }
 }
 
+impl Deref for Task {
+    type Target = TaskInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl<F> From<F> for Task
 where
     F: FnOnce() + Send + 'static,
 {
     fn from(value: F) -> Self {
-        Task::new(TaskInner::new(value))
-    }
-}
-
-impl Drop for TaskInner {
-    fn drop(&mut self) {
-        assert_eq!(self.state.load(), TaskState::Dropping);
-        TASKS_DROPPING.fetch_sub(1, Ordering::Relaxed);
-
-        // TODO: drop pages
-
-        // SAFETY: self.memory is not used anymore
-        // let memory = unsafe { ManuallyDrop::take(&mut self.memory) };
-
-        // if Arc::into_inner(memory).is_some() {
-        //     TASK_MEM.lock().remove(&self.info.pid);
-        // }
+        Self::new(value)
     }
 }
 

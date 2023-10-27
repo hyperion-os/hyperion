@@ -9,7 +9,7 @@ use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use spin::Mutex;
 use x86_64::VirtAddr;
 
-use crate::{stop, task::TaskInner, task_try, TLS};
+use crate::{stop, task, task::TaskInner, TLS};
 
 //
 
@@ -32,7 +32,7 @@ pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
         // otherwise fall back to handling this task's page fault
     }
 
-    let current = task_try().expect("TODO: active task is locked");
+    let current = task();
 
     if user == Privilege::User {
         // `Err(Handled)` short circuits and returns

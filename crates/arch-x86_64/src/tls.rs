@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use core::{
+    cell::SyncUnsafeCell,
     mem::MaybeUninit,
     ops::Deref,
     ptr::{addr_of_mut, null_mut},
@@ -16,17 +17,17 @@ use crate::{cpu_count, cpu_id};
 //
 
 pub struct Tls<T: 'static> {
-    inner: Box<[T]>,
+    inner: Box<[SyncUnsafeCell<T>]>,
 }
 
 impl<T: 'static> Tls<T> {
     pub fn new(mut f: impl FnMut() -> T) -> Self {
         Self {
-            inner: (0..cpu_count()).map(|_| f()).collect(),
+            inner: (0..cpu_count()).map(|_| SyncUnsafeCell::new(f())).collect(),
         }
     }
 
-    pub fn inner(this: &Self) -> &[T] {
+    pub fn inner(this: &Self) -> &[SyncUnsafeCell<T>] {
         &this.inner
     }
 }
@@ -36,8 +37,11 @@ impl<T: 'static> Deref for Tls<T> {
 
     #[inline(always)]
     fn deref(&self) -> &Self::Target {
-        &self.inner[cpu_id()]
-        // unsafe { self.inner.get_unchecked(cpu_id()) }
+        let tls_entry = self.inner[cpu_id()].get();
+
+        // SAFETY: `cpu_id` is different for each cpu
+        // TODO: not before cpu ids are initialized
+        unsafe { &*tls_entry }
     }
 }
 

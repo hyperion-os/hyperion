@@ -1,12 +1,12 @@
 #![no_std]
-#![feature(new_uninit, type_name_of_val, extract_if)]
+#![feature(new_uninit, type_name_of_val, extract_if, sync_unsafe_cell, offset_of)]
 #![allow(clippy::needless_return)]
 
 //
 
 use alloc::{borrow::Cow, sync::Arc};
 use core::{
-    mem::swap,
+    mem::{offset_of, swap},
     ptr,
     sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering},
 };
@@ -17,7 +17,7 @@ use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
 use hyperion_timer::TIMER_HANDLER;
-use spin::{Lazy, Mutex, MutexGuard, Once};
+use spin::{Lazy, Mutex, Once};
 use time::Duration;
 use x86_64::VirtAddr;
 
@@ -41,12 +41,6 @@ mod page_fault;
 
 pub static READY: SegQueue<Task> = SegQueue::new();
 pub static RUNNING: AtomicBool = AtomicBool::new(false);
-
-/// task info
-// pub static TASKS: Mutex<Vec<Weak<TaskInfo>>> = Mutex::new(vec![]);
-
-// TODO: concurrent map
-// pub static TASK_MEM: Mutex<BTreeMap<Pid, Weak<TaskMemory>>> = Mutex::new(BTreeMap::new());
 
 //
 
@@ -125,19 +119,21 @@ pub fn recv() -> Cow<'static, [u8]> {
     }
 }
 
-/* pub fn tasks() -> Vec<Arc<TaskInfo>> {
-    let mut tasks = TASKS.lock();
-
-    // remove tasks that don't exist
-    tasks.retain(|p| p.strong_count() != 0);
-
-    tasks.iter().filter_map(|p| p.upgrade()).collect()
-} */
-
 pub fn idle() -> impl Iterator<Item = Duration> {
-    Tls::inner(&TLS)
-        .iter()
-        .map(|tls| Duration::nanoseconds(tls.idle_time.load(Ordering::Relaxed) as _))
+    Tls::inner(&TLS).iter().map(|tls| {
+        fn _assert_sync<T: Sync>(_: T) {}
+        fn _assert(tls: SchedulerTls) {
+            _assert_sync(tls.idle_time);
+        }
+
+        let tls = tls.get();
+        // SAFETY: idle_time field is Sync
+        let idle_time =
+            unsafe { &*((tls as usize + offset_of!(SchedulerTls, idle_time)) as *const AtomicU64) };
+        // let idle_time = &unsafe { &*tls }.idle_time;
+
+        Duration::nanoseconds(idle_time.load(Ordering::Relaxed) as _)
+    })
 }
 
 pub fn rename(new_name: Cow<'static, str>) {
@@ -174,7 +170,7 @@ pub fn init() -> ! {
         // TODO: test if the currently running task has used way too much cpu time and switch if so
     });
 
-    _ = task_try();
+    _ = task();
     if TLS.initialized.swap(true, Ordering::SeqCst) {
         panic!("should be called only once before any tasks are assigned to this processor")
     }
@@ -234,7 +230,7 @@ pub fn stop() -> ! {
 ///
 /// jumps into user space
 pub fn spawn(fn_ptr: u64, fn_arg: u64) {
-    let thread = Task::new(TaskInner::thread(task(), move || {
+    let thread = Task::thread(task(), move || {
         let stack_top = task().user_stack.lock().top;
 
         unsafe {
@@ -245,7 +241,7 @@ pub fn spawn(fn_ptr: u64, fn_arg: u64) {
                 fn_arg,
             )
         };
-    }));
+    });
     READY.push(thread);
 
     debug!("spawning a pthread");
@@ -256,7 +252,7 @@ pub fn schedule(new: impl Into<Task>) {
 }
 
 fn swap_current(mut new: Task) -> Task {
-    swap(&mut new, &mut task());
+    swap(&mut new, &mut get_task().lock());
     new
 }
 
@@ -344,20 +340,12 @@ static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
     })
 });
 
-pub fn task() -> MutexGuard<'static, Task> {
-    get_task().lock()
-}
-
-pub fn task_try() -> Option<MutexGuard<'static, Task>> {
-    get_task().try_lock()
+pub fn task() -> Task {
+    (*get_task().lock()).clone()
 }
 
 pub fn process() -> Arc<Process> {
-    task().process.clone()
-}
-
-pub fn process_try() -> Option<Arc<Process>> {
-    task_try().map(|task| task.process.clone())
+    get_task().lock().process.clone()
 }
 
 pub fn running() -> bool {
@@ -366,8 +354,7 @@ pub fn running() -> bool {
 }
 
 fn get_task() -> &'static Mutex<Task> {
-    TLS.active
-        .call_once(|| Mutex::new(Task::new(TaskInner::bootloader())))
+    TLS.active.call_once(|| Mutex::new(Task::bootloader()))
 }
 
 fn after() -> &'static SegQueue<CleanupTask> {

@@ -1,4 +1,5 @@
 use hyperion_instant::Instant;
+use hyperion_log::*;
 
 use crate::{schedule, sleep, task::Task, READY};
 

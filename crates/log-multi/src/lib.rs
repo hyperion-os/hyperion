@@ -56,9 +56,7 @@ impl Logger for MultiLogger {
             return None;
         }
 
-        let Some(active) = hyperion_scheduler::process_try() else {
-            return Some(Cow::Borrowed("<active-locked>"));
-        };
+        let active = hyperion_scheduler::process();
 
         let Some(name) = active.name.try_read() else {
             return Some(Cow::Borrowed("<name-locked>"));

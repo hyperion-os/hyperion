@@ -15,7 +15,7 @@ use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::{
     idle, schedule,
-    task::{processes, TaskState, PROCESSES, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
+    task::{processes, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
 use hyperion_vfs::{
     self,
