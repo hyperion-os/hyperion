@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["force_init_allocator","from_higher_half","is_higher_half","to_higher_half"],"macro":["debug_phys_addr"],"mod":["pmm","slab","vmm"]};

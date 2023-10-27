@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["PFA"],"struct":["PageFrame","PageFrameAllocator"]};

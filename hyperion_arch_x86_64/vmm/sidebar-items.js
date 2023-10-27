@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CURRENT_ADDRESS_SPACE","HIGHER_HALF_DIRECT_MAPPING","KERNEL_EXECUTABLE","KERNEL_STACKS"],"enum":["TryMapSizedError"],"static":["KERNEL_EXECUTABLE_MAPS"],"struct":["PageMap"]};

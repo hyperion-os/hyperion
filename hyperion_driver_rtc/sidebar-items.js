@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CUR_YEAR"],"static":["RTC","RTC_CENTURY_REG"],"struct":["Rtc","RtcDevice"]};

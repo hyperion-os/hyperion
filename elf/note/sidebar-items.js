@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Note"],"struct":["NoteAny","NoteGnuAbiTag","NoteGnuBuildId","NoteIterator"]};

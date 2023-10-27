@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["recv","send","start_waiting"],"struct":["SimpleIpc"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["MadtError"],"static":["MADT"],"struct":["Madt"]};

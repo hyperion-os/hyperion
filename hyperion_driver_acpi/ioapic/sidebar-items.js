@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["IO_APICS"],"struct":["IoApic","IoApicInfo","IoApicRegs"]};

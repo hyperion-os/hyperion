@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["HpetError"],"static":["HPET"],"struct":["GeneralCaps","GeneralConfig","GeneralInterruptStatus","Hpet","HpetDevice","HpetRegs","RawHpetBits","TimerN","TimerNConfigAndCaps","TimerNHandle"],"type":["CounterValue"]};

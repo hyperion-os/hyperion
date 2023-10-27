@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Elf32_Phdr","Elf64_Phdr","ProgramHeader"],"type":["SegmentTable"]};

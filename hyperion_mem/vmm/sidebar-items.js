@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Privilege"],"struct":["Handled","NotHandled"],"trait":["PageMapImpl"],"type":["PageFaultResult"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["report"],"derive":["Snafu"],"macro":["ensure","location"],"mod":["guide","prelude"],"struct":["Backtrace","ChainCompat","Location","NoneError","Report"],"trait":["AsBacktrace","AsErrorSource","ErrorCompat","GenerateImplicitData","IntoError","OptionExt","ResultExt"]};

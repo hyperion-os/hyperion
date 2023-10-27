@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["provide_sleep_wake"],"static":["TIMER_DEADLINES","TIMER_HANDLER"],"struct":["TimerWaker"]};

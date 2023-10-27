@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["color_to_code"],"struct":["EncodedPart"],"trait":["EscapeEncoder"]};

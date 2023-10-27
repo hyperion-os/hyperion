@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["RsdpError"],"static":["RSDP"],"struct":["Rsdp"]};

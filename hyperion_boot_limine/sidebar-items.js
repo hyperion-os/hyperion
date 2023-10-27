@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["boot_cpu","cmdline","cpu_count","framebuffer","hhdm_offset","init","kernel_file","lapics","memmap","phys_addr","rsdp","smp_init","virt_addr"],"static":["BOOT_STACK_SIZE","NAME"]};
