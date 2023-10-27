@@ -68,7 +68,7 @@ pub fn recv() -> Cow<'static, [u8]> {
     recv_with(&process())
 }
 
-pub fn recv_to(buf: &mut [u8]) {
+pub fn recv_to(buf: &mut [u8]) -> usize {
     let proc = process();
 
     let data = recv_with(&proc);
@@ -80,12 +80,16 @@ pub fn recv_to(buf: &mut [u8]) {
     let (buf_data, left) = data.split_at(buf.len());
 
     // FIXME: multiple calls to read_to in the same process might cause data race problems
-    proc.simple_ipc
-        .tail
-        .push(left.to_vec().into())
-        .expect("FIXME: multi read_to data race");
+    if !left.is_empty() {
+        proc.simple_ipc
+            .tail
+            .push(left.to_vec().into())
+            .expect("FIXME: multi read_to data race");
+    }
 
     buf.copy_from_slice(buf_data);
+
+    buf.len()
 }
 
 fn recv_with(proc: &Process) -> Cow<'static, [u8]> {
