@@ -7,7 +7,7 @@ use core::{
 };
 
 use crossbeam_queue::SegQueue;
-use futures_util::task::AtomicWaker;
+use futures_util::{task::AtomicWaker, FutureExt, Stream};
 
 //
 
@@ -62,6 +62,10 @@ impl<T> Receiver<T> {
     pub fn try_recv(&self) -> Option<T> {
         self.inner.queue.pop()
     }
+
+    pub fn race_stream(&self) -> RecvStream<T> {
+        RecvStream { inner: &self.inner }
+    }
 }
 
 impl<T> Drop for Receiver<T> {
@@ -102,6 +106,18 @@ impl<'a, T> Future for Recv<'a, T> {
         }
 
         Poll::Pending
+    }
+}
+
+pub struct RecvStream<'a, T> {
+    inner: &'a Channel<T>,
+}
+
+impl<'a, T> Stream for RecvStream<'a, T> {
+    type Item = T;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Recv { inner: self.inner }.poll_unpin(cx)
     }
 }
 
