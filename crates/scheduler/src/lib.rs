@@ -208,8 +208,6 @@ pub fn spawn(fn_ptr: u64, fn_arg: u64) {
         };
     });
     READY.push(thread);
-
-    debug!("spawning a pthread");
 }
 /// spawn a new process running this closure or a function or a task
 pub fn schedule(new: impl Into<Task>) {

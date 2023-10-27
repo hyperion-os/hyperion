@@ -6,10 +6,11 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc};
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use hyperion_syscall::*;
@@ -20,14 +21,20 @@ pub fn main(args: CliArgs) {
     println!("sample app main");
     println!("args: {args:?}");
 
-    /* for n in 0..8 {
+    let inc = Arc::new(AtomicUsize::new(0));
+
+    for _n in 0..80 {
+        let inc = inc.clone();
         spawn(move || {
-            println!("print from thread {n}");
+            inc.fetch_add(1, Ordering::Relaxed);
+            // println!("print from thread {n}");
         });
-    } */
+    }
 
     let mut next = timestamp().unwrap() as u64;
-    for i in 0.. {
+    for i in next / 1_000_000_000.. {
+        println!("inc at: {}", inc.load(Ordering::Relaxed));
+
         nanosleep_until(next);
         next += 1_000_000_000;
 
