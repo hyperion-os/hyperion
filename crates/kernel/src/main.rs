@@ -20,7 +20,10 @@
 
 //
 
-use alloc::{format, string::String, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::ops::Range;
 
 use hyperion_arch as arch;
@@ -89,7 +92,7 @@ extern "C" fn _start() -> ! {
         arch::dbg_cpu();
 
         loop {
-            let messy_string = format!("abc3de5fgh@lmno&pqr%stuv(w)xyz");
+            let messy_string = "abc3de5fgh@lmno&pqr%stuv(w)xyz".to_string();
             info!("<Get_Input>: '{messy_string}'");
             scheduler::send(scheduler::task::Pid::new(2), Vec::from(messy_string).into())
                 .expect("send err");
