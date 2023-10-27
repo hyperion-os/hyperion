@@ -6,6 +6,7 @@
 
 use alloc::{borrow::Cow, sync::Arc};
 use core::{
+    convert::Infallible,
     mem::{offset_of, swap},
     ptr,
     sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering},
@@ -15,7 +16,6 @@ use crossbeam_queue::SegQueue;
 use hyperion_arch::{cpu::ints, int, tls::Tls};
 use hyperion_driver_acpi::hpet::HPET;
 use hyperion_instant::Instant;
-use hyperion_log::*;
 use hyperion_timer::TIMER_HANDLER;
 use spin::{Lazy, Mutex, Once};
 use time::Duration;
@@ -144,6 +144,10 @@ pub fn recv() -> Cow<'static, [u8]> {
     ipc::recv()
 }
 
+pub fn recv_to(buf: &mut [u8]) {
+    ipc::recv_to(buf)
+}
+
 /// switch to another thread
 pub fn yield_now() {
     update_cpu_usage();
@@ -174,7 +178,7 @@ pub fn sleep(duration: Duration) {
 pub fn sleep_until(deadline: Instant) {
     update_cpu_usage();
 
-    let Some(next) = wait_next_task(|| deadline.is_reached()) else {
+    let Ok(next) = wait_next_task(|| deadline.is_reached().then_some(())) else {
         return;
     };
     switch_because(next, TaskState::Sleeping, Cleanup::Sleep { deadline });
@@ -185,7 +189,7 @@ pub fn sleep_until(deadline: Instant) {
 pub fn stop() -> ! {
     update_cpu_usage();
 
-    let next = wait_next_task(|| false).unwrap();
+    let next = wait_next_task::<Infallible>(|| None).unwrap();
     switch_because(next, TaskState::Dropping, Cleanup::Drop);
 
     unreachable!("a destroyed thread cannot continue executing");
@@ -244,17 +248,17 @@ fn update_cpu_idle() {
     idle_time().fetch_add(elapsed, Ordering::Relaxed);
 }
 
-fn wait_next_task(mut should_abort: impl FnMut() -> bool) -> Option<Task> {
+fn wait_next_task<E>(mut should_abort: impl FnMut() -> Option<E>) -> Result<Task, E> {
     loop {
         if let Some(task) = next_task() {
-            return Some(task);
+            return Ok(task);
         }
 
         // debug!("no tasks, waiting for interrupts");
         wait();
 
-        if should_abort() {
-            return None;
+        if let Some(err) = should_abort() {
+            return Err(err);
         }
     }
 }

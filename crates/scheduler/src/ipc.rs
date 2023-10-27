@@ -1,24 +1,37 @@
 use alloc::borrow::Cow;
 
-use crossbeam_queue::SegQueue;
+use crossbeam_queue::{ArrayQueue, SegQueue};
 
 use crate::{
     cleanup::Cleanup,
     process,
-    task::{switch_because, Pid, Task, TaskState, PROCESSES},
+    task::{switch_because, Pid, Process, Task, TaskState, PROCESSES},
     wait_next_task, READY,
 };
 
 //
 
 /// simple P2P 2-copy IPC channel
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SimpleIpc {
+    /// the latest half consumed chunk of data
+    pub tail: ArrayQueue<Cow<'static, [u8]>>,
+
     /// the actual data channel
     pub channel: SegQueue<Cow<'static, [u8]>>,
 
     /// task waiting list when the channel is empty and processes are reading from it
     pub waiting: SegQueue<Task>,
+}
+
+impl SimpleIpc {
+    pub fn new() -> Self {
+        Self {
+            tail: ArrayQueue::new(1),
+            channel: SegQueue::new(),
+            waiting: SegQueue::new(),
+        }
+    }
 }
 
 //
@@ -52,22 +65,47 @@ pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static st
 }
 
 pub fn recv() -> Cow<'static, [u8]> {
+    recv_with(&process())
+}
+
+pub fn recv_to(buf: &mut [u8]) {
     let proc = process();
 
+    let data = recv_with(&proc);
+
+    // limit buf to be at most the length of available data
+    let buf = &mut buf[..data.len().min(data.len())];
+
+    // fill the buf and send the rest to tail
+    let (buf_data, left) = data.split_at(buf.len());
+
+    // FIXME: multiple calls to read_to in the same process might cause data race problems
+    proc.simple_ipc
+        .tail
+        .push(left.to_vec().into())
+        .expect("FIXME: multi read_to data race");
+
+    buf.copy_from_slice(buf_data);
+}
+
+fn recv_with(proc: &Process) -> Cow<'static, [u8]> {
     loop {
-        if let Some(data) = proc.simple_ipc.channel.pop() {
+        if let Some(data) = try_recv_with(&proc) {
             return data;
         }
 
-        let mut data = None; // data while waiting for the next task
-        let Some(next) = wait_next_task(|| {
-            data = proc.simple_ipc.channel.pop();
-            data.is_some()
-        }) else {
-            return data.unwrap();
+        let next = match wait_next_task(|| try_recv_with(&proc)) {
+            Ok(task) => task,
+            Err(data) => return data,
         };
 
         // start waiting for events on the channel
         switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait);
     }
+}
+
+fn try_recv_with(proc: &Process) -> Option<Cow<'static, [u8]>> {
+    proc.simple_ipc.tail.pop()?;
+    proc.simple_ipc.channel.pop()?;
+    None
 }

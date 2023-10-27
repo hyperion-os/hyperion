@@ -78,6 +78,18 @@ pub fn pfree(ptr: u64, pages: u64) -> i64 {
     unsafe { trigger_syscall(10, ptr, pages, 0, 0, 0) as i64 }
 }
 
+/// send data to a PID based single naïve IPC channel
+#[inline(always)]
+pub fn send(target: u64, data: &[u8]) -> i64 {
+    unsafe { trigger_syscall(11, target, data.as_ptr() as u64, data.len() as u64, 0, 0) as i64 }
+}
+
+/// read data from a PID based single naïve IPC channel
+#[inline(always)]
+pub fn recv(buf: &mut [u8]) -> i64 {
+    unsafe { trigger_syscall(12, buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0, 0) as i64 }
+}
+
 /// # Safety
 /// the `syscall_id` and its arguments have to be valid or this program could accidentally close
 /// itself or share its memory or something

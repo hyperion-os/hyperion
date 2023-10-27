@@ -26,6 +26,8 @@ pub fn syscall(args: &mut SyscallRegs) {
         8 => call_id(pthread_spawn, args),
         9 => call_id(palloc, args),
         10 => call_id(pfree, args),
+        11 => call_id(send, args),
+        12 => call_id(recv, args),
 
         _ => {
             debug!("invalid syscall");
@@ -264,7 +266,64 @@ pub fn pfree(args: &mut SyscallRegs) -> i64 {
     return 0;
 }
 
-fn read_untrusted_str<'a>(ptr: u64, len: u64) -> Result<&'a str, i64> {
+/// send data to an input channel of a process
+///
+/// # arguments
+///  - `syscall_id` : 11
+///  - `arg0`       : target PID
+///  - `arg1`       : data ptr
+///  - `arg2`       : data len (bytes)
+///
+/// # return codes (in syscall_id after returning)
+///  - `-3` : no such process
+///  - `-2` : address range not mapped for the user (arg0 .. arg1)
+///  - `-1` : invalid address range (arg0 .. arg1)
+///  -  `0` : ok
+pub fn send(args: &mut SyscallRegs) -> i64 {
+    let target_pid = args.arg0;
+    let data = match read_untrusted_bytes(args.arg1, args.arg2) {
+        Ok(v) => v,
+        Err(err) => {
+            return err;
+        }
+    };
+
+    let pid = hyperion_scheduler::task::Pid::new(target_pid as usize);
+
+    if hyperion_scheduler::send(pid, data.to_vec().into()).is_err() {
+        return -3;
+    }
+
+    return 0;
+}
+
+/// recv data from this process input channel
+///
+/// # arguments
+///  - `syscall_id` : 12
+///  - `arg0`       : data ptr
+///  - `arg1`       : data len (bytes)
+///
+/// # return codes (in syscall_id after returning)
+///  - `-2` : address range not mapped for the user (arg0 .. arg1)
+///  - `-1` : invalid address range (arg0 .. arg1)
+///  -  `0` : ok
+pub fn recv(args: &mut SyscallRegs) -> i64 {
+    let buf = match read_untrusted_bytes_mut(args.arg1, args.arg2) {
+        Ok(v) => v,
+        Err(err) => {
+            return err;
+        }
+    };
+
+    hyperion_scheduler::recv_to(buf);
+
+    return 0;
+}
+
+//
+
+fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize), i64> {
     let Some(end) = ptr.checked_add(len) else {
         return Err(-1);
     };
@@ -277,9 +336,25 @@ fn read_untrusted_str<'a>(ptr: u64, len: u64) -> Result<&'a str, i64> {
         return Err(-2);
     }
 
-    // TODO:
-    // SAFETY: this is most likely unsafe
-    let str: &[u8] = unsafe { core::slice::from_raw_parts(start.as_ptr(), len as _) };
+    Ok((start, len as _))
+}
 
-    core::str::from_utf8(str).map_err(|_| -3)
+fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8], i64> {
+    read_slice_parts(ptr, len).map(|(start, len)| {
+        // TODO:
+        // SAFETY: this is most likely unsafe
+        unsafe { core::slice::from_raw_parts(start.as_ptr(), len as _) }
+    })
+}
+
+fn read_untrusted_bytes_mut<'a>(ptr: u64, len: u64) -> Result<&'a mut [u8], i64> {
+    read_slice_parts(ptr, len).map(|(start, len)| {
+        // TODO:
+        // SAFETY: this is most likely unsafe
+        unsafe { core::slice::from_raw_parts_mut(start.as_mut_ptr(), len as _) }
+    })
+}
+
+fn read_untrusted_str<'a>(ptr: u64, len: u64) -> Result<&'a str, i64> {
+    core::str::from_utf8(read_untrusted_bytes(ptr, len)?).map_err(|_| -3)
 }

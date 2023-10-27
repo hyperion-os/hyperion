@@ -268,7 +268,7 @@ impl Task {
             nanos: AtomicU64::new(0),
             address_space: AddressSpace::new(PageMap::new()),
             heap_bottom: AtomicUsize::new(0x1000),
-            simple_ipc: SimpleIpc::default(),
+            simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
         });
         PROCESSES
@@ -348,7 +348,7 @@ impl Task {
             nanos: AtomicU64::new(0),
             address_space: AddressSpace::new(PageMap::current()),
             heap_bottom: AtomicUsize::new(0x1000),
-            simple_ipc: SimpleIpc::default(),
+            simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
         });
 
