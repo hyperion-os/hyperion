@@ -1,6 +1,6 @@
 use pc_keyboard::{
     layouts::{AnyLayout, DVP104Key, De105Key, Dvorak104Key, Uk105Key, Us104Key},
-    DecodedKey, HandleControl, KeyState, Keyboard, ScancodeSet1,
+    DecodedKey, HandleControl, KeyCode, KeyState, Keyboard, ScancodeSet1,
 };
 use spin::Mutex;
 
@@ -11,7 +11,10 @@ use crate::event::{ElementState, KeyboardEvent};
 pub(super) fn process(ps2_byte: u8) -> Option<KeyboardEvent> {
     let mut kb = KEYBOARD.lock();
 
-    let event = kb.add_byte(ps2_byte).ok().flatten()?;
+    let mut event = kb.add_byte(ps2_byte).ok().flatten()?;
+    if event.code == KeyCode::Oem7 {
+        event.code = KeyCode::Oem5; // idk, '\' / '|' key isn't working
+    };
 
     let state = match event.state {
         KeyState::Up => ElementState::Release,
@@ -54,6 +57,7 @@ pub fn layouts() -> &'static [&'static str] {
 
 static KEYBOARD: Mutex<Keyboard<AnyLayout, ScancodeSet1>> = Mutex::new(Keyboard::new(
     ScancodeSet1::new(),
+    // AnyLayout::Uk105Key(Uk105Key),
     AnyLayout::Us104Key(Us104Key),
     HandleControl::Ignore,
 ));

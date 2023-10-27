@@ -23,11 +23,15 @@ pub static LAZY: AtomicCell<fn()> = AtomicCell::new(noop);
 
 //
 
-pub fn provide_keyboard_event(ps2_byte: u8) {
+pub fn provide_raw_keyboard_event(ps2_byte: u8) {
     let Some(event) = decode::process(ps2_byte) else {
         return;
     };
 
+    provide_keyboard_event(event);
+}
+
+pub fn provide_keyboard_event(event: KeyboardEvent) {
     let Some(queue) = KEYBOARD_EVENT_QUEUE.get() else {
         warn!("Keyboard event queue not initialized! Lost '{event:?}'");
         return;
