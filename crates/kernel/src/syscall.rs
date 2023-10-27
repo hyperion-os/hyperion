@@ -308,18 +308,16 @@ pub fn send(args: &mut SyscallRegs) -> i64 {
 /// # return codes (in syscall_id after returning)
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
-///  -  `0` : ok
+///  - `0..` : num of bytes read
 pub fn recv(args: &mut SyscallRegs) -> i64 {
-    let buf = match read_untrusted_bytes_mut(args.arg1, args.arg2) {
+    let buf = match read_untrusted_bytes_mut(args.arg0, args.arg1) {
         Ok(v) => v,
         Err(err) => {
             return err;
         }
     };
 
-    hyperion_scheduler::recv_to(buf);
-
-    return 0;
+    return hyperion_scheduler::recv_to(buf) as i64;
 }
 
 //
