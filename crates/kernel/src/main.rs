@@ -20,10 +20,6 @@
 
 //
 
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
-};
 use core::ops::Range;
 
 use hyperion_arch as arch;
@@ -82,75 +78,75 @@ extern "C" fn _start() -> ! {
     // main task(s)
     futures::executor::spawn(kshell::kshell());
 
-    scheduler::schedule(move || {
-        debug!("<Get_Input>");
-        scheduler::rename("<Get_Input>".into());
-
-        let pid = scheduler::process().pid;
-        info!("I am pid:{pid}");
-        debug_assert!(pid.num() == 1);
-        arch::dbg_cpu();
-
-        loop {
-            let messy_string = "abc3de5fgh@lmno&pqr%stuv(w)xyz".to_string();
-            info!("<Get_Input>: '{messy_string}'");
-            scheduler::send(scheduler::task::Pid::new(2), Vec::from(messy_string).into())
-                .expect("send err");
-
-            // wait 2500ms
-            scheduler::sleep(time::Duration::milliseconds(2500));
-        }
-    });
-    scheduler::schedule(move || {
-        debug!("<Clean_Input>");
-        scheduler::rename("<Clean_Input>".into());
-
-        let pid = scheduler::process().pid;
-        info!("I am pid:{pid}");
-        debug_assert!(pid.num() == 2);
-        arch::dbg_cpu();
-
-        loop {
-            let messy_data = scheduler::recv();
-            let messy_string = core::str::from_utf8(&messy_data).expect("data to be UTF-8");
-
-            let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), "");
-            info!("<Clean_Input>: '{clean_string}'");
-
-            scheduler::send(scheduler::task::Pid::new(3), Vec::from(clean_string).into())
-                .expect("send err");
-        }
-    });
-    scheduler::schedule(move || {
-        debug!("<Find_Missing>");
-        scheduler::rename("<Find_Missing>".into());
-
-        let pid = scheduler::process().pid;
-        info!("I am pid:{pid}");
-        debug_assert!(pid.num() == 3);
-        arch::dbg_cpu();
-
-        loop {
-            let data = scheduler::recv();
-            let string = core::str::from_utf8(&data).expect("data to be UTF-8");
-
-            let mut found = [false; 26];
-            for c in string.chars() {
-                found[((c as u8).to_ascii_lowercase() - b'a') as usize] = true;
-            }
-
-            let mut buf = String::new();
-            for missing in found
-                .iter()
-                .enumerate()
-                .filter(|(_, found)| !*found)
-                .map(|(i, _)| i)
-            {
-                buf.push((missing as u8 + b'a') as char);
-            }
-            info!("<Find_Missing>: '{buf}'");
-        }
-    });
+    // scheduler::schedule(move || {
+    //     debug!("<Get_Input>");
+    //     scheduler::rename("<Get_Input>".into());
+    //
+    //     let pid = scheduler::process().pid;
+    //     info!("I am pid:{pid}");
+    //     debug_assert!(pid.num() == 1);
+    //     arch::dbg_cpu();
+    //
+    //     loop {
+    //         let messy_string = "abc3de5fgh@lmno&pqr%stuv(w)xyz".to_string();
+    //         info!("<Get_Input>: '{messy_string}'");
+    //         scheduler::send(scheduler::task::Pid::new(2), Vec::from(messy_string).into())
+    //             .expect("send err");
+    //
+    //         // wait 2500ms
+    //         scheduler::sleep(time::Duration::milliseconds(2500));
+    //     }
+    // });
+    // scheduler::schedule(move || {
+    //     debug!("<Clean_Input>");
+    //     scheduler::rename("<Clean_Input>".into());
+    //
+    //     let pid = scheduler::process().pid;
+    //     info!("I am pid:{pid}");
+    //     debug_assert!(pid.num() == 2);
+    //     arch::dbg_cpu();
+    //
+    //     loop {
+    //         let messy_data = scheduler::recv();
+    //         let messy_string = core::str::from_utf8(&messy_data).expect("data to be UTF-8");
+    //
+    //         let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), "");
+    //         info!("<Clean_Input>: '{clean_string}'");
+    //
+    //         scheduler::send(scheduler::task::Pid::new(3), Vec::from(clean_string).into())
+    //             .expect("send err");
+    //     }
+    // });
+    // scheduler::schedule(move || {
+    //     debug!("<Find_Missing>");
+    //     scheduler::rename("<Find_Missing>".into());
+    //
+    //     let pid = scheduler::process().pid;
+    //     info!("I am pid:{pid}");
+    //     debug_assert!(pid.num() == 3);
+    //     arch::dbg_cpu();
+    //
+    //     loop {
+    //         let data = scheduler::recv();
+    //         let string = core::str::from_utf8(&data).expect("data to be UTF-8");
+    //
+    //         let mut found = [false; 26];
+    //         for c in string.chars() {
+    //             found[((c as u8).to_ascii_lowercase() - b'a') as usize] = true;
+    //         }
+    //
+    //         let mut buf = String::new();
+    //         for missing in found
+    //             .iter()
+    //             .enumerate()
+    //             .filter(|(_, found)| !*found)
+    //             .map(|(i, _)| i)
+    //         {
+    //             buf.push((missing as u8 + b'a') as char);
+    //         }
+    //         info!("<Find_Missing>: '{buf}'");
+    //     }
+    // });
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     boot::smp_init(smp_main);

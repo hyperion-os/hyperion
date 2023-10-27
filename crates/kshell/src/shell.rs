@@ -1,4 +1,9 @@
-use alloc::{format, string::String, sync::Arc, vec::Vec};
+use alloc::{
+    format,
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 use core::{fmt::Write, sync::atomic::Ordering};
 
 use futures_util::stream::select;
@@ -7,7 +12,7 @@ use hyperion_driver_acpi::apic::ApicId;
 use hyperion_futures::timer::{sleep, ticks};
 use hyperion_instant::Instant;
 use hyperion_keyboard::{
-    event::{KeyCode, KeyboardEvent},
+    event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
 use hyperion_mem::pmm;
@@ -15,7 +20,7 @@ use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::{
     idle, schedule,
-    task::{processes, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
+    task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
 use hyperion_vfs::{
     self,
@@ -145,6 +150,9 @@ impl Shell {
             "help" => self.help_cmd(args)?,
             "modeltest" => self.modeltest_cmd(args).await?,
             "run" => self.run_cmd(args)?,
+            "task1" => self.task1_cmd(args).await?,
+            "task2" => self.task2_cmd(args)?,
+            "task3" => self.task3_cmd(args)?,
             "lapic_id" => self.lapic_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
             "nproc" => self.nproc_cmd(args)?,
@@ -403,7 +411,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, ps, nproc, top, send, exit, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, ps, nproc, top, send, exit, clear");
 
         Ok(())
     }
@@ -504,18 +512,78 @@ impl Shell {
     }
 
     fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        Self::run_cmd_as("/bin/run", args);
+        Ok(())
+    }
+
+    async fn task1_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        let task_pid = Self::run_cmd_as("/bin/task1", args);
+
+        let mut events = KeyboardEvents;
+
+        let mut l_ctrl_held = false;
+        while let Some(KeyboardEvent {
+            state,
+            keycode,
+            unicode,
+        }) = events.next().await
+        {
+            if state == ElementState::PressHold && keycode == KeyCode::LControl {
+                l_ctrl_held = true;
+            }
+            if state == ElementState::PressRelease && keycode == KeyCode::LControl {
+                l_ctrl_held = false;
+            }
+
+            if state != ElementState::PressRelease && keycode == KeyCode::C && l_ctrl_held {
+                break;
+            }
+
+            if let Some(unicode) = unicode {
+                _ = write!(self.term, "{unicode}");
+                self.term.flush();
+
+                let mut str = [0; 4];
+                let str = unicode.encode_utf8(&mut str);
+
+                // TODO: buffering
+                if let Err(err) = hyperion_scheduler::send(task_pid, str.as_bytes().to_vec().into())
+                {
+                    return Err(Error::Other {
+                        msg: err.to_string(),
+                    });
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn task2_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        Self::run_cmd_as("/bin/task2", args);
+        Ok(())
+    }
+
+    fn task3_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        Self::run_cmd_as("/bin/task3", args);
+        Ok(())
+    }
+
+    fn run_cmd_as(name: &'static str, args: Option<&str>) -> Pid {
         let args = args.map(String::from);
 
-        schedule(move || {
-            hyperion_scheduler::rename("/bin/run".into());
+        hyperion_log::debug!("spawning {name}");
+        let pid = schedule(move || {
+            hyperion_log::debug!("running {name}");
+            hyperion_scheduler::rename(name.into());
 
-            let args: Vec<&str> = ["/bin/run"] // TODO: actually load binaries from vfs
+            let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
                 .into_iter()
                 .chain(args.as_deref().iter().flat_map(|args| args.split(' ')))
                 .collect();
             let args = &args[..];
 
-            hyperion_log::debug!("spawning \"run\" with args {args:?}");
+            hyperion_log::debug!("spawning \"{name}\" with args {args:?}");
 
             /* hyperion_log::debug!(
                 "ELF file from: {}",
@@ -530,8 +598,8 @@ impl Shell {
                 hyperion_log::debug!("entry point missing");
             }
         });
-
-        Ok(())
+        hyperion_log::debug!("spawning {name} done (PID:{pid})");
+        pid
     }
 
     fn lapic_id_cmd(&mut self, _args: Option<&str>) -> Result<()> {
@@ -628,6 +696,8 @@ impl Shell {
                 });
             }
         };
+
+        let data = data.replace("\\n", "\n");
 
         if let Err(err) = hyperion_scheduler::send(
             hyperion_scheduler::task::Pid::new(pid),

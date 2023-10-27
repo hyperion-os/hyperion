@@ -1,12 +1,12 @@
 #![no_std]
 #![no_main]
-#![feature(format_args_nl)]
+#![feature(format_args_nl, slice_internals)]
 
 //
 
 extern crate alloc;
 
-use alloc::{boxed::Box, sync::Arc};
+use alloc::{boxed::Box, string::String, sync::Arc};
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
@@ -15,30 +15,116 @@ use core::{
 
 use hyperion_syscall::*;
 
+use crate::io::{BufReader, SimpleIpcInputChannel};
+
+//
+
+mod io; // partial std::io
+
 //
 
 pub fn main(args: CliArgs) {
     println!("sample app main");
     println!("args: {args:?}");
 
-    let inc = Arc::new(AtomicUsize::new(0));
+    match args.iter().next().expect("arg0 to be present") {
+        // busybox style single binary 'coreutils'
+        "/bin/run" => {
+            let inc = Arc::new(AtomicUsize::new(0));
 
-    for _n in 0..80 {
-        let inc = inc.clone();
-        spawn(move || {
-            inc.fetch_add(1, Ordering::Relaxed);
-            // println!("print from thread {n}");
-        });
-    }
+            for _n in 0..80 {
+                let inc = inc.clone();
+                spawn(move || {
+                    inc.fetch_add(1, Ordering::Relaxed);
+                    // println!("print from thread {n}");
+                });
+            }
 
-    let mut next = timestamp().unwrap() as u64;
-    for i in next / 1_000_000_000.. {
-        println!("inc at: {}", inc.load(Ordering::Relaxed));
+            let mut next = timestamp().unwrap() as u64;
+            for i in next / 1_000_000_000.. {
+                println!("inc at: {}", inc.load(Ordering::Relaxed));
 
-        nanosleep_until(next);
-        next += 1_000_000_000;
+                nanosleep_until(next);
+                next += 1_000_000_000;
 
-        println!("seconds since boot: {i}");
+                println!("seconds since boot: {i}");
+            }
+        }
+
+        "/bin/task1" => {
+            let pid: u64 = args
+                .iter()
+                .nth(1)
+                .expect("missing arg: PID")
+                .parse()
+                .expect("failed to parse PID");
+
+            let mut line = String::new();
+            loop {
+                line.clear();
+                let mut input_channel = BufReader::new(SimpleIpcInputChannel);
+                input_channel.read_line(&mut line).unwrap();
+
+                let input = line.trim();
+                println!("<Get_Input>: '{input}'");
+                send(pid, input.as_bytes());
+                send(pid, b"\n"); // BufReader::read_line waits for a \n
+            }
+        }
+
+        "/bin/task2" => {
+            let pid: u64 = args
+                .iter()
+                .nth(1)
+                .expect("missing arg: PID")
+                .parse()
+                .expect("failed to parse PID");
+
+            let mut line = String::new();
+            loop {
+                line.clear();
+                let mut input_channel = BufReader::new(SimpleIpcInputChannel);
+                input_channel.read_line(&mut line).unwrap();
+
+                let messy_string = line.trim();
+                let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), "");
+                println!("<Clean_Input>: '{clean_string}'");
+
+                send(pid, clean_string.as_bytes());
+                send(pid, b"\n"); // BufReader::read_line waits for a \n
+            }
+        }
+
+        "/bin/task3" => {
+            let mut line = String::new();
+
+            loop {
+                line.clear();
+                let mut input_channel = BufReader::new(SimpleIpcInputChannel);
+                input_channel.read_line(&mut line).unwrap();
+
+                let mut found = [false; 26];
+                for c in line.trim().chars() {
+                    found[((c as u8).to_ascii_lowercase() - b'a') as usize] = true;
+                }
+
+                let mut buf = String::new();
+                for missing in found
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, found)| !*found)
+                    .map(|(i, _)| i)
+                {
+                    buf.push((missing as u8 + b'a') as char);
+                }
+                println!("<Find_Missing>: '{buf}'");
+
+                // PID 1 is known to be kshell, for now
+                // send(1, buf.as_bytes());
+            }
+        }
+
+        tool => panic!("unknown tool {tool}"),
     }
 }
 
