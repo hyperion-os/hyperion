@@ -144,7 +144,7 @@ pub fn recv() -> Cow<'static, [u8]> {
     ipc::recv()
 }
 
-pub fn recv_to(buf: &mut [u8]) {
+pub fn recv_to(buf: &mut [u8]) -> usize {
     ipc::recv_to(buf)
 }
 
