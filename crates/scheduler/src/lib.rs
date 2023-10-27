@@ -198,8 +198,8 @@ pub fn stop() -> ! {
 /// spawn a new thread in the currently running process
 ///
 /// jumps into user space
-pub fn spawn(fn_ptr: u64, fn_arg: u64) {
-    let thread = Task::thread(task(), move || {
+pub fn spawn_userspace(fn_ptr: u64, fn_arg: u64) {
+    spawn(move || {
         let stack_top = task().user_stack.lock().top;
 
         unsafe {
@@ -211,11 +211,18 @@ pub fn spawn(fn_ptr: u64, fn_arg: u64) {
             )
         };
     });
-    READY.push(thread);
 }
+
 /// spawn a new process running this closure or a function or a task
-pub fn schedule(new: impl Into<Task>) {
-    READY.push(new.into());
+pub fn schedule(new: impl Into<Task>) -> Pid {
+    let task = new.into();
+    let pid = task.pid;
+    READY.push(task);
+    pid
+}
+
+pub fn spawn(new: impl FnOnce() + Send + 'static) {
+    READY.push(Task::thread(task(), new));
 }
 
 fn swap_current(mut new: Task) -> Task {

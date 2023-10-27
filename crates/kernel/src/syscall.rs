@@ -39,9 +39,10 @@ pub fn syscall(args: &mut SyscallRegs) {
         }
     };
 
-    if result < 0 {
+    _ = (result, name);
+    /* if result < 0 {
         debug!("syscall `{name}` (id {id}) returned {result}",);
-    }
+    } */
 }
 
 fn call_id(f: impl FnOnce(&mut SyscallRegs) -> i64, args: &mut SyscallRegs) -> (i64, &str) {
@@ -181,7 +182,7 @@ pub fn open(_args: &mut SyscallRegs) -> i64 {
 ///  - `arg0` : the thread function pointer
 ///  - `arg1` : the thread function argument
 pub fn pthread_spawn(args: &mut SyscallRegs) -> i64 {
-    hyperion_scheduler::spawn(args.arg0, args.arg1);
+    hyperion_scheduler::spawn_userspace(args.arg0, args.arg1);
     return 0;
 }
 
