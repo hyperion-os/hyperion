@@ -1,12 +1,14 @@
 //! Tests should only be ran on a single thread at the moment
 
+use alloc::{format, string::String, vec::Vec};
 use core::{
     any::type_name,
     panic::PanicInfo,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
-use hyperion_log::{print, println, LogLevel};
+use crossbeam::queue::SegQueue;
+use hyperion_log::{error, print, println, LogLevel};
 use spin::Once;
 use x86_64::instructions::port::Port;
 
@@ -21,15 +23,24 @@ pub enum QemuExitCode {
 
 pub trait TestCase: Sync {
     fn run(&self);
+
+    fn should_panic(&self) -> bool {
+        self.name().ends_with("_should_panic")
+    }
+
+    fn name(&self) -> &'static str;
 }
 
 //
 
 impl<F: Fn() + Sync> TestCase for F {
     fn run(&self) {
-        let name = type_name::<Self>();
-        print!(" - {name:.<60}");
+        print!(" - {:.<60}", self.name());
         self();
+    }
+
+    fn name(&self) -> &'static str {
+        type_name::<Self>()
     }
 }
 
@@ -43,18 +54,57 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
 }
 
 pub fn test_runner(tests: &'static [&'static dyn TestCase]) {
-    TESTS.call_once(|| tests);
-
     hyperion_log_multi::set_fbo(LogLevel::None);
     hyperion_log_multi::set_qemu(LogLevel::None);
 
     println!("Running {} tests", tests.len());
-    run_tests();
+    // run_tests();
 
-    exit_qemu(QemuExitCode::Success);
+    for (i, test) in tests.iter().enumerate() {
+        hyperion_scheduler::schedule(move || {
+            let name = test.name();
+            hyperion_scheduler::rename(name.into());
+
+            test.run();
+
+            let should_panic = name.ends_with("should_panic");
+            if should_panic {
+                TESTS_FAILS.push(format!("`{name}` was expected to panic but it didn't"));
+                println!("[err]")
+            } else {
+                println!("[ok]")
+            }
+            TESTS_COMPLETE.fetch_add(1, Ordering::SeqCst);
+        });
+    }
+
+    hyperion_scheduler::schedule(move || loop {
+        let completed = TESTS_COMPLETE.load(Ordering::SeqCst);
+        // println!("completed: {completed}");
+        if completed != tests.len() {
+            hyperion_scheduler::yield_now_wait();
+            continue;
+        }
+
+        let mut fails = false;
+        while let Some(err) = TESTS_FAILS.pop() {
+            error!("ERROR: {err}");
+        }
+
+        if fails {
+            exit_qemu(QemuExitCode::Failed)
+        } else {
+            exit_qemu(QemuExitCode::Success)
+        }
+    });
+
+    hyperion_scheduler::init();
 }
 
-pub fn next_test() -> Option<&'static dyn TestCase> {
+static TESTS_COMPLETE: AtomicUsize = AtomicUsize::new(0);
+static TESTS_FAILS: SegQueue<String> = SegQueue::new();
+
+/* pub fn next_test() -> Option<&'static dyn TestCase> {
     TESTS
         .get()
         .and_then(|tests| tests.get(IDX.fetch_add(1, Ordering::SeqCst)))
@@ -69,22 +119,24 @@ pub fn run_tests() {
 
         verify_outcome(None);
     }
-}
+} */
 
-pub fn test_panic_handler(info: &PanicInfo) {
-    verify_outcome(Some(info));
+pub fn test_panic_handler(info: &PanicInfo) -> ! {
+    let name = hyperion_scheduler::task().name.read().clone();
+    let should_panic = name.ends_with("should_panic");
 
-    // a hack to keep running tests even tho a panic happened
-    run_tests();
-
-    if SUCCESSFUL.load(Ordering::SeqCst) {
-        exit_qemu(QemuExitCode::Success);
+    if !should_panic {
+        TESTS_FAILS.push(format!("`{name}` paniced unexpectedly"));
+        println!("[err]")
     } else {
-        exit_qemu(QemuExitCode::Failed);
+        println!("[ok]")
     }
+    TESTS_COMPLETE.fetch_add(1, Ordering::SeqCst);
+
+    hyperion_scheduler::stop();
 }
 
-pub fn verify_outcome(panic_info: Option<&PanicInfo>) {
+/* pub fn verify_outcome(panic_info: Option<&PanicInfo>) {
     if NEXT_SHOULD_PANIC.load(Ordering::SeqCst) == panic_info.is_some() {
         println!("[ok]");
     } else {
@@ -110,7 +162,7 @@ static IDX: AtomicUsize = AtomicUsize::new(0);
 // TODO: thread local
 static NEXT_SHOULD_PANIC: AtomicBool = AtomicBool::new(false);
 // TODO: thread local
-static SUCCESSFUL: AtomicBool = AtomicBool::new(true);
+static SUCCESSFUL: AtomicBool = AtomicBool::new(true); */
 
 #[cfg(test)]
 mod tests {
@@ -125,7 +177,6 @@ mod tests {
     #[test_case]
     fn should_panic() {
         // mark this test to be a panic=success
-        super::should_panic();
         assert_eq!(0, 1);
     }
 }

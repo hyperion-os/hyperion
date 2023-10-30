@@ -17,9 +17,8 @@ fn panic_handler(info: &PanicInfo) -> ! {
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     int::disable();
-    panic_unwind(info);
+    // panic_unwind(info);
     crate::testfw::test_panic_handler(info);
-    done();
 }
 
 fn panic_unwind(info: &PanicInfo) {

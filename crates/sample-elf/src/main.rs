@@ -52,7 +52,7 @@ pub fn main(args: CliArgs) {
         }
 
         "/bin/task1" => {
-            rename("<Get_Input>");
+            rename("<Get_Input>").unwrap();
 
             let pid: u64 = args
                 .iter()
@@ -75,7 +75,7 @@ pub fn main(args: CliArgs) {
         }
 
         "/bin/task2" => {
-            rename("<Clean_Input>");
+            rename("<Clean_Input>").unwrap();
 
             let pid: u64 = args
                 .iter()
@@ -100,7 +100,7 @@ pub fn main(args: CliArgs) {
         }
 
         "/bin/task3" => {
-            rename("<Find_Missing>");
+            rename("<Find_Missing>").unwrap();
 
             let mut line = String::new();
 

@@ -503,6 +503,7 @@ dependencies = [
 name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
+ "crossbeam",
  "futures-util",
  "hyperion-arch",
  "hyperion-backtrace",
