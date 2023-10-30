@@ -245,6 +245,17 @@
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
 <a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![no_main]
 #![feature(format_args_nl, slice_internals)]
@@ -279,10 +290,13 @@
         </span><span class="string">&quot;/bin/run&quot; </span>=&gt; {
             <span class="kw">let </span>inc = Arc::new(AtomicUsize::new(<span class="number">0</span>));
 
-            <span class="kw">for </span>_n <span class="kw">in </span><span class="number">0</span>..<span class="number">80 </span>{
+            <span class="kw">for </span>_n <span class="kw">in </span><span class="number">0</span>..<span class="number">1 </span>{
                 <span class="kw">let </span>inc = inc.clone();
                 spawn(<span class="kw">move </span>|| {
+                    <span class="macro">println!</span>(<span class="string">&quot;thread inc ptr: {:0x}&quot;</span>, inc.as_ref() <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize);
+                    <span class="macro">println!</span>(<span class="string">&quot;thread inc ptr: {:0x}&quot;</span>, inc.as_ref() <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize);
                     inc.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
+                    <span class="macro">println!</span>(<span class="string">&quot;thread inc ptr: {:0x}&quot;</span>, inc.as_ref() <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize);
                     <span class="comment">// println!(&quot;print from thread {n}&quot;);
                 </span>});
             }
@@ -432,7 +446,10 @@
 <span class="kw">unsafe impl </span>GlobalAlloc <span class="kw">for </span>PageAlloc {
     <span class="kw">unsafe fn </span>alloc(<span class="kw-2">&amp;</span><span class="self">self</span>, layout: core::alloc::Layout) -&gt; <span class="kw-2">*mut </span>u8 {
         <span class="kw">let </span>pages = layout.size().div_ceil(<span class="number">0x1000</span>);
-        palloc(pages <span class="kw">as </span>u64).expect(<span class="string">&quot;page alloc&quot;</span>) <span class="kw">as </span><span class="kw-2">*mut </span>u8
+
+        <span class="kw">let </span>res = palloc(pages <span class="kw">as </span>u64);
+        <span class="comment">// println!(&quot;alloc syscall res: {res:?}&quot;);
+        </span>res.expect(<span class="string">&quot;page alloc&quot;</span>)
     }
 
     <span class="kw">unsafe fn </span>dealloc(<span class="kw-2">&amp;</span><span class="self">self</span>, ptr: <span class="kw-2">*mut </span>u8, layout: core::alloc::Layout) {
@@ -479,17 +496,22 @@
 }
 
 <span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>_thread_entry(_stack_ptr: u64, arg: u64) -&gt; ! {
+    <span class="macro">println!</span>(<span class="string">&quot;_thread_entry&quot;</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;_thread_entry {_stack_ptr} {arg}&quot;</span>);
     <span class="kw">let </span>f_fatptr_box: <span class="kw-2">*mut </span>Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt; = arg <span class="kw">as _</span>;
     <span class="kw">let </span>f_fatptr: Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt; = <span class="kw-2">*</span><span class="kw">unsafe </span>{ Box::from_raw(f_fatptr_box) };
 
+    <span class="macro">println!</span>(<span class="string">&quot;addr {:0x}&quot;</span>, (<span class="kw-2">&amp;*</span>f_fatptr) <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span><span class="kw-2">*const </span>() <span class="kw">as </span>usize);
+
     f_fatptr();
+    <span class="macro">println!</span>(<span class="string">&quot;_thread_entry f call&quot;</span>);
 
     exit(<span class="number">0</span>);
 }
 
 <span class="attr">#[panic_handler]
 </span><span class="kw">fn </span>panic_handler(info: <span class="kw-2">&amp;</span>core::panic::PanicInfo) -&gt; ! {
-    <span class="macro">println!</span>(<span class="string">&quot;{info}&quot;</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;sample-elf: {info}&quot;</span>);
     exit(-<span class="number">1</span>);
 }
 </code></pre></div></section></main></body></html>

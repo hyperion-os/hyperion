@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["panic_handler","panic_unwind"]};
+window.SIDEBAR_ITEMS = {"fn":["panic_handler"]};

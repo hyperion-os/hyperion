@@ -439,6 +439,18 @@
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
 <a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Physical memory management
 //!
 //! Page frame allocating
@@ -561,13 +573,25 @@
             core::panic::Location::caller()
         ); */
 
-        </span><span class="kw">let </span><span class="kw-2">mut </span>bitmap = <span class="self">self</span>.bitmap.lock();
+        // TODO: lock-less page alloc
 
+        </span><span class="attr">#[inline(never)]
+        </span><span class="kw">fn </span>force_stack_grow() {
+            <span class="kw">let </span><span class="kw-2">mut </span>v = [<span class="number">0u64</span>; <span class="number">0x200</span>];
+            <span class="kw">let </span>v = core::hint::black_box(<span class="kw-2">&amp;mut </span>v);
+            v.fill(<span class="number">5</span>);
+            core::hint::black_box(v);
+        }
+
+        force_stack_grow();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>bitmap = <span class="self">self</span>.bitmap.lock();
         <span class="kw">let </span>first_page = <span class="self">self</span>.alloc_at(<span class="kw-2">&amp;mut </span>bitmap, count).unwrap_or_else(|| {
             <span class="comment">// TODO: handle OOM a bit better
             </span><span class="self">self</span>.alloc_from(<span class="number">0</span>);
             <span class="self">self</span>.alloc_at(<span class="kw-2">&amp;mut </span>bitmap, count).expect(<span class="string">&quot;OOM&quot;</span>)
         });
+        drop(bitmap);
 
         <span class="self">self</span>.alloc_from(first_page + count);
 

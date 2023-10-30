@@ -191,15 +191,15 @@
             )<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
 
             </span>$(
-                lateout(<span class="string">&quot;rax&quot;</span>) <span class="macro-nonterminal">$ret0</span>,
+                lateout(<span class="string">&quot;rdi&quot;</span>) <span class="macro-nonterminal">$ret0</span>,
             $(
-                lateout(<span class="string">&quot;rdi&quot;</span>) <span class="macro-nonterminal">$ret1</span>,
+                lateout(<span class="string">&quot;rsi&quot;</span>) <span class="macro-nonterminal">$ret1</span>,
             $(
-                lateout(<span class="string">&quot;rsi&quot;</span>) <span class="macro-nonterminal">$ret2</span>,
+                lateout(<span class="string">&quot;rdx&quot;</span>) <span class="macro-nonterminal">$ret2</span>,
             $(
-                lateout(<span class="string">&quot;rdx&quot;</span>)  <span class="macro-nonterminal">$ret3</span>,
+                lateout(<span class="string">&quot;r8&quot;</span>)  <span class="macro-nonterminal">$ret3</span>,
             $(
-                lateout(<span class="string">&quot;r8&quot;</span>)  <span class="macro-nonterminal">$ret4</span>,
+                lateout(<span class="string">&quot;r9&quot;</span>)  <span class="macro-nonterminal">$ret4</span>,
             )<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
         </span>)
     };
@@ -272,7 +272,7 @@
 
 <span class="doccomment">/// allocate physical pages and map to heap
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>palloc(pages: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">*mut </span>(), i64&gt; {
+</span><span class="kw">pub fn </span>palloc(pages: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">*mut </span>u8, i64&gt; {
     <span class="kw">let </span>result: i64;
     <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">9</span>, { pages }, { result }) };
     <span class="kw">if </span>result &gt;= <span class="number">0 </span>{

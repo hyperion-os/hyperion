@@ -709,8 +709,6 @@
 <a href="#709" id="709">709</a>
 <a href="#710" id="710">710</a>
 <a href="#711" id="711">711</a>
-<a href="#712" id="712">712</a>
-<a href="#713" id="713">713</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     format,
     string::{String, ToString},
@@ -782,7 +780,7 @@
         <span class="kw">let </span>cmdbuf = <span class="self">self</span>.cmdbuf.clone();
         <span class="kw">let </span><span class="kw-2">mut </span>cmdbuf = cmdbuf.lock();
 
-        <span class="kw">if </span>ev.keycode == KeyCode::Home {
+        <span class="kw">if </span>ev.state == ElementState::PressHold &amp;&amp; ev.keycode == KeyCode::Home {
             <span class="kw">_ </span>= <span class="self">self</span>.run_cmd(<span class="prelude-val">None</span>);
             <span class="kw">return </span><span class="prelude-val">Some</span>(());
         }
@@ -1285,9 +1283,7 @@
     <span class="kw">fn </span>run_cmd_as(name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; Pid {
         <span class="kw">let </span>args = args.map(String::from);
 
-        <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;spawning {name}&quot;</span>);
         <span class="kw">let </span>pid = schedule(<span class="kw">move </span>|| {
-            <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;running {name}&quot;</span>);
             hyperion_scheduler::rename(name.into());
 
             <span class="kw">let </span>args: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = [name] <span class="comment">// TODO: actually load binaries from vfs
@@ -1298,11 +1294,11 @@
 
             <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;spawning \&quot;{name}\&quot; with args {args:?}&quot;</span>);
 
-            <span class="comment">/* hyperion_log::debug!(
-                &quot;ELF file from: {}&quot;,
-                env!(&quot;CARGO_BIN_FILE_HYPERION_SAMPLE_ELF&quot;)
-            ); */
-            </span><span class="kw">let </span>elf_bytes = <span class="macro">include_bytes!</span>(<span class="macro">env!</span>(<span class="string">&quot;CARGO_BIN_FILE_HYPERION_SAMPLE_ELF&quot;</span>));
+            <span class="macro">hyperion_log::debug!</span>(
+                <span class="string">&quot;ELF file from: {}&quot;</span>,
+                <span class="macro">env!</span>(<span class="string">&quot;CARGO_BIN_FILE_HYPERION_SAMPLE_ELF&quot;</span>)
+            );
+            <span class="kw">let </span>elf_bytes = <span class="macro">include_bytes!</span>(<span class="macro">env!</span>(<span class="string">&quot;CARGO_BIN_FILE_HYPERION_SAMPLE_ELF&quot;</span>));
             <span class="kw">let </span>loader = hyperion_loader::Loader::new(elf_bytes);
 
             loader.load();

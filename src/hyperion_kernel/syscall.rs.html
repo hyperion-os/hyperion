@@ -379,10 +379,6 @@
 <a href="#379" id="379">379</a>
 <a href="#380" id="380">380</a>
 <a href="#381" id="381">381</a>
-<a href="#382" id="382">382</a>
-<a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::string::ToString;
 <span class="kw">use </span>core::{any::type_name_of_val, sync::atomic::Ordering};
 
@@ -419,11 +415,7 @@
 
         <span class="kw">_ </span>=&gt; {
             <span class="macro">debug!</span>(<span class="string">&quot;invalid syscall&quot;</span>);
-            <span class="comment">// invalid syscall id, kill the process as a f u
-            </span>args.syscall_id = <span class="number">2</span>;
-            args.arg0 = i64::MIN <span class="kw">as _</span>;
-            exit(args);
-            (<span class="number">2</span>, <span class="string">&quot;invalid&quot;</span>)
+            hyperion_scheduler::stop();
         }
     };
 
@@ -436,7 +428,7 @@
 <span class="kw">fn </span>call_id(f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64, args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; (i64, <span class="kw-2">&amp;</span>str) {
     <span class="kw">let </span>name = type_name_of_val(<span class="kw-2">&amp;</span>f);
     <span class="kw">let </span>res = f(args);
-    args.syscall_id = res <span class="kw">as _</span>;
+    args.arg0 = res <span class="kw">as _</span>;
     (res, name)
 }
 
@@ -447,7 +439,7 @@
 ///  - `arg0` : _utf8 string address_
 ///  - `arg1` : _utf8 string length_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 ///  - `1` : invalid address range (arg0 .. arg1)
 ///  - `2` : address range not mapped for the user (arg0 .. arg1)
@@ -468,7 +460,7 @@
 ///  - `syscall_id` : 2
 ///  - `arg0` : _exit code_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 /// _won&#39;t return_
 </span><span class="kw">pub fn </span>exit(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
     <span class="comment">// TODO: exit code
@@ -480,7 +472,7 @@
 /// # arguments
 ///  - `syscall_id` : 3
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 </span><span class="kw">pub fn </span>yield_now(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
     hyperion_scheduler::yield_now();
@@ -493,19 +485,19 @@
 ///  - `syscall_id` : 4
 ///
 /// # return values
-///  - `arg0` : lower 64 bits of the 128 bit timestamp
-///  - `arg1` : upper 64 bits of the 128 bit timestamp
+///  - `arg1` : lower 64 bits of the 128 bit timestamp
+///  - `arg2` : upper 64 bits of the 128 bit timestamp
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 </span><span class="kw">pub fn </span>timestamp(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
     <span class="kw">let </span>nanos = HPET.nanos();
 
     <span class="comment">/* let bytes = nanos.to_ne_bytes();
-    args.arg0 = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
-    args.arg1 = u64::from_ne_bytes(bytes[8..16].try_into().unwrap()); */
-    </span>args.arg0 = nanos <span class="kw">as </span>u64;
-    args.arg1 = (nanos &gt;&gt; <span class="number">64</span>) <span class="kw">as </span>u64;
+    args.arg1 = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
+    args.arg2 = u64::from_ne_bytes(bytes[8..16].try_into().unwrap()); */
+    </span>args.arg1 = nanos <span class="kw">as </span>u64;
+    args.arg2 = (nanos &gt;&gt; <span class="number">64</span>) <span class="kw">as </span>u64;
 
     <span class="kw">return </span><span class="number">0</span>;
 }
@@ -517,7 +509,7 @@
 ///  - `arg0` : lower 64 bits of the 128 bit duration
 ///  - `arg1` : _todo_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 </span><span class="kw">pub fn </span>nanosleep(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
     hyperion_scheduler::sleep(Duration::nanoseconds((args.arg0 <span class="kw">as </span>i64).max(<span class="number">0</span>)));
@@ -531,7 +523,7 @@
 ///  - `arg0` : lower 64 bits of the 128 bit timestamp
 ///  - `arg1` : _todo_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 </span><span class="kw">pub fn </span>nanosleep_until(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
     hyperion_scheduler::sleep_until(Instant::new(args.arg0 <span class="kw">as </span>u128));
@@ -545,7 +537,7 @@
 ///  - `arg0` : filename : _utf8 string address_
 ///  - `arg1` : filename : _utf8 string length_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-3` : invalid utf8
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
@@ -580,7 +572,7 @@
 ///  - `syscall_id` : 9
 ///  - `arg0` : page count
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-2` : out of virtual memory
 ///  - `-1` : out of memory
 ///  - `0..` : virtual alloc address
@@ -619,7 +611,7 @@
 ///  - `arg0` : page
 ///  - `arg1` : page count
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-2` : invalid ptr
 ///  - `-1` : invalid alloc
 ///  - `0`  : ok
@@ -663,7 +655,7 @@
 ///  - `arg1`       : data ptr
 ///  - `arg2`       : data len (bytes)
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-3` : no such process
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
@@ -693,7 +685,7 @@
 ///  - `arg0`       : data ptr
 ///  - `arg1`       : data len (bytes)
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
 ///  - `0..` : num of bytes read
@@ -715,7 +707,7 @@
 ///  - `arg0` : filename : _utf8 string address_
 ///  - `arg1` : filename : _utf8 string length_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-3` : invalid utf8
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
