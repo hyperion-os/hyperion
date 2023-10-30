@@ -67,8 +67,8 @@ pub fn main(args: CliArgs) {
 
                 let input = line.trim();
                 println!("<Get_Input>: '{input}'");
-                send(pid, input.as_bytes());
-                send(pid, b"\n"); // BufReader::read_line waits for a \n
+                send(pid, input.as_bytes()).unwrap();
+                send(pid, b"\n").unwrap(); // BufReader::read_line waits for a \n
             }
         }
 
@@ -90,8 +90,8 @@ pub fn main(args: CliArgs) {
                 let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), "");
                 println!("<Clean_Input>: '{clean_string}'");
 
-                send(pid, clean_string.as_bytes());
-                send(pid, b"\n"); // BufReader::read_line waits for a \n
+                send(pid, clean_string.as_bytes()).unwrap();
+                send(pid, b"\n").unwrap(); // BufReader::read_line waits for a \n
             }
         }
 
@@ -179,18 +179,12 @@ pub struct PageAlloc;
 unsafe impl GlobalAlloc for PageAlloc {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         let pages = layout.size().div_ceil(0x1000);
-        let alloc = palloc(pages as u64);
-
-        if alloc <= 0 {
-            panic!("page alloc failed: {alloc}");
-        }
-
-        alloc as *mut u8
+        palloc(pages as u64).expect("page alloc") as *mut u8
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
         let pages = layout.size().div_ceil(0x1000);
-        pfree(ptr as u64, pages as u64);
+        assert!(pfree(ptr as u64, pages as u64).is_ok());
     }
 }
 
@@ -204,7 +198,7 @@ fn spawn(f: impl FnOnce() + Send + 'static) {
     let f_fatptr: Box<dyn FnOnce() + Send + 'static> = Box::new(f);
     let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = Box::into_raw(Box::new(f_fatptr));
 
-    pthread_spawn(_thread_entry, f_fatptr_box as u64);
+    pthread_spawn(_thread_entry, f_fatptr_box as _);
 }
 
 fn _print(args: fmt::Arguments) {
@@ -214,11 +208,7 @@ fn _print(args: fmt::Arguments) {
 
     impl Write for SyscallLog {
         fn write_str(&mut self, s: &str) -> fmt::Result {
-            if hyperion_syscall::log(s) == 0 {
-                Ok(())
-            } else {
-                Err(fmt::Error)
-            }
+            hyperion_syscall::log(s).map_err(|_| fmt::Error)
         }
     }
 
@@ -230,7 +220,7 @@ fn _print(args: fmt::Arguments) {
 #[no_mangle]
 extern "C" fn _start(a0: u64) -> ! {
     main(CliArgs {
-        hyperion_cli_args_ptr: a0,
+        hyperion_cli_args_ptr: a0 as _,
     });
     exit(0);
 }

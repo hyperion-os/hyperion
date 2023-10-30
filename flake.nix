@@ -31,6 +31,7 @@
             })
             cargo-udeps
             cargo-nextest
+            cargo-expand
             act
             lld_16
             clang_16

@@ -15,6 +15,7 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 pub fn syscall(args: &mut SyscallRegs) {
     let id = args.syscall_id;
+    // debug!("syscall {id}");
     let (result, name): (i64, &str) = match id {
         1 => call_id(log, args),
         2 | 420 => call_id(exit, args),
@@ -40,9 +41,9 @@ pub fn syscall(args: &mut SyscallRegs) {
     };
 
     _ = (result, name);
-    /* if result < 0 {
-        debug!("syscall `{name}` (id {id}) returned {result}",);
-    } */
+    // if result < 0 {
+    //     debug!("syscall `{name}` (id {id}) returned {result}",);
+    // }
 }
 
 fn call_id(f: impl FnOnce(&mut SyscallRegs) -> i64, args: &mut SyscallRegs) -> (i64, &str) {

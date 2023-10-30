@@ -26,15 +26,15 @@ macro_rules! syscall {
             )?)?)?)?)?
 
             $(
-                lateout("rdi") $ret0,
+                lateout("rax") $ret0,
             $(
-                lateout("rsi") $ret1,
+                lateout("rdi") $ret1,
             $(
-                lateout("rdx") $ret2,
+                lateout("rsi") $ret2,
             $(
-                lateout("r8")  $ret3,
+                lateout("rdx")  $ret3,
             $(
-                lateout("r9")  $ret4,
+                lateout("r8")  $ret4,
             )?)?)?)?)?
         )
     };
@@ -44,19 +44,23 @@ macro_rules! syscall {
 
 /// print a string into kernel logs
 #[inline(always)]
-pub fn log(str: &str) -> usize {
+pub fn log(str: &str) -> Result<(), u64> {
     // TODO: should null terminated strings be used instead to save registers?
     // decide later™
 
-    let result: usize;
-    unsafe { syscall!(1, { str.as_ptr() as usize, str.len() }, { result }) };
-    result
+    let result: u64;
+    unsafe { syscall!(1, { str.as_ptr() as u64, str.len() }, { result }) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(result)
+    }
 }
 
 /// exit the process with a code
 #[inline(always)]
-pub fn exit(code: isize) -> ! {
-    unsafe { syscall!(2, { code as usize }, {}) };
+pub fn exit(code: i64) -> ! {
+    unsafe { syscall!(2, { code as u64 }, {}) };
     unreachable!();
 }
 
@@ -83,7 +87,7 @@ pub fn timestamp() -> Result<u128, u64> {
 
 /// context switch from this process and switch back when `nanos` nanoseconds have passed
 #[inline(always)]
-pub fn nanosleep(nanos: usize) {
+pub fn nanosleep(nanos: u64) {
     unsafe { syscall!(5, { nanos }, {}) };
 }
 
@@ -97,100 +101,54 @@ pub fn nanosleep_until(deadline_nanos: u64) {
 
 /// spawn a new pthread for the same process
 #[inline(always)]
-pub fn pthread_spawn(thread_entry: extern "C" fn(usize, usize) -> !, arg: usize) {
-    unsafe { syscall!(8, { thread_entry as usize, arg }, {}) };
+pub fn pthread_spawn(thread_entry: extern "C" fn(u64, u64) -> !, arg: u64) {
+    unsafe { syscall!(8, { thread_entry as usize as u64, arg }, {}) };
 }
 
 /// allocate physical pages and map to heap
 #[inline(always)]
-pub fn palloc(pages: usize) -> Result<*mut (), usize> {
-    unsafe { syscall!(9, { pages }, {}) };
+pub fn palloc(pages: u64) -> Result<*mut (), i64> {
+    let result: i64;
+    unsafe { syscall!(9, { pages }, { result }) };
+    if result >= 0 {
+        Ok(result as _)
+    } else {
+        Err(result)
+    }
 }
 
 /// deallocate physical pages and unmap from heap
 #[inline(always)]
-pub fn pfree(ptr: u64, pages: u64) -> i64 {
-    unsafe { trigger_syscall(10, ptr, pages, 0, 0, 0) as i64 }
+pub fn pfree(ptr: u64, pages: u64) -> Result<(), i64> {
+    let result: i64;
+    unsafe { syscall!(10, { ptr, pages }, { result }) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(result)
+    }
 }
 
 /// send data to a PID based single naïve IPC channel
 #[inline(always)]
-pub fn send(target: u64, data: &[u8]) -> i64 {
-    unsafe { trigger_syscall(11, target, data.as_ptr() as u64, data.len() as u64, 0, 0) as i64 }
+pub fn send(target: u64, data: &[u8]) -> Result<(), i64> {
+    let result: i64;
+    unsafe { syscall!(11, { target, data.as_ptr() as u64, data.len() as u64 }, { result }) };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(result)
+    }
 }
 
 /// read data from a PID based single naïve IPC channel
 #[inline(always)]
-pub fn recv(buf: &mut [u8]) -> i64 {
-    unsafe { trigger_syscall(12, buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0, 0) as i64 }
-}
-
-/// # Safety
-/// the `syscall_id` and its arguments have to be valid or this program could accidentally close
-/// itself or share its memory or something
-#[inline(always)]
-pub unsafe extern "C" fn trigger_syscall_0_1(
-    syscall_id: usize,
-    // arg0: u64,
-    // arg1: u64,
-    // arg2: u64,
-    // arg3: u64,
-    // arg4: u64,
-) -> usize {
-    let result: usize;
-    unsafe {
-        core::arch::asm!(
-            "syscall",
-            in("rax") syscall_id,
-            // in("rdi") arg0,
-            // in("rsi") arg1,
-            // in("rdx") arg2,
-            // in("r8") arg3,
-            // in("r9") arg4,
-            lateout("rax") result,
-        );
+pub fn recv(buf: &mut [u8]) -> Result<u64, i64> {
+    let result: i64;
+    unsafe { syscall!(12, { buf.as_mut_ptr() as u64, buf.len() as u64 }, { result }) };
+    if result >= 0 {
+        Ok(result as _)
+    } else {
+        Err(result)
     }
-    result
 }
-
-/// # Safety
-/// the `syscall_id` and its arguments have to be valid or this program could accidentally close
-/// itself or share its memory or something
-#[inline(always)]
-pub unsafe extern "C" fn trigger_syscall_1(
-    syscall_id: usize,
-    arg0: usize,
-    // arg1: u64,
-    // arg2: u64,
-    // arg3: u64,
-    // arg4: u64,
-) -> usize {
-    let result: usize;
-    unsafe {
-        core::arch::asm!(
-            "syscall",
-            in("rax") syscall_id,
-            in("rdi") arg0,
-            // in("rsi") arg1,
-            // in("rdx") arg2,
-            // in("r8") arg3,
-            // in("r9") arg4,
-            lateout("rax") result
-        );
-    }
-    result
-}
-
-/* #[inline(always)]
-pub extern "C" fn trigger_syscall(
-    _rdi: u64,
-    _rsi: u64,
-    _rdx: u64,
-    _rcx_ignored: u64,
-    _r8: u64,
-    _r9: u64,
-) {
-    unsafe {
-        core::arch::asm!("syscall");
-    }
-} */
