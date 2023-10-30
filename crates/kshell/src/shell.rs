@@ -572,9 +572,7 @@ impl Shell {
     fn run_cmd_as(name: &'static str, args: Option<&str>) -> Pid {
         let args = args.map(String::from);
 
-        hyperion_log::debug!("spawning {name}");
         let pid = schedule(move || {
-            hyperion_log::debug!("running {name}");
             hyperion_scheduler::rename(name.into());
 
             let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
