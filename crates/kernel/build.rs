@@ -3,7 +3,7 @@ use std::{env::var, error::Error};
 //
 
 fn main() -> Result<(), Box<dyn Error>> {
-    println!("cargo:rerun-if-changed=kernel/build.rs");
+    println!("cargo:rerun-if-changed=./build.rs");
     println!("cargo:rerun-if-changed=../../Cargo.lock");
 
     let kernel = var("CARGO_PKG_NAME")?;
