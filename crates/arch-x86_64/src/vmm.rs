@@ -148,6 +148,7 @@ impl PageMapImpl for PageMap {
 
     fn new() -> Self {
         let frame = pmm::PFA.alloc(1);
+        hyperion_log::debug!("pm:new 1");
         let new_table: &mut PageTable = unsafe { &mut *frame.virtual_addr().as_mut_ptr() };
 
         new_table.zero();
@@ -155,6 +156,7 @@ impl PageMapImpl for PageMap {
         let mut offs =
             unsafe { OffsetPageTable::new(new_table, VirtAddr::new(hyperion_boot::hhdm_offset())) };
 
+        hyperion_log::debug!("pm:new 2");
         /* let page = Page::containing_address(CURRENT_ADDRESS_SPACE);
         offs.map_to(page, frame, flags, frame_allocator); */
 
@@ -166,15 +168,18 @@ impl PageMapImpl for PageMap {
             frame.physical_addr(),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         );
+        hyperion_log::debug!("pm:new 3");
         assert!(!l3.is_unused());
         let l3 = unsafe { read_table_mut(l3.addr()) };
         l3[510].set_addr(l3_510.0, l3_510.1);
         l3[511].set_addr(l3_511.0, l3_511.1);
+        hyperion_log::debug!("pm:new 4");
 
         // TODO: Copy on write maps
 
         let offs = RwLock::new(offs);
         let page_map = Self { offs };
+        hyperion_log::debug!("pm:new 5");
 
         // hyperion_log::debug!("higher half direct map");
         // TODO: pmm::PFA.allocations();
@@ -182,6 +187,7 @@ impl PageMapImpl for PageMap {
             HIGHER_HALF_DIRECT_MAPPING.as_u64(),
             hyperion_boot::hhdm_offset()
         );
+        hyperion_log::debug!("pm:new 6");
         page_map.map(
             HIGHER_HALF_DIRECT_MAPPING..HIGHER_HALF_DIRECT_MAPPING + 0x100000000u64, // KERNEL_STACKS,
             PhysAddr::new(0x0),

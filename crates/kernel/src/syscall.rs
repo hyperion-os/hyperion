@@ -60,10 +60,10 @@ fn call_id(f: impl FnOnce(&mut SyscallRegs) -> i64, args: &mut SyscallRegs) -> (
 ///  - `arg1` : _utf8 string length_
 ///
 /// # return codes (in syscall_id after returning)
-///  - `-3` : invalid utf8
-///  - `-2` : address range not mapped for the user (arg0 .. arg1)
-///  - `-1` : invalid address range (arg0 .. arg1)
 ///  - `0` : ok
+///  - `1` : invalid address range (arg0 .. arg1)
+///  - `2` : address range not mapped for the user (arg0 .. arg1)
+///  - `3` : invalid utf8
 pub fn log(args: &mut SyscallRegs) -> i64 {
     let str = match read_untrusted_str(args.arg0, args.arg1) {
         Ok(v) => v,

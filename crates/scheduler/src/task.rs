@@ -262,18 +262,25 @@ impl Task {
     pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Task {
         trace!("initializing task {name}");
 
+        hyperion_log::debug!("task init1");
+        let page_map = PageMap::new();
+        hyperion_log::debug!("task init2");
+        let address_space = AddressSpace::new(page_map);
+        hyperion_log::debug!("task init3");
         let process = Arc::new(Process {
             pid: Pid::next(),
             name: RwLock::new(name),
             nanos: AtomicU64::new(0),
-            address_space: AddressSpace::new(PageMap::new()),
+            address_space,
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
         });
+        hyperion_log::debug!("insert proc");
         PROCESSES
             .lock()
             .insert(process.pid, Arc::downgrade(&process));
+        hyperion_log::debug!("insert proc done");
 
         let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
