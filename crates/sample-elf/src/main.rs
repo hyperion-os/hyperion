@@ -32,10 +32,13 @@ pub fn main(args: CliArgs) {
         "/bin/run" => {
             let inc = Arc::new(AtomicUsize::new(0));
 
-            for _n in 0..80 {
+            for _n in 0..1 {
                 let inc = inc.clone();
                 spawn(move || {
+                    println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
+                    println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
                     inc.fetch_add(1, Ordering::Relaxed);
+                    println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
                     // println!("print from thread {n}");
                 });
             }
@@ -185,7 +188,10 @@ pub struct PageAlloc;
 unsafe impl GlobalAlloc for PageAlloc {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         let pages = layout.size().div_ceil(0x1000);
-        palloc(pages as u64).expect("page alloc") as *mut u8
+
+        let res = palloc(pages as u64);
+        // println!("alloc syscall res: {res:?}");
+        res.expect("page alloc") as *mut u8
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
@@ -232,16 +238,21 @@ extern "C" fn _start(a0: u64) -> ! {
 }
 
 extern "C" fn _thread_entry(_stack_ptr: u64, arg: u64) -> ! {
+    println!("_thread_entry");
+    println!("_thread_entry {_stack_ptr} {arg}");
     let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = arg as _;
     let f_fatptr: Box<dyn FnOnce() + Send + 'static> = *unsafe { Box::from_raw(f_fatptr_box) };
 
+    println!("addr {:0x}", (&*f_fatptr) as *const _ as *const () as usize);
+
     f_fatptr();
+    println!("_thread_entry f call");
 
     exit(0);
 }
 
 #[panic_handler]
 fn panic_handler(info: &core::panic::PanicInfo) -> ! {
-    println!("{info}");
+    println!("sample-elf: {info}");
     exit(-1);
 }

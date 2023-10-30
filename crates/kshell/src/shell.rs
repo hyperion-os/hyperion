@@ -69,7 +69,7 @@ impl Shell {
         let cmdbuf = self.cmdbuf.clone();
         let mut cmdbuf = cmdbuf.lock();
 
-        if ev.keycode == KeyCode::Home {
+        if ev.state == ElementState::PressHold && ev.keycode == KeyCode::Home {
             _ = self.run_cmd(None);
             return Some(());
         }
@@ -583,10 +583,10 @@ impl Shell {
 
             hyperion_log::debug!("spawning \"{name}\" with args {args:?}");
 
-            /* hyperion_log::debug!(
+            hyperion_log::debug!(
                 "ELF file from: {}",
                 env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF")
-            ); */
+            );
             let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
             let loader = hyperion_loader::Loader::new(elf_bytes);
 

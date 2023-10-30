@@ -26,15 +26,15 @@ macro_rules! syscall {
             )?)?)?)?)?
 
             $(
-                lateout("rax") $ret0,
+                lateout("rdi") $ret0,
             $(
-                lateout("rdi") $ret1,
+                lateout("rsi") $ret1,
             $(
-                lateout("rsi") $ret2,
+                lateout("rdx") $ret2,
             $(
-                lateout("rdx")  $ret3,
+                lateout("r8")  $ret3,
             $(
-                lateout("r8")  $ret4,
+                lateout("r9")  $ret4,
             )?)?)?)?)?
         )
     };
@@ -107,7 +107,7 @@ pub fn pthread_spawn(thread_entry: extern "C" fn(u64, u64) -> !, arg: u64) {
 
 /// allocate physical pages and map to heap
 #[inline(always)]
-pub fn palloc(pages: u64) -> Result<*mut (), i64> {
+pub fn palloc(pages: u64) -> Result<*mut u8, i64> {
     let result: i64;
     unsafe { syscall!(9, { pages }, { result }) };
     if result >= 0 {

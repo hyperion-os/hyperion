@@ -34,11 +34,7 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         _ => {
             debug!("invalid syscall");
-            // invalid syscall id, kill the process as a f u
-            args.syscall_id = 2;
-            args.arg0 = i64::MIN as _;
-            exit(args);
-            (2, "invalid")
+            hyperion_scheduler::stop();
         }
     };
 
@@ -51,7 +47,7 @@ pub fn syscall(args: &mut SyscallRegs) {
 fn call_id(f: impl FnOnce(&mut SyscallRegs) -> i64, args: &mut SyscallRegs) -> (i64, &str) {
     let name = type_name_of_val(&f);
     let res = f(args);
-    args.syscall_id = res as _;
+    args.arg0 = res as _;
     (res, name)
 }
 
@@ -62,7 +58,7 @@ fn call_id(f: impl FnOnce(&mut SyscallRegs) -> i64, args: &mut SyscallRegs) -> (
 ///  - `arg0` : _utf8 string address_
 ///  - `arg1` : _utf8 string length_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 ///  - `1` : invalid address range (arg0 .. arg1)
 ///  - `2` : address range not mapped for the user (arg0 .. arg1)
@@ -83,7 +79,7 @@ pub fn log(args: &mut SyscallRegs) -> i64 {
 ///  - `syscall_id` : 2
 ///  - `arg0` : _exit code_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 /// _won't return_
 pub fn exit(_args: &mut SyscallRegs) -> i64 {
     // TODO: exit code
@@ -95,7 +91,7 @@ pub fn exit(_args: &mut SyscallRegs) -> i64 {
 /// # arguments
 ///  - `syscall_id` : 3
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 pub fn yield_now(_args: &mut SyscallRegs) -> i64 {
     hyperion_scheduler::yield_now();
@@ -108,19 +104,19 @@ pub fn yield_now(_args: &mut SyscallRegs) -> i64 {
 ///  - `syscall_id` : 4
 ///
 /// # return values
-///  - `arg0` : lower 64 bits of the 128 bit timestamp
-///  - `arg1` : upper 64 bits of the 128 bit timestamp
+///  - `arg1` : lower 64 bits of the 128 bit timestamp
+///  - `arg2` : upper 64 bits of the 128 bit timestamp
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 pub fn timestamp(args: &mut SyscallRegs) -> i64 {
     let nanos = HPET.nanos();
 
     /* let bytes = nanos.to_ne_bytes();
-    args.arg0 = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
-    args.arg1 = u64::from_ne_bytes(bytes[8..16].try_into().unwrap()); */
-    args.arg0 = nanos as u64;
-    args.arg1 = (nanos >> 64) as u64;
+    args.arg1 = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
+    args.arg2 = u64::from_ne_bytes(bytes[8..16].try_into().unwrap()); */
+    args.arg1 = nanos as u64;
+    args.arg2 = (nanos >> 64) as u64;
 
     return 0;
 }
@@ -132,7 +128,7 @@ pub fn timestamp(args: &mut SyscallRegs) -> i64 {
 ///  - `arg0` : lower 64 bits of the 128 bit duration
 ///  - `arg1` : _todo_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 pub fn nanosleep(args: &mut SyscallRegs) -> i64 {
     hyperion_scheduler::sleep(Duration::nanoseconds((args.arg0 as i64).max(0)));
@@ -146,7 +142,7 @@ pub fn nanosleep(args: &mut SyscallRegs) -> i64 {
 ///  - `arg0` : lower 64 bits of the 128 bit timestamp
 ///  - `arg1` : _todo_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `0` : ok
 pub fn nanosleep_until(args: &mut SyscallRegs) -> i64 {
     hyperion_scheduler::sleep_until(Instant::new(args.arg0 as u128));
@@ -160,7 +156,7 @@ pub fn nanosleep_until(args: &mut SyscallRegs) -> i64 {
 ///  - `arg0` : filename : _utf8 string address_
 ///  - `arg1` : filename : _utf8 string length_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-3` : invalid utf8
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
@@ -195,7 +191,7 @@ pub fn pthread_spawn(args: &mut SyscallRegs) -> i64 {
 ///  - `syscall_id` : 9
 ///  - `arg0` : page count
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-2` : out of virtual memory
 ///  - `-1` : out of memory
 ///  - `0..` : virtual alloc address
@@ -234,7 +230,7 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
 ///  - `arg0` : page
 ///  - `arg1` : page count
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-2` : invalid ptr
 ///  - `-1` : invalid alloc
 ///  - `0`  : ok
@@ -278,7 +274,7 @@ pub fn pfree(args: &mut SyscallRegs) -> i64 {
 ///  - `arg1`       : data ptr
 ///  - `arg2`       : data len (bytes)
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-3` : no such process
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
@@ -308,7 +304,7 @@ pub fn send(args: &mut SyscallRegs) -> i64 {
 ///  - `arg0`       : data ptr
 ///  - `arg1`       : data len (bytes)
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
 ///  - `0..` : num of bytes read
@@ -330,7 +326,7 @@ pub fn recv(args: &mut SyscallRegs) -> i64 {
 ///  - `arg0` : filename : _utf8 string address_
 ///  - `arg1` : filename : _utf8 string length_
 ///
-/// # return codes (in syscall_id after returning)
+/// # return codes (in arg0 after returning)
 ///  - `-3` : invalid utf8
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
