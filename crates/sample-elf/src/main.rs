@@ -52,6 +52,8 @@ pub fn main(args: CliArgs) {
         }
 
         "/bin/task1" => {
+            rename("<Get_Input>");
+
             let pid: u64 = args
                 .iter()
                 .nth(1)
@@ -73,6 +75,8 @@ pub fn main(args: CliArgs) {
         }
 
         "/bin/task2" => {
+            rename("<Clean_Input>");
+
             let pid: u64 = args
                 .iter()
                 .nth(1)
@@ -96,6 +100,8 @@ pub fn main(args: CliArgs) {
         }
 
         "/bin/task3" => {
+            rename("<Find_Missing>");
+
             let mut line = String::new();
 
             loop {

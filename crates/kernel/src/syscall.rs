@@ -1,3 +1,4 @@
+use alloc::string::ToString;
 use core::{any::type_name_of_val, sync::atomic::Ordering};
 
 use hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
@@ -29,6 +30,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         10 => call_id(pfree, args),
         11 => call_id(send, args),
         12 => call_id(recv, args),
+        13 => call_id(rename, args),
 
         _ => {
             debug!("invalid syscall");
@@ -319,6 +321,29 @@ pub fn recv(args: &mut SyscallRegs) -> i64 {
     };
 
     return hyperion_scheduler::recv_to(buf) as i64;
+}
+
+/// rename the current process
+///
+/// # arguments
+///  - `syscall_id` : 13
+///  - `arg0` : filename : _utf8 string address_
+///  - `arg1` : filename : _utf8 string length_
+///
+/// # return codes (in syscall_id after returning)
+///  - `-3` : invalid utf8
+///  - `-2` : address range not mapped for the user (arg0 .. arg1)
+///  - `-1` : invalid address range (arg0 .. arg1)
+///  - `0`  : ok
+pub fn rename(args: &mut SyscallRegs) -> i64 {
+    let new_name = match read_untrusted_str(args.arg0, args.arg1) {
+        Ok(v) => v,
+        Err(err) => return err,
+    };
+
+    hyperion_scheduler::rename(new_name.to_string().into());
+
+    return 0;
 }
 
 //

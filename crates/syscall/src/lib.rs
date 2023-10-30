@@ -142,12 +142,23 @@ pub fn send(target: u64, data: &[u8]) -> Result<(), i64> {
 }
 
 /// read data from a PID based single naïve IPC channel
-#[inline(always)]
 pub fn recv(buf: &mut [u8]) -> Result<u64, i64> {
     let result: i64;
     unsafe { syscall!(12, { buf.as_mut_ptr() as u64, buf.len() as u64 }, { result }) };
     if result >= 0 {
         Ok(result as _)
+    } else {
+        Err(result)
+    }
+}
+
+/// rename the current process
+#[inline(always)]
+pub fn rename(new_name: &str) -> Result<(), i64> {
+    let result: i64;
+    unsafe { syscall!(13, { new_name.as_ptr() as u64, new_name.len() as u64 }, { result }) };
+    if result == 0 {
+        Ok(())
     } else {
         Err(result)
     }
