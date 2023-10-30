@@ -4,7 +4,7 @@ use std::{env::var, error::Error};
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=kernel/build.rs");
-    println!("cargo:rerun-if-changed=Cargo.lock");
+    println!("cargo:rerun-if-changed=../../Cargo.lock");
 
     let kernel = var("CARGO_PKG_NAME")?;
     println!("cargo:rerun-if-env-changed=CARGO_PKG_NAME .");
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("cargo:rustc-link-arg-bin={kernel}=--script={script}");
         // println!("cargo:rustc-link-arg-bin={kernel}=-T");
         // println!("cargo:rustc-link-arg-bin={kernel}={script}");
-        println!("cargo:rerun-if-changed={script}");
+        println!("cargo:rerun-if-changed=../../{script}");
     } else {
         println!("cargo:warning=No bootloaders given");
         panic!();

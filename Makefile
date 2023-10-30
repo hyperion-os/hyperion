@@ -56,13 +56,13 @@ CARGO_FLAGS      += --target=${RUST_T_${ARCH}}
 CARGO_FLAGS      += --package=hyperion-kernel
 KERNEL           := ${CARGO_DIR}/hyperion-kernel
 KERNEL_TESTING   := ${KERNEL}-testing
-KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion.d)) src/testfw.rs
+KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion-kernel.d))
 
 # gdb
 override GDB_FLAGS += --eval-command="target remote localhost:1234"
 override GDB_FLAGS += --eval-command="symbol-file ${KERNEL}"
 
-${KERNEL_SRC}:
+# ./crates/kernel/Cargo.lock:
 
 # hyperion kernel compilation
 ${KERNEL}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
