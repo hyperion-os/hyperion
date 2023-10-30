@@ -120,13 +120,25 @@ impl PageFrameAllocator {
             core::panic::Location::caller()
         ); */
 
-        let mut bitmap = self.bitmap.lock();
+        // TODO: lock-less page alloc
 
+        #[inline(never)]
+        fn force_stack_grow() {
+            let mut v = [0u64; 0x200];
+            let v = core::hint::black_box(&mut v);
+            v.fill(5);
+            core::hint::black_box(v);
+        }
+
+        force_stack_grow();
+
+        let mut bitmap = self.bitmap.lock();
         let first_page = self.alloc_at(&mut bitmap, count).unwrap_or_else(|| {
             // TODO: handle OOM a bit better
             self.alloc_from(0);
             self.alloc_at(&mut bitmap, count).expect("OOM")
         });
+        drop(bitmap);
 
         self.alloc_from(first_page + count);
 
