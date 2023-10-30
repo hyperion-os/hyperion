@@ -34,6 +34,12 @@ impl SimpleIpc {
     }
 }
 
+impl Default for SimpleIpc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 //
 
 pub fn start_waiting(task: Task) {
