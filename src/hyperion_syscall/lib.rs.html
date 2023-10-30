@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/syscall/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_syscall" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (aa1a71e9e 2023-10-26)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-5f34af1a0ee6bacd.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/syscall/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_syscall" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (608e9682f 2023-10-29)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -119,29 +119,109 @@
 <a href="#119" id="119">119</a>
 <a href="#120" id="120">120</a>
 <a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="comment">//
 
-</span><span class="doccomment">/// print a string kernel logs
+</span><span class="macro">macro_rules! </span>syscall {
+    (<span class="macro-nonterminal">$id</span>:literal,
+     <span class="comment">// wtf:
+     </span>{ $(<span class="macro-nonterminal">$arg0</span>:expr $(,<span class="macro-nonterminal">$arg1</span>:expr $(,<span class="macro-nonterminal">$arg2</span>:expr $(,<span class="macro-nonterminal">$arg3</span>:expr $(,<span class="macro-nonterminal">$arg4</span>:expr $(,)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">? </span>},
+     { $(<span class="macro-nonterminal">$ret0</span>:expr $(,<span class="macro-nonterminal">$ret1</span>:expr $(,<span class="macro-nonterminal">$ret2</span>:expr $(,<span class="macro-nonterminal">$ret3</span>:expr $(,<span class="macro-nonterminal">$ret4</span>:expr $(,)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">? </span>}) =&gt; {
+
+
+        <span class="macro">core::arch::asm!</span>(
+            <span class="string">&quot;syscall&quot;</span>,
+            <span class="kw">in</span>(<span class="string">&quot;rax&quot;</span>) <span class="macro-nonterminal">$id</span>,
+
+            $(
+                <span class="kw">in</span>(<span class="string">&quot;rdi&quot;</span>) <span class="macro-nonterminal">$arg0</span>,
+            $(
+                <span class="kw">in</span>(<span class="string">&quot;rsi&quot;</span>) <span class="macro-nonterminal">$arg1</span>,
+            $(
+                <span class="kw">in</span>(<span class="string">&quot;rdx&quot;</span>) <span class="macro-nonterminal">$arg2</span>,
+            $(
+                <span class="kw">in</span>(<span class="string">&quot;r8&quot;</span>)  <span class="macro-nonterminal">$arg3</span>,
+            $(
+                <span class="kw">in</span>(<span class="string">&quot;r9&quot;</span>)  <span class="macro-nonterminal">$arg4</span>,
+            )<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
+
+            </span>$(
+                lateout(<span class="string">&quot;rax&quot;</span>) <span class="macro-nonterminal">$ret0</span>,
+            $(
+                lateout(<span class="string">&quot;rdi&quot;</span>) <span class="macro-nonterminal">$ret1</span>,
+            $(
+                lateout(<span class="string">&quot;rsi&quot;</span>) <span class="macro-nonterminal">$ret2</span>,
+            $(
+                lateout(<span class="string">&quot;rdx&quot;</span>)  <span class="macro-nonterminal">$ret3</span>,
+            $(
+                lateout(<span class="string">&quot;r8&quot;</span>)  <span class="macro-nonterminal">$ret4</span>,
+            )<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
+        </span>)
+    };
+}
+
+<span class="comment">//
+
+</span><span class="doccomment">/// print a string into kernel logs
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>log(str: <span class="kw-2">&amp;</span>str) -&gt; u64 {
+</span><span class="kw">pub fn </span>log(str: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), u64&gt; {
     <span class="comment">// TODO: should null terminated strings be used instead to save registers?
     // decide later™
-    </span><span class="kw">unsafe </span>{ trigger_syscall(<span class="number">1</span>, str.as_ptr() <span class="kw">as </span>u64, str.len() <span class="kw">as </span>u64, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) }
+
+    </span><span class="kw">let </span>result: u64;
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">1</span>, { str.as_ptr() <span class="kw">as </span>u64, str.len() }, { result }) };
+    <span class="kw">if </span>result == <span class="number">0 </span>{
+        <span class="prelude-val">Ok</span>(())
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Err</span>(result)
+    }
 }
 
 <span class="doccomment">/// exit the process with a code
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>exit(code: i64) -&gt; ! {
-    <span class="kw">unsafe </span>{ trigger_syscall(<span class="number">2</span>, code <span class="kw">as </span>u64, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) };
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">2</span>, { code <span class="kw">as </span>u64 }, {}) };
     <span class="macro">unreachable!</span>();
 }
 
 <span class="doccomment">/// context switch from this process, no guarantees about actually switching
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>yield_now() {
-    <span class="kw">unsafe </span>{ trigger_syscall(<span class="number">3</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) };
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">3</span>, {}, {}) };
 }
 
 <span class="doccomment">/// u128 nanoseconds since boot
@@ -150,15 +230,7 @@
     <span class="kw">let </span>result: u64;
     <span class="kw">let </span>lower: u64;
     <span class="kw">let </span>upper: u64;
-    <span class="kw">unsafe </span>{
-        <span class="macro">core::arch::asm!</span>(
-            <span class="string">&quot;syscall&quot;</span>,
-            <span class="kw">in</span>(<span class="string">&quot;rax&quot;</span>) <span class="number">4</span>,
-            lateout(<span class="string">&quot;rax&quot;</span>) result,
-            lateout(<span class="string">&quot;rdi&quot;</span>) lower,
-            lateout(<span class="string">&quot;rsi&quot;</span>) upper,
-        );
-    }
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">4</span>, {}, { result, lower, upper }) };
 
     <span class="kw">if </span>result == <span class="number">0 </span>{
         <span class="prelude-val">Ok</span>(lower <span class="kw">as </span>u128 | (upper <span class="kw">as </span>u128) &lt;&lt; <span class="number">64</span>)
@@ -170,7 +242,7 @@
 <span class="doccomment">/// context switch from this process and switch back when `nanos` nanoseconds have passed
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>nanosleep(nanos: u64) {
-    <span class="kw">unsafe </span>{ trigger_syscall(<span class="number">5</span>, nanos, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) };
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">5</span>, { nanos }, {}) };
 }
 
 <span class="doccomment">/// context switch from this process and switch back when [`timestamp()`] &gt; `deadline_nanos`
@@ -178,66 +250,60 @@
 /// might not happen immediately when it is true
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>nanosleep_until(deadline_nanos: u64) {
-    <span class="kw">unsafe </span>{ trigger_syscall(<span class="number">6</span>, deadline_nanos, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) };
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">6</span>, { deadline_nanos }, {}) };
 }
 
 <span class="doccomment">/// spawn a new pthread for the same process
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>pthread_spawn(thread_entry: <span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(u64, u64) -&gt; !, arg: u64) {
-    <span class="kw">unsafe </span>{ trigger_syscall(<span class="number">8</span>, thread_entry <span class="kw">as </span>usize <span class="kw">as _</span>, arg, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) };
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">8</span>, { thread_entry <span class="kw">as </span>usize <span class="kw">as </span>u64, arg }, {}) };
 }
 
 <span class="doccomment">/// allocate physical pages and map to heap
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>palloc(pages: u64) -&gt; i64 {
-    <span class="kw">unsafe </span>{ trigger_syscall(<span class="number">9</span>, pages, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) <span class="kw">as </span>i64 }
+</span><span class="kw">pub fn </span>palloc(pages: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">*mut </span>(), i64&gt; {
+    <span class="kw">let </span>result: i64;
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">9</span>, { pages }, { result }) };
+    <span class="kw">if </span>result &gt;= <span class="number">0 </span>{
+        <span class="prelude-val">Ok</span>(result <span class="kw">as _</span>)
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Err</span>(result)
+    }
 }
 
 <span class="doccomment">/// deallocate physical pages and unmap from heap
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>pfree(ptr: u64, pages: u64) -&gt; i64 {
-    <span class="kw">unsafe </span>{ trigger_syscall(<span class="number">10</span>, ptr, pages, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) <span class="kw">as </span>i64 }
+</span><span class="kw">pub fn </span>pfree(ptr: u64, pages: u64) -&gt; <span class="prelude-ty">Result</span>&lt;(), i64&gt; {
+    <span class="kw">let </span>result: i64;
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">10</span>, { ptr, pages }, { result }) };
+    <span class="kw">if </span>result == <span class="number">0 </span>{
+        <span class="prelude-val">Ok</span>(())
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Err</span>(result)
+    }
 }
 
-<span class="doccomment">/// # Safety
-/// the `syscall_id` and its arguments have to be valid or this program could accidentally close
-/// itself or share its memory or something
+<span class="doccomment">/// send data to a PID based single naïve IPC channel
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub unsafe extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>trigger_syscall(
-    syscall_id: u64,
-    arg0: u64,
-    arg1: u64,
-    arg2: u64,
-    arg3: u64,
-    arg4: u64,
-) -&gt; u64 {
-    <span class="kw">let </span>result: u64;
-    <span class="kw">unsafe </span>{
-        <span class="macro">core::arch::asm!</span>(
-            <span class="string">&quot;syscall&quot;</span>,
-            <span class="kw">in</span>(<span class="string">&quot;rax&quot;</span>) syscall_id,
-            <span class="kw">in</span>(<span class="string">&quot;rdi&quot;</span>) arg0,
-            <span class="kw">in</span>(<span class="string">&quot;rsi&quot;</span>) arg1,
-            <span class="kw">in</span>(<span class="string">&quot;rdx&quot;</span>) arg2,
-            <span class="kw">in</span>(<span class="string">&quot;r8&quot;</span>) arg3,
-            <span class="kw">in</span>(<span class="string">&quot;r9&quot;</span>) arg4,
-            lateout(<span class="string">&quot;rax&quot;</span>) result
-        );
+</span><span class="kw">pub fn </span>send(target: u64, data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), i64&gt; {
+    <span class="kw">let </span>result: i64;
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">11</span>, { target, data.as_ptr() <span class="kw">as </span>u64, data.len() <span class="kw">as </span>u64 }, { result }) };
+    <span class="kw">if </span>result == <span class="number">0 </span>{
+        <span class="prelude-val">Ok</span>(())
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Err</span>(result)
     }
-    result
 }
 
-<span class="comment">/* #[inline(always)]
-pub extern &quot;C&quot; fn trigger_syscall(
-    _rdi: u64,
-    _rsi: u64,
-    _rdx: u64,
-    _rcx_ignored: u64,
-    _r8: u64,
-    _r9: u64,
-) {
-    unsafe {
-        core::arch::asm!(&quot;syscall&quot;);
+<span class="doccomment">/// read data from a PID based single naïve IPC channel
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>recv(buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;u64, i64&gt; {
+    <span class="kw">let </span>result: i64;
+    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">12</span>, { buf.as_mut_ptr() <span class="kw">as </span>u64, buf.len() <span class="kw">as </span>u64 }, { result }) };
+    <span class="kw">if </span>result &gt;= <span class="number">0 </span>{
+        <span class="prelude-val">Ok</span>(result <span class="kw">as _</span>)
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Err</span>(result)
     }
-} */
-</span></code></pre></div></section></main></body></html>
+}
+</code></pre></div></section></main></body></html>

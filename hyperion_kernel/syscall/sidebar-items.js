@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["call_id","exit","log","nanosleep","nanosleep_until","open","palloc","pfree","pthread_spawn","read_untrusted_str","syscall","timestamp","yield_now"]};
+window.SIDEBAR_ITEMS = {"fn":["call_id","exit","log","nanosleep","nanosleep_until","open","palloc","pfree","pthread_spawn","read_slice_parts","read_untrusted_bytes","read_untrusted_bytes_mut","read_untrusted_str","recv","send","syscall","timestamp","yield_now"]};

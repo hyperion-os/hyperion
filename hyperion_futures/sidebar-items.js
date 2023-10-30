@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["executor","keyboard","task","timer"]};
+window.SIDEBAR_ITEMS = {"mod":["executor","keyboard","mpmc","task","timer"]};
