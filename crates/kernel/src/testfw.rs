@@ -8,7 +8,7 @@ use core::{
 };
 
 use crossbeam::queue::SegQueue;
-use hyperion_log::{error, print, println, LogLevel};
+use hyperion_log::{debug, error, print, println, LogLevel};
 use spin::Once;
 use x86_64::instructions::port::Port;
 
@@ -78,23 +78,26 @@ pub fn test_runner(tests: &'static [&'static dyn TestCase]) {
         });
     }
 
-    hyperion_scheduler::schedule(move || loop {
-        let completed = TESTS_COMPLETE.load(Ordering::SeqCst);
-        // println!("completed: {completed}");
-        if completed != tests.len() {
-            hyperion_scheduler::yield_now_wait();
-            continue;
-        }
+    hyperion_scheduler::schedule(move || {
+        hyperion_scheduler::rename("testfw waiter".into());
+        loop {
+            let completed = TESTS_COMPLETE.load(Ordering::SeqCst);
+            // println!("completed: {completed}");
+            if completed != tests.len() {
+                hyperion_scheduler::yield_now();
+                continue;
+            }
 
-        let mut fails = false;
-        while let Some(err) = TESTS_FAILS.pop() {
-            error!("ERROR: {err}");
-        }
+            let mut fails = false;
+            while let Some(err) = TESTS_FAILS.pop() {
+                error!("ERROR: {err}");
+            }
 
-        if fails {
-            exit_qemu(QemuExitCode::Failed)
-        } else {
-            exit_qemu(QemuExitCode::Success)
+            if fails {
+                exit_qemu(QemuExitCode::Failed)
+            } else {
+                exit_qemu(QemuExitCode::Success)
+            }
         }
     });
 

@@ -132,51 +132,13 @@ mod tests {
 
     #[test_case]
     fn scheduler_simple_ipc_test() {
-        return;
-        scheduler::schedule(move || {
-            scheduler::rename("<Get_Input>".into());
+        let self_pid = scheduler::process().pid;
 
-            let pid = scheduler::process().pid;
-            info!("I am pid:{pid}");
-            debug_assert!(pid.num() == 1);
-            arch::dbg_cpu();
-
-            loop {
-                let messy_string = "abc3de5fgh@lmno&pqr%stuv(w)xyz".to_string();
-                info!("<Get_Input>: '{messy_string}'");
-                scheduler::send(scheduler::task::Pid::new(2), Vec::from(messy_string).into())
-                    .expect("send err");
-
-                // wait 2500ms
-                scheduler::sleep(time::Duration::milliseconds(2500));
-            }
-        });
-        scheduler::schedule(move || {
-            scheduler::rename("<Clean_Input>".into());
-
-            let pid = scheduler::process().pid;
-            info!("I am pid:{pid}");
-            debug_assert!(pid.num() == 2);
-            arch::dbg_cpu();
-
-            loop {
-                let messy_data = scheduler::recv();
-                let messy_string = core::str::from_utf8(&messy_data).expect("data to be UTF-8");
-
-                let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), "");
-                info!("<Clean_Input>: '{clean_string}'");
-
-                scheduler::send(scheduler::task::Pid::new(3), Vec::from(clean_string).into())
-                    .expect("send err");
-            }
-        });
-        scheduler::schedule(move || {
+        let task_3_pid = scheduler::schedule(move || {
             scheduler::rename("<Find_Missing>".into());
 
-            let pid = scheduler::process().pid;
-            info!("I am pid:{pid}");
-            debug_assert!(pid.num() == 3);
-            arch::dbg_cpu();
+            // let pid = scheduler::process().pid;
+            // info!("I am pid:{pid}");
 
             loop {
                 let data = scheduler::recv();
@@ -196,8 +158,46 @@ mod tests {
                 {
                     buf.push((missing as u8 + b'a') as char);
                 }
-                info!("<Find_Missing>: '{buf}'");
+                // println!("<Find_Missing>: '{buf}'");
+
+                scheduler::send(self_pid, Vec::from(buf).into()).expect("send err");
             }
         });
+
+        let task_2_pid = scheduler::schedule(move || {
+            scheduler::rename("<Clean_Input>".into());
+
+            // let pid = scheduler::process().pid;
+            // info!("I am pid:{pid}");
+
+            loop {
+                let messy_data = scheduler::recv();
+                let messy_string = core::str::from_utf8(&messy_data).expect("data to be UTF-8");
+
+                let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), "");
+                // println!("<Clean_Input>: '{clean_string}'");
+
+                scheduler::send(task_3_pid, Vec::from(clean_string).into()).expect("send err");
+            }
+        });
+
+        scheduler::schedule(move || {
+            scheduler::rename("<Get_Input>".into());
+
+            // let pid = scheduler::process().pid;
+            // info!("I am pid:{pid}");
+
+            loop {
+                let messy_string = "abc3de5fgh@lmno&pqr%stuv(w)xyz".to_string();
+                // println!("<Get_Input>: '{messy_string}'");
+                scheduler::send(task_2_pid, Vec::from(messy_string).into()).expect("send err");
+
+                // wait 2500ms
+                scheduler::sleep(time::Duration::milliseconds(2500));
+            }
+        });
+
+        let result = scheduler::recv();
+        assert_eq!(&result[..], &b"ijk"[..])
     }
 }
