@@ -120,6 +120,7 @@
 <a href="#120" id="120">120</a>
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::borrow::Cow;
 
 <span class="kw">use </span>crossbeam_queue::{ArrayQueue, SegQueue};
@@ -202,7 +203,8 @@
     <span class="kw">let </span>data = recv_with(<span class="kw-2">&amp;</span>proc);
 
     <span class="comment">// limit buf to be at most the length of available data
-    </span><span class="kw">let </span>buf = <span class="kw-2">&amp;mut </span>buf[..data.len().min(data.len())];
+    </span><span class="kw">let </span>limit = buf.len().min(data.len());
+    <span class="kw">let </span>buf = <span class="kw-2">&amp;mut </span>buf[..limit];
 
     <span class="comment">// fill the buf and send the rest to tail
     </span><span class="kw">let </span>(buf_data, left) = data.split_at(buf.len());
@@ -217,7 +219,7 @@
 
     buf.copy_from_slice(buf_data);
 
-    buf.len()
+    limit
 }
 
 <span class="kw">fn </span>recv_with(proc: <span class="kw-2">&amp;</span>Process) -&gt; Cow&lt;<span class="lifetime">&#39;static</span>, [u8]&gt; {

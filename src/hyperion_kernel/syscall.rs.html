@@ -358,7 +358,33 @@
 <a href="#358" id="358">358</a>
 <a href="#359" id="359">359</a>
 <a href="#360" id="360">360</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>core::{any::type_name_of_val, sync::atomic::Ordering};
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>alloc::string::ToString;
+<span class="kw">use </span>core::{any::type_name_of_val, sync::atomic::Ordering};
 
 <span class="kw">use </span>hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
 <span class="kw">use </span>hyperion_drivers::acpi::hpet::HPET;
@@ -389,6 +415,7 @@
         <span class="number">10 </span>=&gt; call_id(pfree, args),
         <span class="number">11 </span>=&gt; call_id(send, args),
         <span class="number">12 </span>=&gt; call_id(recv, args),
+        <span class="number">13 </span>=&gt; call_id(rename, args),
 
         <span class="kw">_ </span>=&gt; {
             <span class="macro">debug!</span>(<span class="string">&quot;invalid syscall&quot;</span>);
@@ -679,6 +706,29 @@
     };
 
     <span class="kw">return </span>hyperion_scheduler::recv_to(buf) <span class="kw">as </span>i64;
+}
+
+<span class="doccomment">/// rename the current process
+///
+/// # arguments
+///  - `syscall_id` : 13
+///  - `arg0` : filename : _utf8 string address_
+///  - `arg1` : filename : _utf8 string length_
+///
+/// # return codes (in syscall_id after returning)
+///  - `-3` : invalid utf8
+///  - `-2` : address range not mapped for the user (arg0 .. arg1)
+///  - `-1` : invalid address range (arg0 .. arg1)
+///  - `0`  : ok
+</span><span class="kw">pub fn </span>rename(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+    <span class="kw">let </span>new_name = <span class="kw">match </span>read_untrusted_str(args.arg0, args.arg1) {
+        <span class="prelude-val">Ok</span>(v) =&gt; v,
+        <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span>err,
+    };
+
+    hyperion_scheduler::rename(new_name.to_string().into());
+
+    <span class="kw">return </span><span class="number">0</span>;
 }
 
 <span class="comment">//

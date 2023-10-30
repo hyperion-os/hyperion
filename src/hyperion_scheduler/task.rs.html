@@ -473,13 +473,6 @@
 <a href="#473" id="473">473</a>
 <a href="#474" id="474">474</a>
 <a href="#475" id="475">475</a>
-<a href="#476" id="476">476</a>
-<a href="#477" id="477">477</a>
-<a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a>
-<a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     borrow::Cow,
     boxed::Box,
@@ -744,25 +737,18 @@
     <span class="kw">pub fn </span>new_any(f: Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt;, name: Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;) -&gt; Task {
         <span class="macro">trace!</span>(<span class="string">&quot;initializing task {name}&quot;</span>);
 
-        <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;task init1&quot;</span>);
-        <span class="kw">let </span>page_map = PageMap::new();
-        <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;task init2&quot;</span>);
-        <span class="kw">let </span>address_space = AddressSpace::new(page_map);
-        <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;task init3&quot;</span>);
         <span class="kw">let </span>process = Arc::new(Process {
             pid: Pid::next(),
             name: RwLock::new(name),
             nanos: AtomicU64::new(<span class="number">0</span>),
-            address_space,
+            address_space: AddressSpace::new(PageMap::new()),
             heap_bottom: AtomicUsize::new(<span class="number">0x1000</span>),
             simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
         });
-        <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;insert proc&quot;</span>);
         PROCESSES
             .lock()
             .insert(process.pid, Arc::downgrade(<span class="kw-2">&amp;</span>process));
-        <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;insert proc done&quot;</span>);
 
         <span class="kw">let </span>kernel_stack = process.address_space.take_kernel_stack_prealloc(<span class="number">1</span>);
         <span class="kw">let </span>stack_top = kernel_stack.top;

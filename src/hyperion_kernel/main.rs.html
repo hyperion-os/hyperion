@@ -187,6 +187,20 @@
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
 </pre></div><pre class="rust"><code><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">&quot;../../../README.md&quot;</span>)]
 </span><span class="comment">//
 </span><span class="attr">#![no_std]
@@ -267,77 +281,7 @@
     <span class="comment">// main task(s)
     </span>futures::executor::spawn(kshell::kshell());
 
-    <span class="comment">// scheduler::schedule(move || {
-    //     debug!(&quot;&lt;Get_Input&gt;&quot;);
-    //     scheduler::rename(&quot;&lt;Get_Input&gt;&quot;.into());
-    //
-    //     let pid = scheduler::process().pid;
-    //     info!(&quot;I am pid:{pid}&quot;);
-    //     debug_assert!(pid.num() == 1);
-    //     arch::dbg_cpu();
-    //
-    //     loop {
-    //         let messy_string = &quot;abc3de5fgh@lmno&amp;pqr%stuv(w)xyz&quot;.to_string();
-    //         info!(&quot;&lt;Get_Input&gt;: &#39;{messy_string}&#39;&quot;);
-    //         scheduler::send(scheduler::task::Pid::new(2), Vec::from(messy_string).into())
-    //             .expect(&quot;send err&quot;);
-    //
-    //         // wait 2500ms
-    //         scheduler::sleep(time::Duration::milliseconds(2500));
-    //     }
-    // });
-    // scheduler::schedule(move || {
-    //     debug!(&quot;&lt;Clean_Input&gt;&quot;);
-    //     scheduler::rename(&quot;&lt;Clean_Input&gt;&quot;.into());
-    //
-    //     let pid = scheduler::process().pid;
-    //     info!(&quot;I am pid:{pid}&quot;);
-    //     debug_assert!(pid.num() == 2);
-    //     arch::dbg_cpu();
-    //
-    //     loop {
-    //         let messy_data = scheduler::recv();
-    //         let messy_string = core::str::from_utf8(&amp;messy_data).expect(&quot;data to be UTF-8&quot;);
-    //
-    //         let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), &quot;&quot;);
-    //         info!(&quot;&lt;Clean_Input&gt;: &#39;{clean_string}&#39;&quot;);
-    //
-    //         scheduler::send(scheduler::task::Pid::new(3), Vec::from(clean_string).into())
-    //             .expect(&quot;send err&quot;);
-    //     }
-    // });
-    // scheduler::schedule(move || {
-    //     debug!(&quot;&lt;Find_Missing&gt;&quot;);
-    //     scheduler::rename(&quot;&lt;Find_Missing&gt;&quot;.into());
-    //
-    //     let pid = scheduler::process().pid;
-    //     info!(&quot;I am pid:{pid}&quot;);
-    //     debug_assert!(pid.num() == 3);
-    //     arch::dbg_cpu();
-    //
-    //     loop {
-    //         let data = scheduler::recv();
-    //         let string = core::str::from_utf8(&amp;data).expect(&quot;data to be UTF-8&quot;);
-    //
-    //         let mut found = [false; 26];
-    //         for c in string.chars() {
-    //             found[((c as u8).to_ascii_lowercase() - b&#39;a&#39;) as usize] = true;
-    //         }
-    //
-    //         let mut buf = String::new();
-    //         for missing in found
-    //             .iter()
-    //             .enumerate()
-    //             .filter(|(_, found)| !*found)
-    //             .map(|(i, _)| i)
-    //         {
-    //             buf.push((missing as u8 + b&#39;a&#39;) as char);
-    //         }
-    //         info!(&quot;&lt;Find_Missing&gt;: &#39;{buf}&#39;&quot;);
-    //     }
-    // });
-
-    // jumps to [smp_main] right bellow + wakes up other threads to jump there
+    <span class="comment">// jumps to [smp_main] right bellow + wakes up other threads to jump there
     </span>boot::smp_init(smp_main);
 }
 
@@ -361,7 +305,6 @@
     <span class="macro">trace!</span>(<span class="string">&quot;boot stack: {boot_stack:?}&quot;</span>);
 
     scheduler::schedule(<span class="kw">move </span>|| {
-        <span class="macro">debug!</span>(<span class="string">&quot;&lt;kernel futures executor&gt;&quot;</span>);
         scheduler::rename(<span class="string">&quot;&lt;kernel futures executor&gt;&quot;</span>.into());
 
         <span class="kw">let </span>first = from_higher_half(boot_stack.start);
@@ -375,5 +318,90 @@
     });
     <span class="macro">trace!</span>(<span class="string">&quot;resetting {cpu} scheduler&quot;</span>);
     scheduler::init();
+}
+
+<span class="comment">//
+
+</span><span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>alloc::{
+        string::{String, ToString},
+        vec::Vec,
+    };
+
+    <span class="kw">use </span>hyperion_arch <span class="kw">as </span>arch;
+    <span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
+    <span class="kw">use </span>hyperion_scheduler <span class="kw">as </span>scheduler;
+
+    <span class="attr">#[test_case]
+    </span><span class="kw">fn </span>scheduler_simple_ipc_test() {
+        <span class="kw">return</span>;
+        scheduler::schedule(<span class="kw">move </span>|| {
+            scheduler::rename(<span class="string">&quot;&lt;Get_Input&gt;&quot;</span>.into());
+
+            <span class="kw">let </span>pid = scheduler::process().pid;
+            <span class="macro">info!</span>(<span class="string">&quot;I am pid:{pid}&quot;</span>);
+            <span class="macro">debug_assert!</span>(pid.num() == <span class="number">1</span>);
+            arch::dbg_cpu();
+
+            <span class="kw">loop </span>{
+                <span class="kw">let </span>messy_string = <span class="string">&quot;abc3de5fgh@lmno&amp;pqr%stuv(w)xyz&quot;</span>.to_string();
+                <span class="macro">info!</span>(<span class="string">&quot;&lt;Get_Input&gt;: &#39;{messy_string}&#39;&quot;</span>);
+                scheduler::send(scheduler::task::Pid::new(<span class="number">2</span>), Vec::from(messy_string).into())
+                    .expect(<span class="string">&quot;send err&quot;</span>);
+
+                <span class="comment">// wait 2500ms
+                </span>scheduler::sleep(time::Duration::milliseconds(<span class="number">2500</span>));
+            }
+        });
+        scheduler::schedule(<span class="kw">move </span>|| {
+            scheduler::rename(<span class="string">&quot;&lt;Clean_Input&gt;&quot;</span>.into());
+
+            <span class="kw">let </span>pid = scheduler::process().pid;
+            <span class="macro">info!</span>(<span class="string">&quot;I am pid:{pid}&quot;</span>);
+            <span class="macro">debug_assert!</span>(pid.num() == <span class="number">2</span>);
+            arch::dbg_cpu();
+
+            <span class="kw">loop </span>{
+                <span class="kw">let </span>messy_data = scheduler::recv();
+                <span class="kw">let </span>messy_string = core::str::from_utf8(<span class="kw-2">&amp;</span>messy_data).expect(<span class="string">&quot;data to be UTF-8&quot;</span>);
+
+                <span class="kw">let </span>clean_string = messy_string.replace(|c| !char::is_alphabetic(c), <span class="string">&quot;&quot;</span>);
+                <span class="macro">info!</span>(<span class="string">&quot;&lt;Clean_Input&gt;: &#39;{clean_string}&#39;&quot;</span>);
+
+                scheduler::send(scheduler::task::Pid::new(<span class="number">3</span>), Vec::from(clean_string).into())
+                    .expect(<span class="string">&quot;send err&quot;</span>);
+            }
+        });
+        scheduler::schedule(<span class="kw">move </span>|| {
+            scheduler::rename(<span class="string">&quot;&lt;Find_Missing&gt;&quot;</span>.into());
+
+            <span class="kw">let </span>pid = scheduler::process().pid;
+            <span class="macro">info!</span>(<span class="string">&quot;I am pid:{pid}&quot;</span>);
+            <span class="macro">debug_assert!</span>(pid.num() == <span class="number">3</span>);
+            arch::dbg_cpu();
+
+            <span class="kw">loop </span>{
+                <span class="kw">let </span>data = scheduler::recv();
+                <span class="kw">let </span>string = core::str::from_utf8(<span class="kw-2">&amp;</span>data).expect(<span class="string">&quot;data to be UTF-8&quot;</span>);
+
+                <span class="kw">let </span><span class="kw-2">mut </span>found = [<span class="bool-val">false</span>; <span class="number">26</span>];
+                <span class="kw">for </span>c <span class="kw">in </span>string.chars() {
+                    found[((c <span class="kw">as </span>u8).to_ascii_lowercase() - <span class="string">b&#39;a&#39;</span>) <span class="kw">as </span>usize] = <span class="bool-val">true</span>;
+                }
+
+                <span class="kw">let </span><span class="kw-2">mut </span>buf = String::new();
+                <span class="kw">for </span>missing <span class="kw">in </span>found
+                    .iter()
+                    .enumerate()
+                    .filter(|(<span class="kw">_</span>, found)| !<span class="kw-2">*</span>found)
+                    .map(|(i, <span class="kw">_</span>)| i)
+                {
+                    buf.push((missing <span class="kw">as </span>u8 + <span class="string">b&#39;a&#39;</span>) <span class="kw">as </span>char);
+                }
+                <span class="macro">info!</span>(<span class="string">&quot;&lt;Find_Missing&gt;: &#39;{buf}&#39;&quot;</span>);
+            }
+        });
+    }
 }
 </code></pre></div></section></main></body></html>

@@ -239,6 +239,12 @@
 <a href="#239" id="239">239</a>
 <a href="#240" id="240">240</a>
 <a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![no_main]
 #![feature(format_args_nl, slice_internals)]
@@ -293,6 +299,8 @@
         }
 
         <span class="string">&quot;/bin/task1&quot; </span>=&gt; {
+            rename(<span class="string">&quot;&lt;Get_Input&gt;&quot;</span>).unwrap();
+
             <span class="kw">let </span>pid: u64 = args
                 .iter()
                 .nth(<span class="number">1</span>)
@@ -314,6 +322,8 @@
         }
 
         <span class="string">&quot;/bin/task2&quot; </span>=&gt; {
+            rename(<span class="string">&quot;&lt;Clean_Input&gt;&quot;</span>).unwrap();
+
             <span class="kw">let </span>pid: u64 = args
                 .iter()
                 .nth(<span class="number">1</span>)
@@ -337,6 +347,8 @@
         }
 
         <span class="string">&quot;/bin/task3&quot; </span>=&gt; {
+            rename(<span class="string">&quot;&lt;Find_Missing&gt;&quot;</span>).unwrap();
+
             <span class="kw">let </span><span class="kw-2">mut </span>line = String::new();
 
             <span class="kw">loop </span>{
