@@ -39,7 +39,7 @@ impl<T: Read> BufReader<T> {
     fn fill_buf(&mut self) -> Result<&[u8], String> {
         let bytes_read = self.inner.recv(&mut self.buf[self.end as usize..])?;
         self.end += bytes_read as u8;
-        assert!((self.end as usize) < self.buf.len());
+        assert!((self.end as usize) <= self.buf.len());
 
         Ok(&self.buf[..self.end as usize])
     }

@@ -80,7 +80,8 @@ pub fn recv_to(buf: &mut [u8]) -> usize {
     let data = recv_with(&proc);
 
     // limit buf to be at most the length of available data
-    let buf = &mut buf[..data.len().min(data.len())];
+    let limit = buf.len().min(data.len());
+    let buf = &mut buf[..limit];
 
     // fill the buf and send the rest to tail
     let (buf_data, left) = data.split_at(buf.len());
@@ -95,7 +96,7 @@ pub fn recv_to(buf: &mut [u8]) -> usize {
 
     buf.copy_from_slice(buf_data);
 
-    buf.len()
+    limit
 }
 
 fn recv_with(proc: &Process) -> Cow<'static, [u8]> {
