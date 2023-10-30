@@ -126,8 +126,6 @@ mod tests {
         vec::Vec,
     };
 
-    use hyperion_arch as arch;
-    use hyperion_log::*;
     use hyperion_scheduler as scheduler;
 
     #[test_case]
