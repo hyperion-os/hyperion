@@ -191,7 +191,7 @@ unsafe impl GlobalAlloc for PageAlloc {
 
         let res = palloc(pages as u64);
         // println!("alloc syscall res: {res:?}");
-        res.expect("page alloc") as *mut u8
+        res.expect("page alloc")
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
