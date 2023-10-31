@@ -270,6 +270,10 @@ pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
 //
 
 fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
+    if len == 0 {
+        return Ok((VirtAddr::new_truncate(0), 0));
+    }
+
     let Some(end) = ptr.checked_add(len) else {
         return Err(Error::INVALID_ADDRESS);
     };
@@ -290,7 +294,11 @@ fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {
     read_slice_parts(ptr, len).map(|(start, len)| {
         // TODO:
         // SAFETY: this is most likely unsafe
-        unsafe { core::slice::from_raw_parts(start.as_ptr(), len as _) }
+        if len == 0 {
+            &[]
+        } else {
+            unsafe { core::slice::from_raw_parts(start.as_ptr(), len as _) }
+        }
     })
 }
 
@@ -298,7 +306,11 @@ fn read_untrusted_bytes_mut<'a>(ptr: u64, len: u64) -> Result<&'a mut [u8]> {
     read_slice_parts(ptr, len).map(|(start, len)| {
         // TODO:
         // SAFETY: this is most likely unsafe
-        unsafe { core::slice::from_raw_parts_mut(start.as_mut_ptr(), len as _) }
+        if len == 0 {
+            &mut []
+        } else {
+            unsafe { core::slice::from_raw_parts_mut(start.as_mut_ptr(), len as _) }
+        }
     })
 }
 
