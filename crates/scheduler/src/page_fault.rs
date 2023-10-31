@@ -14,7 +14,10 @@ use crate::{stop, task, task::TaskInner, TLS};
 //
 
 pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    trace!("scheduler page fault (from {user:?})");
+    trace!(
+        "scheduler page fault (from {user:?}) (cpu: {})",
+        hyperion_arch::cpu_id()
+    );
 
     let actual_current = TLS.switch_last_active.load(Ordering::SeqCst);
     if !actual_current.is_null() {
@@ -53,6 +56,8 @@ pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     let v = VirtAddr::new(addr as _);
     let p = page.virt_to_phys(v);
     error!("{v:018x?} -> {p:018x?}");
+
+    error!("couldn't handle a page fault {}", hyperion_arch::cpu_id());
 
     Ok(NotHandled)
 }

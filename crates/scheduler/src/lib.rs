@@ -14,9 +14,9 @@ use core::{
 
 use crossbeam_queue::SegQueue;
 use hyperion_arch::{cpu::ints, int, tls::Tls};
-use hyperion_driver_acpi::hpet::HPET;
+use hyperion_driver_acpi::{apic, hpet::HPET};
 use hyperion_instant::Instant;
-use hyperion_timer::TIMER_HANDLER;
+use hyperion_timer as timer;
 use spin::{Lazy, Mutex, Once};
 use time::Duration;
 use x86_64::VirtAddr;
@@ -103,37 +103,31 @@ pub fn rename(new_name: Cow<'static, str>) {
 }
 
 /// init this processors scheduling
-pub fn init() -> ! {
+pub fn init(task: impl Into<Task>) -> ! {
     hyperion_arch::int::disable();
 
+    // init scheduler's custom page fault handler
     ints::PAGE_FAULT_HANDLER.store(page_fault::page_fault_handler);
-    TIMER_HANDLER.store(|| {
-        sleep::wake_up_completed(None);
-    });
-    hyperion_driver_acpi::apic::APIC_TIMER_HANDLER.store(|| {
-        sleep::wake_up_completed(None);
 
-        if TLS.idle.load(Ordering::SeqCst) {
-            return;
-        }
+    // init HPET timer interrupts for sleep events
+    timer::TIMER_HANDLER.store(|| sleep::wake_up_completed(None));
 
-        // debug!("apic int");
-        // hyperion_arch::dbg_cpu();
+    // init periodic APIC timer interrutpts (optionally for RR-scheduling)
+    apic::APIC_TIMER_HANDLER.store(|| sleep::wake_up_completed(None));
 
-        // round-robin
-        // debug!("round-robin fake yield now");
-        // yield_now();
+    // init `Once` in TLS
+    _ = crate::task();
+    let task = task.into();
 
-        // TODO: test if the currently running task has used way too much cpu time and switch if so
-    });
-
-    _ = task();
+    // mark scheduler as initialized and running
     if TLS.initialized.swap(true, Ordering::SeqCst) {
         panic!("should be called only once before any tasks are assigned to this processor")
     }
     RUNNING.store(true, Ordering::SeqCst);
 
-    stop();
+    // switch to the init task
+    switch_because(task, TaskState::Dropping, Cleanup::Drop);
+    unreachable!("a destroyed thread cannot continue executing");
 }
 
 pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {

@@ -8,6 +8,10 @@ edition = "2021"
 resolver = "2"
 members = ["crates/*"]
 
+[profile.release]
+debug = true
+strip = false
+
 [profile.release-lto]
 inherits = "release"
 opt-level = 3

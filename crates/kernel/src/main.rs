@@ -99,22 +99,19 @@ fn smp_main(cpu: Cpu) -> ! {
         debug!("boot cpu drivers installed");
     }
 
-    trace!("boot stack: {boot_stack:?}");
-
-    scheduler::schedule(move || {
+    debug!("resetting CPU-{} scheduler", arch::cpu_id());
+    scheduler::init(move || {
         scheduler::rename("<kernel futures executor>".into());
 
         let first = from_higher_half(boot_stack.start);
         let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;
 
         let frames = unsafe { hyperion_mem::pmm::PageFrame::new(first, count) };
-        // debug!("deallocating bootloader provided stack");
+        trace!("deallocating bootloader provided stack {boot_stack:?}");
         hyperion_mem::pmm::PFA.free(frames);
 
         futures::executor::run_tasks();
     });
-    trace!("resetting {cpu} scheduler");
-    scheduler::init();
 }
 
 //
