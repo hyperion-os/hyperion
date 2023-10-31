@@ -1,5 +1,5 @@
 use pc_keyboard::{
-    layouts::{AnyLayout, DVP104Key, De105Key, Dvorak104Key, Uk105Key, Us104Key},
+    layouts::{AnyLayout, DVP104Key, De105Key, Dvorak104Key, FiSe105Key, Uk105Key, Us104Key},
     DecodedKey, HandleControl, KeyCode, KeyState, Keyboard, ScancodeSet1,
 };
 use spin::Mutex;
@@ -42,6 +42,7 @@ pub fn set_layout(name: &str) -> Option<()> {
         "us" => AnyLayout::Us104Key(Us104Key),
         "uk" => AnyLayout::Uk105Key(Uk105Key),
         "de" => AnyLayout::De105Key(De105Key),
+        "fi" | "se" => AnyLayout::FiSe105Key(FiSe105Key),
         "dvorak" => AnyLayout::Dvorak104Key(Dvorak104Key),
         "dvp" => AnyLayout::DVP104Key(DVP104Key),
         _ => return None,
