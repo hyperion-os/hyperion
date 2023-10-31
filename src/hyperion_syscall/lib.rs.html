@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/syscall/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_syscall" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (608e9682f 2023-10-29)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/syscall/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_syscall" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (31bc7e2c4 2023-10-30)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -150,110 +150,113 @@
 <a href="#150" id="150">150</a>
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
-</span><span class="comment">//
+</span><span class="kw">use </span>core::ptr::NonNull;
+
+<span class="kw">use </span>err::Result;
+
+<span class="comment">//
+
+</span><span class="kw">pub mod </span>err;
+
+<span class="comment">//
 
 </span><span class="macro">macro_rules! </span>syscall {
-    (<span class="macro-nonterminal">$id</span>:literal,
-     <span class="comment">// wtf:
-     </span>{ $(<span class="macro-nonterminal">$arg0</span>:expr $(,<span class="macro-nonterminal">$arg1</span>:expr $(,<span class="macro-nonterminal">$arg2</span>:expr $(,<span class="macro-nonterminal">$arg3</span>:expr $(,<span class="macro-nonterminal">$arg4</span>:expr $(,)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">? </span>},
-     { $(<span class="macro-nonterminal">$ret0</span>:expr $(,<span class="macro-nonterminal">$ret1</span>:expr $(,<span class="macro-nonterminal">$ret2</span>:expr $(,<span class="macro-nonterminal">$ret3</span>:expr $(,<span class="macro-nonterminal">$ret4</span>:expr $(,)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">? </span>}) =&gt; {
+    (
+        $(
+            <span class="macro-nonterminal">$name</span>:ident(
+                <span class="macro-nonterminal">$id</span>:ident
+                $(, <span class="macro-nonterminal">$a0</span>:ident $(, <span class="macro-nonterminal">$a1</span>:ident $(, <span class="macro-nonterminal">$a2</span>:ident $(, <span class="macro-nonterminal">$a3</span>:ident $(, <span class="macro-nonterminal">$a4</span>:ident)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
+            </span>);
+        )+
+    ) =&gt; {
+        $(
+            <span class="doccomment">/// # Safety
+            /// TODO:
+            /// invalid syscall args can terminate this process
+            </span><span class="kw">pub unsafe fn </span><span class="macro-nonterminal">$name</span>(
+                <span class="kw-2">mut </span><span class="macro-nonterminal">$id</span>: usize
+                $(, <span class="macro-nonterminal">$a0</span>: usize $(, <span class="macro-nonterminal">$a1</span>: usize $(, <span class="macro-nonterminal">$a2</span>: usize $(, <span class="macro-nonterminal">$a3</span>: usize $(, <span class="macro-nonterminal">$a4</span>: usize)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
+            </span>) -&gt; <span class="macro-nonterminal">$crate::err::Result</span>&lt;usize&gt; {
+                <span class="macro">core::arch::asm!</span>(
+                    <span class="string">&quot;syscall&quot;</span>,
 
+                    inout(<span class="string">&quot;rax&quot;</span>) <span class="macro-nonterminal">$id</span>, <span class="comment">// syscall id + return value
 
-        <span class="macro">core::arch::asm!</span>(
-            <span class="string">&quot;syscall&quot;</span>,
-            <span class="kw">in</span>(<span class="string">&quot;rax&quot;</span>) <span class="macro-nonterminal">$id</span>,
+                    </span>$( <span class="comment">// optional args
+                        </span><span class="kw">in</span>(<span class="string">&quot;rdi&quot;</span>) <span class="macro-nonterminal">$a0</span>,
+                        $(
+                            <span class="kw">in</span>(<span class="string">&quot;rsi&quot;</span>) <span class="macro-nonterminal">$a1</span>,
+                            $(
+                                <span class="kw">in</span>(<span class="string">&quot;rdx&quot;</span>) <span class="macro-nonterminal">$a2</span>,
+                                $(
+                                    <span class="kw">in</span>(<span class="string">&quot;r8&quot;</span>) <span class="macro-nonterminal">$a3</span>,
+                                    $(
+                                        <span class="kw">in</span>(<span class="string">&quot;r9&quot;</span>) <span class="macro-nonterminal">$a4</span>,
+                                    )<span class="question-mark">?
+                                </span>)<span class="question-mark">?
+                            </span>)<span class="question-mark">?
+                        </span>)<span class="question-mark">?
+                    </span>)<span class="question-mark">?
 
-            $(
-                <span class="kw">in</span>(<span class="string">&quot;rdi&quot;</span>) <span class="macro-nonterminal">$arg0</span>,
-            $(
-                <span class="kw">in</span>(<span class="string">&quot;rsi&quot;</span>) <span class="macro-nonterminal">$arg1</span>,
-            $(
-                <span class="kw">in</span>(<span class="string">&quot;rdx&quot;</span>) <span class="macro-nonterminal">$arg2</span>,
-            $(
-                <span class="kw">in</span>(<span class="string">&quot;r8&quot;</span>)  <span class="macro-nonterminal">$arg3</span>,
-            $(
-                <span class="kw">in</span>(<span class="string">&quot;r9&quot;</span>)  <span class="macro-nonterminal">$arg4</span>,
-            )<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
+                    </span>out(<span class="string">&quot;rcx&quot;</span>) <span class="kw">_</span>, <span class="comment">// remind the compiler that
+                    </span>out(<span class="string">&quot;r11&quot;</span>) <span class="kw">_</span>, <span class="comment">// syscall saves these 2
 
-            </span>$(
-                lateout(<span class="string">&quot;rdi&quot;</span>) <span class="macro-nonterminal">$ret0</span>,
-            $(
-                lateout(<span class="string">&quot;rsi&quot;</span>) <span class="macro-nonterminal">$ret1</span>,
-            $(
-                lateout(<span class="string">&quot;rdx&quot;</span>) <span class="macro-nonterminal">$ret2</span>,
-            $(
-                lateout(<span class="string">&quot;r8&quot;</span>)  <span class="macro-nonterminal">$ret3</span>,
-            $(
-                lateout(<span class="string">&quot;r9&quot;</span>)  <span class="macro-nonterminal">$ret4</span>,
-            )<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
-        </span>)
+                    </span>options(nostack),
+                );
+
+                <span class="macro-nonterminal">$crate::err::Error::decode</span>(<span class="macro-nonterminal">$id</span>)
+            }
+        )+
     };
+}
+
+<span class="macro">syscall! </span>{
+    syscall_0(syscall_id);
+    syscall_1(syscall_id, a0);
+    syscall_2(syscall_id, a0, a1);
+    syscall_3(syscall_id, a0, a1, a2);
+    syscall_4(syscall_id, a0, a1, a2, a3);
+    syscall_5(syscall_id, a0, a1, a2, a3, a4);
 }
 
 <span class="comment">//
 
 </span><span class="doccomment">/// print a string into kernel logs
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>log(str: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), u64&gt; {
+</span><span class="kw">pub fn </span>log(str: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="comment">// TODO: should null terminated strings be used instead to save registers?
     // decide later™
 
-    </span><span class="kw">let </span>result: u64;
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">1</span>, { str.as_ptr() <span class="kw">as </span>u64, str.len() }, { result }) };
-    <span class="kw">if </span>result == <span class="number">0 </span>{
-        <span class="prelude-val">Ok</span>(())
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(result)
-    }
+    </span><span class="kw">unsafe </span>{ syscall_2(<span class="number">1</span>, str.as_ptr() <span class="kw">as </span>usize, str.len()) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// exit the process with a code
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>exit(code: i64) -&gt; ! {
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">2</span>, { code <span class="kw">as </span>u64 }, {}) };
-    <span class="macro">unreachable!</span>();
+    <span class="kw">let </span>result = <span class="kw">unsafe </span>{ syscall_1(<span class="number">2</span>, code <span class="kw">as </span>usize) };
+    <span class="macro">unreachable!</span>(<span class="string">&quot;{result:?}&quot;</span>);
 }
 
 <span class="doccomment">/// context switch from this process, no guarantees about actually switching
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>yield_now() {
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">3</span>, {}, {}) };
+    <span class="kw">unsafe </span>{ syscall_0(<span class="number">3</span>) }.unwrap();
 }
 
 <span class="doccomment">/// u128 nanoseconds since boot
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>timestamp() -&gt; <span class="prelude-ty">Result</span>&lt;u128, u64&gt; {
-    <span class="kw">let </span>result: u64;
-    <span class="kw">let </span>lower: u64;
-    <span class="kw">let </span>upper: u64;
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">4</span>, {}, { result, lower, upper }) };
-
-    <span class="kw">if </span>result == <span class="number">0 </span>{
-        <span class="prelude-val">Ok</span>(lower <span class="kw">as </span>u128 | (upper <span class="kw">as </span>u128) &lt;&lt; <span class="number">64</span>)
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(result)
-    }
+</span><span class="kw">pub fn </span>timestamp() -&gt; <span class="prelude-ty">Result</span>&lt;u128&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>result: u128 = <span class="number">0</span>;
+    <span class="kw">unsafe </span>{ syscall_1(<span class="number">4</span>, <span class="kw-2">&amp;mut </span>result <span class="kw">as </span><span class="kw-2">*mut </span>u128 <span class="kw">as </span>usize) }.map(<span class="kw">move </span>|<span class="kw">_</span>| result)
 }
 
 <span class="doccomment">/// context switch from this process and switch back when `nanos` nanoseconds have passed
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>nanosleep(nanos: u64) {
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">5</span>, { nanos }, {}) };
+    <span class="comment">// TODO: u128
+    </span><span class="kw">unsafe </span>{ syscall_1(<span class="number">5</span>, nanos <span class="kw">as </span>usize) }.unwrap();
 }
 
 <span class="doccomment">/// context switch from this process and switch back when [`timestamp()`] &gt; `deadline_nanos`
@@ -261,71 +264,42 @@
 /// might not happen immediately when it is true
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>nanosleep_until(deadline_nanos: u64) {
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">6</span>, { deadline_nanos }, {}) };
+    <span class="comment">// TODO: u128
+    </span><span class="kw">unsafe </span>{ syscall_1(<span class="number">6</span>, deadline_nanos <span class="kw">as </span>usize) }.unwrap();
 }
 
 <span class="doccomment">/// spawn a new pthread for the same process
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>pthread_spawn(thread_entry: <span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(u64, u64) -&gt; !, arg: u64) {
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">8</span>, { thread_entry <span class="kw">as </span>usize <span class="kw">as </span>u64, arg }, {}) };
+</span><span class="kw">pub fn </span>pthread_spawn(thread_entry: <span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(usize, usize) -&gt; !, arg: usize) {
+    <span class="kw">unsafe </span>{ syscall_2(<span class="number">8</span>, thread_entry <span class="kw">as </span>usize, arg) }.unwrap();
 }
 
 <span class="doccomment">/// allocate physical pages and map to heap
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>palloc(pages: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">*mut </span>u8, i64&gt; {
-    <span class="kw">let </span>result: i64;
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">9</span>, { pages }, { result }) };
-    <span class="kw">if </span>result &gt;= <span class="number">0 </span>{
-        <span class="prelude-val">Ok</span>(result <span class="kw">as _</span>)
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(result)
-    }
+</span><span class="kw">pub fn </span>palloc(pages: usize) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;NonNull&lt;u8&gt;&gt;&gt; {
+    <span class="kw">unsafe </span>{ syscall_1(<span class="number">9</span>, pages) }.map(|ptr| NonNull::new(ptr <span class="kw">as _</span>))
 }
 
 <span class="doccomment">/// deallocate physical pages and unmap from heap
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>pfree(ptr: u64, pages: u64) -&gt; <span class="prelude-ty">Result</span>&lt;(), i64&gt; {
-    <span class="kw">let </span>result: i64;
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">10</span>, { ptr, pages }, { result }) };
-    <span class="kw">if </span>result == <span class="number">0 </span>{
-        <span class="prelude-val">Ok</span>(())
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(result)
-    }
+</span><span class="kw">pub fn </span>pfree(ptr: NonNull&lt;u8&gt;, pages: usize) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">unsafe </span>{ syscall_2(<span class="number">10</span>, ptr.as_ptr() <span class="kw">as </span>usize, pages) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// send data to a PID based single naïve IPC channel
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>send(target: u64, data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), i64&gt; {
-    <span class="kw">let </span>result: i64;
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">11</span>, { target, data.as_ptr() <span class="kw">as </span>u64, data.len() <span class="kw">as </span>u64 }, { result }) };
-    <span class="kw">if </span>result == <span class="number">0 </span>{
-        <span class="prelude-val">Ok</span>(())
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(result)
-    }
+</span><span class="kw">pub fn </span>send(target: u64, data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">unsafe </span>{ syscall_3(<span class="number">11</span>, target <span class="kw">as </span>usize, data.as_ptr() <span class="kw">as </span>usize, data.len()) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// read data from a PID based single naïve IPC channel
-</span><span class="kw">pub fn </span>recv(buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;u64, i64&gt; {
-    <span class="kw">let </span>result: i64;
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">12</span>, { buf.as_mut_ptr() <span class="kw">as </span>u64, buf.len() <span class="kw">as </span>u64 }, { result }) };
-    <span class="kw">if </span>result &gt;= <span class="number">0 </span>{
-        <span class="prelude-val">Ok</span>(result <span class="kw">as _</span>)
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(result)
-    }
+</span><span class="kw">pub fn </span>recv(buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">unsafe </span>{ syscall_2(<span class="number">12</span>, buf.as_mut_ptr() <span class="kw">as </span>usize, buf.len()) }
 }
 
 <span class="doccomment">/// rename the current process
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>rename(new_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;(), i64&gt; {
-    <span class="kw">let </span>result: i64;
-    <span class="kw">unsafe </span>{ <span class="macro">syscall!</span>(<span class="number">13</span>, { new_name.as_ptr() <span class="kw">as </span>u64, new_name.len() <span class="kw">as </span>u64 }, { result }) };
-    <span class="kw">if </span>result == <span class="number">0 </span>{
-        <span class="prelude-val">Ok</span>(())
-    } <span class="kw">else </span>{
-        <span class="prelude-val">Err</span>(result)
-    }
+</span><span class="kw">pub fn </span>rename(new_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">unsafe </span>{ syscall_2(<span class="number">13</span>, new_name.as_ptr() <span class="kw">as </span>usize, new_name.len()) }.map(|<span class="kw">_</span>| {})
 }
 </code></pre></div></section></main></body></html>

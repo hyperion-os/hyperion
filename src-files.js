@@ -61,7 +61,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_sample_elf":["",[],["io.rs","main.rs"]],\
 "hyperion_scheduler":["",[],["cleanup.rs","ipc.rs","lib.rs","page_fault.rs","sleep.rs","task.rs"]],\
 "hyperion_static_str":["",[],["lib.rs"]],\
-"hyperion_syscall":["",[],["lib.rs"]],\
+"hyperion_syscall":["",[],["err.rs","lib.rs"]],\
 "hyperion_timer":["",[],["lib.rs"]],\
 "hyperion_vfs":["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]],\
 "iana_time_zone":["",[],["ffi_utils.rs","lib.rs","tz_linux.rs"]],\

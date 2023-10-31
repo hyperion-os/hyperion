@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/sample-elf/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_sample_elf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (608e9682f 2023-10-29)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/sample-elf/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_sample_elf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (31bc7e2c4 2023-10-30)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -256,6 +256,12 @@
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
 <a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![no_main]
 #![feature(format_args_nl, slice_internals)]
@@ -264,11 +270,11 @@
 
 </span><span class="kw">extern crate </span>alloc;
 
-<span class="kw">use </span>alloc::{boxed::Box, string::String, sync::Arc};
+<span class="kw">use </span>alloc::{boxed::Box, string::String};
 <span class="kw">use </span>core::{
     alloc::GlobalAlloc,
     fmt::{<span class="self">self</span>, Write},
-    sync::atomic::{AtomicUsize, Ordering},
+    ptr::NonNull,
 };
 
 <span class="kw">use </span>hyperion_syscall::<span class="kw-2">*</span>;
@@ -288,24 +294,28 @@
     <span class="kw">match </span>args.iter().next().expect(<span class="string">&quot;arg0 to be present&quot;</span>) {
         <span class="comment">// busybox style single binary &#39;coreutils&#39;
         </span><span class="string">&quot;/bin/run&quot; </span>=&gt; {
-            <span class="kw">let </span>inc = Arc::new(AtomicUsize::new(<span class="number">0</span>));
+            <span class="comment">// let inc = Arc::new(AtomicUsize::new(0));
+            // let inc = Arc::new(AtomicUsize::new(0));
 
-            <span class="kw">for </span>_n <span class="kw">in </span><span class="number">0</span>..<span class="number">1 </span>{
-                <span class="kw">let </span>inc = inc.clone();
-                spawn(<span class="kw">move </span>|| {
-                    <span class="macro">println!</span>(<span class="string">&quot;thread inc ptr: {:0x}&quot;</span>, inc.as_ref() <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize);
-                    <span class="macro">println!</span>(<span class="string">&quot;thread inc ptr: {:0x}&quot;</span>, inc.as_ref() <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize);
-                    inc.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
-                    <span class="macro">println!</span>(<span class="string">&quot;thread inc ptr: {:0x}&quot;</span>, inc.as_ref() <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize);
-                    <span class="comment">// println!(&quot;print from thread {n}&quot;);
+            </span><span class="kw">for </span>_n <span class="kw">in </span><span class="number">0</span>..<span class="number">8 </span>{
+                <span class="comment">// let inc = inc.clone();
+                </span>spawn(<span class="kw">move </span>|| {
+                    <span class="macro">println!</span>(<span class="string">&quot;hello from thread {_n}&quot;</span>);
+                    <span class="comment">// println!(&quot;thread inc ptr: {:0x}&quot;, inc.as_ref() as *const _ as usize);
+                    // println!(&quot;thread inc ptr: {:0x}&quot;, inc.as_ref() as *const _ as usize);
+                    // inc.fetch_add(1, Ordering::Relaxed);
+                    // println!(&quot;thread inc ptr: {:0x}&quot;, inc.as_ref() as *const _ as usize);
+                    // println!(&quot;print from thread {n}&quot;);
                 </span>});
             }
 
             <span class="kw">let </span><span class="kw-2">mut </span>next = timestamp().unwrap() <span class="kw">as </span>u64;
             <span class="kw">for </span>i <span class="kw">in </span>next / <span class="number">1_000_000_000</span>.. {
-                <span class="macro">println!</span>(<span class="string">&quot;inc at: {}&quot;</span>, inc.load(Ordering::Relaxed));
+                <span class="comment">// `lock inc` (asm) instruction triggers a GPF?
+                // println!(&quot;inc at: {}&quot;, inc.fetch_add(1, Ordering::Relaxed));
 
-                nanosleep_until(next);
+                // println!(&quot;sleeping until {next}&quot;);
+                </span>nanosleep_until(next);
                 next += <span class="number">1_000_000_000</span>;
 
                 <span class="macro">println!</span>(<span class="string">&quot;seconds since boot: {i}&quot;</span>);
@@ -370,6 +380,8 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>input_channel = BufReader::new(SimpleIpcInputChannel);
                 input_channel.read_line(<span class="kw-2">&amp;mut </span>line).unwrap();
 
+                <span class="macro">println!</span>(<span class="string">&quot;got &#39;{}&#39;&quot;</span>, line.trim());
+
                 <span class="kw">let </span><span class="kw-2">mut </span>found = [<span class="bool-val">false</span>; <span class="number">26</span>];
                 <span class="kw">for </span>c <span class="kw">in </span>line.trim().chars() {
                     found[((c <span class="kw">as </span>u8).to_ascii_lowercase() - <span class="string">b&#39;a&#39;</span>) <span class="kw">as </span>usize] = <span class="bool-val">true</span>;
@@ -408,19 +420,19 @@
 
 </span><span class="attr">#[derive(Clone, Copy)]
 </span><span class="kw">pub struct </span>CliArgs {
-    hyperion_cli_args_ptr: u64,
+    hyperion_cli_args_ptr: usize,
 }
 
 <span class="kw">impl </span>CliArgs {
     <span class="kw">pub fn </span>iter(<span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str&gt; + Clone + DoubleEndedIterator {
         <span class="kw">let </span><span class="kw-2">mut </span>ptr = <span class="self">self</span>.hyperion_cli_args_ptr;
 
-        <span class="kw">let </span>argc: u64 = <span class="self">Self</span>::pop(<span class="kw-2">&amp;mut </span>ptr);
+        <span class="kw">let </span>argc: usize = <span class="self">Self</span>::pop(<span class="kw-2">&amp;mut </span>ptr);
         <span class="kw">let </span><span class="kw-2">mut </span>arg_lengths = ptr;
-        <span class="kw">let </span><span class="kw-2">mut </span>arg_strings = ptr + argc * core::mem::size_of::&lt;u64&gt;() <span class="kw">as </span>u64;
+        <span class="kw">let </span><span class="kw-2">mut </span>arg_strings = ptr + argc * core::mem::size_of::&lt;usize&gt;();
 
         (<span class="number">0</span>..argc).map(<span class="kw">move </span>|<span class="kw">_</span>| {
-            <span class="kw">let </span>len: u64 = <span class="self">Self</span>::pop(<span class="kw-2">&amp;mut </span>arg_lengths);
+            <span class="kw">let </span>len: usize = <span class="self">Self</span>::pop(<span class="kw-2">&amp;mut </span>arg_lengths);
             <span class="kw">let </span>str: <span class="kw-2">&amp;</span>[u8] = <span class="kw">unsafe </span>{ core::slice::from_raw_parts(arg_strings <span class="kw">as _</span>, len <span class="kw">as _</span>) };
             arg_strings += len;
 
@@ -428,9 +440,9 @@
         })
     }
 
-    <span class="kw">fn </span>pop&lt;T: Sized&gt;(top: <span class="kw-2">&amp;mut </span>u64) -&gt; T {
+    <span class="kw">fn </span>pop&lt;T: Sized&gt;(top: <span class="kw-2">&amp;mut </span>usize) -&gt; T {
         <span class="kw">let </span>v = <span class="kw">unsafe </span>{ ((<span class="kw-2">*</span>top) <span class="kw">as </span><span class="kw-2">*const </span>T).read() };
-        <span class="kw-2">*</span>top += core::mem::size_of::&lt;T&gt;() <span class="kw">as </span>u64;
+        <span class="kw-2">*</span>top += core::mem::size_of::&lt;T&gt;();
         v
     }
 }
@@ -447,14 +459,14 @@
     <span class="kw">unsafe fn </span>alloc(<span class="kw-2">&amp;</span><span class="self">self</span>, layout: core::alloc::Layout) -&gt; <span class="kw-2">*mut </span>u8 {
         <span class="kw">let </span>pages = layout.size().div_ceil(<span class="number">0x1000</span>);
 
-        <span class="kw">let </span>res = palloc(pages <span class="kw">as </span>u64);
+        <span class="kw">let </span>res = palloc(pages);
         <span class="comment">// println!(&quot;alloc syscall res: {res:?}&quot;);
-        </span>res.expect(<span class="string">&quot;page alloc&quot;</span>)
+        </span>res.expect(<span class="string">&quot;page alloc&quot;</span>).expect(<span class="string">&quot;null alloc&quot;</span>).as_ptr()
     }
 
     <span class="kw">unsafe fn </span>dealloc(<span class="kw-2">&amp;</span><span class="self">self</span>, ptr: <span class="kw-2">*mut </span>u8, layout: core::alloc::Layout) {
         <span class="kw">let </span>pages = layout.size().div_ceil(<span class="number">0x1000</span>);
-        <span class="macro">assert!</span>(pfree(ptr <span class="kw">as </span>u64, pages <span class="kw">as </span>u64).is_ok());
+        <span class="macro">assert!</span>(pfree(NonNull::new(ptr).unwrap(), pages).is_ok());
     }
 }
 
@@ -488,25 +500,25 @@
 <span class="comment">//
 
 </span><span class="attr">#[no_mangle]
-</span><span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>_start(a0: u64) -&gt; ! {
+</span><span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>_start(a0: usize) -&gt; ! {
     main(CliArgs {
-        hyperion_cli_args_ptr: a0 <span class="kw">as _</span>,
+        hyperion_cli_args_ptr: a0,
     });
     exit(<span class="number">0</span>);
 }
 
-<span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>_thread_entry(_stack_ptr: u64, arg: u64) -&gt; ! {
-    <span class="macro">println!</span>(<span class="string">&quot;_thread_entry&quot;</span>);
-    <span class="macro">println!</span>(<span class="string">&quot;_thread_entry {_stack_ptr} {arg}&quot;</span>);
-    <span class="kw">let </span>f_fatptr_box: <span class="kw-2">*mut </span>Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt; = arg <span class="kw">as _</span>;
+<span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>_thread_entry(_stack_ptr: usize, arg: usize) -&gt; ! {
+    <span class="comment">// println!(&quot;_thread_entry&quot;);
+    // println!(&quot;_thread_entry {_stack_ptr} {arg}&quot;);
+    </span><span class="kw">let </span>f_fatptr_box: <span class="kw-2">*mut </span>Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt; = arg <span class="kw">as _</span>;
     <span class="kw">let </span>f_fatptr: Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt; = <span class="kw-2">*</span><span class="kw">unsafe </span>{ Box::from_raw(f_fatptr_box) };
 
-    <span class="macro">println!</span>(<span class="string">&quot;addr {:0x}&quot;</span>, (<span class="kw-2">&amp;*</span>f_fatptr) <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span><span class="kw-2">*const </span>() <span class="kw">as </span>usize);
+    <span class="comment">// println!(&quot;addr {:0x}&quot;, (&amp;*f_fatptr) as *const _ as *const () as usize);
 
-    f_fatptr();
-    <span class="macro">println!</span>(<span class="string">&quot;_thread_entry f call&quot;</span>);
+    </span>f_fatptr();
+    <span class="comment">// println!(&quot;_thread_entry f call&quot;);
 
-    exit(<span class="number">0</span>);
+    </span>exit(<span class="number">0</span>);
 }
 
 <span class="attr">#[panic_handler]

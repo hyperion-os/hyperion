@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (608e9682f 2023-10-29)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (31bc7e2c4 2023-10-30)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -306,79 +306,6 @@
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-<a href="#326" id="326">326</a>
-<a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a>
-<a href="#351" id="351">351</a>
-<a href="#352" id="352">352</a>
-<a href="#353" id="353">353</a>
-<a href="#354" id="354">354</a>
-<a href="#355" id="355">355</a>
-<a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a>
-<a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a>
-<a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a>
-<a href="#363" id="363">363</a>
-<a href="#364" id="364">364</a>
-<a href="#365" id="365">365</a>
-<a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a>
-<a href="#376" id="376">376</a>
-<a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a>
-<a href="#381" id="381">381</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::string::ToString;
 <span class="kw">use </span>core::{any::type_name_of_val, sync::atomic::Ordering};
 
@@ -390,6 +317,7 @@
     pmm::{<span class="self">self</span>, PageFrame},
     vmm::PageMapImpl,
 };
+<span class="kw">use </span>hyperion_syscall::err::{Error, <span class="prelude-ty">Result</span>};
 <span class="kw">use </span>time::Duration;
 <span class="kw">use </span>x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -398,7 +326,7 @@
 </span><span class="kw">pub fn </span>syscall(args: <span class="kw-2">&amp;mut </span>SyscallRegs) {
     <span class="kw">let </span>id = args.syscall_id;
     <span class="comment">// debug!(&quot;syscall {id}&quot;);
-    </span><span class="kw">let </span>(result, name): (i64, <span class="kw-2">&amp;</span>str) = <span class="kw">match </span>id {
+    </span><span class="kw">let </span>(result, name) = <span class="kw">match </span>id {
         <span class="number">1 </span>=&gt; call_id(log, args),
         <span class="number">2 </span>| <span class="number">420 </span>=&gt; call_id(exit, args),
         <span class="number">3 </span>=&gt; call_id(yield_now, args),
@@ -425,10 +353,13 @@
     // }
 </span>}
 
-<span class="kw">fn </span>call_id(f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64, args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; (i64, <span class="kw-2">&amp;</span>str) {
+<span class="kw">fn </span>call_id(
+    f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt;,
+    args: <span class="kw-2">&amp;mut </span>SyscallRegs,
+) -&gt; (<span class="prelude-ty">Result</span>&lt;usize&gt;, <span class="kw-2">&amp;</span>str) {
     <span class="kw">let </span>name = type_name_of_val(<span class="kw-2">&amp;</span>f);
     <span class="kw">let </span>res = f(args);
-    args.arg0 = res <span class="kw">as _</span>;
+    args.syscall_id = Error::encode(res) <span class="kw">as </span>u64;
     (res, name)
 }
 
@@ -438,20 +369,10 @@
 ///  - `syscall_id` : 1
 ///  - `arg0` : _utf8 string address_
 ///  - `arg1` : _utf8 string length_
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-///  - `1` : invalid address range (arg0 .. arg1)
-///  - `2` : address range not mapped for the user (arg0 .. arg1)
-///  - `3` : invalid utf8
-</span><span class="kw">pub fn </span>log(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
-    <span class="kw">let </span>str = <span class="kw">match </span>read_untrusted_str(args.arg0, args.arg1) {
-        <span class="prelude-val">Ok</span>(v) =&gt; v,
-        <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span>err,
-    };
-
+</span><span class="kw">pub fn </span>log(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>str = read_untrusted_str(args.arg0, args.arg1)<span class="question-mark">?</span>;
     <span class="macro">hyperion_log::print!</span>(<span class="string">&quot;{str}&quot;</span>);
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
 <span class="doccomment">/// exit and kill the current process
@@ -459,10 +380,7 @@
 /// # arguments
 ///  - `syscall_id` : 2
 ///  - `arg0` : _exit code_
-///
-/// # return codes (in arg0 after returning)
-/// _won&#39;t return_
-</span><span class="kw">pub fn </span>exit(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+</span><span class="kw">pub fn </span>exit(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="comment">// TODO: exit code
     </span>hyperion_scheduler::stop();
 }
@@ -471,63 +389,43 @@
 ///
 /// # arguments
 ///  - `syscall_id` : 3
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-</span><span class="kw">pub fn </span>yield_now(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+</span><span class="kw">pub fn </span>yield_now(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     hyperion_scheduler::yield_now();
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
 <span class="doccomment">/// get the number of nanoseconds after boot
 ///
 /// # arguments
 ///  - `syscall_id` : 4
-///
-/// # return values
-///  - `arg1` : lower 64 bits of the 128 bit timestamp
-///  - `arg2` : upper 64 bits of the 128 bit timestamp
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-</span><span class="kw">pub fn </span>timestamp(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+///  - `arg0` : address of a 128 bit variable where to store the timestamp
+</span><span class="kw">pub fn </span>timestamp(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>nanos = HPET.nanos();
 
-    <span class="comment">/* let bytes = nanos.to_ne_bytes();
-    args.arg1 = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
-    args.arg2 = u64::from_ne_bytes(bytes[8..16].try_into().unwrap()); */
-    </span>args.arg1 = nanos <span class="kw">as </span>u64;
-    args.arg2 = (nanos &gt;&gt; <span class="number">64</span>) <span class="kw">as </span>u64;
+    <span class="kw">let </span>bytes = read_untrusted_bytes_mut(args.arg0, <span class="number">16</span>)<span class="question-mark">?</span>;
+    bytes.copy_from_slice(<span class="kw-2">&amp;</span>nanos.to_ne_bytes());
 
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
-<span class="doccomment">/// sleep at least arg0|arg1 nanoseconds
+<span class="doccomment">/// sleep at least arg0 nanoseconds
 ///
 /// # arguments
 ///  - `syscall_id` : 5
-///  - `arg0` : lower 64 bits of the 128 bit duration
-///  - `arg1` : _todo_
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-</span><span class="kw">pub fn </span>nanosleep(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+///  - `arg0` : lower 64 bits of the 128 bit duration TODO: address to a 128 bit variable
+</span><span class="kw">pub fn </span>nanosleep(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     hyperion_scheduler::sleep(Duration::nanoseconds((args.arg0 <span class="kw">as </span>i64).max(<span class="number">0</span>)));
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
-<span class="doccomment">/// sleep at least until the nanosecond arg0|arg1 happens
+<span class="doccomment">/// sleep at least until the nanosecond arg0 happens
 ///
 /// # arguments
 ///  - `syscall_id` : 6
-///  - `arg0` : lower 64 bits of the 128 bit timestamp
-///  - `arg1` : _todo_
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-</span><span class="kw">pub fn </span>nanosleep_until(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+///  - `arg0` : lower 64 bits of the 128 bit timestamp TODO: address to a 128 bit variable
+</span><span class="kw">pub fn </span>nanosleep_until(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     hyperion_scheduler::sleep_until(Instant::new(args.arg0 <span class="kw">as </span>u128));
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
 <span class="doccomment">/// open a file
@@ -536,47 +434,31 @@
 ///  - `syscall_id` : 7
 ///  - `arg0` : filename : _utf8 string address_
 ///  - `arg1` : filename : _utf8 string length_
-///
-/// # return codes (in arg0 after returning)
-///  - `-3` : invalid utf8
-///  - `-2` : address range not mapped for the user (arg0 .. arg1)
-///  - `-1` : invalid address range (arg0 .. arg1)
-///  - `0..` :
-</span><span class="kw">pub fn </span>open(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
-    <span class="comment">/* let path = match read_untrusted_str(args.arg0, args.arg1) {
-        Ok(v) =&gt; v,
-        Err(err) =&gt; return err,
-    }; */
-
-    // hyperion_vfs::open(path, false, false);
-
-    </span><span class="kw">return </span>-<span class="number">1 </span><span class="kw">as _</span>;
+</span><span class="kw">pub fn </span>open(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">return </span><span class="prelude-val">Err</span>(Error(<span class="number">0</span>));
 }
 
 <span class="doccomment">/// spawn a new thread
 ///
-/// thread entry signature: `extern &quot;C&quot; fn thread_entry(stack_ptr: u64, arg1: u64) -&gt; !`
+/// thread entry signature: `extern &quot;C&quot; fn thread_entry(stack_ptr: usize, arg1: usize) -&gt; !`
 ///
 /// # arguments
 ///  - `syscall_id` : 8
 ///  - `arg0` : the thread function pointer
 ///  - `arg1` : the thread function argument
-</span><span class="kw">pub fn </span>pthread_spawn(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+</span><span class="kw">pub fn </span>pthread_spawn(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     hyperion_scheduler::spawn_userspace(args.arg0, args.arg1);
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
 <span class="doccomment">/// allocate physical pages and map them to virtual memory
 ///
+/// returns the virtual address pointer
+///
 /// # arguments
 ///  - `syscall_id` : 9
 ///  - `arg0` : page count
-///
-/// # return codes (in arg0 after returning)
-///  - `-2` : out of virtual memory
-///  - `-1` : out of memory
-///  - `0..` : virtual alloc address
-</span><span class="kw">pub fn </span>palloc(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+</span><span class="kw">pub fn </span>palloc(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>pages = args.arg0 <span class="kw">as </span>usize;
     <span class="kw">let </span>alloc = pages * <span class="number">0x1000</span>;
 
@@ -586,7 +468,7 @@
     <span class="kw">let </span>alloc_top = alloc_bottom + alloc;
 
     <span class="kw">if </span>alloc_top <span class="kw">as </span>u64 &gt;= USER_HEAP_TOP {
-        <span class="kw">return </span>-<span class="number">2</span>;
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::OUT_OF_VIRTUAL_MEMORY);
     }
 
     <span class="kw">let </span>frames = pmm::PFA.alloc(pages);
@@ -601,7 +483,7 @@
         allocs.set(page, <span class="bool-val">true</span>).unwrap();
     }
 
-    <span class="kw">return </span>alloc_bottom <span class="kw">as _</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(alloc_bottom);
 }
 
 <span class="doccomment">/// free allocated physical pages
@@ -610,14 +492,9 @@
 ///  - `syscall_id` : 10
 ///  - `arg0` : page
 ///  - `arg1` : page count
-///
-/// # return codes (in arg0 after returning)
-///  - `-2` : invalid ptr
-///  - `-1` : invalid alloc
-///  - `0`  : ok
-</span><span class="kw">pub fn </span>pfree(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+</span><span class="kw">pub fn </span>pfree(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span><span class="prelude-val">Ok</span>(alloc_bottom) = VirtAddr::try_new(args.arg0) <span class="kw">else </span>{
-        <span class="kw">return </span>-<span class="number">2</span>;
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
     };
     <span class="kw">let </span>pages = args.arg1 <span class="kw">as </span>usize;
 
@@ -627,14 +504,14 @@
     <span class="kw">let </span>page_bottom = alloc_bottom.as_u64() <span class="kw">as </span>usize / <span class="number">0x1000</span>;
     <span class="kw">for </span>page <span class="kw">in </span>page_bottom..page_bottom + pages {
         <span class="kw">if </span>!allocs.get(page).unwrap() {
-            <span class="kw">return </span>-<span class="number">1</span>;
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ALLOC);
         }
 
         allocs.set(page, <span class="bool-val">false</span>).unwrap();
     }
 
     <span class="kw">let </span><span class="prelude-val">Some</span>(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) <span class="kw">else </span>{
-        <span class="kw">return </span>-<span class="number">2</span>;
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
     };
 
     <span class="kw">let </span>frames = <span class="kw">unsafe </span>{ PageFrame::new(palloc, pages) };
@@ -644,7 +521,7 @@
         .page_map
         .unmap(alloc_bottom..alloc_bottom + pages * <span class="number">0x1000</span>);
 
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
 <span class="doccomment">/// send data to an input channel of a process
@@ -654,50 +531,30 @@
 ///  - `arg0`       : target PID
 ///  - `arg1`       : data ptr
 ///  - `arg2`       : data len (bytes)
-///
-/// # return codes (in arg0 after returning)
-///  - `-3` : no such process
-///  - `-2` : address range not mapped for the user (arg0 .. arg1)
-///  - `-1` : invalid address range (arg0 .. arg1)
-///  -  `0` : ok
-</span><span class="kw">pub fn </span>send(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
+</span><span class="kw">pub fn </span>send(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>target_pid = args.arg0;
-    <span class="kw">let </span>data = <span class="kw">match </span>read_untrusted_bytes(args.arg1, args.arg2) {
-        <span class="prelude-val">Ok</span>(v) =&gt; v,
-        <span class="prelude-val">Err</span>(err) =&gt; {
-            <span class="kw">return </span>err;
-        }
-    };
+    <span class="kw">let </span>data = read_untrusted_bytes(args.arg1, args.arg2)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>pid = hyperion_scheduler::task::Pid::new(target_pid <span class="kw">as </span>usize);
 
     <span class="kw">if </span>hyperion_scheduler::send(pid, data.to_vec().into()).is_err() {
-        <span class="kw">return </span>-<span class="number">3</span>;
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::NO_SUCH_PROCESS);
     }
 
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
 <span class="doccomment">/// recv data from this process input channel
+///
+/// returns the number of bytes read
 ///
 /// # arguments
 ///  - `syscall_id` : 12
 ///  - `arg0`       : data ptr
 ///  - `arg1`       : data len (bytes)
-///
-/// # return codes (in arg0 after returning)
-///  - `-2` : address range not mapped for the user (arg0 .. arg1)
-///  - `-1` : invalid address range (arg0 .. arg1)
-///  - `0..` : num of bytes read
-</span><span class="kw">pub fn </span>recv(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
-    <span class="kw">let </span>buf = <span class="kw">match </span>read_untrusted_bytes_mut(args.arg0, args.arg1) {
-        <span class="prelude-val">Ok</span>(v) =&gt; v,
-        <span class="prelude-val">Err</span>(err) =&gt; {
-            <span class="kw">return </span>err;
-        }
-    };
-
-    <span class="kw">return </span>hyperion_scheduler::recv_to(buf) <span class="kw">as </span>i64;
+</span><span class="kw">pub fn </span>recv(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>buf = read_untrusted_bytes_mut(args.arg0, args.arg1)<span class="question-mark">?</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(hyperion_scheduler::recv_to(buf));
 }
 
 <span class="doccomment">/// rename the current process
@@ -712,36 +569,32 @@
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
 ///  - `0`  : ok
-</span><span class="kw">pub fn </span>rename(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; i64 {
-    <span class="kw">let </span>new_name = <span class="kw">match </span>read_untrusted_str(args.arg0, args.arg1) {
-        <span class="prelude-val">Ok</span>(v) =&gt; v,
-        <span class="prelude-val">Err</span>(err) =&gt; <span class="kw">return </span>err,
-    };
-
+</span><span class="kw">pub fn </span>rename(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>new_name = read_untrusted_str(args.arg0, args.arg1)<span class="question-mark">?</span>;
     hyperion_scheduler::rename(new_name.to_string().into());
-
-    <span class="kw">return </span><span class="number">0</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
 <span class="comment">//
 
-</span><span class="kw">fn </span>read_slice_parts(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;(VirtAddr, usize), i64&gt; {
+</span><span class="kw">fn </span>read_slice_parts(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;(VirtAddr, usize)&gt; {
     <span class="kw">let </span><span class="prelude-val">Some</span>(end) = ptr.checked_add(len) <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(-<span class="number">1</span>);
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
     };
 
     <span class="kw">let </span>(<span class="prelude-val">Ok</span>(start), <span class="prelude-val">Ok</span>(end)) = (VirtAddr::try_new(ptr), VirtAddr::try_new(end)) <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(-<span class="number">1</span>);
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
     };
 
     <span class="kw">if </span>!PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(-<span class="number">2</span>);
+        <span class="comment">// debug!(&quot;{:?} not mapped&quot;, start..end);
+        </span><span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
     }
 
     <span class="prelude-val">Ok</span>((start, len <span class="kw">as _</span>))
 }
 
-<span class="kw">fn </span>read_untrusted_bytes&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8], i64&gt; {
+<span class="kw">fn </span>read_untrusted_bytes&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt; {
     read_slice_parts(ptr, len).map(|(start, len)| {
         <span class="comment">// TODO:
         // SAFETY: this is most likely unsafe
@@ -749,7 +602,7 @@
     })
 }
 
-<span class="kw">fn </span>read_untrusted_bytes_mut&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>[u8], i64&gt; {
+<span class="kw">fn </span>read_untrusted_bytes_mut&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>[u8]&gt; {
     read_slice_parts(ptr, len).map(|(start, len)| {
         <span class="comment">// TODO:
         // SAFETY: this is most likely unsafe
@@ -757,7 +610,8 @@
     })
 }
 
-<span class="kw">fn </span>read_untrusted_str&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str, i64&gt; {
-    core::str::from_utf8(read_untrusted_bytes(ptr, len)<span class="question-mark">?</span>).map_err(|<span class="kw">_</span>| -<span class="number">3</span>)
+<span class="kw">fn </span>read_untrusted_str&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str&gt; {
+    read_untrusted_bytes(ptr, len)
+        .and_then(|bytes| core::str::from_utf8(bytes).map_err(|<span class="kw">_</span>| Error::INVALID_UTF8))
 }
 </code></pre></div></section></main></body></html>
