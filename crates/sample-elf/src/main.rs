@@ -6,11 +6,12 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String};
+use alloc::{boxed::Box, string::String, sync::Arc};
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
     ptr::NonNull,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use hyperion_syscall::*;
@@ -30,27 +31,20 @@ pub fn main(args: CliArgs) {
     match args.iter().next().expect("arg0 to be present") {
         // busybox style single binary 'coreutils'
         "/bin/run" => {
-            // let inc = Arc::new(AtomicUsize::new(0));
-            // let inc = Arc::new(AtomicUsize::new(0));
+            let inc = Arc::new(AtomicUsize::new(0));
 
-            for _n in 0..8 {
-                // let inc = inc.clone();
+            for _n in 0..80 {
+                let inc = inc.clone();
                 spawn(move || {
-                    println!("hello from thread {_n}");
-                    // println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
-                    // println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
-                    // inc.fetch_add(1, Ordering::Relaxed);
-                    // println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
-                    // println!("print from thread {n}");
+                    // println!("hello from thread {_n}");
+                    inc.fetch_add(1, Ordering::Relaxed);
                 });
             }
 
             let mut next = timestamp().unwrap() as u64;
             for i in next / 1_000_000_000.. {
-                // `lock inc` (asm) instruction triggers a GPF?
-                // println!("inc at: {}", inc.fetch_add(1, Ordering::Relaxed));
+                println!("inc at: {}", inc.load(Ordering::Relaxed));
 
-                // println!("sleeping until {next}");
                 nanosleep_until(next);
                 next += 1_000_000_000;
 
