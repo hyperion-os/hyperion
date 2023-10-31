@@ -109,11 +109,24 @@ pub fn init(task: impl Into<Task>) -> ! {
     // init scheduler's custom page fault handler
     ints::PAGE_FAULT_HANDLER.store(page_fault::page_fault_handler);
 
+    // init scheduler's custom general protection fault handler
+    ints::GP_FAULT_HANDLER.store(|| {
+        process().should_terminate.store(true, Ordering::Relaxed);
+        hyperion_log::debug!("GPF self term");
+        stop();
+    });
+
     // init HPET timer interrupts for sleep events
     timer::TIMER_HANDLER.store(|| sleep::wake_up_completed(None));
 
     // init periodic APIC timer interrutpts (optionally for RR-scheduling)
-    apic::APIC_TIMER_HANDLER.store(|| sleep::wake_up_completed(None));
+    apic::APIC_TIMER_HANDLER.store(|| {
+        sleep::wake_up_completed(None);
+
+        if process().should_terminate.load(Ordering::Relaxed) {
+            stop();
+        }
+    });
 
     // init `Once` in TLS
     _ = crate::task();

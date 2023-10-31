@@ -6,11 +6,10 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String, sync::Arc};
+use alloc::{boxed::Box, string::String};
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
-    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use hyperion_syscall::*;
@@ -30,9 +29,10 @@ pub fn main(args: CliArgs) {
     match args.iter().next().expect("arg0 to be present") {
         // busybox style single binary 'coreutils'
         "/bin/run" => {
-            let inc = Arc::new(AtomicUsize::new(0));
+            // let inc = Arc::new(AtomicUsize::new(0));
+            /* let inc = Arc::new(AtomicUsize::new(0));
 
-            for _n in 0..1 {
+            for _n in 0..0 {
                 let inc = inc.clone();
                 spawn(move || {
                     println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
@@ -41,12 +41,13 @@ pub fn main(args: CliArgs) {
                     println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
                     // println!("print from thread {n}");
                 });
-            }
+            } */
 
             let mut next = timestamp().unwrap() as u64;
             for i in next / 1_000_000_000.. {
-                println!("inc at: {}", inc.load(Ordering::Relaxed));
+                // println!("inc at: {}", inc.fetch_add(1, Ordering::Relaxed));
 
+                // println!("sleeping until {next}");
                 nanosleep_until(next);
                 next += 1_000_000_000;
 

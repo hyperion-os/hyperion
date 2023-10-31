@@ -11,7 +11,7 @@ use core::{
     fmt,
     ops::Deref,
     ptr,
-    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 
 use crossbeam::atomic::AtomicCell;
@@ -178,6 +178,8 @@ pub struct Process {
 
     /// a store for all allocated (and mapped) physical pages
     pub allocs: PageAllocs,
+
+    pub should_terminate: AtomicBool,
 }
 
 impl Drop for Process {
@@ -270,6 +272,7 @@ impl Task {
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
+            should_terminate: AtomicBool::new(false),
         });
         PROCESSES
             .lock()
@@ -350,6 +353,7 @@ impl Task {
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
+            should_terminate: AtomicBool::new(true),
         });
 
         let mut kernel_stack = process

@@ -13,6 +13,10 @@ use crate::vmm::PageMap;
 pub static PAGE_FAULT_HANDLER: AtomicCell<fn(usize, Privilege) -> PageFaultResult> =
     AtomicCell::new(|_, _| Ok(NotHandled));
 
+pub static GP_FAULT_HANDLER: AtomicCell<fn()> = AtomicCell::new(|| {
+    panic!();
+});
+
 //
 
 pub extern "x86-interrupt" fn divide_error(stack: InterruptStackFrame) {
@@ -79,7 +83,7 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
     error!("INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}");
     // unsafe { print_backtrace_from(stack.stack_pointer) };
 
-    panic!();
+    GP_FAULT_HANDLER.load()();
 }
 
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
