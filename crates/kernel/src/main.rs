@@ -71,10 +71,10 @@ extern "C" fn _start() -> ! {
 
     drivers::lazy_install_early();
 
+    // os unit tests
     #[cfg(test)]
     test_main();
-
-    // main task(s)
+    // kshell (kernel-space shell) UI task(s)
     #[cfg(not(test))]
     futures::executor::spawn(hyperion_kshell::kshell());
 
