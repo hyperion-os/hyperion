@@ -256,12 +256,6 @@
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
 <a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![no_main]
 #![feature(format_args_nl, slice_internals)]
@@ -270,11 +264,12 @@
 
 </span><span class="kw">extern crate </span>alloc;
 
-<span class="kw">use </span>alloc::{boxed::Box, string::String};
+<span class="kw">use </span>alloc::{boxed::Box, string::String, sync::Arc};
 <span class="kw">use </span>core::{
     alloc::GlobalAlloc,
     fmt::{<span class="self">self</span>, Write},
     ptr::NonNull,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 <span class="kw">use </span>hyperion_syscall::<span class="kw-2">*</span>;
@@ -294,28 +289,21 @@
     <span class="kw">match </span>args.iter().next().expect(<span class="string">&quot;arg0 to be present&quot;</span>) {
         <span class="comment">// busybox style single binary &#39;coreutils&#39;
         </span><span class="string">&quot;/bin/run&quot; </span>=&gt; {
-            <span class="comment">// let inc = Arc::new(AtomicUsize::new(0));
-            // let inc = Arc::new(AtomicUsize::new(0));
+            <span class="kw">let </span>inc = Arc::new(AtomicUsize::new(<span class="number">0</span>));
 
-            </span><span class="kw">for </span>_n <span class="kw">in </span><span class="number">0</span>..<span class="number">8 </span>{
-                <span class="comment">// let inc = inc.clone();
-                </span>spawn(<span class="kw">move </span>|| {
-                    <span class="macro">println!</span>(<span class="string">&quot;hello from thread {_n}&quot;</span>);
-                    <span class="comment">// println!(&quot;thread inc ptr: {:0x}&quot;, inc.as_ref() as *const _ as usize);
-                    // println!(&quot;thread inc ptr: {:0x}&quot;, inc.as_ref() as *const _ as usize);
-                    // inc.fetch_add(1, Ordering::Relaxed);
-                    // println!(&quot;thread inc ptr: {:0x}&quot;, inc.as_ref() as *const _ as usize);
-                    // println!(&quot;print from thread {n}&quot;);
-                </span>});
+            <span class="kw">for </span>_n <span class="kw">in </span><span class="number">0</span>..<span class="number">80 </span>{
+                <span class="kw">let </span>inc = inc.clone();
+                spawn(<span class="kw">move </span>|| {
+                    <span class="comment">// println!(&quot;hello from thread {_n}&quot;);
+                    </span>inc.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
+                });
             }
 
             <span class="kw">let </span><span class="kw-2">mut </span>next = timestamp().unwrap() <span class="kw">as </span>u64;
             <span class="kw">for </span>i <span class="kw">in </span>next / <span class="number">1_000_000_000</span>.. {
-                <span class="comment">// `lock inc` (asm) instruction triggers a GPF?
-                // println!(&quot;inc at: {}&quot;, inc.fetch_add(1, Ordering::Relaxed));
+                <span class="macro">println!</span>(<span class="string">&quot;inc at: {}&quot;</span>, inc.load(Ordering::Relaxed));
 
-                // println!(&quot;sleeping until {next}&quot;);
-                </span>nanosleep_until(next);
+                nanosleep_until(next);
                 next += <span class="number">1_000_000_000</span>;
 
                 <span class="macro">println!</span>(<span class="string">&quot;seconds since boot: {i}&quot;</span>);
