@@ -28,7 +28,6 @@ use hyperion_boot_interface::Cpu;
 use hyperion_drivers as drivers;
 use hyperion_futures as futures;
 use hyperion_kernel_info::{NAME, VERSION};
-use hyperion_kshell as kshell;
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
 use hyperion_mem::from_higher_half;
@@ -76,7 +75,8 @@ extern "C" fn _start() -> ! {
     test_main();
 
     // main task(s)
-    futures::executor::spawn(kshell::kshell());
+    #[cfg(not(test))]
+    futures::executor::spawn(hyperion_kshell::kshell());
 
     // jumps to [smp_main] right bellow + wakes up other threads to jump there
     boot::smp_init(smp_main);

@@ -99,8 +99,6 @@ pub fn test_runner(tests: &'static [&'static dyn TestCase]) {
             }
         }
     });
-
-    hyperion_scheduler::init();
 }
 
 pub fn test_panic_handler(info: &PanicInfo) -> ! {
