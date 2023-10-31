@@ -20,7 +20,6 @@ time.workspace = true
 futures-util.workspace = true
 crossbeam.workspace = true
 
-hyperion-num-postfix.path = "../num-postfix"
 hyperion-arch.path = "../arch"
 hyperion-backtrace.path = "../backtrace"
 hyperion-boot-interface.path = "../boot-interface"
@@ -28,15 +27,17 @@ hyperion-boot.path = "../boot"
 hyperion-color.path = "../color"
 hyperion-drivers.path = "../drivers"
 hyperion-framebuffer.path = "../framebuffer"
+hyperion-futures.path = "../futures"
 hyperion-instant.path = "../instant"
 hyperion-interrupts.path = "../interrupts"
 hyperion-kernel-info.path = "../kernel-info"
 hyperion-kshell.path = "../kshell"
 hyperion-log-multi.path = "../log-multi"
 hyperion-log.path = "../log"
+hyperion-num-postfix.path = "../num-postfix"
 hyperion-random.path = "../random"
 hyperion-scheduler.path = "../scheduler"
-hyperion-futures.path = "../futures"
+hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
 
 [dependencies.hyperion-mem]

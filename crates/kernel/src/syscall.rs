@@ -9,6 +9,7 @@ use hyperion_mem::{
     pmm::{self, PageFrame},
     vmm::PageMapImpl,
 };
+use hyperion_syscall::err::{Error, Result};
 use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -17,7 +18,7 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 pub fn syscall(args: &mut SyscallRegs) {
     let id = args.syscall_id;
     // debug!("syscall {id}");
-    let (result, name): (i64, &str) = match id {
+    let (result, name) = match id {
         1 => call_id(log, args),
         2 | 420 => call_id(exit, args),
         3 => call_id(yield_now, args),
@@ -44,10 +45,13 @@ pub fn syscall(args: &mut SyscallRegs) {
     // }
 }
 
-fn call_id(f: impl FnOnce(&mut SyscallRegs) -> i64, args: &mut SyscallRegs) -> (i64, &str) {
+fn call_id(
+    f: impl FnOnce(&mut SyscallRegs) -> Result<usize>,
+    args: &mut SyscallRegs,
+) -> (Result<usize>, &str) {
     let name = type_name_of_val(&f);
     let res = f(args);
-    args.arg0 = res as _;
+    args.syscall_id = Error::encode(res) as u64;
     (res, name)
 }
 
@@ -57,20 +61,10 @@ fn call_id(f: impl FnOnce(&mut SyscallRegs) -> i64, args: &mut SyscallRegs) -> (
 ///  - `syscall_id` : 1
 ///  - `arg0` : _utf8 string address_
 ///  - `arg1` : _utf8 string length_
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-///  - `1` : invalid address range (arg0 .. arg1)
-///  - `2` : address range not mapped for the user (arg0 .. arg1)
-///  - `3` : invalid utf8
-pub fn log(args: &mut SyscallRegs) -> i64 {
-    let str = match read_untrusted_str(args.arg0, args.arg1) {
-        Ok(v) => v,
-        Err(err) => return err,
-    };
-
+pub fn log(args: &mut SyscallRegs) -> Result<usize> {
+    let str = read_untrusted_str(args.arg0, args.arg1)?;
     hyperion_log::print!("{str}");
-    return 0;
+    return Ok(0);
 }
 
 /// exit and kill the current process
@@ -78,10 +72,7 @@ pub fn log(args: &mut SyscallRegs) -> i64 {
 /// # arguments
 ///  - `syscall_id` : 2
 ///  - `arg0` : _exit code_
-///
-/// # return codes (in arg0 after returning)
-/// _won't return_
-pub fn exit(_args: &mut SyscallRegs) -> i64 {
+pub fn exit(_args: &mut SyscallRegs) -> Result<usize> {
     // TODO: exit code
     hyperion_scheduler::stop();
 }
@@ -90,63 +81,43 @@ pub fn exit(_args: &mut SyscallRegs) -> i64 {
 ///
 /// # arguments
 ///  - `syscall_id` : 3
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-pub fn yield_now(_args: &mut SyscallRegs) -> i64 {
+pub fn yield_now(_args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::yield_now();
-    return 0;
+    return Ok(0);
 }
 
 /// get the number of nanoseconds after boot
 ///
 /// # arguments
 ///  - `syscall_id` : 4
-///
-/// # return values
-///  - `arg1` : lower 64 bits of the 128 bit timestamp
-///  - `arg2` : upper 64 bits of the 128 bit timestamp
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-pub fn timestamp(args: &mut SyscallRegs) -> i64 {
+///  - `arg0` : address of a 128 bit variable where to store the timestamp
+pub fn timestamp(args: &mut SyscallRegs) -> Result<usize> {
     let nanos = HPET.nanos();
 
-    /* let bytes = nanos.to_ne_bytes();
-    args.arg1 = u64::from_ne_bytes(bytes[0..8].try_into().unwrap());
-    args.arg2 = u64::from_ne_bytes(bytes[8..16].try_into().unwrap()); */
-    args.arg1 = nanos as u64;
-    args.arg2 = (nanos >> 64) as u64;
+    let bytes = read_untrusted_bytes_mut(args.arg0, 16)?;
+    bytes.copy_from_slice(&nanos.to_ne_bytes());
 
-    return 0;
+    return Ok(0);
 }
 
-/// sleep at least arg0|arg1 nanoseconds
+/// sleep at least arg0 nanoseconds
 ///
 /// # arguments
 ///  - `syscall_id` : 5
-///  - `arg0` : lower 64 bits of the 128 bit duration
-///  - `arg1` : _todo_
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-pub fn nanosleep(args: &mut SyscallRegs) -> i64 {
+///  - `arg0` : lower 64 bits of the 128 bit duration TODO: address to a 128 bit variable
+pub fn nanosleep(args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::sleep(Duration::nanoseconds((args.arg0 as i64).max(0)));
-    return 0;
+    return Ok(0);
 }
 
-/// sleep at least until the nanosecond arg0|arg1 happens
+/// sleep at least until the nanosecond arg0 happens
 ///
 /// # arguments
 ///  - `syscall_id` : 6
-///  - `arg0` : lower 64 bits of the 128 bit timestamp
-///  - `arg1` : _todo_
-///
-/// # return codes (in arg0 after returning)
-///  - `0` : ok
-pub fn nanosleep_until(args: &mut SyscallRegs) -> i64 {
+///  - `arg0` : lower 64 bits of the 128 bit timestamp TODO: address to a 128 bit variable
+pub fn nanosleep_until(args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::sleep_until(Instant::new(args.arg0 as u128));
-    return 0;
+    return Ok(0);
 }
 
 /// open a file
@@ -155,47 +126,31 @@ pub fn nanosleep_until(args: &mut SyscallRegs) -> i64 {
 ///  - `syscall_id` : 7
 ///  - `arg0` : filename : _utf8 string address_
 ///  - `arg1` : filename : _utf8 string length_
-///
-/// # return codes (in arg0 after returning)
-///  - `-3` : invalid utf8
-///  - `-2` : address range not mapped for the user (arg0 .. arg1)
-///  - `-1` : invalid address range (arg0 .. arg1)
-///  - `0..` :
-pub fn open(_args: &mut SyscallRegs) -> i64 {
-    /* let path = match read_untrusted_str(args.arg0, args.arg1) {
-        Ok(v) => v,
-        Err(err) => return err,
-    }; */
-
-    // hyperion_vfs::open(path, false, false);
-
-    return -1 as _;
+pub fn open(_args: &mut SyscallRegs) -> Result<usize> {
+    return Err(Error(0));
 }
 
 /// spawn a new thread
 ///
-/// thread entry signature: `extern "C" fn thread_entry(stack_ptr: u64, arg1: u64) -> !`
+/// thread entry signature: `extern "C" fn thread_entry(stack_ptr: usize, arg1: usize) -> !`
 ///
 /// # arguments
 ///  - `syscall_id` : 8
 ///  - `arg0` : the thread function pointer
 ///  - `arg1` : the thread function argument
-pub fn pthread_spawn(args: &mut SyscallRegs) -> i64 {
+pub fn pthread_spawn(args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::spawn_userspace(args.arg0, args.arg1);
-    return 0;
+    return Ok(0);
 }
 
 /// allocate physical pages and map them to virtual memory
 ///
+/// returns the virtual address pointer
+///
 /// # arguments
 ///  - `syscall_id` : 9
 ///  - `arg0` : page count
-///
-/// # return codes (in arg0 after returning)
-///  - `-2` : out of virtual memory
-///  - `-1` : out of memory
-///  - `0..` : virtual alloc address
-pub fn palloc(args: &mut SyscallRegs) -> i64 {
+pub fn palloc(args: &mut SyscallRegs) -> Result<usize> {
     let pages = args.arg0 as usize;
     let alloc = pages * 0x1000;
 
@@ -205,7 +160,7 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
     let alloc_top = alloc_bottom + alloc;
 
     if alloc_top as u64 >= USER_HEAP_TOP {
-        return -2;
+        return Err(Error::OUT_OF_VIRTUAL_MEMORY);
     }
 
     let frames = pmm::PFA.alloc(pages);
@@ -220,7 +175,7 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
         allocs.set(page, true).unwrap();
     }
 
-    return alloc_bottom as _;
+    return Ok(alloc_bottom);
 }
 
 /// free allocated physical pages
@@ -229,14 +184,9 @@ pub fn palloc(args: &mut SyscallRegs) -> i64 {
 ///  - `syscall_id` : 10
 ///  - `arg0` : page
 ///  - `arg1` : page count
-///
-/// # return codes (in arg0 after returning)
-///  - `-2` : invalid ptr
-///  - `-1` : invalid alloc
-///  - `0`  : ok
-pub fn pfree(args: &mut SyscallRegs) -> i64 {
+pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
     let Ok(alloc_bottom) = VirtAddr::try_new(args.arg0) else {
-        return -2;
+        return Err(Error::INVALID_ADDRESS);
     };
     let pages = args.arg1 as usize;
 
@@ -246,14 +196,14 @@ pub fn pfree(args: &mut SyscallRegs) -> i64 {
     let page_bottom = alloc_bottom.as_u64() as usize / 0x1000;
     for page in page_bottom..page_bottom + pages {
         if !allocs.get(page).unwrap() {
-            return -1;
+            return Err(Error::INVALID_ALLOC);
         }
 
         allocs.set(page, false).unwrap();
     }
 
     let Some(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) else {
-        return -2;
+        return Err(Error::INVALID_ADDRESS);
     };
 
     let frames = unsafe { PageFrame::new(palloc, pages) };
@@ -263,7 +213,7 @@ pub fn pfree(args: &mut SyscallRegs) -> i64 {
         .page_map
         .unmap(alloc_bottom..alloc_bottom + pages * 0x1000);
 
-    return 0;
+    return Ok(0);
 }
 
 /// send data to an input channel of a process
@@ -273,50 +223,30 @@ pub fn pfree(args: &mut SyscallRegs) -> i64 {
 ///  - `arg0`       : target PID
 ///  - `arg1`       : data ptr
 ///  - `arg2`       : data len (bytes)
-///
-/// # return codes (in arg0 after returning)
-///  - `-3` : no such process
-///  - `-2` : address range not mapped for the user (arg0 .. arg1)
-///  - `-1` : invalid address range (arg0 .. arg1)
-///  -  `0` : ok
-pub fn send(args: &mut SyscallRegs) -> i64 {
+pub fn send(args: &mut SyscallRegs) -> Result<usize> {
     let target_pid = args.arg0;
-    let data = match read_untrusted_bytes(args.arg1, args.arg2) {
-        Ok(v) => v,
-        Err(err) => {
-            return err;
-        }
-    };
+    let data = read_untrusted_bytes(args.arg1, args.arg2)?;
 
     let pid = hyperion_scheduler::task::Pid::new(target_pid as usize);
 
     if hyperion_scheduler::send(pid, data.to_vec().into()).is_err() {
-        return -3;
+        return Err(Error::NO_SUCH_PROCESS);
     }
 
-    return 0;
+    return Ok(0);
 }
 
 /// recv data from this process input channel
+///
+/// returns the number of bytes read
 ///
 /// # arguments
 ///  - `syscall_id` : 12
 ///  - `arg0`       : data ptr
 ///  - `arg1`       : data len (bytes)
-///
-/// # return codes (in arg0 after returning)
-///  - `-2` : address range not mapped for the user (arg0 .. arg1)
-///  - `-1` : invalid address range (arg0 .. arg1)
-///  - `0..` : num of bytes read
-pub fn recv(args: &mut SyscallRegs) -> i64 {
-    let buf = match read_untrusted_bytes_mut(args.arg0, args.arg1) {
-        Ok(v) => v,
-        Err(err) => {
-            return err;
-        }
-    };
-
-    return hyperion_scheduler::recv_to(buf) as i64;
+pub fn recv(args: &mut SyscallRegs) -> Result<usize> {
+    let buf = read_untrusted_bytes_mut(args.arg0, args.arg1)?;
+    return Ok(hyperion_scheduler::recv_to(buf));
 }
 
 /// rename the current process
@@ -331,36 +261,32 @@ pub fn recv(args: &mut SyscallRegs) -> i64 {
 ///  - `-2` : address range not mapped for the user (arg0 .. arg1)
 ///  - `-1` : invalid address range (arg0 .. arg1)
 ///  - `0`  : ok
-pub fn rename(args: &mut SyscallRegs) -> i64 {
-    let new_name = match read_untrusted_str(args.arg0, args.arg1) {
-        Ok(v) => v,
-        Err(err) => return err,
-    };
-
+pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
+    let new_name = read_untrusted_str(args.arg0, args.arg1)?;
     hyperion_scheduler::rename(new_name.to_string().into());
-
-    return 0;
+    return Ok(0);
 }
 
 //
 
-fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize), i64> {
+fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
     let Some(end) = ptr.checked_add(len) else {
-        return Err(-1);
+        return Err(Error::INVALID_ADDRESS);
     };
 
     let (Ok(start), Ok(end)) = (VirtAddr::try_new(ptr), VirtAddr::try_new(end)) else {
-        return Err(-1);
+        return Err(Error::INVALID_ADDRESS);
     };
 
     if !PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {
-        return Err(-2);
+        // debug!("{:?} not mapped", start..end);
+        return Err(Error::INVALID_ADDRESS);
     }
 
     Ok((start, len as _))
 }
 
-fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8], i64> {
+fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {
     read_slice_parts(ptr, len).map(|(start, len)| {
         // TODO:
         // SAFETY: this is most likely unsafe
@@ -368,7 +294,7 @@ fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8], i64> {
     })
 }
 
-fn read_untrusted_bytes_mut<'a>(ptr: u64, len: u64) -> Result<&'a mut [u8], i64> {
+fn read_untrusted_bytes_mut<'a>(ptr: u64, len: u64) -> Result<&'a mut [u8]> {
     read_slice_parts(ptr, len).map(|(start, len)| {
         // TODO:
         // SAFETY: this is most likely unsafe
@@ -376,6 +302,7 @@ fn read_untrusted_bytes_mut<'a>(ptr: u64, len: u64) -> Result<&'a mut [u8], i64>
     })
 }
 
-fn read_untrusted_str<'a>(ptr: u64, len: u64) -> Result<&'a str, i64> {
-    core::str::from_utf8(read_untrusted_bytes(ptr, len)?).map_err(|_| -3)
+fn read_untrusted_str<'a>(ptr: u64, len: u64) -> Result<&'a str> {
+    read_untrusted_bytes(ptr, len)
+        .and_then(|bytes| core::str::from_utf8(bytes).map_err(|_| Error::INVALID_UTF8))
 }

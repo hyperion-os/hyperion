@@ -43,6 +43,7 @@ pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
 
         // user process tried to access memory thats not available to it
         hyperion_log::warn!("killing user-space process");
+        current.should_terminate.store(true, Ordering::SeqCst);
         stop();
     } else {
         handle_stack_grow(&current.kernel_stack, addr)?;

@@ -523,6 +523,7 @@ dependencies = [
  "hyperion-num-postfix",
  "hyperion-random",
  "hyperion-scheduler",
+ "hyperion-syscall",
  "hyperion-vfs",
  "spin",
  "time 0.3.22",

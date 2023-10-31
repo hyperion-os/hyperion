@@ -10,6 +10,7 @@ use alloc::{boxed::Box, string::String};
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
+    ptr::NonNull,
 };
 
 use hyperion_syscall::*;
@@ -30,21 +31,23 @@ pub fn main(args: CliArgs) {
         // busybox style single binary 'coreutils'
         "/bin/run" => {
             // let inc = Arc::new(AtomicUsize::new(0));
-            /* let inc = Arc::new(AtomicUsize::new(0));
+            // let inc = Arc::new(AtomicUsize::new(0));
 
-            for _n in 0..0 {
-                let inc = inc.clone();
+            for _n in 0..8 {
+                // let inc = inc.clone();
                 spawn(move || {
-                    println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
-                    println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
-                    inc.fetch_add(1, Ordering::Relaxed);
-                    println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
+                    println!("hello from thread {_n}");
+                    // println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
+                    // println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
+                    // inc.fetch_add(1, Ordering::Relaxed);
+                    // println!("thread inc ptr: {:0x}", inc.as_ref() as *const _ as usize);
                     // println!("print from thread {n}");
                 });
-            } */
+            }
 
             let mut next = timestamp().unwrap() as u64;
             for i in next / 1_000_000_000.. {
+                // `lock inc` (asm) instruction triggers a GPF?
                 // println!("inc at: {}", inc.fetch_add(1, Ordering::Relaxed));
 
                 // println!("sleeping until {next}");
@@ -113,6 +116,8 @@ pub fn main(args: CliArgs) {
                 let mut input_channel = BufReader::new(SimpleIpcInputChannel);
                 input_channel.read_line(&mut line).unwrap();
 
+                println!("got '{}'", line.trim());
+
                 let mut found = [false; 26];
                 for c in line.trim().chars() {
                     found[((c as u8).to_ascii_lowercase() - b'a') as usize] = true;
@@ -151,19 +156,19 @@ macro_rules! println {
 
 #[derive(Clone, Copy)]
 pub struct CliArgs {
-    hyperion_cli_args_ptr: u64,
+    hyperion_cli_args_ptr: usize,
 }
 
 impl CliArgs {
     pub fn iter(self) -> impl Iterator<Item = &'static str> + Clone + DoubleEndedIterator {
         let mut ptr = self.hyperion_cli_args_ptr;
 
-        let argc: u64 = Self::pop(&mut ptr);
+        let argc: usize = Self::pop(&mut ptr);
         let mut arg_lengths = ptr;
-        let mut arg_strings = ptr + argc * core::mem::size_of::<u64>() as u64;
+        let mut arg_strings = ptr + argc * core::mem::size_of::<usize>();
 
         (0..argc).map(move |_| {
-            let len: u64 = Self::pop(&mut arg_lengths);
+            let len: usize = Self::pop(&mut arg_lengths);
             let str: &[u8] = unsafe { core::slice::from_raw_parts(arg_strings as _, len as _) };
             arg_strings += len;
 
@@ -171,9 +176,9 @@ impl CliArgs {
         })
     }
 
-    fn pop<T: Sized>(top: &mut u64) -> T {
+    fn pop<T: Sized>(top: &mut usize) -> T {
         let v = unsafe { ((*top) as *const T).read() };
-        *top += core::mem::size_of::<T>() as u64;
+        *top += core::mem::size_of::<T>();
         v
     }
 }
@@ -190,14 +195,14 @@ unsafe impl GlobalAlloc for PageAlloc {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         let pages = layout.size().div_ceil(0x1000);
 
-        let res = palloc(pages as u64);
+        let res = palloc(pages);
         // println!("alloc syscall res: {res:?}");
-        res.expect("page alloc")
+        res.expect("page alloc").expect("null alloc").as_ptr()
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
         let pages = layout.size().div_ceil(0x1000);
-        assert!(pfree(ptr as u64, pages as u64).is_ok());
+        assert!(pfree(NonNull::new(ptr).unwrap(), pages).is_ok());
     }
 }
 
@@ -231,23 +236,23 @@ fn _print(args: fmt::Arguments) {
 //
 
 #[no_mangle]
-extern "C" fn _start(a0: u64) -> ! {
+extern "C" fn _start(a0: usize) -> ! {
     main(CliArgs {
-        hyperion_cli_args_ptr: a0 as _,
+        hyperion_cli_args_ptr: a0,
     });
     exit(0);
 }
 
-extern "C" fn _thread_entry(_stack_ptr: u64, arg: u64) -> ! {
-    println!("_thread_entry");
-    println!("_thread_entry {_stack_ptr} {arg}");
+extern "C" fn _thread_entry(_stack_ptr: usize, arg: usize) -> ! {
+    // println!("_thread_entry");
+    // println!("_thread_entry {_stack_ptr} {arg}");
     let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = arg as _;
     let f_fatptr: Box<dyn FnOnce() + Send + 'static> = *unsafe { Box::from_raw(f_fatptr_box) };
 
-    println!("addr {:0x}", (&*f_fatptr) as *const _ as *const () as usize);
+    // println!("addr {:0x}", (&*f_fatptr) as *const _ as *const () as usize);
 
     f_fatptr();
-    println!("_thread_entry f call");
+    // println!("_thread_entry f call");
 
     exit(0);
 }

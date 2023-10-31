@@ -11,9 +11,7 @@ pub struct SimpleIpcInputChannel;
 
 impl Read for SimpleIpcInputChannel {
     fn recv(&mut self, buf: &mut [u8]) -> Result<usize, String> {
-        hyperion_syscall::recv(buf)
-            .map(|bytes_read| bytes_read as usize)
-            .map_err(|err| format!("failed to recv: {err}"))
+        hyperion_syscall::recv(buf).map_err(|err| format!("failed to recv: {err}"))
     }
 }
 
