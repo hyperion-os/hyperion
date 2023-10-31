@@ -269,10 +269,10 @@
 
     drivers::lazy_install_early();
 
-    <span class="attr">#[cfg(test)]
+    <span class="comment">// os unit tests
+    </span><span class="attr">#[cfg(test)]
     </span>test_main();
-
-    <span class="comment">// main task(s)
+    <span class="comment">// kshell (kernel-space shell) UI task(s)
     </span><span class="attr">#[cfg(not(test))]
     </span>futures::executor::spawn(hyperion_kshell::kshell());
 

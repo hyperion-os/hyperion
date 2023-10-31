@@ -306,6 +306,18 @@
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
 <a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::string::ToString;
 <span class="kw">use </span>core::{any::type_name_of_val, sync::atomic::Ordering};
 
@@ -578,6 +590,10 @@
 <span class="comment">//
 
 </span><span class="kw">fn </span>read_slice_parts(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;(VirtAddr, usize)&gt; {
+    <span class="kw">if </span>len == <span class="number">0 </span>{
+        <span class="kw">return </span><span class="prelude-val">Ok</span>((VirtAddr::new_truncate(<span class="number">0</span>), <span class="number">0</span>));
+    }
+
     <span class="kw">let </span><span class="prelude-val">Some</span>(end) = ptr.checked_add(len) <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
     };
@@ -598,7 +614,11 @@
     read_slice_parts(ptr, len).map(|(start, len)| {
         <span class="comment">// TODO:
         // SAFETY: this is most likely unsafe
-        </span><span class="kw">unsafe </span>{ core::slice::from_raw_parts(start.as_ptr(), len <span class="kw">as _</span>) }
+        </span><span class="kw">if </span>len == <span class="number">0 </span>{
+            <span class="kw-2">&amp;</span>[]
+        } <span class="kw">else </span>{
+            <span class="kw">unsafe </span>{ core::slice::from_raw_parts(start.as_ptr(), len <span class="kw">as _</span>) }
+        }
     })
 }
 
@@ -606,7 +626,11 @@
     read_slice_parts(ptr, len).map(|(start, len)| {
         <span class="comment">// TODO:
         // SAFETY: this is most likely unsafe
-        </span><span class="kw">unsafe </span>{ core::slice::from_raw_parts_mut(start.as_mut_ptr(), len <span class="kw">as _</span>) }
+        </span><span class="kw">if </span>len == <span class="number">0 </span>{
+            <span class="kw-2">&amp;mut </span>[]
+        } <span class="kw">else </span>{
+            <span class="kw">unsafe </span>{ core::slice::from_raw_parts_mut(start.as_mut_ptr(), len <span class="kw">as _</span>) }
+        }
     })
 }
 
