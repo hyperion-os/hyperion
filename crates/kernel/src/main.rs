@@ -20,11 +20,10 @@
 
 //
 
-use core::ops::Range;
+extern crate alloc;
 
 use hyperion_arch as arch;
 use hyperion_boot as boot;
-use hyperion_boot_interface::Cpu;
 use hyperion_drivers as drivers;
 use hyperion_futures as futures;
 use hyperion_kernel_info::{NAME, VERSION};
@@ -33,10 +32,7 @@ use hyperion_log_multi as log_multi;
 use hyperion_mem::from_higher_half;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
-use spin::Once;
-use x86_64::VirtAddr;
-
-extern crate alloc;
+use hyperion_sync as sync;
 
 //
 
@@ -47,61 +43,50 @@ pub mod testfw;
 
 //
 
-static BSP_BOOT_STACK: Once<Range<VirtAddr>> = Once::new();
-
-//
-
 #[no_mangle]
 extern "C" fn _start() -> ! {
+    // save the bootloader stack range so it can be freed later
     let boot_stack = arch::stack_pages();
-    BSP_BOOT_STACK.call_once(move || boot_stack);
 
-    // enable logging and and outputs based on the kernel args,
-    // any logging before won't be shown
-    log_multi::init_logger();
+    // init GDT, IDT, TSS, TLS and cpu_id
+    arch::init();
 
-    debug!("Entering kernel_main");
-    debug!("{NAME} {VERSION} was booted with {}", boot::NAME);
+    if sync::once!() {
+        // enable logging and and outputs based on the kernel args,
+        // any logging before won't be shown
+        log_multi::init_logger();
 
-    //
-    arch::syscall::set_handler(syscall::syscall);
-    arch::init_bsp_cpu();
+        debug!("Entering kernel_main");
+        debug!("{NAME} {VERSION} was booted with {}", boot::NAME);
 
-    random::provide_entropy(&arch::rng_seed().to_ne_bytes());
-
-    drivers::lazy_install_early();
-
-    // os unit tests
-    #[cfg(test)]
-    test_main();
-    // kshell (kernel-space shell) UI task(s)
-    #[cfg(not(test))]
-    futures::executor::spawn(hyperion_kshell::kshell());
-
-    // jumps to [smp_main] right bellow + wakes up other threads to jump there
-    boot::smp_init(smp_main);
-}
-
-fn smp_main(cpu: Cpu) -> ! {
-    let mut boot_stack = arch::stack_pages();
-
-    trace!("{cpu} entering smp_main");
-
-    arch::init_smp_cpu(&cpu);
-
-    if cpu.is_boot() {
-        boot_stack = BSP_BOOT_STACK
-            .get()
-            .expect("_start to run before smp_main")
-            .clone();
-
-        drivers::lazy_install_late();
-        debug!("boot cpu drivers installed");
+        // user-space syscall handler
+        arch::syscall::set_handler(syscall::syscall);
     }
 
-    debug!("resetting CPU-{} scheduler", arch::cpu_id());
+    // wake up all cpus
+    arch::wake_cpus();
+
+    if sync::once!() {
+        // init task once
+        scheduler::schedule(move || {
+            // random hw specifics
+            random::provide_entropy(&arch::rng_seed().to_ne_bytes());
+            drivers::lazy_install_early();
+            drivers::lazy_install_late();
+
+            // os unit tests
+            #[cfg(test)]
+            test_main();
+            // kshell (kernel-space shell) UI task(s)
+            #[cfg(not(test))]
+            futures::executor::spawn(hyperion_kshell::kshell());
+        });
+    }
+
+    // init task per cpu
+    debug!("init CPU-{}", arch::cpu_id());
     scheduler::init(move || {
-        scheduler::rename("<kernel futures executor>".into());
+        scheduler::rename("<kernel async>".into());
 
         let first = from_higher_half(boot_stack.start);
         let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;

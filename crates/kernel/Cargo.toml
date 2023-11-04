@@ -39,6 +39,7 @@ hyperion-random.path = "../random"
 hyperion-scheduler.path = "../scheduler"
 hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
+hyperion-sync.path = "../sync"
 
 [dependencies.hyperion-mem]
 path = "../mem"

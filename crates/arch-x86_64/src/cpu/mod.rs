@@ -1,12 +1,14 @@
 use alloc::boxed::Box;
 use core::mem::MaybeUninit;
 
-use hyperion_boot_interface::Cpu;
 use hyperion_log::trace;
 use spin::{Mutex, MutexGuard};
 
 use self::{gdt::Gdt, idt::Idt, tss::Tss};
-use crate::tls::{self, ThreadLocalStorage};
+use crate::{
+    cpu_id,
+    tls::{self, ThreadLocalStorage},
+};
 
 //
 
@@ -17,9 +19,10 @@ pub mod tss;
 
 //
 
-pub fn init(cpu: &Cpu) {
-    trace!("Loading CpuState for {cpu}");
-    let tls = if cpu.is_boot() {
+pub fn init() {
+    let cpu_id = cpu_id();
+    trace!("Loading CpuState for CPU-{cpu_id}");
+    let tls = if cpu_id == 0 {
         // boot cpu doesn't need to allocate
         CpuState::new_boot_tls()
     } else {

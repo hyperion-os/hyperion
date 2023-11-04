@@ -1,4 +1,3 @@
-use crossbeam::atomic::AtomicCell;
 use hyperion_boot_interface::Cpu;
 use hyperion_log::{debug, error};
 use limine::{LimineSmpInfo, LimineSmpRequest};
@@ -6,9 +5,7 @@ use spin::Lazy;
 
 //
 
-pub fn smp_init(dest: fn(Cpu) -> !) -> ! {
-    SMP_DEST.store(dest);
-
+pub fn smp_init() {
     let boot = boot_cpu();
 
     for cpu in REQ
@@ -20,8 +17,6 @@ pub fn smp_init(dest: fn(Cpu) -> !) -> ! {
     {
         cpu.goto_address = smp_start;
     }
-
-    dest(boot);
 }
 
 pub fn cpu_count() -> usize {
@@ -61,12 +56,16 @@ pub fn lapics() -> impl Iterator<Item = u32> {
         .map(|cpu| cpu.lapic_id)
 }
 
-extern "C" fn smp_start(info: *const LimineSmpInfo) -> ! {
-    let info = unsafe { &*info };
-    SMP_DEST.load()(Cpu::new(info.processor_id, info.lapic_id));
+//
+
+extern "C" {
+    fn _start() -> !;
+}
+
+extern "C" fn smp_start(_info: *const LimineSmpInfo) -> ! {
+    unsafe { _start() };
 }
 
 //
 
-static SMP_DEST: AtomicCell<fn(Cpu) -> !> = AtomicCell::new(|_| unreachable!());
 static REQ: LimineSmpRequest = LimineSmpRequest::new(0);
