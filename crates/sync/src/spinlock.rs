@@ -1,6 +1,5 @@
 use core::{
     cell::UnsafeCell,
-    marker::PhantomData,
     ops,
     panic::Location,
     sync::atomic::{AtomicUsize, Ordering},
@@ -15,7 +14,7 @@ pub const UNLOCKED: usize = usize::MAX;
 
 //
 
-pub struct Mutex<T, W = Spin> {
+pub struct Mutex<T> {
     // imp: spin::Mutex<T>,
     val: UnsafeCell<T>,
 
@@ -23,31 +22,19 @@ pub struct Mutex<T, W = Spin> {
     lock: AtomicUsize,
 
     locked_from: AtomicCell<&'static Location<'static>>,
-
-    _p: PhantomData<W>,
 }
 
 const _: () = assert!(AtomicCell::<&'static Location<'static>>::is_lock_free());
 
-#[derive(Debug)]
-pub enum LockError {
-    /// a direct deadlock where the current cpu locked this mutex already
-    Deadlock {
-        /// where the lock was locked the first time
-        prev: &'static Location<'static>,
-    },
-}
-
 //
 
-impl<T> Mutex<T, Spin> {
+impl<T> Mutex<T> {
     #[track_caller]
     pub const fn new(val: T) -> Self {
         Self {
             val: UnsafeCell::new(val),
             lock: AtomicUsize::new(UNLOCKED),
             locked_from: AtomicCell::new(Location::caller()),
-            _p: PhantomData,
         }
     }
 
@@ -58,12 +45,20 @@ impl<T> Mutex<T, Spin> {
     // pub unsafe fn force_unlock(&self) {}
 }
 
-impl<T, W: Wait> Mutex<T, W> {
+impl<T> Mutex<T> {
     #[track_caller]
-    pub fn lock(&self) -> Result<MutexGuard<T, W>, LockError> {
+    pub fn lock(&self) -> MutexGuard<T> {
         // basically the same as spin::Mutex::lock;
 
         let id = cpu_id();
+
+        if self.lock.load(Ordering::Relaxed) == id {
+            panic!(
+                "deadlock:\n - earlier: {}\n - now: {}",
+                self.locked_from.load(),
+                core::panic::Location::caller()
+            );
+        }
 
         while self
             .lock
@@ -71,39 +66,28 @@ impl<T, W: Wait> Mutex<T, W> {
             .is_err()
         {
             // wait until the lock looks unlocked before retrying
-            loop {
-                let current = self.lock.load(Ordering::Relaxed);
-                if current == id {
-                    return Err(LockError::Deadlock {
-                        prev: self.locked_from.load(),
-                    });
-                } else if current != UNLOCKED {
-                    W::wait(&self.lock as *const _ as usize);
-                } else {
-                    break;
-                }
+            while self.lock.load(Ordering::Relaxed) != UNLOCKED {
+                core::hint::spin_loop();
             }
         }
 
         self.locked_from.store(Location::caller());
 
-        Ok(MutexGuard {
+        MutexGuard {
             lock: &self.lock,
             val: unsafe { &mut *self.val.get() },
-            _p: PhantomData,
-        })
+        }
     }
 }
 
 //
 
-pub struct MutexGuard<'a, T, W: Wait> {
+pub struct MutexGuard<'a, T> {
     lock: &'a AtomicUsize,
     val: &'a mut T,
-    _p: PhantomData<W>,
 }
 
-impl<'a, T, W: Wait> ops::Deref for MutexGuard<'a, T, W> {
+impl<'a, T> ops::Deref for MutexGuard<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -111,39 +95,16 @@ impl<'a, T, W: Wait> ops::Deref for MutexGuard<'a, T, W> {
     }
 }
 
-impl<'a, T, W: Wait> ops::DerefMut for MutexGuard<'a, T, W> {
+impl<'a, T> ops::DerefMut for MutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.val
     }
 }
 
-impl<'a, T, W: Wait> Drop for MutexGuard<'a, T, W> {
+impl<'a, T> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
         self.lock.store(UNLOCKED, Ordering::Release);
-        W::wake_up(&self.lock as *const _ as usize);
     }
-}
-
-//
-
-pub trait Wait {
-    /// wait for something at this address
-    fn wait(addr: usize);
-
-    /// wake up at least at least one waiter at this address
-    fn wake_up(addr: usize);
-}
-
-//
-
-pub struct Spin;
-
-impl Wait for Spin {
-    fn wait(_addr: usize) {
-        core::hint::spin_loop()
-    }
-
-    fn wake_up(_addr: usize) {}
 }
 
 //
