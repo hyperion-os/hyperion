@@ -5,7 +5,7 @@ use crossbeam_queue::{ArrayQueue, SegQueue};
 use crate::{
     cleanup::Cleanup,
     process,
-    task::{switch_because, Pid, Process, Task, TaskState, PROCESSES},
+    task::{switch_because, Pid, Process, Task, TaskState},
     wait_next_task, READY,
 };
 
@@ -53,11 +53,7 @@ pub fn start_waiting(task: Task) {
 }
 
 pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
-    let proc = PROCESSES
-        .lock()
-        .get(&target_pid)
-        .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
-        .ok_or("no such process")?;
+    let proc = target_pid.find().ok_or("no such process")?;
 
     proc.simple_ipc.channel.push(data);
     let recv_task = proc.simple_ipc.waiting.pop();

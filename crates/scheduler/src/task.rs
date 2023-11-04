@@ -148,6 +148,15 @@ impl Pid {
     }
 }
 
+impl Pid {
+    pub fn find(self) -> Option<Arc<Process>> {
+        PROCESSES
+            .lock()
+            .get(&self)
+            .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
+    }
+}
+
 impl fmt::Display for Pid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
