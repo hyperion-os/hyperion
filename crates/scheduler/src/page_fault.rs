@@ -4,6 +4,7 @@ use hyperion_arch::{
     stack::{Stack, StackType},
     vmm::PageMap,
 };
+use hyperion_cpu_id::cpu_id;
 use hyperion_log::*;
 use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use spin::Mutex;
@@ -14,10 +15,7 @@ use crate::{stop, task, task::TaskInner, TLS};
 //
 
 pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    trace!(
-        "scheduler page fault (from {user:?}) (cpu: {})",
-        hyperion_arch::cpu_id()
-    );
+    trace!("scheduler page fault (from {user:?}) (cpu: {})", cpu_id());
 
     let actual_current = TLS.switch_last_active.load(Ordering::SeqCst);
     if !actual_current.is_null() {
@@ -58,7 +56,7 @@ pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     let p = page.virt_to_phys(v);
     error!("{v:018x?} -> {p:018x?}");
 
-    error!("couldn't handle a page fault {}", hyperion_arch::cpu_id());
+    error!("couldn't handle a page fault {}", cpu_id());
 
     Ok(NotHandled)
 }

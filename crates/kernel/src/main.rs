@@ -24,6 +24,7 @@ extern crate alloc;
 
 use hyperion_arch as arch;
 use hyperion_boot as boot;
+use hyperion_cpu_id::cpu_id;
 use hyperion_drivers as drivers;
 use hyperion_futures as futures;
 use hyperion_kernel_info::{NAME, VERSION};
@@ -84,7 +85,7 @@ extern "C" fn _start() -> ! {
     }
 
     // init task per cpu
-    debug!("init CPU-{}", arch::cpu_id());
+    debug!("init CPU-{}", cpu_id());
     scheduler::init(move || {
         scheduler::rename("<kernel async>".into());
 

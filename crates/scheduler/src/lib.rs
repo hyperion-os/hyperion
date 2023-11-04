@@ -13,7 +13,8 @@ use core::{
 };
 
 use crossbeam_queue::SegQueue;
-use hyperion_arch::{cpu::ints, int, tls::Tls};
+use hyperion_arch::{cpu::ints, int};
+use hyperion_cpu_id::Tls;
 use hyperion_driver_acpi::{apic, hpet::HPET};
 use hyperion_instant::Instant;
 use hyperion_timer as timer;
@@ -33,6 +34,7 @@ extern crate alloc;
 
 pub mod cleanup;
 pub mod ipc;
+// pub mod mpmc;
 pub mod sleep;
 pub mod task;
 

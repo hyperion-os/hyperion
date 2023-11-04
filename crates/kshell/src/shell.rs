@@ -8,6 +8,7 @@ use core::{fmt::Write, sync::atomic::Ordering};
 
 use futures_util::stream::select;
 use hyperion_color::Color;
+use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
 use hyperion_futures::timer::{sleep, ticks};
 use hyperion_instant::Instant;
@@ -628,7 +629,7 @@ impl Shell {
     }
 
     fn nproc_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "{}", hyperion_arch::cpu_count());
+        _ = writeln!(self.term, "{}", cpu_count());
 
         Ok(())
     }

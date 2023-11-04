@@ -5,8 +5,7 @@
     naked_functions,
     new_uninit,
     asm_const,
-    const_refs_to_cell,
-    sync_unsafe_cell
+    const_refs_to_cell
 )]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
@@ -14,13 +13,11 @@
 
 extern crate alloc;
 
-use core::{
-    ops::Range,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use core::ops::Range;
 
+use hyperion_cpu_id::{self as cpu_id, cpu_id};
 use hyperion_log::error;
-use x86_64::{instructions::random::RdRand, registers::model_specific::Msr, VirtAddr};
+use x86_64::{instructions::random::RdRand, VirtAddr};
 
 //
 
@@ -35,15 +32,11 @@ pub mod vmm;
 
 //
 
-pub const IA32_TSC_AUX: u32 = 0xC0000103;
-
-//
-
 pub fn init() {
     int::disable();
 
     // set this CPUs id using an atomic inc variable
-    reset_cpu_id();
+    cpu_id::init();
 
     // init TSS, IDT, GDT
     cpu::init();
@@ -55,38 +48,6 @@ pub fn wake_cpus() {
     }
 
     hyperion_drivers::acpi::init();
-}
-
-pub fn cpu_count() -> usize {
-    hyperion_boot::cpu_count()
-}
-
-#[inline(always)]
-pub fn cpu_id() -> usize {
-    let tsc = Msr::new(IA32_TSC_AUX);
-    unsafe { tsc.read() as _ }
-}
-
-pub fn reset_cpu_id() {
-    static CPU_ID_GEN: AtomicUsize = AtomicUsize::new(0);
-    let cpu_id = CPU_ID_GEN.fetch_add(1, Ordering::SeqCst);
-
-    if cpu_id >= cpu_count() {
-        panic!("generated cpu_id exceeds cpu_count");
-    }
-
-    // SAFETY: each cpu gets its own id from the CPU_ID_GEN and the last cpu's
-    // id will be lower than `cpu_count`
-    unsafe { set_cpu_id(cpu_id) };
-}
-
-/// # Safety
-///
-/// id's should be unique to each CPU
-/// and the highest id should not be higher or equal to [`cpu_count`]
-pub unsafe fn set_cpu_id(id: usize) {
-    let mut tsc = Msr::new(IA32_TSC_AUX);
-    unsafe { tsc.write(id as _) }
 }
 
 pub fn stack_pages() -> Range<VirtAddr> {

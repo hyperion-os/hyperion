@@ -40,6 +40,7 @@ hyperion-scheduler.path = "../scheduler"
 hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
 hyperion-sync.path = "../sync"
+hyperion-cpu-id.path = "../cpu-id"
 
 [dependencies.hyperion-mem]
 path = "../mem"

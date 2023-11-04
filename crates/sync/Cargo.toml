@@ -10,4 +10,4 @@ edition.workspace = true
 crossbeam.workspace = true
 spin.workspace = true
 
-hyperion-arch = { path = "../arch" }
+hyperion-cpu-id = { path = "../cpu-id" }

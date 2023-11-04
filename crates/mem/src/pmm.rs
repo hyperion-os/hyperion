@@ -17,7 +17,8 @@ use hyperion_boot::memmap;
 use hyperion_boot_interface::Memmap;
 use hyperion_log::debug;
 use hyperion_num_postfix::NumberPostfix;
-use spin::{Lazy, Mutex};
+use hyperion_sync::spinlock::Mutex;
+use spin::Lazy;
 use x86_64::{align_up, structures::paging::PhysFrame, PhysAddr, VirtAddr};
 
 use super::{from_higher_half, to_higher_half};

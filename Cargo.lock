@@ -254,6 +254,7 @@ dependencies = [
  "hyperion-atomic-map",
  "hyperion-boot",
  "hyperion-boot-interface",
+ "hyperion-cpu-id",
  "hyperion-drivers",
  "hyperion-interrupts",
  "hyperion-log",
@@ -328,6 +329,14 @@ dependencies = [
 [[package]]
 name = "hyperion-color"
 version = "0.1.0"
+
+[[package]]
+name = "hyperion-cpu-id"
+version = "0.1.0"
+dependencies = [
+ "hyperion-boot",
+ "x86_64",
+]
 
 [[package]]
 name = "hyperion-defer"
@@ -510,6 +519,7 @@ dependencies = [
  "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-color",
+ "hyperion-cpu-id",
  "hyperion-drivers",
  "hyperion-framebuffer",
  "hyperion-futures",
@@ -523,6 +533,7 @@ dependencies = [
  "hyperion-num-postfix",
  "hyperion-random",
  "hyperion-scheduler",
+ "hyperion-sync",
  "hyperion-syscall",
  "hyperion-vfs",
  "spin",
@@ -558,6 +569,7 @@ dependencies = [
  "glam",
  "hyperion-arch",
  "hyperion-color",
+ "hyperion-cpu-id",
  "hyperion-driver-acpi",
  "hyperion-escape",
  "hyperion-framebuffer",
@@ -634,6 +646,7 @@ dependencies = [
  "hyperion-boot-interface",
  "hyperion-log",
  "hyperion-num-postfix",
+ "hyperion-sync",
  "spin",
  "volatile 0.5.1",
  "x86_64",
@@ -674,6 +687,7 @@ dependencies = [
  "hyperion-bitmap",
  "hyperion-clock",
  "hyperion-color",
+ "hyperion-cpu-id",
  "hyperion-driver-acpi",
  "hyperion-instant",
  "hyperion-int-safe-lazy",
@@ -690,6 +704,15 @@ dependencies = [
 [[package]]
 name = "hyperion-static-str"
 version = "0.1.0"
+
+[[package]]
+name = "hyperion-sync"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "hyperion-cpu-id",
+ "spin",
+]
 
 [[package]]
 name = "hyperion-syscall"

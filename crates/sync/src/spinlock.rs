@@ -6,7 +6,7 @@ use core::{
 };
 
 use crossbeam::atomic::AtomicCell;
-use hyperion_arch::cpu_id;
+use hyperion_cpu_id::cpu_id;
 
 //
 
@@ -14,14 +14,14 @@ pub const UNLOCKED: usize = usize::MAX;
 
 //
 
-pub struct Mutex<T> {
-    // imp: spin::Mutex<T>,
-    val: UnsafeCell<T>,
-
+pub struct Mutex<T: ?Sized> {
     // cpu id of the lock holder, usize::MAX is unlocked
     lock: AtomicUsize,
 
     locked_from: AtomicCell<&'static Location<'static>>,
+
+    // imp: spin::Mutex<T>,
+    val: UnsafeCell<T>,
 }
 
 const _: () = assert!(AtomicCell::<&'static Location<'static>>::is_lock_free());
@@ -37,15 +37,15 @@ impl<T> Mutex<T> {
             locked_from: AtomicCell::new(Location::caller()),
         }
     }
+}
 
+impl<T: ?Sized> Mutex<T> {
     pub fn get_mut(&mut self) -> &mut T {
         self.val.get_mut()
     }
 
     // pub unsafe fn force_unlock(&self) {}
-}
 
-impl<T> Mutex<T> {
     #[track_caller]
     pub fn lock(&self) -> MutexGuard<T> {
         // basically the same as spin::Mutex::lock;
@@ -80,14 +80,23 @@ impl<T> Mutex<T> {
     }
 }
 
+impl<T> From<T> for Mutex<T> {
+    fn from(value: T) -> Self {
+        Self::new(value)
+    }
+}
+
+unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
+unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
+
 //
 
-pub struct MutexGuard<'a, T> {
+pub struct MutexGuard<'a, T: ?Sized> {
     lock: &'a AtomicUsize,
     val: &'a mut T,
 }
 
-impl<'a, T> ops::Deref for MutexGuard<'a, T> {
+impl<'a, T: ?Sized> ops::Deref for MutexGuard<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -95,13 +104,13 @@ impl<'a, T> ops::Deref for MutexGuard<'a, T> {
     }
 }
 
-impl<'a, T> ops::DerefMut for MutexGuard<'a, T> {
+impl<'a, T: ?Sized> ops::DerefMut for MutexGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.val
     }
 }
 
-impl<'a, T> Drop for MutexGuard<'a, T> {
+impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
         self.lock.store(UNLOCKED, Ordering::Release);
     }
@@ -116,8 +125,8 @@ mod tests {
     #[test_case]
     fn basic_deadlock_test() {
         let lock = Mutex::new(5);
-        let v1 = lock.lock().expect("expected to lock just fine");
-        let v2 = lock.lock().map(|_| ()).expect_err("expected to be Err");
+        let v1 = lock.lock();
+        let v2 = lock.lock();
         let _ = v1;
         let _ = v2;
     }

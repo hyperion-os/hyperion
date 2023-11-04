@@ -1,8 +1,5 @@
-use alloc::boxed::Box;
 use core::{
-    cell::SyncUnsafeCell,
     mem::MaybeUninit,
-    ops::Deref,
     ptr::{addr_of_mut, null_mut},
     sync::atomic::{AtomicPtr, Ordering},
 };
@@ -11,39 +8,6 @@ use x86_64::{
     registers::model_specific::{GsBase, KernelGsBase},
     VirtAddr,
 };
-
-use crate::{cpu_count, cpu_id};
-
-//
-
-pub struct Tls<T: 'static> {
-    inner: Box<[SyncUnsafeCell<T>]>,
-}
-
-impl<T: 'static> Tls<T> {
-    pub fn new(mut f: impl FnMut() -> T) -> Self {
-        Self {
-            inner: (0..cpu_count()).map(|_| SyncUnsafeCell::new(f())).collect(),
-        }
-    }
-
-    pub fn inner(this: &Self) -> &[SyncUnsafeCell<T>] {
-        &this.inner
-    }
-}
-
-impl<T: 'static> Deref for Tls<T> {
-    type Target = T;
-
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        let tls_entry = self.inner[cpu_id()].get();
-
-        // SAFETY: `cpu_id` is different for each cpu
-        // TODO: not before cpu ids are initialized
-        unsafe { &*tls_entry }
-    }
-}
 
 //
 
