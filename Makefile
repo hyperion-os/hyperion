@@ -62,8 +62,10 @@ KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion-kernel.d))
 override GDB_FLAGS += --eval-command="target remote localhost:1234"
 override GDB_FLAGS += --eval-command="symbol-file ${KERNEL}"
 
-${CARGO_DIR}/hyperion-kernel.d:
-	${CARGO} build ${CARGO_FLAGS}
+#${CARGO_DIR}/hyperion-kernel.d:
+#	${CARGO} build ${CARGO_FLAGS}
+
+${KERNEL_SRC}:
 
 # hyperion kernel compilation
 ${KERNEL}: ${CARGO_DIR}/hyperion-kernel.d ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
