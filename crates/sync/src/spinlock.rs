@@ -18,6 +18,7 @@ pub struct Mutex<T: ?Sized> {
     // cpu id of the lock holder, usize::MAX is unlocked
     lock: AtomicUsize,
 
+    #[cfg(debug_assertions)]
     locked_from: AtomicCell<&'static Location<'static>>,
 
     // imp: spin::Mutex<T>,
@@ -34,6 +35,8 @@ impl<T> Mutex<T> {
         Self {
             val: UnsafeCell::new(val),
             lock: AtomicUsize::new(UNLOCKED),
+
+            #[cfg(debug_assertions)]
             locked_from: AtomicCell::new(Location::caller()),
         }
     }
@@ -53,10 +56,16 @@ impl<T: ?Sized> Mutex<T> {
         let id = cpu_id();
 
         if self.lock.load(Ordering::Relaxed) == id {
+            #[cfg(debug_assertions)]
             panic!(
                 "deadlock:\n - earlier: {}\n - now: {}",
                 self.locked_from.load(),
                 core::panic::Location::caller()
+            );
+            #[cfg(not(debug_assertions))]
+            panic!(
+                "deadlock:\n - earlier: [debug mode needed]\n - now: {}",
+                Location::caller()
             );
         }
 
@@ -71,6 +80,7 @@ impl<T: ?Sized> Mutex<T> {
             }
         }
 
+        #[cfg(debug_assertions)]
         self.locked_from.store(Location::caller());
 
         MutexGuard {
