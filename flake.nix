@@ -29,6 +29,8 @@
               extensions = [ "rust-src" ];
               targets = [ "x86_64-unknown-none" ];
             })
+            rust-analyzer
+            lldb
             cargo-udeps
             cargo-nextest
             cargo-expand
