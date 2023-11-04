@@ -1,5 +1,7 @@
 //! Tests should only be ran on a single thread at the moment
 
+// extern crate test;
+
 use alloc::{format, string::String};
 use core::{
     any::type_name,
@@ -10,6 +12,8 @@ use core::{
 use crossbeam::queue::SegQueue;
 use hyperion_log::{error, print, println, LogLevel};
 use x86_64::instructions::port::Port;
+
+//
 
 //
 
