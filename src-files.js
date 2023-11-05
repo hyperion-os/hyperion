@@ -32,6 +32,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_checked":["",[],["lib.rs"]],\
 "hyperion_clock":["",[],["lib.rs"]],\
 "hyperion_color":["",[],["lib.rs"]],\
+"hyperion_cpu_id":["",[],["lib.rs","x86_64.rs"]],\
 "hyperion_defer":["",[],["lib.rs"]],\
 "hyperion_driver_acpi":["",[],["apic.rs","hpet.rs","ioapic.rs","lib.rs","madt.rs","rsdp.rs","rsdt.rs"]],\
 "hyperion_driver_framebuffer":["",[],["lib.rs"]],\
@@ -61,6 +62,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_sample_elf":["",[],["io.rs","main.rs"]],\
 "hyperion_scheduler":["",[],["cleanup.rs","ipc.rs","lib.rs","page_fault.rs","sleep.rs","task.rs"]],\
 "hyperion_static_str":["",[],["lib.rs"]],\
+"hyperion_sync":["",[],["lib.rs","spinlock.rs"]],\
 "hyperion_syscall":["",[],["err.rs","lib.rs"]],\
 "hyperion_timer":["",[],["lib.rs"]],\
 "hyperion_vfs":["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]],\

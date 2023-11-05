@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (31bc7e2c4 2023-10-30)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0-nightly (4b85902b4 2023-11-04)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -182,20 +182,6 @@
 <a href="#182" id="182">182</a>
 <a href="#183" id="183">183</a>
 <a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
 </pre></div><pre class="rust"><code><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">&quot;../../../README.md&quot;</span>)]
 </span><span class="comment">//
 </span><span class="attr">#![no_std]
@@ -218,11 +204,11 @@
 
 </span><span class="comment">//
 
-</span><span class="kw">use </span>core::ops::Range;
+</span><span class="kw">extern crate </span>alloc;
 
 <span class="kw">use </span>hyperion_arch <span class="kw">as </span>arch;
 <span class="kw">use </span>hyperion_boot <span class="kw">as </span>boot;
-<span class="kw">use </span>hyperion_boot_interface::Cpu;
+<span class="kw">use </span>hyperion_cpu_id::cpu_id;
 <span class="kw">use </span>hyperion_drivers <span class="kw">as </span>drivers;
 <span class="kw">use </span>hyperion_futures <span class="kw">as </span>futures;
 <span class="kw">use </span>hyperion_kernel_info::{NAME, VERSION};
@@ -231,10 +217,7 @@
 <span class="kw">use </span>hyperion_mem::from_higher_half;
 <span class="kw">use </span>hyperion_random <span class="kw">as </span>random;
 <span class="kw">use </span>hyperion_scheduler <span class="kw">as </span>scheduler;
-<span class="kw">use </span>spin::Once;
-<span class="kw">use </span>x86_64::VirtAddr;
-
-<span class="kw">extern crate </span>alloc;
+<span class="kw">use </span>hyperion_sync <span class="kw">as </span>sync;
 
 <span class="comment">//
 
@@ -245,61 +228,50 @@
 
 <span class="comment">//
 
-</span><span class="kw">static </span>BSP_BOOT_STACK: Once&lt;Range&lt;VirtAddr&gt;&gt; = Once::new();
-
-<span class="comment">//
-
 </span><span class="attr">#[no_mangle]
 </span><span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>_start() -&gt; ! {
-    <span class="kw">let </span>boot_stack = arch::stack_pages();
-    BSP_BOOT_STACK.call_once(<span class="kw">move </span>|| boot_stack);
+    <span class="comment">// save the bootloader stack range so it can be freed later
+    </span><span class="kw">let </span>boot_stack = arch::stack_pages();
 
-    <span class="comment">// enable logging and and outputs based on the kernel args,
-    // any logging before won&#39;t be shown
-    </span>log_multi::init_logger();
+    <span class="comment">// init GDT, IDT, TSS, TLS and cpu_id
+    </span>arch::init();
 
-    <span class="macro">debug!</span>(<span class="string">&quot;Entering kernel_main&quot;</span>);
-    <span class="macro">debug!</span>(<span class="string">&quot;{NAME} {VERSION} was booted with {}&quot;</span>, boot::NAME);
+    <span class="kw">if </span><span class="macro">sync::once!</span>() {
+        <span class="comment">// enable logging and and outputs based on the kernel args,
+        // any logging before won&#39;t be shown
+        </span>log_multi::init_logger();
 
-    <span class="comment">//
-    </span>arch::syscall::set_handler(syscall::syscall);
-    arch::init_bsp_cpu();
+        <span class="macro">debug!</span>(<span class="string">&quot;Entering kernel_main&quot;</span>);
+        <span class="macro">debug!</span>(<span class="string">&quot;{NAME} {VERSION} was booted with {}&quot;</span>, boot::NAME);
 
-    random::provide_entropy(<span class="kw-2">&amp;</span>arch::rng_seed().to_ne_bytes());
-
-    drivers::lazy_install_early();
-
-    <span class="comment">// os unit tests
-    </span><span class="attr">#[cfg(test)]
-    </span>test_main();
-    <span class="comment">// kshell (kernel-space shell) UI task(s)
-    </span><span class="attr">#[cfg(not(test))]
-    </span>futures::executor::spawn(hyperion_kshell::kshell());
-
-    <span class="comment">// jumps to [smp_main] right bellow + wakes up other threads to jump there
-    </span>boot::smp_init(smp_main);
-}
-
-<span class="kw">fn </span>smp_main(cpu: Cpu) -&gt; ! {
-    <span class="kw">let </span><span class="kw-2">mut </span>boot_stack = arch::stack_pages();
-
-    <span class="macro">trace!</span>(<span class="string">&quot;{cpu} entering smp_main&quot;</span>);
-
-    arch::init_smp_cpu(<span class="kw-2">&amp;</span>cpu);
-
-    <span class="kw">if </span>cpu.is_boot() {
-        boot_stack = BSP_BOOT_STACK
-            .get()
-            .expect(<span class="string">&quot;_start to run before smp_main&quot;</span>)
-            .clone();
-
-        drivers::lazy_install_late();
-        <span class="macro">debug!</span>(<span class="string">&quot;boot cpu drivers installed&quot;</span>);
+        <span class="comment">// user-space syscall handler
+        </span>arch::syscall::set_handler(syscall::syscall);
     }
 
-    <span class="macro">debug!</span>(<span class="string">&quot;resetting CPU-{} scheduler&quot;</span>, arch::cpu_id());
+    <span class="comment">// wake up all cpus
+    </span>arch::wake_cpus();
+
+    <span class="kw">if </span><span class="macro">sync::once!</span>() {
+        <span class="comment">// init task once
+        </span>scheduler::schedule(<span class="kw">move </span>|| {
+            <span class="comment">// random hw specifics
+            </span>random::provide_entropy(<span class="kw-2">&amp;</span>arch::rng_seed().to_ne_bytes());
+            drivers::lazy_install_early();
+            drivers::lazy_install_late();
+
+            <span class="comment">// os unit tests
+            </span><span class="attr">#[cfg(test)]
+            </span>test_main();
+            <span class="comment">// kshell (kernel-space shell) UI task(s)
+            </span><span class="attr">#[cfg(not(test))]
+            </span>futures::executor::spawn(hyperion_kshell::kshell());
+        });
+    }
+
+    <span class="comment">// init task per cpu
+    </span><span class="macro">debug!</span>(<span class="string">&quot;init CPU-{}&quot;</span>, cpu_id());
     scheduler::init(<span class="kw">move </span>|| {
-        scheduler::rename(<span class="string">&quot;&lt;kernel futures executor&gt;&quot;</span>.into());
+        scheduler::rename(<span class="string">&quot;&lt;kernel async&gt;&quot;</span>.into());
 
         <span class="kw">let </span>first = from_higher_half(boot_stack.start);
         <span class="kw">let </span>count = ((boot_stack.end - boot_stack.start) / <span class="number">0x1000</span>) <span class="kw">as </span>usize;
