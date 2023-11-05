@@ -84,6 +84,14 @@ extern "C" fn _start() -> ! {
         });
     }
 
+    // #[cfg(test)]
+    // if sync::once!() {
+    //     debug!("init CPU-{}", cpu_id());
+    //     scheduler::init(move || {});
+    // } else {
+    //     arch::done();
+    // }
+
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
     scheduler::init(move || {
@@ -110,6 +118,7 @@ mod tests {
     };
 
     use hyperion_scheduler as scheduler;
+    use scheduler::yield_now;
 
     #[test_case]
     fn scheduler_simple_ipc_test() {
@@ -180,5 +189,36 @@ mod tests {
 
         let result = scheduler::recv();
         assert_eq!(&result[..], &b"ijk"[..])
+    }
+
+    #[test_case]
+    fn scheduler_mutex_trivial() {
+        let mutex = scheduler::lock::Mutex::new(5);
+
+        assert_eq!(*mutex.lock(), 5);
+
+        *mutex.lock() = 10;
+
+        assert_eq!(*mutex.lock(), 10);
+    }
+
+    #[test_case]
+    fn scheduler_mutex_multithread() {
+        let mutex = alloc::sync::Arc::new(scheduler::lock::Mutex::new(5));
+
+        for _ in 0..3 {
+            let mutex = mutex.clone();
+            scheduler::spawn(move || {
+                *mutex.lock() += 1;
+            });
+        }
+
+        loop {
+            if *mutex.lock() == 8 {
+                break;
+            }
+
+            yield_now();
+        }
     }
 }

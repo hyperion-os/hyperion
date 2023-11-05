@@ -695,6 +695,7 @@ dependencies = [
  "hyperion-log",
  "hyperion-mem",
  "hyperion-random",
+ "hyperion-sync",
  "hyperion-timer",
  "spin",
  "time 0.3.22",

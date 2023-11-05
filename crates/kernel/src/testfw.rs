@@ -2,15 +2,12 @@
 
 // extern crate test;
 
-use alloc::{format, string::String};
-use core::{
-    any::type_name,
-    panic::PanicInfo,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use alloc::{borrow::Cow, format, string::String};
+use core::{any::type_name, panic::PanicInfo};
 
 use crossbeam::queue::SegQueue;
-use hyperion_log::{error, print, println, LogLevel};
+use hyperion_log::{print, println, LogLevel};
+use hyperion_scheduler::yield_now;
 use x86_64::instructions::port::Port;
 
 //
@@ -38,7 +35,6 @@ pub trait TestCase: Sync {
 
 impl<F: Fn() + Sync> TestCase for F {
     fn run(&self) {
-        print!(" - {:.<60}", self.name());
         self();
     }
 
@@ -63,44 +59,53 @@ pub fn test_runner(tests: &'static [&'static dyn TestCase]) {
     println!("Running {} tests", tests.len());
 
     for test in tests {
-        hyperion_scheduler::schedule(move || {
+        hyperion_scheduler::spawn(move || {
             let name = test.name();
+            // println!("running {name}");
             hyperion_scheduler::rename(name.into());
 
             test.run();
 
             let should_panic = name.ends_with("should_panic");
             if should_panic {
-                TESTS_FAILS.push(format!("`{name}` was expected to panic but it didn't"));
-                println!("[err]")
+                RESULTS.push((
+                    name.into(),
+                    Some(format!("`{name}` was expected to panic but it didn't")),
+                ));
             } else {
-                println!("[ok]")
+                RESULTS.push((name.into(), None));
             }
-            TESTS_COMPLETE.fetch_add(1, Ordering::SeqCst);
         });
     }
 
-    hyperion_scheduler::schedule(move || {
+    hyperion_scheduler::spawn(move || {
         hyperion_scheduler::rename("testfw waiter".into());
-        loop {
-            let completed = TESTS_COMPLETE.load(Ordering::SeqCst);
-            // println!("completed: {completed}");
-            if completed != tests.len() {
-                hyperion_scheduler::yield_now();
-                continue;
-            }
 
-            let mut fails = false;
-            while let Some(err) = TESTS_FAILS.pop() {
-                error!("ERROR: {err}");
+        let mut completed = 0;
+
+        let mut fails = false;
+        while let Some((name, err)) = RESULTS.pop() {
+            completed += 1;
+            print!(" - {name:.<60}");
+            if let Some(err) = err {
+                println!("[err]");
+                println!("ERROR: {err}");
                 fails = true;
+            } else {
+                println!("[ok]");
             }
 
-            if fails {
-                exit_qemu(QemuExitCode::Failed)
-            } else {
-                exit_qemu(QemuExitCode::Success)
+            if completed == tests.len() {
+                break;
             }
+
+            yield_now();
+        }
+
+        if fails {
+            exit_qemu(QemuExitCode::Failed)
+        } else {
+            exit_qemu(QemuExitCode::Success)
         }
     });
 }
@@ -110,20 +115,18 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     let should_panic = name.ends_with("should_panic");
 
     if !should_panic {
-        TESTS_FAILS.push(format!("`{name}` paniced unexpectedly: {info}"));
-        println!("[err]")
+        let err = Some(format!("`{name}` paniced unexpectedly: {info}"));
+        RESULTS.push((name, err));
     } else {
-        println!("[ok]")
+        RESULTS.push((name, None));
     }
-    TESTS_COMPLETE.fetch_add(1, Ordering::SeqCst);
 
     hyperion_scheduler::stop();
 }
 
 //
 
-static TESTS_COMPLETE: AtomicUsize = AtomicUsize::new(0);
-static TESTS_FAILS: SegQueue<String> = SegQueue::new();
+static RESULTS: SegQueue<(Cow<'static, str>, Option<String>)> = SegQueue::new();
 
 //
 
