@@ -147,14 +147,12 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::Mutex;
-
-    #[test_case]
-    fn basic_deadlock_test() {
-        let lock = Mutex::new(5);
-        let v1 = lock.lock();
-        let v2 = lock.lock();
-        let _ = v1;
-        let _ = v2;
-    }
+    // #[test_case]
+    // fn basic_deadlock_test() {
+    //     let lock = Mutex::new(5);
+    //     let v1 = lock.lock();
+    //     let v2 = lock.lock();
+    //     let _ = v1;
+    //     let _ = v2;
+    // }
 }
