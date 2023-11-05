@@ -129,6 +129,6 @@ src:
 	@echo "from: ${CARGO_DIR}/hyperion.d"
 	@echo "${KERNEL_SRC}" | tr " " "\n" | sort
 
-.PHONY : build iso run test unittest gdb kernel objdump readelf src
+.PHONY : ${KERNEL} ${KERNEL_TESTING} build iso run test unittest gdb kernel objdump readelf src
 
 # end
