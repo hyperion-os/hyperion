@@ -88,6 +88,23 @@ impl<T: ?Sized> Mutex<T> {
             val: unsafe { &mut *self.val.get() },
         }
     }
+
+    pub fn try_lock(&self) -> Option<MutexGuard<T>> {
+        let id = cpu_id();
+
+        if self
+            .lock
+            .compare_exchange(UNLOCKED, id, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+        {
+            Some(MutexGuard {
+                lock: &self.lock,
+                val: unsafe { &mut *self.val.get() },
+            })
+        } else {
+            None
+        }
+    }
 }
 
 impl<T> From<T> for Mutex<T> {
