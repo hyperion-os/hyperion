@@ -35,6 +35,8 @@ extern crate alloc;
 pub mod cleanup;
 pub mod ipc;
 // pub mod mpmc;
+pub mod futex;
+pub mod lock;
 pub mod sleep;
 pub mod task;
 
@@ -125,6 +127,10 @@ pub fn init(task: impl Into<Task>) -> ! {
     apic::APIC_TIMER_HANDLER.store(|| {
         sleep::wake_up_completed(None);
 
+        if !TLS.initialized.load(Ordering::SeqCst) {
+            return;
+        }
+
         if process().should_terminate.load(Ordering::Relaxed) {
             stop();
         }
@@ -195,6 +201,7 @@ pub fn sleep_until(deadline: Instant) {
 
 /// destroy the current thread
 /// and switch to another thread
+#[track_caller]
 pub fn stop() -> ! {
     update_cpu_usage();
 

@@ -52,6 +52,7 @@ pub fn processes() -> Vec<Arc<Process>> {
         .collect()
 }
 
+#[track_caller]
 pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     // debug!("switching to {}", next.name.read().clone());
     if !next.is_valid {
@@ -83,7 +84,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 
     // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
     // the box keeps the pointer pinned in memory
-    debug_assert!(TLS.initialized.load(Ordering::Relaxed));
+    debug_assert!(TLS.initialized.load(Ordering::SeqCst));
     unsafe { ctx_switch(prev_ctx, next_ctx) };
 
     // the ctx_switch can continue either in `thread_entry` or here:
@@ -412,6 +413,10 @@ impl Task {
         .fetch_sub(1, Ordering::Relaxed);
 
         old
+    }
+
+    pub fn ptr_eq(&self, other: &Task) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 

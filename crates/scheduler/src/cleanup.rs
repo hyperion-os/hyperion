@@ -1,6 +1,8 @@
+use core::{ptr::NonNull, sync::atomic::AtomicUsize};
+
 use hyperion_instant::Instant;
 
-use crate::{ipc, schedule, sleep, task::Task};
+use crate::{futex, ipc, schedule, sleep, task::Task};
 
 //
 
@@ -19,7 +21,14 @@ impl CleanupTask {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Cleanup {
-    Sleep { deadline: Instant },
+    Sleep {
+        deadline: Instant,
+    },
+    // Lock,
+    Wait {
+        addr: NonNull<AtomicUsize>,
+        val: usize,
+    },
     SimpleIpcWait,
     Drop,
     Ready,
@@ -36,6 +45,8 @@ impl Cleanup {
     pub fn run(self, task: Task) {
         match self {
             Self::Sleep { deadline } => sleep::push(deadline, task),
+            // Self::Lock => lock::cleanup(task),
+            Self::Wait { addr, val } => futex::cleanup(addr, val, task),
             Self::SimpleIpcWait => ipc::start_waiting(task),
             Self::Drop => {}
             Self::Ready => {
@@ -44,3 +55,5 @@ impl Cleanup {
         }
     }
 }
+
+unsafe impl Send for Cleanup {}
