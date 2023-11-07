@@ -34,6 +34,18 @@ impl_error! {
     pub const OUT_OF_MEMORY: "out of memory" = 4;
     pub const INVALID_ALLOC: "invalid alloc" = 5;
     pub const INVALID_UTF8: "invalid utf8" = 6;
+
+    pub const NOT_FOUND: "not found" = 7;
+    pub const ALREADY_EXISTS: "already exists" = 8;
+    pub const NOT_A_DIRECTORY: "not a directory" = 9;
+    pub const NOT_A_FILE: "not a file" = 10;
+    pub const FILESYSTEM_ERROR: "internal filesystem error" = 11;
+    pub const PERMISSION_DENIED: "permission denied" = 12;
+    pub const UNEXPECTED_EOF: "unexpected end of file" = 13;
+    pub const INTERRUPTED: "interrupted" = 14;
+    pub const WRITE_ZERO: "wrote nothing" = 15;
+    pub const BAD_FILE_DESCRIPTOR: "bad file descriptor" = 16;
+
     pub const _: "unknown error" = _;
 }
 

@@ -150,3 +150,21 @@ pub fn recv(buf: &mut [u8]) -> Result<usize> {
 pub fn rename(new_name: &str) -> Result<()> {
     unsafe { syscall_2(13, new_name.as_ptr() as usize, new_name.len()) }.map(|_| {})
 }
+
+/// open a file
+#[inline(always)]
+pub fn open(path: &str, flags: usize, mode: usize) -> Result<usize> {
+    unsafe { syscall_4(1000, path.as_ptr() as usize, path.len(), flags, mode) }
+}
+
+/// close a file
+#[inline(always)]
+pub fn close(file: usize) -> Result<()> {
+    unsafe { syscall_1(1100, file) }.map(|_| {})
+}
+
+/// read from a file
+#[inline(always)]
+pub fn read(file: usize, buf: &mut [u8]) -> Result<usize> {
+    unsafe { syscall_3(1200, file, buf.as_mut_ptr() as usize, buf.len()) }
+}

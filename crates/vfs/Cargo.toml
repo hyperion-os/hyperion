@@ -11,3 +11,4 @@ spin.workspace = true
 crossbeam.workspace = true
 
 hyperion-log.path = "../log"
+hyperion-syscall.path = "../syscall"

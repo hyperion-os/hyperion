@@ -1,7 +1,11 @@
-use alloc::string::ToString;
-use core::{any::type_name_of_val, sync::atomic::Ordering};
+use alloc::{boxed::Box, collections::BTreeMap, string::ToString, vec::Vec};
+use core::{
+    any::{type_name_of_val, Any},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
+use hyperion_boot::args;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
@@ -9,15 +13,23 @@ use hyperion_mem::{
     pmm::{self, PageFrame},
     vmm::PageMapImpl,
 };
+use hyperion_scheduler::{
+    lock::Mutex,
+    process,
+    task::{Process, ProcessExt},
+};
 use hyperion_syscall::err::{Error, Result};
+use hyperion_vfs::{
+    error::IoError,
+    tree::{FileRef, Node},
+};
 use time::Duration;
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{instructions::bochs_breakpoint, structures::paging::PageTableFlags, VirtAddr};
 
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
     let id = args.syscall_id;
-    // debug!("syscall {id}");
     let (result, name) = match id {
         1 => call_id(log, args),
         2 | 420 => call_id(exit, args),
@@ -25,13 +37,16 @@ pub fn syscall(args: &mut SyscallRegs) {
         4 => call_id(timestamp, args),
         5 => call_id(nanosleep, args),
         6 => call_id(nanosleep_until, args),
-        7 => call_id(open, args),
         8 => call_id(pthread_spawn, args),
         9 => call_id(palloc, args),
         10 => call_id(pfree, args),
         11 => call_id(send, args),
         12 => call_id(recv, args),
         13 => call_id(rename, args),
+
+        1000 => call_id(open, args),
+        1100 => call_id(close, args),
+        1200 => call_id(read, args),
 
         _ => {
             debug!("invalid syscall");
@@ -50,6 +65,12 @@ fn call_id(
     args: &mut SyscallRegs,
 ) -> (Result<usize>, &str) {
     let name = type_name_of_val(&f);
+
+    // debug!(
+    //     "syscall-{name}-{}({}, {}, {}, {}, {})",
+    //     args.syscall_id, args.arg0, args.arg1, args.arg2, args.arg3, args.arg4,
+    // );
+
     let res = f(args);
     args.syscall_id = Error::encode(res) as u64;
     (res, name)
@@ -118,16 +139,6 @@ pub fn nanosleep(args: &mut SyscallRegs) -> Result<usize> {
 pub fn nanosleep_until(args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::sleep_until(Instant::new(args.arg0 as u128));
     return Ok(0);
-}
-
-/// open a file
-///
-/// # arguments
-///  - `syscall_id` : 7
-///  - `arg0` : filename : _utf8 string address_
-///  - `arg1` : filename : _utf8 string length_
-pub fn open(_args: &mut SyscallRegs) -> Result<usize> {
-    return Err(Error(0));
 }
 
 /// spawn a new thread
@@ -255,19 +266,142 @@ pub fn recv(args: &mut SyscallRegs) -> Result<usize> {
 ///  - `syscall_id` : 13
 ///  - `arg0` : filename : _utf8 string address_
 ///  - `arg1` : filename : _utf8 string length_
-///
-/// # return codes (in arg0 after returning)
-///  - `-3` : invalid utf8
-///  - `-2` : address range not mapped for the user (arg0 .. arg1)
-///  - `-1` : invalid address range (arg0 .. arg1)
-///  - `0`  : ok
 pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
     let new_name = read_untrusted_str(args.arg0, args.arg1)?;
     hyperion_scheduler::rename(new_name.to_string().into());
     return Ok(0);
 }
 
+/// open a file
+///
+/// # arguments
+///  - `syscall_id` : 1000
+///  - `arg0` : filename : _utf8 string address_
+///  - `arg1` : filename : _utf8 string length_
+///  - `arg2` : flags
+///  - `arg3` : mode
+pub fn open(args: &mut SyscallRegs) -> Result<usize> {
+    let path = read_untrusted_str(args.arg0, args.arg1)?;
+
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let file_ref = hyperion_vfs::open(path, false, false).map_err(map_vfs_err_to_syscall_err)?;
+    let file = Some(File {
+        file_ref,
+        position: 0,
+    });
+
+    let mut files = ext.files.lock();
+
+    let fd;
+    if let Some((_fd, spot)) = files
+        .iter_mut()
+        .enumerate()
+        .find(|(_, file)| file.is_none())
+    {
+        fd = _fd;
+        *spot = file;
+    } else {
+        fd = files.len();
+        files.push(file);
+    }
+
+    return Ok(fd);
+}
+
+/// close a file
+///
+/// # arguments
+///  - `syscall_id` : 1100
+///  - `arg0` : file descriptor
+pub fn close(args: &mut SyscallRegs) -> Result<usize> {
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    *ext.files
+        .lock()
+        .get_mut(args.arg0 as usize)
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)? = None;
+
+    return Ok(0);
+}
+
+/// read bytes from a file
+///
+/// # arguments
+///  - `syscall_id` : 1200
+///  - `arg0` : file descriptor
+///  - `arg1` : data ptr
+///  - `arg2` : data len (bytes)
+///
+/// # return values (syscall_id)
+///  - `0` :
+pub fn read(args: &mut SyscallRegs) -> Result<usize> {
+    let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
+
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let mut files = ext.files.lock();
+
+    let file = files
+        .get_mut(args.arg0 as usize)
+        .and_then(|v| v.as_mut())
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?;
+
+    let read = file
+        .file_ref
+        .lock()
+        .read(file.position, buf)
+        .map_err(map_vfs_err_to_syscall_err)?;
+    file.position += read;
+
+    return Ok(read);
+}
+
+struct ProcessExtra {
+    files: Mutex<Vec<Option<File>>>,
+}
+
+struct File {
+    file_ref: FileRef,
+    position: usize,
+}
+
+impl ProcessExt for ProcessExtra {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 //
+
+fn process_ext_with(proc: &Process) -> &ProcessExtra {
+    proc.ext
+        .call_once(|| {
+            Box::new(ProcessExtra {
+                files: Mutex::new(Vec::new()),
+            })
+        })
+        .as_any()
+        .downcast_ref()
+        .unwrap()
+}
+
+fn map_vfs_err_to_syscall_err(err: IoError) -> Error {
+    match err {
+        IoError::NotFound => Error::NOT_FOUND,
+        IoError::AlreadyExists => Error::ALREADY_EXISTS,
+        IoError::NotADirectory => Error::NOT_A_DIRECTORY,
+        IoError::IsADirectory => Error::NOT_A_FILE,
+        IoError::FilesystemError => Error::FILESYSTEM_ERROR,
+        IoError::PermissionDenied => Error::PERMISSION_DENIED,
+        IoError::UnexpectedEOF => Error::UNEXPECTED_EOF,
+        IoError::Interrupted => Error::INTERRUPTED,
+        IoError::WriteZero => Error::WRITE_ZERO,
+    }
+}
 
 fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
     if len == 0 {

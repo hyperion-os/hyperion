@@ -136,6 +136,8 @@ pub fn init(task: impl Into<Task>) -> ! {
         }
     });
 
+    // hyperion_sync::init_futex(futex::wait, futex::wake);
+
     // init `Once` in TLS
     _ = crate::task();
     let task = task.into();

@@ -28,6 +28,13 @@ pub fn main(args: CliArgs) {
     println!("sample app main");
     println!("args: {args:?}");
 
+    // for i in 1..13 {
+    //     if i == 2 || i == 8 {
+    //         continue;
+    //     }
+    //     println!("{:?}", unsafe { syscall_0(i) });
+    // }
+
     match args.iter().next().expect("arg0 to be present") {
         // busybox style single binary 'coreutils'
         "/bin/run" => {
@@ -40,6 +47,15 @@ pub fn main(args: CliArgs) {
                     inc.fetch_add(1, Ordering::Relaxed);
                 });
             }
+
+            let file = open("/dev/hpet", 0, 0).expect("failed to open a file");
+
+            let mut buf = [0u8; 256];
+            let bytes = read(file, &mut buf).expect("failed to read from a file");
+
+            println!("/dev/hpet bytes: {:?}", &buf[..bytes]);
+
+            close(file).expect("failed to close a file");
 
             let mut next = timestamp().unwrap() as u64;
             for i in next / 1_000_000_000.. {

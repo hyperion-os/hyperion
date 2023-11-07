@@ -6,7 +6,7 @@ use alloc::{
     vec::Vec,
 };
 use core::{
-    any::type_name_of_val,
+    any::{type_name_of_val, Any},
     cell::UnsafeCell,
     fmt,
     ops::Deref,
@@ -23,6 +23,7 @@ use hyperion_arch::{
 use hyperion_bitmap::Bitmap;
 use hyperion_log::*;
 use hyperion_mem::{pmm, vmm::PageMapImpl};
+use rpds::{RedBlackTreeMap, RedBlackTreeMapSync};
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
 use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TakeOnce, TLS};
@@ -189,6 +190,9 @@ pub struct Process {
     /// a store for all allocated (and mapped) physical pages
     pub allocs: PageAllocs,
 
+    /// extra process info added by the kernel (like file descriptors)
+    pub ext: Once<Box<dyn ProcessExt + 'static>>,
+
     pub should_terminate: AtomicBool,
 }
 
@@ -196,6 +200,12 @@ impl Drop for Process {
     fn drop(&mut self) {
         PROCESSES.lock().remove(&self.pid);
     }
+}
+
+//
+
+pub trait ProcessExt: Sync + Send {
+    fn as_any(&self) -> &dyn Any;
 }
 
 //
@@ -282,6 +292,7 @@ impl Task {
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
+            ext: Once::new(),
             should_terminate: AtomicBool::new(false),
         });
         PROCESSES
@@ -363,6 +374,7 @@ impl Task {
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
+            ext: Once::new(),
             should_terminate: AtomicBool::new(true),
         });
 
