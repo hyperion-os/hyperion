@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["exit","log","nanosleep","nanosleep_until","palloc","pfree","pthread_spawn","recv","rename","send","syscall_0","syscall_1","syscall_2","syscall_3","syscall_4","syscall_5","timestamp","yield_now"],"mod":["err"]};
+window.SIDEBAR_ITEMS = {"fn":["close","exit","log","nanosleep","nanosleep_until","open","palloc","pfree","pthread_spawn","read","recv","rename","send","syscall_0","syscall_1","syscall_2","syscall_3","syscall_4","syscall_5","timestamp","yield_now"],"mod":["err"]};

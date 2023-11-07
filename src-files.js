@@ -60,7 +60,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_num_postfix":["",[],["lib.rs"]],\
 "hyperion_random":["",[],["lib.rs"]],\
 "hyperion_sample_elf":["",[],["io.rs","main.rs"]],\
-"hyperion_scheduler":["",[],["cleanup.rs","ipc.rs","lib.rs","page_fault.rs","sleep.rs","task.rs"]],\
+"hyperion_scheduler":["",[],["cleanup.rs","futex.rs","ipc.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]],\
 "hyperion_static_str":["",[],["lib.rs"]],\
 "hyperion_sync":["",[],["lib.rs","spinlock.rs"]],\
 "hyperion_syscall":["",[],["err.rs","lib.rs"]],\
