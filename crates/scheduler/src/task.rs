@@ -23,7 +23,6 @@ use hyperion_arch::{
 use hyperion_bitmap::Bitmap;
 use hyperion_log::*;
 use hyperion_mem::{pmm, vmm::PageMapImpl};
-use rpds::{RedBlackTreeMap, RedBlackTreeMapSync};
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
 use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TakeOnce, TLS};

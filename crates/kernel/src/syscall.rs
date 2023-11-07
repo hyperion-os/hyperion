@@ -1,11 +1,10 @@
-use alloc::{boxed::Box, collections::BTreeMap, string::ToString, vec::Vec};
+use alloc::{boxed::Box, string::ToString, vec::Vec};
 use core::{
     any::{type_name_of_val, Any},
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::Ordering,
 };
 
 use hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
-use hyperion_boot::args;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_log::*;
@@ -19,12 +18,9 @@ use hyperion_scheduler::{
     task::{Process, ProcessExt},
 };
 use hyperion_syscall::err::{Error, Result};
-use hyperion_vfs::{
-    error::IoError,
-    tree::{FileRef, Node},
-};
+use hyperion_vfs::{error::IoError, tree::FileRef};
 use time::Duration;
-use x86_64::{instructions::bochs_breakpoint, structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 

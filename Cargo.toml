@@ -28,7 +28,7 @@ pc-keyboard = "0.7"
 paste = "1.0"       # macro ident concat
 bit_field = "0.10"
 bytemuck = { version = "1.13", features = ["derive"] }
-rpds = { version = "1.1", default-features = false }
+# rpds = { version = "1.1", default-features = false }
 # image = "0.24"
 # bitvec = "1.0.1"
 # tracing = { version = "0.1.37", default-features = false }
