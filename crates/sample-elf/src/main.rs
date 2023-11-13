@@ -6,7 +6,7 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String, sync::Arc};
+use alloc::{boxed::Box, format, string::String, sync::Arc};
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
@@ -14,7 +14,10 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use hyperion_syscall::{fs::File, *};
+use hyperion_syscall::{
+    fs::{File, OpenOptions},
+    *,
+};
 
 use crate::io::{BufReader, SimpleIpcInputChannel};
 
@@ -55,9 +58,15 @@ pub fn main(args: CliArgs) {
             println!("/dev/hpet bytes: {:?}", &buf[..bytes]);
             drop(hpet);
 
-            let file = File::open("/testfile").expect("failed to open /testfile");
-            file.write(b"testing data").expect("failed to write");
-            drop(file);
+            for i in 0..10 {
+                let file = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(&format!("/tmp/tmp-{i}"))
+                    .expect("failed to open /testfile");
+                file.write(b"testing data").expect("failed to write");
+                drop(file);
+            }
 
             let mut next = timestamp().unwrap() as u64;
             for i in next / 1_000_000_000.. {
