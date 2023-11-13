@@ -1,0 +1,10 @@
+[package]
+name = "cargo-run"
+version.workspace = true
+edition.workspace = true
+default-run = "cargo-run"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = { version = "4.4.8", features = ["derive"] }
