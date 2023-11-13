@@ -61,7 +61,7 @@ impl File {
     }
 
     pub fn open(path: &str) -> Result<Self> {
-        OpenOptions::new().open(path)
+        OpenOptions::new().read(true).write(true).open(path)
     }
 
     pub fn read(&self, buf: &mut [u8]) -> Result<usize> {

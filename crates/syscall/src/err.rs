@@ -46,6 +46,8 @@ impl_error! {
     pub const WRITE_ZERO: "wrote nothing" = 15;
     pub const BAD_FILE_DESCRIPTOR: "bad file descriptor" = 16;
 
+    pub const INVALID_FLAGS: "invalid flags" = 17;
+
     pub const _: "unknown error" = _;
 }
 
