@@ -14,11 +14,11 @@ use clap::Parser;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// number of SMP CPUs
-    #[arg(short, long, alias = "smp", value_name = "nproc")]
+    #[arg(short, long, alias = "smp", value_name = "nproc", default_value = "4")]
     cpus: Option<usize>,
 
-    ///
-    #[arg(short, long, value_name = "mem", value_parser = mem)]
+    /// amount of physical memory
+    #[arg(short, long, value_name = "mem", value_parser = mem, default_value = "256m")]
     mem: Option<String>,
 }
 
