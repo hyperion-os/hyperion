@@ -43,6 +43,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         1000 => call_id(open, args),
         1100 => call_id(close, args),
         1200 => call_id(read, args),
+        1300 => call_id(write, args),
 
         _ => {
             debug!("invalid syscall");
@@ -332,7 +333,8 @@ pub fn close(args: &mut SyscallRegs) -> Result<usize> {
 ///  - `arg2` : data len (bytes)
 ///
 /// # return values (syscall_id)
-///  - `0` :
+///  - `0`   : EOF
+///  - `1..` : number of bytes read
 pub fn read(args: &mut SyscallRegs) -> Result<usize> {
     let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
 
@@ -354,6 +356,39 @@ pub fn read(args: &mut SyscallRegs) -> Result<usize> {
     file.position += read;
 
     return Ok(read);
+}
+
+/// write bytes into a file
+///
+/// # arguments
+///  - `syscall_id` : 1300
+///  - `arg0` : file descriptor
+///  - `arg1` : data ptr
+///  - `arg2` : data len (bytes)
+///
+/// # return values (syscall_id)
+///  - `0..` : number of bytes written
+pub fn write(args: &mut SyscallRegs) -> Result<usize> {
+    let buf = read_untrusted_bytes(args.arg1, args.arg2)?;
+
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let mut files = ext.files.lock();
+
+    let file = files
+        .get_mut(args.arg0 as usize)
+        .and_then(|v| v.as_mut())
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?;
+
+    let written = file
+        .file_ref
+        .lock()
+        .write(file.position, buf)
+        .map_err(map_vfs_err_to_syscall_err)?;
+    file.position += written;
+
+    return Ok(written);
 }
 
 struct ProcessExtra {
