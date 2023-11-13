@@ -14,7 +14,7 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use hyperion_syscall::*;
+use hyperion_syscall::{fs::File, *};
 
 use crate::io::{BufReader, SimpleIpcInputChannel};
 
@@ -48,14 +48,16 @@ pub fn main(args: CliArgs) {
                 });
             }
 
-            let file = open("/dev/hpet", 0, 0).expect("failed to open a file");
-
+            let hpet = File::open("/dev/hpet").expect("failed to open /dev/hpet");
             let mut buf = [0u8; 256];
-            let bytes = read(file, &mut buf).expect("failed to read from a file");
+            let bytes = hpet.read(&mut buf).expect("failed to read from a file");
 
             println!("/dev/hpet bytes: {:?}", &buf[..bytes]);
+            drop(hpet);
 
-            close(file).expect("failed to close a file");
+            let file = File::open("/testfile").expect("failed to open /testfile");
+            file.write(b"testing data").expect("failed to write");
+            drop(file);
 
             let mut next = timestamp().unwrap() as u64;
             for i in next / 1_000_000_000.. {
