@@ -950,8 +950,8 @@
             }
             at += read;
 
-            <span class="kw">for </span>byte <span class="kw">in </span>buf {
-                <span class="self">self</span>.term.write_byte(byte);
+            <span class="kw">for </span>byte <span class="kw">in </span><span class="kw-2">&amp;</span>buf[..read] {
+                <span class="self">self</span>.term.write_byte(<span class="kw-2">*</span>byte);
             }
             <span class="self">self</span>.term.write_byte(<span class="string">b&#39;\n&#39;</span>);
         }

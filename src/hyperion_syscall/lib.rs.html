@@ -168,15 +168,27 @@
 <a href="#168" id="168">168</a>
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="kw">use </span>core::ptr::NonNull;
 
 <span class="kw">use </span>err::Result;
 
+<span class="kw">use </span><span class="self">self</span>::fs::{FileDesc, FileOpenFlags};
+
 <span class="comment">//
 
 </span><span class="kw">pub mod </span>err;
+<span class="kw">pub mod </span>fs;
 
 <span class="comment">//
 
@@ -323,19 +335,25 @@
 
 <span class="doccomment">/// open a file
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>open(path: <span class="kw-2">&amp;</span>str, flags: usize, mode: usize) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">unsafe </span>{ syscall_4(<span class="number">1000</span>, path.as_ptr() <span class="kw">as </span>usize, path.len(), flags, mode) }
+</span><span class="kw">pub fn </span>open(path: <span class="kw-2">&amp;</span>str, flags: FileOpenFlags, mode: usize) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
+    <span class="kw">unsafe </span>{ syscall_4(<span class="number">1000</span>, path.as_ptr() <span class="kw">as </span>usize, path.len(), flags.bits(), mode) }.map(FileDesc)
 }
 
 <span class="doccomment">/// close a file
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>close(file: usize) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">unsafe </span>{ syscall_1(<span class="number">1100</span>, file) }.map(|<span class="kw">_</span>| {})
+</span><span class="kw">pub fn </span>close(file: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">unsafe </span>{ syscall_1(<span class="number">1100</span>, file.<span class="number">0</span>) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// read from a file
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>read(file: usize, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">unsafe </span>{ syscall_3(<span class="number">1200</span>, file, buf.as_mut_ptr() <span class="kw">as </span>usize, buf.len()) }
+</span><span class="kw">pub fn </span>read(file: FileDesc, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">unsafe </span>{ syscall_3(<span class="number">1200</span>, file.<span class="number">0</span>, buf.as_mut_ptr() <span class="kw">as </span>usize, buf.len()) }
+}
+
+<span class="doccomment">/// write into a file
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>write(file: FileDesc, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">unsafe </span>{ syscall_3(<span class="number">1300</span>, file.<span class="number">0</span>, buf.as_ptr() <span class="kw">as </span>usize, buf.len()) }
 }
 </code></pre></div></section></main></body></html>

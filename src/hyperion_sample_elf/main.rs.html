@@ -272,6 +272,17 @@
 <a href="#272" id="272">272</a>
 <a href="#273" id="273">273</a>
 <a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![no_main]
 #![feature(format_args_nl, slice_internals)]
@@ -280,7 +291,7 @@
 
 </span><span class="kw">extern crate </span>alloc;
 
-<span class="kw">use </span>alloc::{boxed::Box, string::String, sync::Arc};
+<span class="kw">use </span>alloc::{boxed::Box, format, string::String, sync::Arc};
 <span class="kw">use </span>core::{
     alloc::GlobalAlloc,
     fmt::{<span class="self">self</span>, Write},
@@ -288,7 +299,10 @@
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-<span class="kw">use </span>hyperion_syscall::<span class="kw-2">*</span>;
+<span class="kw">use </span>hyperion_syscall::{
+    fs::{File, OpenOptions},
+    <span class="kw-2">*</span>,
+};
 
 <span class="kw">use </span><span class="kw">crate</span>::io::{BufReader, SimpleIpcInputChannel};
 
@@ -322,14 +336,22 @@
                 });
             }
 
-            <span class="kw">let </span>file = open(<span class="string">&quot;/dev/hpet&quot;</span>, <span class="number">0</span>, <span class="number">0</span>).expect(<span class="string">&quot;failed to open a file&quot;</span>);
-
+            <span class="kw">let </span>hpet = File::open(<span class="string">&quot;/dev/hpet&quot;</span>).expect(<span class="string">&quot;failed to open /dev/hpet&quot;</span>);
             <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">256</span>];
-            <span class="kw">let </span>bytes = read(file, <span class="kw-2">&amp;mut </span>buf).expect(<span class="string">&quot;failed to read from a file&quot;</span>);
+            <span class="kw">let </span>bytes = hpet.read(<span class="kw-2">&amp;mut </span>buf).expect(<span class="string">&quot;failed to read from a file&quot;</span>);
 
             <span class="macro">println!</span>(<span class="string">&quot;/dev/hpet bytes: {:?}&quot;</span>, <span class="kw-2">&amp;</span>buf[..bytes]);
+            drop(hpet);
 
-            close(file).expect(<span class="string">&quot;failed to close a file&quot;</span>);
+            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">10 </span>{
+                <span class="kw">let </span>file = OpenOptions::new()
+                    .write(<span class="bool-val">true</span>)
+                    .create(<span class="bool-val">true</span>)
+                    .open(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/tmp/tmp-{i}&quot;</span>))
+                    .expect(<span class="string">&quot;failed to open /testfile&quot;</span>);
+                file.write(<span class="string">b&quot;testing data&quot;</span>).expect(<span class="string">&quot;failed to write&quot;</span>);
+                drop(file);
+            }
 
             <span class="kw">let </span><span class="kw-2">mut </span>next = timestamp().unwrap() <span class="kw">as </span>u64;
             <span class="kw">for </span>i <span class="kw">in </span>next / <span class="number">1_000_000_000</span>.. {

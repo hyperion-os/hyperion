@@ -1,13 +1,23 @@
 var srcIndex = JSON.parse('{\
+"anstream":["",[["adapter",[],["mod.rs","strip.rs","wincon.rs"]]],["auto.rs","buffer.rs","fmt.rs","lib.rs","macros.rs","stream.rs","strip.rs"]],\
+"anstyle":["",[],["color.rs","effect.rs","lib.rs","macros.rs","reset.rs","style.rs"]],\
+"anstyle_parse":["",[["state",[],["definitions.rs","mod.rs","table.rs"]]],["lib.rs","params.rs"]],\
+"anstyle_query":["",[],["lib.rs","windows.rs"]],\
 "arrayref":["",[],["lib.rs"]],\
 "arrayvec":["",[],["array_string.rs","arrayvec.rs","arrayvec_impl.rs","char.rs","errors.rs","lib.rs","utils.rs"]],\
 "bit_field":["",[],["lib.rs"]],\
-"bitflags":["",[],["lib.rs"]],\
+"bitflags":["",[],["external.rs","internal.rs","iter.rs","lib.rs","parser.rs","public.rs","traits.rs"]],\
 "blake3":["",[],["ffi_avx2.rs","ffi_avx512.rs","ffi_sse2.rs","ffi_sse41.rs","guts.rs","join.rs","lib.rs","platform.rs","portable.rs"]],\
 "bytemuck":["",[],["anybitpattern.rs","checked.rs","contiguous.rs","internal.rs","lib.rs","no_uninit.rs","offset_of.rs","pod.rs","pod_in_option.rs","transparent.rs","zeroable.rs","zeroable_in_option.rs"]],\
 "bytemuck_derive":["",[],["lib.rs","traits.rs"]],\
+"cargo_run":["",[],["main.rs"]],\
 "cfg_if":["",[],["lib.rs"]],\
 "chrono":["",[["datetime",[],["mod.rs"]],["format",[],["mod.rs","parse.rs","parsed.rs","scan.rs","strftime.rs"]],["naive",[["datetime",[],["mod.rs"]],["time",[],["mod.rs"]]],["date.rs","internals.rs","isoweek.rs","mod.rs"]],["offset",[["local",[["tz_info",[],["mod.rs","parser.rs","rule.rs","timezone.rs"]]],["mod.rs","unix.rs"]]],["fixed.rs","mod.rs","utc.rs"]]],["date.rs","lib.rs","month.rs","round.rs","traits.rs","weekday.rs"]],\
+"clap":["",[],["lib.rs"]],\
+"clap_builder":["",[["builder",[],["action.rs","app_settings.rs","arg.rs","arg_group.rs","arg_predicate.rs","arg_settings.rs","command.rs","debug_asserts.rs","ext.rs","mod.rs","os_str.rs","possible_value.rs","range.rs","resettable.rs","str.rs","styled_str.rs","styling.rs","value_hint.rs","value_parser.rs"]],["error",[],["context.rs","format.rs","kind.rs","mod.rs"]],["output",[["textwrap",[],["core.rs","mod.rs"]]],["fmt.rs","help.rs","help_template.rs","mod.rs","usage.rs"]],["parser",[["features",[],["mod.rs","suggestions.rs"]],["matches",[],["arg_matches.rs","matched_arg.rs","mod.rs","value_source.rs"]]],["arg_matcher.rs","error.rs","mod.rs","parser.rs","validator.rs"]],["util",[],["any_value.rs","color.rs","flat_map.rs","flat_set.rs","graph.rs","id.rs","mod.rs","str_to_bool.rs"]]],["derive.rs","lib.rs","macros.rs","mkeymap.rs"]],\
+"clap_derive":["",[["derives",[],["args.rs","into_app.rs","mod.rs","parser.rs","subcommand.rs","value_enum.rs"]],["utils",[],["doc_comments.rs","error.rs","mod.rs","spanned.rs","ty.rs"]]],["attr.rs","dummies.rs","item.rs","lib.rs","macros.rs"]],\
+"clap_lex":["",[],["ext.rs","lib.rs"]],\
+"colorchoice":["",[],["lib.rs"]],\
 "constant_time_eq":["",[],["lib.rs"]],\
 "crossbeam":["",[],["lib.rs"]],\
 "crossbeam_epoch":["",[["sync",[],["list.rs","mod.rs","queue.rs"]]],["atomic.rs","collector.rs","deferred.rs","epoch.rs","guard.rs","internal.rs","lib.rs"]],\
@@ -63,7 +73,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_scheduler":["",[],["cleanup.rs","futex.rs","ipc.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]],\
 "hyperion_static_str":["",[],["lib.rs"]],\
 "hyperion_sync":["",[],["lib.rs","spinlock.rs"]],\
-"hyperion_syscall":["",[],["err.rs","lib.rs"]],\
+"hyperion_syscall":["",[],["err.rs","fs.rs","lib.rs"]],\
 "hyperion_timer":["",[],["lib.rs"]],\
 "hyperion_vfs":["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]],\
 "iana_time_zone":["",[],["ffi_utils.rs","lib.rs","tz_linux.rs"]],\
@@ -91,10 +101,12 @@ var srcIndex = JSON.parse('{\
 "snafu":["",[],["backtrace_inert.rs","error_chain.rs","lib.rs","no_std_error.rs","report.rs"]],\
 "snafu_derive":["",[["report",[],["yes_async.rs"]]],["lib.rs","parse.rs","report.rs","shared.rs"]],\
 "spin":["",[["mutex",[],["spin.rs"]]],["barrier.rs","lazy.rs","lib.rs","mutex.rs","once.rs","relax.rs","rwlock.rs"]],\
+"strsim":["",[],["lib.rs"]],\
 "time":["",[["error",[],["component_range.rs","conversion_range.rs","different_variant.rs","invalid_variant.rs","mod.rs"]],["sys",[],["mod.rs"]]],["date.rs","date_time.rs","duration.rs","ext.rs","lib.rs","month.rs","offset_date_time.rs","primitive_date_time.rs","time.rs","utc_offset.rs","util.rs","weekday.rs"]],\
 "time_core":["",[],["convert.rs","lib.rs","util.rs"]],\
 "uart_16550":["",[],["lib.rs","mmio.rs","port.rs"]],\
 "unicode_ident":["",[],["lib.rs","tables.rs"]],\
+"utf8parse":["",[],["lib.rs","types.rs"]],\
 "volatile":["",[["volatile_ptr",[],["macros.rs","mod.rs","operations.rs"]]],["access.rs","lib.rs","volatile_ref.rs"]],\
 "x86":["",[["apic",[],["ioapic.rs","mod.rs","x2apic.rs","xapic.rs"]],["bits16",[],["mod.rs","segmentation.rs"]],["bits32",[],["eflags.rs","mod.rs","paging.rs","segmentation.rs","task.rs"]],["bits64",[],["mod.rs","paging.rs","registers.rs","rflags.rs","segmentation.rs","sgx.rs","syscall.rs","task.rs","vmx.rs"]],["vmx",[],["mod.rs","vmcs.rs"]]],["controlregs.rs","debugregs.rs","dtables.rs","fence.rs","io.rs","irq.rs","lib.rs","msr.rs","random.rs","segmentation.rs","task.rs","time.rs","tlb.rs"]],\
 "x86_64":["",[["instructions",[],["interrupts.rs","mod.rs","port.rs","random.rs","segmentation.rs","tables.rs","tlb.rs"]],["registers",[],["control.rs","debug.rs","mod.rs","model_specific.rs","mxcsr.rs","rflags.rs","segmentation.rs","xcontrol.rs"]],["structures",[["paging",[["mapper",[],["mapped_page_table.rs","mod.rs","offset_page_table.rs","recursive_page_table.rs"]]],["frame.rs","frame_alloc.rs","mod.rs","page.rs","page_table.rs"]]],["gdt.rs","idt.rs","mod.rs","port.rs","tss.rs"]]],["addr.rs","lib.rs"]]\

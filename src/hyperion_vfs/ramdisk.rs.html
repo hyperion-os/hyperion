@@ -84,9 +84,23 @@
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     collections::{btree_map::Entry, BTreeMap},
     sync::Arc,
+    vec::Vec,
 };
 
 <span class="kw">use </span>spin::Mutex;
@@ -94,12 +108,14 @@
 <span class="kw">use crate</span>::{
     device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
-    tree::{DirRef, FileRef, Node, WeakDirRef},
+    tree::{DirRef, FileRef, Node, Root, WeakDirRef},
 };
 
 <span class="comment">//
 
-</span><span class="kw">pub struct </span>File {}
+</span><span class="kw">pub struct </span>File {
+    bytes: Vec&lt;u8&gt;,
+}
 
 <span class="kw">pub struct </span>Directory {
     <span class="kw">pub </span>name: Arc&lt;str&gt;,
@@ -113,21 +129,23 @@
 
 </span><span class="kw">impl </span>FileDevice <span class="kw">for </span>File {
     <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="number">0
-    </span>}
+        <span class="self">self</span>.bytes.len()
+    }
 
     <span class="kw">fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>, offset: usize, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; IoResult&lt;usize&gt; {
-        FileDevice::read(<span class="kw-2">&amp;</span>[][..], offset, buf)
+        FileDevice::read(<span class="kw-2">&amp;</span><span class="self">self</span>.bytes[..], offset, buf)
     }
 
     <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, offset: usize, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; IoResult&lt;usize&gt; {
-        FileDevice::write(<span class="kw-2">&amp;mut </span>[][..], offset, buf)
+        <span class="self">self</span>.bytes
+            .resize(<span class="self">self</span>.bytes.len().max(buf.len() + offset), <span class="string">b&#39;?&#39;</span>);
+        FileDevice::write(<span class="kw-2">&amp;mut </span><span class="self">self</span>.bytes[..], offset, buf)
     }
 }
 
 <span class="kw">impl </span>File {
     <span class="kw">pub fn </span>new_empty() -&gt; FileRef {
-        Arc::new(Mutex::new(<span class="self">Self </span>{})) <span class="kw">as _
+        Arc::new(Mutex::new(<span class="self">Self </span>{ bytes: Vec::new() })) <span class="kw">as _
     </span>}
 }
 
@@ -160,14 +178,22 @@
 }
 
 <span class="kw">impl </span>Directory {
-    <span class="kw">pub fn </span>from(name: <span class="kw">impl </span>Into&lt;Arc&lt;str&gt;&gt;) -&gt; DirRef {
-        Arc::new(Mutex::new(Directory {
+    <span class="kw">pub fn </span>new(name: <span class="kw">impl </span>Into&lt;Arc&lt;str&gt;&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
             name: name.into(),
             children: BTreeMap::new(),
             parent: <span class="prelude-val">None</span>,
 
             nodes_cache: <span class="prelude-val">None</span>,
-        })) <span class="kw">as _
+        }
+    }
+
+    <span class="kw">pub fn </span>new_ref(name: <span class="kw">impl </span>Into&lt;Arc&lt;str&gt;&gt;) -&gt; DirRef {
+        Arc::new(Mutex::new(<span class="self">Self</span>::new(name))) <span class="kw">as _
     </span>}
+
+    <span class="kw">pub fn </span>root() -&gt; Root {
+        <span class="self">Self</span>::new_ref(<span class="string">&quot;&quot;</span>)
+    }
 }
 </code></pre></div></section></main></body></html>

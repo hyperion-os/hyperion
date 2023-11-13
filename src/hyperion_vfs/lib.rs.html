@@ -194,7 +194,7 @@
 <span class="comment">//
 
 </span><span class="kw">pub fn </span>get_root() -&gt; Node {
-    <span class="kw">pub static </span>ROOT: Lazy&lt;Root&gt; = Lazy::new(|| Directory::from(<span class="string">&quot;&quot;</span>));
+    <span class="kw">pub static </span>ROOT: Lazy&lt;Root&gt; = Lazy::new(|| Directory::new_ref(<span class="string">&quot;&quot;</span>));
     <span class="kw">let </span>root = ROOT.clone();
 
     device::init();
@@ -239,7 +239,7 @@
                 </span>node = <span class="kw">if let </span><span class="prelude-val">Ok</span>(node) = dir.get_node(part) {
                     node
                 } <span class="kw">else if </span>make_dirs {
-                    <span class="kw">let </span>node = Node::Directory(Directory::from(part));
+                    <span class="kw">let </span>node = Node::Directory(Directory::new_ref(part));
                     dir.create_node(part, node.clone())<span class="question-mark">?</span>;
                     node
                 } <span class="kw">else </span>{
