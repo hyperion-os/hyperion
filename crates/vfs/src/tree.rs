@@ -2,7 +2,7 @@ use alloc::sync::{Arc, Weak};
 
 use spin::Mutex;
 
-use crate::{device::DirectoryDevice, FileDevice};
+use crate::{device::DirectoryDevice, ramdisk::Directory, FileDevice};
 
 //
 

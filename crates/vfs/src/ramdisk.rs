@@ -8,7 +8,7 @@ use spin::Mutex;
 use crate::{
     device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
-    tree::{DirRef, FileRef, Node, WeakDirRef},
+    tree::{DirRef, FileRef, Node, Root, WeakDirRef},
 };
 
 //
@@ -74,13 +74,21 @@ impl DirectoryDevice for Directory {
 }
 
 impl Directory {
-    pub fn from(name: impl Into<Arc<str>>) -> DirRef {
-        Arc::new(Mutex::new(Directory {
+    pub fn new(name: impl Into<Arc<str>>) -> Self {
+        Self {
             name: name.into(),
             children: BTreeMap::new(),
             parent: None,
 
             nodes_cache: None,
-        })) as _
+        }
+    }
+
+    pub fn new_ref(name: impl Into<Arc<str>>) -> DirRef {
+        Arc::new(Mutex::new(Self::new(name))) as _
+    }
+
+    pub fn root() -> Root {
+        Self::new_ref("")
     }
 }

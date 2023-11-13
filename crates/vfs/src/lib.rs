@@ -29,7 +29,7 @@ pub mod tree;
 //
 
 pub fn get_root() -> Node {
-    pub static ROOT: Lazy<Root> = Lazy::new(|| Directory::from(""));
+    pub static ROOT: Lazy<Root> = Lazy::new(|| Directory::new_ref(""));
     let root = ROOT.clone();
 
     device::init();
@@ -74,7 +74,7 @@ fn get_node_with(mut node: Node, path: impl AsRef<Path>, make_dirs: bool) -> IoR
                 node = if let Ok(node) = dir.get_node(part) {
                     node
                 } else if make_dirs {
-                    let node = Node::Directory(Directory::from(part));
+                    let node = Node::Directory(Directory::new_ref(part));
                     dir.create_node(part, node.clone())?;
                     node
                 } else {
