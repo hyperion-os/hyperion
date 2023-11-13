@@ -2,7 +2,7 @@ use core::{
     cell::UnsafeCell,
     ops,
     panic::Location,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 use crossbeam::atomic::AtomicCell;
@@ -140,6 +140,42 @@ impl<'a, T: ?Sized> ops::DerefMut for MutexGuard<'a, T> {
 impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
     fn drop(&mut self) {
         self.lock.store(UNLOCKED, Ordering::Release);
+    }
+}
+
+//
+
+pub struct TakeOnce<T> {
+    val: Mutex<Option<T>>,
+    taken: AtomicBool,
+}
+
+impl<T> TakeOnce<T> {
+    pub const fn new(val: T) -> Self {
+        Self {
+            val: Mutex::new(Some(val)),
+            taken: AtomicBool::new(false),
+        }
+    }
+
+    pub const fn none() -> Self {
+        Self {
+            val: Mutex::new(None),
+            taken: AtomicBool::new(true),
+        }
+    }
+
+    pub fn take(&self) -> Option<T> {
+        if self.taken.swap(true, Ordering::AcqRel) {
+            None
+        } else {
+            self.take_lock()
+        }
+    }
+
+    #[cold]
+    fn take_lock(&self) -> Option<T> {
+        self.val.lock().take()
     }
 }
 

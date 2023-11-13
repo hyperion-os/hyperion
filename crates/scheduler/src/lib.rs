@@ -44,44 +44,23 @@ mod page_fault;
 
 //
 
+// /// `T` is extra process data
+// pub struct Scheduler<ProcExt, TaskExt> {
+//     ready: SegQueue<Task<ProcExt, TaskExt>>,
+// }
+
+// impl<P, T> Scheduler<P, T> {
+//     pub const fn new() -> Self {
+//         Self {
+//             ready: SegQueue::new(),
+//         }
+//     }
+// }
+
+// pub static RUNNING: Lazy<Tls<AtomicBool>> = Lazy::new(|| Tls::new(|| AtomicBool::new(false)));
+
 pub static READY: SegQueue<Task> = SegQueue::new();
 pub static RUNNING: AtomicBool = AtomicBool::new(false);
-
-//
-
-pub struct TakeOnce<T> {
-    val: Mutex<Option<T>>,
-    taken: AtomicBool,
-}
-
-impl<T> TakeOnce<T> {
-    pub const fn new(val: T) -> Self {
-        Self {
-            val: Mutex::new(Some(val)),
-            taken: AtomicBool::new(false),
-        }
-    }
-
-    pub const fn none() -> Self {
-        Self {
-            val: Mutex::new(None),
-            taken: AtomicBool::new(true),
-        }
-    }
-
-    pub fn take(&self) -> Option<T> {
-        if self.taken.swap(true, Ordering::AcqRel) {
-            None
-        } else {
-            self.take_lock()
-        }
-    }
-
-    #[cold]
-    fn take_lock(&self) -> Option<T> {
-        self.val.lock().take()
-    }
-}
 
 //
 

@@ -23,9 +23,10 @@ use hyperion_arch::{
 use hyperion_bitmap::Bitmap;
 use hyperion_log::*;
 use hyperion_mem::{pmm, vmm::PageMapImpl};
+use hyperion_sync::spinlock::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
-use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TakeOnce, TLS};
+use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TLS};
 
 //
 
