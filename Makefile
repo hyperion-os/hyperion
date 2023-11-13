@@ -65,13 +65,13 @@ override GDB_FLAGS += --eval-command="symbol-file ${KERNEL}"
 #${CARGO_DIR}/hyperion-kernel.d:
 #	${CARGO} build ${CARGO_FLAGS}
 
-${KERNEL_SRC}:
+#${KERNEL_SRC}:
 
 # hyperion kernel compilation
 ${KERNEL}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 	@echo -e "\n\033[32m--[[ building Hyperion ]]--\033[0m"
 	${CARGO} build ${CARGO_FLAGS}
-	@touch ${KERNEL}
+	#@touch ${KERNEL}
 
 ${KERNEL_TESTING}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 	@echo -e "\n\033[32m--[[ building Hyperion-Testing ]]--\033[0m"
@@ -79,7 +79,7 @@ ${KERNEL_TESTING}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 	${CARGO} test --no-run --message-format=json ${CARGO_FLAGS} | \
 		jq -r "select(.profile.test == true) | .filenames[]" | \
 		xargs -I % cp "%" ${KERNEL_TESTING}
-	@touch ${KERNEL_TESTING}
+	#@touch ${KERNEL_TESTING}
 
 # ISO generation
 include ./${BOOT_DIR}/Makefile
@@ -129,6 +129,6 @@ src:
 	@echo "from: ${CARGO_DIR}/hyperion.d"
 	@echo "${KERNEL_SRC}" | tr " " "\n" | sort
 
-.PHONY : ${KERNEL} ${KERNEL_TESTING} build iso run test unittest gdb kernel objdump readelf src
+.PHONY : build iso run test unittest gdb kernel objdump readelf src
 
 # end
