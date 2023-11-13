@@ -131,6 +131,8 @@ pub fn init(task: impl Into<Task>) -> ! {
             return;
         }
 
+        // yield_now();
+
         if process().should_terminate.load(Ordering::Relaxed) {
             stop();
         }
@@ -178,10 +180,10 @@ pub fn yield_now() {
 
 pub fn yield_now_wait() {
     update_cpu_usage();
-    wait();
-    update_cpu_usage();
 
     let Some(next) = next_task() else {
+        wait();
+        update_cpu_usage();
         // no tasks -> keep the current task running
         return;
     };
