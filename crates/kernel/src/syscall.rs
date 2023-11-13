@@ -17,7 +17,10 @@ use hyperion_scheduler::{
     process,
     task::{Process, ProcessExt},
 };
-use hyperion_syscall::err::{Error, Result};
+use hyperion_syscall::{
+    err::{Error, Result},
+    fs::FileOpenFlags,
+};
 use hyperion_vfs::{error::IoError, tree::FileRef};
 use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
@@ -280,10 +283,26 @@ pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
 pub fn open(args: &mut SyscallRegs) -> Result<usize> {
     let path = read_untrusted_str(args.arg0, args.arg1)?;
 
+    let Some(flags) = FileOpenFlags::from_bits(args.arg2 as usize) else {
+        return Err(Error::INVALID_FLAGS);
+    };
+
     let this = process();
     let ext = process_ext_with(&this);
 
-    let file_ref = hyperion_vfs::open(path, false, false).map_err(map_vfs_err_to_syscall_err)?;
+    let create = flags.contains(FileOpenFlags::CREATE) || flags.contains(FileOpenFlags::CREATE_NEW);
+
+    if flags.contains(FileOpenFlags::CREATE_NEW)
+        || flags.contains(FileOpenFlags::TRUNC)
+        || flags.contains(FileOpenFlags::APPEND)
+        || (!flags.contains(FileOpenFlags::READ) && !flags.contains(FileOpenFlags::WRITE))
+    {
+        return Err(Error::FILESYSTEM_ERROR);
+    }
+
+    let mkdirs = true; // TODO: tmp
+
+    let file_ref = hyperion_vfs::open(path, true, create).map_err(map_vfs_err_to_syscall_err)?;
     let file = Some(File {
         file_ref,
         position: 0,
