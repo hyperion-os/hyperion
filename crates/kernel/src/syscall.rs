@@ -302,7 +302,7 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 
     let mkdirs = true; // TODO: tmp
 
-    let file_ref = hyperion_vfs::open(path, true, create).map_err(map_vfs_err_to_syscall_err)?;
+    let file_ref = hyperion_vfs::open(path, mkdirs, create).map_err(map_vfs_err_to_syscall_err)?;
     let file = Some(File {
         file_ref,
         position: 0,
