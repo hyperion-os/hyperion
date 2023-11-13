@@ -238,8 +238,8 @@ impl Shell {
             }
             at += read;
 
-            for byte in buf {
-                self.term.write_byte(byte);
+            for byte in &buf[..read] {
+                self.term.write_byte(*byte);
             }
             self.term.write_byte(b'\n');
         }
