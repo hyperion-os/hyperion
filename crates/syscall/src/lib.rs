@@ -4,9 +4,12 @@ use core::ptr::NonNull;
 
 use err::Result;
 
+use self::fs::FileDesc;
+
 //
 
 pub mod err;
+pub mod fs;
 
 //
 
@@ -153,18 +156,24 @@ pub fn rename(new_name: &str) -> Result<()> {
 
 /// open a file
 #[inline(always)]
-pub fn open(path: &str, flags: usize, mode: usize) -> Result<usize> {
-    unsafe { syscall_4(1000, path.as_ptr() as usize, path.len(), flags, mode) }
+pub fn open(path: &str, flags: usize, mode: usize) -> Result<FileDesc> {
+    unsafe { syscall_4(1000, path.as_ptr() as usize, path.len(), flags, mode) }.map(FileDesc)
 }
 
 /// close a file
 #[inline(always)]
-pub fn close(file: usize) -> Result<()> {
-    unsafe { syscall_1(1100, file) }.map(|_| {})
+pub fn close(file: FileDesc) -> Result<()> {
+    unsafe { syscall_1(1100, file.0) }.map(|_| {})
 }
 
 /// read from a file
 #[inline(always)]
-pub fn read(file: usize, buf: &mut [u8]) -> Result<usize> {
-    unsafe { syscall_3(1200, file, buf.as_mut_ptr() as usize, buf.len()) }
+pub fn read(file: FileDesc, buf: &mut [u8]) -> Result<usize> {
+    unsafe { syscall_3(1200, file.0, buf.as_mut_ptr() as usize, buf.len()) }
+}
+
+/// write into a file
+#[inline(always)]
+pub fn write(file: FileDesc, buf: &[u8]) -> Result<usize> {
+    unsafe { syscall_3(1300, file.0, buf.as_ptr() as usize, buf.len()) }
 }
