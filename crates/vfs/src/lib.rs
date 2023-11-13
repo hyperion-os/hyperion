@@ -6,6 +6,7 @@ extern crate alloc;
 
 use alloc::sync::Arc;
 
+// use core::ops::{Deref, DerefMut};
 use hyperion_log::{debug, error};
 use spin::{Lazy, Mutex};
 
@@ -17,6 +18,29 @@ use self::{
     tree::{DirRef, FileRef, Node},
 };
 use crate::tree::Root;
+
+//
+
+// pub trait MutexLock<T> {
+//     type MutexGuard<'a>: Deref<Target = T> + DerefMut
+//     where
+//         Self: 'a,
+//         T: 'a;
+
+//     fn lock(&self) -> Self::MutexGuard<'_>;
+// }
+
+// impl<T> MutexLock<T> for spin::Mutex<T> {
+//     type MutexGuard<'a> = spin::MutexGuard<'a, T> where T: 'a;
+
+//     fn lock(&self) -> Self::MutexGuard<'_> {
+//         self.lock()
+//     }
+// }
+
+// pub struct TestNode<Mut: VfsMutex<Self>> {
+//     branches: Vec<Mut>,
+// }
 
 //
 
