@@ -74,7 +74,7 @@ var srcIndex = JSON.parse('{\
 "memoffset":["",[],["lib.rs","offset_of.rs","raw_field.rs","span_of.rs"]],\
 "num_traits":["",[["ops",[],["checked.rs","euclid.rs","inv.rs","mod.rs","mul_add.rs","overflowing.rs","saturating.rs","wrapping.rs"]]],["bounds.rs","cast.rs","float.rs","identities.rs","int.rs","lib.rs","macros.rs","pow.rs","sign.rs"]],\
 "paste":["",[],["attr.rs","error.rs","lib.rs","segment.rs"]],\
-"pc_keyboard":["",[["layouts",[],["azerty.rs","colemak.rs","de105.rs","dvorak104.rs","dvorak_programmer104.rs","jis109.rs","mod.rs","uk105.rs","us104.rs"]],["scancodes",[],["mod.rs","set1.rs","set2.rs"]]],["lib.rs"]],\
+"pc_keyboard":["",[["layouts",[],["azerty.rs","colemak.rs","de105.rs","dvorak104.rs","dvorak_programmer104.rs","fi_se105.rs","jis109.rs","mod.rs","no105.rs","uk105.rs","us104.rs"]],["scancodes",[],["mod.rs","set1.rs","set2.rs"]]],["lib.rs"]],\
 "pin_project_lite":["",[],["lib.rs"]],\
 "pin_utils":["",[],["lib.rs","projection.rs","stack_pin.rs"]],\
 "ppv_lite86":["",[["x86_64",[],["mod.rs","sse2.rs"]]],["lib.rs","soft.rs","types.rs"]],\
