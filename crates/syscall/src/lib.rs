@@ -4,7 +4,7 @@ use core::ptr::NonNull;
 
 use err::Result;
 
-use self::fs::FileDesc;
+use self::fs::{FileDesc, FileOpenFlags};
 
 //
 
@@ -156,8 +156,8 @@ pub fn rename(new_name: &str) -> Result<()> {
 
 /// open a file
 #[inline(always)]
-pub fn open(path: &str, flags: usize, mode: usize) -> Result<FileDesc> {
-    unsafe { syscall_4(1000, path.as_ptr() as usize, path.len(), flags, mode) }.map(FileDesc)
+pub fn open(path: &str, flags: FileOpenFlags, mode: usize) -> Result<FileDesc> {
+    unsafe { syscall_4(1000, path.as_ptr() as usize, path.len(), flags.bits(), mode) }.map(FileDesc)
 }
 
 /// close a file
