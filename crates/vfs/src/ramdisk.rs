@@ -1,6 +1,7 @@
 use alloc::{
     collections::{btree_map::Entry, BTreeMap},
     sync::Arc,
+    vec::Vec,
 };
 
 use spin::Mutex;
@@ -13,7 +14,9 @@ use crate::{
 
 //
 
-pub struct File {}
+pub struct File {
+    bytes: Vec<u8>,
+}
 
 pub struct Directory {
     pub name: Arc<str>,
@@ -27,21 +30,23 @@ pub struct Directory {
 
 impl FileDevice for File {
     fn len(&self) -> usize {
-        0
+        self.bytes.len()
     }
 
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        FileDevice::read(&[][..], offset, buf)
+        FileDevice::read(&self.bytes[..], offset, buf)
     }
 
     fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
-        FileDevice::write(&mut [][..], offset, buf)
+        self.bytes
+            .resize(self.bytes.len().max(buf.len() + offset), b'?');
+        FileDevice::write(&mut self.bytes[..], offset, buf)
     }
 }
 
 impl File {
     pub fn new_empty() -> FileRef {
-        Arc::new(Mutex::new(Self {})) as _
+        Arc::new(Mutex::new(Self { bytes: Vec::new() })) as _
     }
 }
 
