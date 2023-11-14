@@ -9,6 +9,7 @@ edition.workspace = true
 snafu.workspace = true
 spin.workspace = true
 crossbeam.workspace = true
+lock_api.workspace = true
 
 hyperion-log.path = "../log"
 hyperion-syscall.path = "../syscall"

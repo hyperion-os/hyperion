@@ -4,12 +4,13 @@ use alloc::{
     vec::Vec,
 };
 
-use spin::Mutex;
+use lock_api::Mutex;
 
 use crate::{
     device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
-    tree::{DirRef, FileRef, Node, Root, WeakDirRef},
+    tree::{DirRef, FileRef, Node, WeakDirRef},
+    AnyMutex,
 };
 
 //
@@ -18,10 +19,10 @@ pub struct File {
     bytes: Vec<u8>,
 }
 
-pub struct Directory {
+pub struct Directory<Mut: AnyMutex> {
     pub name: Arc<str>,
-    pub children: BTreeMap<Arc<str>, Node>,
-    pub parent: Option<WeakDirRef>,
+    pub children: BTreeMap<Arc<str>, Node<Mut>>,
+    pub parent: Option<WeakDirRef<Mut>>,
 
     nodes_cache: Option<Arc<[Arc<str>]>>,
 }
@@ -45,13 +46,13 @@ impl FileDevice for File {
 }
 
 impl File {
-    pub fn new_empty() -> FileRef {
+    pub fn new_empty<Mut: AnyMutex>() -> FileRef<Mut> {
         Arc::new(Mutex::new(Self { bytes: Vec::new() })) as _
     }
 }
 
-impl DirectoryDevice for Directory {
-    fn get_node(&mut self, name: &str) -> IoResult<Node> {
+impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
+    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
         if let Some(node) = self.children.get(name) {
             Ok(node.clone())
         } else {
@@ -59,7 +60,7 @@ impl DirectoryDevice for Directory {
         }
     }
 
-    fn create_node(&mut self, name: &str, node: Node) -> IoResult<()> {
+    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()> {
         match self.children.entry(name.into()) {
             Entry::Vacant(entry) => {
                 entry.insert(node);
@@ -78,7 +79,7 @@ impl DirectoryDevice for Directory {
     }
 }
 
-impl Directory {
+impl<Mut: AnyMutex> Directory<Mut> {
     pub fn new(name: impl Into<Arc<str>>) -> Self {
         Self {
             name: name.into(),
@@ -89,11 +90,7 @@ impl Directory {
         }
     }
 
-    pub fn new_ref(name: impl Into<Arc<str>>) -> DirRef {
+    pub fn new_ref(name: impl Into<Arc<str>>) -> DirRef<Mut> {
         Arc::new(Mutex::new(Self::new(name))) as _
-    }
-
-    pub fn root() -> Root {
-        Self::new_ref("")
     }
 }

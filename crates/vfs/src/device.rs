@@ -3,6 +3,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use crossbeam::atomic::AtomicCell;
 use hyperion_log::{debug, warn};
+use lock_api::RawMutex;
 
 use crate::{
     error::{IoError, IoResult},
@@ -73,10 +74,10 @@ pub trait FileDevice: Send + Sync {
     }
 }
 
-pub trait DirectoryDevice: Send + Sync {
-    fn get_node(&mut self, name: &str) -> IoResult<Node>;
+pub trait DirectoryDevice<Mut: RawMutex>: Send + Sync {
+    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>>;
 
-    fn create_node(&mut self, name: &str, node: Node) -> IoResult<()>;
+    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()>;
 
     fn nodes(&mut self) -> IoResult<Arc<[Arc<str>]>>;
 }

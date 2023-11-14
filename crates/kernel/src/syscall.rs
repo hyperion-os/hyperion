@@ -302,28 +302,29 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 
     let mkdirs = true; // TODO: tmp
 
-    let file_ref = hyperion_vfs::open(path, mkdirs, create).map_err(map_vfs_err_to_syscall_err)?;
-    let file = Some(File {
-        file_ref,
-        position: 0,
-    });
+    todo!();
+    // let file_ref = hyperion_vfs::open(path, mkdirs, create).map_err(map_vfs_err_to_syscall_err)?;
+    // let file = Some(File {
+    //     file_ref,
+    //     position: 0,
+    // });
 
-    let mut files = ext.files.lock();
+    // let mut files = ext.files.lock();
 
-    let fd;
-    if let Some((_fd, spot)) = files
-        .iter_mut()
-        .enumerate()
-        .find(|(_, file)| file.is_none())
-    {
-        fd = _fd;
-        *spot = file;
-    } else {
-        fd = files.len();
-        files.push(file);
-    }
+    // let fd;
+    // if let Some((_fd, spot)) = files
+    //     .iter_mut()
+    //     .enumerate()
+    //     .find(|(_, file)| file.is_none())
+    // {
+    //     fd = _fd;
+    //     *spot = file;
+    // } else {
+    //     fd = files.len();
+    //     files.push(file);
+    // }
 
-    return Ok(fd);
+    // return Ok(fd);
 }
 
 /// close a file
@@ -415,7 +416,7 @@ struct ProcessExtra {
 }
 
 struct File {
-    file_ref: FileRef,
+    file_ref: FileRef<spin::mutex::Mutex<()>>,
     position: usize,
 }
 

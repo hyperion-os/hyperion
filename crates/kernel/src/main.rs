@@ -34,6 +34,8 @@ use hyperion_mem::from_higher_half;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
+use hyperion_vfs::tree::{Node, Root};
+use spin::{Lazy, Mutex};
 
 //
 
@@ -41,6 +43,10 @@ pub mod panic;
 pub mod syscall;
 #[cfg(test)]
 pub mod testfw;
+
+//
+
+static VFS_ROOT: Lazy<Node<Mutex<()>>> = Lazy::new(|| Node::new_root());
 
 //
 
@@ -72,7 +78,7 @@ extern "C" fn _start() -> ! {
         scheduler::schedule(move || {
             // random hw specifics
             random::provide_entropy(&arch::rng_seed().to_ne_bytes());
-            drivers::lazy_install_early();
+            drivers::lazy_install_early(VFS_ROOT.clone());
             drivers::lazy_install_late();
 
             // os unit tests
