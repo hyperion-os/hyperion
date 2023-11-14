@@ -24,11 +24,9 @@ It is as simple as just:
 
 ```bash
 # normal
-make run
-# without kvm
-make KVM=false run
-# with uefi
-make UEFI=true run
+cargo run
+# to see the launch options, run
+cargo run -- --help
 ```
 
 ### On HW?

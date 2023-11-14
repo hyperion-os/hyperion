@@ -20,6 +20,18 @@ struct Args {
     /// amount of physical memory
     #[arg(short, long, value_name = "mem", value_parser = mem, default_value = "256m")]
     mem: Option<String>,
+
+    /// enable KVM in QEMU
+    #[arg(short, long, value_name = "enabled", default_value = "true")]
+    kvm: Option<bool>,
+
+    /// enable UEFI in QEMU
+    #[arg(short, long, value_name = "enabled", default_value = "false")]
+    uefi: Option<bool>,
+
+    /// build the kernel with optimizations
+    #[arg(long)]
+    release: bool,
 }
 
 //
@@ -39,6 +51,12 @@ fn main() {
 
     if let Some(mem) = args.mem {
         cmd.arg(format!("MEMORY={mem}"));
+    }
+
+    cmd.arg(format!("KVM={}", args.kvm.unwrap_or(true)));
+    cmd.arg(format!("UEFI={}", args.uefi.unwrap_or(false)));
+    if args.release {
+        cmd.arg("PROFILE=release");
     }
 
     cmd.spawn().unwrap().wait().unwrap();
