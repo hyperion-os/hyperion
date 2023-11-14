@@ -1,5 +1,9 @@
 use alloc::boxed::Box;
-use core::mem::MaybeUninit;
+use core::{
+    cell::{RefCell, RefMut},
+    mem::MaybeUninit,
+    ops::Deref,
+};
 
 use hyperion_log::trace;
 use spin::{Mutex, MutexGuard};
@@ -51,13 +55,13 @@ type CpuDataAlloc = (
 
 impl CpuState {
     fn new_boot_tls() -> &'static ThreadLocalStorage {
-        static BOOT_DATA: Mutex<CpuDataAlloc> = Mutex::new(CpuState::new_uninit());
+        static BOOT_DATA: BspCell<CpuDataAlloc> = BspCell::new(CpuState::new_uninit());
 
         let lock = BOOT_DATA
-            .try_lock()
+            .get()
             .expect("boot cpu structures already initialized");
 
-        Self::from_uninit(MutexGuard::leak(lock))
+        Self::from_uninit(RefMut::leak(lock))
     }
 
     fn new_tls() -> &'static ThreadLocalStorage {
@@ -83,6 +87,30 @@ impl CpuState {
         let idt = idt.write(Idt::new(tss));
         idt.load();
 
-        ThreadLocalStorage::init(tls)
+        ThreadLocalStorage::init(tls, CpuState { tss, gdt, idt })
     }
 }
+
+//
+
+struct BspCell<T> {
+    inner: RefCell<T>,
+}
+
+impl<T> BspCell<T> {
+    const fn new(v: T) -> Self {
+        BspCell {
+            inner: RefCell::new(v),
+        }
+    }
+
+    fn get(&self) -> Option<RefMut<T>> {
+        if cpu_id() == 0 {
+            Some(self.inner.borrow_mut())
+        } else {
+            None
+        }
+    }
+}
+
+unsafe impl<T> Sync for BspCell<T> {}

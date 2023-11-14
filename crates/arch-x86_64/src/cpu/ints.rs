@@ -113,6 +113,7 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
     };
 }
 
+#[no_mangle]
 pub extern "x86-interrupt" fn x87_floating_point(stack: InterruptStackFrame) {
     error!("INT: x87 Floating Point\n{stack:#?}");
     panic!();

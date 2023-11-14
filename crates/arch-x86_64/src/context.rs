@@ -85,6 +85,12 @@ pub unsafe fn switch(prev: *mut Context, next: *mut Context) {
 
     tls.kernel_stack.store(next_syscall_stack, Ordering::SeqCst);
 
+    unsafe {
+        tls.cpu
+            .tss
+            .set_privilege_stack(VirtAddr::from_ptr(next_syscall_stack));
+    }
+
     // debug!("ctx switch, new gs:kernel_stack={next_syscall_stack:018x?}");
     // dbg_cpu();
 

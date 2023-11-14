@@ -110,7 +110,7 @@ pub fn init(task: impl Into<Task>) -> ! {
             return;
         }
 
-        // yield_now();
+        yield_now();
 
         if process().should_terminate.load(Ordering::Relaxed) {
             stop();

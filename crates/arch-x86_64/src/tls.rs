@@ -9,6 +9,8 @@ use x86_64::{
     VirtAddr,
 };
 
+use crate::cpu::CpuState;
+
 //
 
 pub fn init(tls: &'static ThreadLocalStorage) {
@@ -26,10 +28,13 @@ pub fn init(tls: &'static ThreadLocalStorage) {
 
 #[repr(align(0x1000))]
 pub struct ThreadLocalStorage {
-    // temporary store for user space stack
+    /// temporary store for user space stack
     pub user_stack: AtomicPtr<u8>,
-    // kernel stack for syscalls
+    /// kernel stack for syscalls
     pub kernel_stack: AtomicPtr<u8>,
+
+    /// GDT + IDT + TSS
+    pub cpu: CpuState,
 }
 
 macro_rules! uninit_write_fields {
@@ -56,12 +61,13 @@ macro_rules! uninit_write_fields {
 }
 
 impl ThreadLocalStorage {
-    pub fn init(uninit_tls: &mut MaybeUninit<Self>) -> &Self {
+    pub fn init(uninit_tls: &mut MaybeUninit<Self>, state: CpuState) -> &Self {
         uninit_write_fields!(
             uninit_tls,
             Self {
                 user_stack: AtomicPtr::new(null_mut()),
                 kernel_stack: AtomicPtr::new(null_mut()),
+                cpu: state,
             }
         )
     }

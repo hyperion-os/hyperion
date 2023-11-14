@@ -1,13 +1,17 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    cell::UnsafeCell,
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+};
 
 use hyperion_mem::pmm;
+use memoffset::raw_field;
 use x86_64::{structures::tss::TaskStateSegment, VirtAddr};
 
 //
 
 #[derive(Debug)]
 pub struct Tss {
-    pub inner: TaskStateSegment,
+    pub inner: UnsafeCell<TaskStateSegment>,
     pub stacks: TssStacks,
 }
 
@@ -22,7 +26,7 @@ pub struct TssStacks {
 impl Tss {
     pub fn new() -> Self {
         let mut tss = Self {
-            inner: TaskStateSegment::new(),
+            inner: UnsafeCell::new(TaskStateSegment::new()),
             stacks: TssStacks {
                 interrupt: [(); 7].map(|_| AtomicBool::new(false)),
                 // privilege: [false; 3],
@@ -44,15 +48,26 @@ impl Tss {
         tss
     }
 
+    pub unsafe fn set_privilege_stack(&self, ptr: VirtAddr) {
+        // force the save immediately
+        let pst: *const [VirtAddr; 3] =
+            raw_field!(self.inner.get(), TaskStateSegment, privilege_stack_table);
+        let first = pst.cast::<AtomicU64>();
+
+        unsafe { &*first }.store(ptr.as_u64(), Ordering::SeqCst);
+    }
+
     fn add_int(&mut self, idx: usize) {
         let stack = Self::alloc_stack();
-        self.inner.interrupt_stack_table[idx] = VirtAddr::from_ptr(stack.as_ptr_range().end);
+        self.inner.get_mut().interrupt_stack_table[idx] =
+            VirtAddr::from_ptr(stack.as_ptr_range().end);
         self.stacks.interrupt[idx].store(true, Ordering::SeqCst);
     }
 
     fn add_priv(&mut self, idx: usize) {
         let stack = Self::alloc_stack();
-        self.inner.privilege_stack_table[idx] = VirtAddr::from_ptr(stack.as_ptr_range().end);
+        self.inner.get_mut().privilege_stack_table[idx] =
+            VirtAddr::from_ptr(stack.as_ptr_range().end);
         // self.stacks.privilege[idx] = true;
     }
 
