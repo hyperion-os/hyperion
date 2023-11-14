@@ -16,33 +16,20 @@ const UNLOCKED: usize = 0;
 
 //
 
-pub struct Mutex<T: ?Sized> {
+pub struct Futex {
     lock: AtomicUsize,
-
-    #[cfg(not(debug_assertions))]
-    val: UnsafeCell<T>,
-
-    #[cfg(debug_assertions)]
-    val: spinlock::Mutex<T>,
 }
 
-impl<T> Mutex<T> {
+impl Futex {
     pub const fn new(val: T) -> Self {
         Self {
-            // waiting: SegQueue::new(),
             lock: AtomicUsize::new(UNLOCKED),
-
-            #[cfg(not(debug_assertions))]
-            val: UnsafeCell::new(val),
-
-            #[cfg(debug_assertions)]
-            val: spinlock::Mutex::new(val),
         }
     }
 }
 
-impl<T: ?Sized> Mutex<T> {
-    pub fn lock(&self) -> MutexGuard<T> {
+unsafe impl lock_api::RawMutex for Futex {
+    fn lock(&self) -> MutexGuard<T> {
         while self
             .lock
             .compare_exchange_weak(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)

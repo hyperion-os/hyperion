@@ -7,6 +7,10 @@
 
 // use crossbeam::atomic::AtomicCell;
 
+use core::sync::atomic::{AtomicBool, Ordering};
+
+use lock_api::{Mutex, RawMutex};
+
 // pub mod mutex;
 pub mod spinlock;
 
@@ -25,6 +29,42 @@ pub mod spinlock;
 
 // static FUTEX_WAKE: AtomicCell<fn(NonNull<AtomicUsize>, usize)> =
 //     AtomicCell::new(|_, _| panic!("futex not initialized"));
+
+//
+
+pub struct TakeOnce<T, Lock> {
+    val: Mutex<Lock, Option<T>>,
+    taken: AtomicBool,
+}
+
+impl<T, Lock: RawMutex> TakeOnce<T, Lock> {
+    pub const fn new(val: T) -> Self {
+        Self {
+            val: Mutex::new(Some(val)),
+            taken: AtomicBool::new(false),
+        }
+    }
+
+    pub const fn none() -> Self {
+        Self {
+            val: Mutex::new(None),
+            taken: AtomicBool::new(true),
+        }
+    }
+
+    pub fn take(&self) -> Option<T> {
+        if self.taken.swap(true, Ordering::AcqRel) {
+            None
+        } else {
+            self.take_lock()
+        }
+    }
+
+    #[cold]
+    fn take_lock(&self) -> Option<T> {
+        self.val.lock().take()
+    }
+}
 
 //
 

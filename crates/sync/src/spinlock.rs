@@ -7,59 +7,47 @@ use core::{
 
 use crossbeam::atomic::AtomicCell;
 use hyperion_cpu_id::cpu_id;
+use lock_api::GuardSend;
 
 //
 
-pub const UNLOCKED: usize = usize::MAX;
+const UNLOCKED: usize = usize::MAX;
 
 //
 
-pub struct Mutex<T: ?Sized> {
+pub type Mutex<T> = lock_api::Mutex<SpinLock, T>;
+pub type MutexGuard<'a, T> = lock_api::MutexGuard<'a, SpinLock, T>;
+
+//
+
+pub struct SpinLock {
     // cpu id of the lock holder, usize::MAX is unlocked
     lock: AtomicUsize,
 
     #[cfg(debug_assertions)]
-    locked_from: AtomicCell<&'static Location<'static>>,
-
-    // imp: spin::Mutex<T>,
-    val: UnsafeCell<T>,
+    locked_from: AtomicCell<Option<&'static Location<'static>>>,
 }
 
 const _: () = assert!(AtomicCell::<&'static Location<'static>>::is_lock_free());
 
 //
 
-impl<T> Mutex<T> {
-    #[track_caller]
-    pub const fn new(val: T) -> Self {
-        Self {
-            val: UnsafeCell::new(val),
-            lock: AtomicUsize::new(UNLOCKED),
+unsafe impl lock_api::RawMutex for SpinLock {
+    const INIT: SpinLock = SpinLock {
+        lock: AtomicUsize::new(UNLOCKED),
+        locked_from: AtomicCell::new(None),
+    };
 
-            #[cfg(debug_assertions)]
-            locked_from: AtomicCell::new(Location::caller()),
-        }
-    }
-}
+    type GuardMarker = GuardSend;
 
-impl<T: ?Sized> Mutex<T> {
-    pub fn get_mut(&mut self) -> &mut T {
-        self.val.get_mut()
-    }
-
-    // pub unsafe fn force_unlock(&self) {}
-
-    #[track_caller]
-    pub fn lock(&self) -> MutexGuard<T> {
-        // basically the same as spin::Mutex::lock;
-
+    fn lock(&self) {
         let id = cpu_id();
 
         if self.lock.load(Ordering::Relaxed) == id {
             #[cfg(debug_assertions)]
             panic!(
                 "deadlock:\n - earlier: {}\n - now: {}",
-                self.locked_from.load(),
+                self.locked_from.load().unwrap(),
                 core::panic::Location::caller()
             );
             #[cfg(not(debug_assertions))]
@@ -81,101 +69,39 @@ impl<T: ?Sized> Mutex<T> {
         }
 
         #[cfg(debug_assertions)]
-        self.locked_from.store(Location::caller());
-
-        MutexGuard {
-            lock: &self.lock,
-            val: unsafe { &mut *self.val.get() },
-        }
+        self.locked_from.store(Some(Location::caller()));
     }
 
-    pub fn try_lock(&self) -> Option<MutexGuard<T>> {
+    fn try_lock(&self) -> bool {
         let id = cpu_id();
 
-        if self
+        let locked = self
             .lock
             .compare_exchange(UNLOCKED, id, Ordering::Acquire, Ordering::Relaxed)
-            .is_ok()
-        {
-            Some(MutexGuard {
-                lock: &self.lock,
-                val: unsafe { &mut *self.val.get() },
-            })
-        } else {
-            None
+            .is_ok();
+
+        if locked {
+            #[cfg(debug_assertions)]
+            self.locked_from.store(Some(Location::caller()));
         }
+
+        locked
     }
-}
 
-impl<T> From<T> for Mutex<T> {
-    fn from(value: T) -> Self {
-        Self::new(value)
-    }
-}
-
-unsafe impl<T: ?Sized + Send> Sync for Mutex<T> {}
-unsafe impl<T: ?Sized + Send> Send for Mutex<T> {}
-
-//
-
-pub struct MutexGuard<'a, T: ?Sized> {
-    lock: &'a AtomicUsize,
-    val: &'a mut T,
-}
-
-impl<'a, T: ?Sized> ops::Deref for MutexGuard<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.val
-    }
-}
-
-impl<'a, T: ?Sized> ops::DerefMut for MutexGuard<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.val
-    }
-}
-
-impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
-    fn drop(&mut self) {
+    unsafe fn unlock(&self) {
         self.lock.store(UNLOCKED, Ordering::Release);
     }
 }
 
-//
-
-pub struct TakeOnce<T> {
-    val: Mutex<Option<T>>,
-    taken: AtomicBool,
-}
-
-impl<T> TakeOnce<T> {
-    pub const fn new(val: T) -> Self {
+impl SpinLock {
+    #[track_caller]
+    pub const fn new() -> Self {
         Self {
-            val: Mutex::new(Some(val)),
-            taken: AtomicBool::new(false),
-        }
-    }
+            lock: AtomicUsize::new(UNLOCKED),
 
-    pub const fn none() -> Self {
-        Self {
-            val: Mutex::new(None),
-            taken: AtomicBool::new(true),
+            #[cfg(debug_assertions)]
+            locked_from: AtomicCell::new(Some(Location::caller())),
         }
-    }
-
-    pub fn take(&self) -> Option<T> {
-        if self.taken.swap(true, Ordering::AcqRel) {
-            None
-        } else {
-            self.take_lock()
-        }
-    }
-
-    #[cold]
-    fn take_lock(&self) -> Option<T> {
-        self.val.lock().take()
     }
 }
 

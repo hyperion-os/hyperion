@@ -9,5 +9,6 @@ edition.workspace = true
 [dependencies]
 crossbeam.workspace = true
 spin.workspace = true
+lock_api.workspace = true
 
 hyperion-cpu-id = { path = "../cpu-id" }

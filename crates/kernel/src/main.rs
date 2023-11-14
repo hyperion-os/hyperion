@@ -46,7 +46,7 @@ pub mod testfw;
 
 //
 
-static VFS_ROOT: Lazy<Node<Mutex<()>>> = Lazy::new(|| Node::new_root());
+static VFS_ROOT: Lazy<Node<spin::Mutex<()>>> = Lazy::new(|| Node::new_root());
 
 //
 

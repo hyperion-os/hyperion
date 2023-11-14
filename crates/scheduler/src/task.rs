@@ -23,7 +23,7 @@ use hyperion_arch::{
 use hyperion_bitmap::Bitmap;
 use hyperion_log::*;
 use hyperion_mem::{pmm, vmm::PageMapImpl};
-use hyperion_sync::spinlock::TakeOnce;
+use hyperion_sync::{spinlock::SpinLock, TakeOnce};
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
 use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TLS};
@@ -226,7 +226,7 @@ pub struct TaskInner {
     pub kernel_stack: Mutex<Stack<KernelStack>>,
 
     /// thread_entry runs this function once, and stops the process after returning
-    pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>>,
+    pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>, SpinLock>,
 
     // context is used 'unsafely' only in the switch
     // TaskInner is pinned in heap using a Box to make sure a pointer to this (`context`)
