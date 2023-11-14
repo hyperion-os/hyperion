@@ -26,7 +26,7 @@ pub struct SpinLock {
     locked_from: AtomicCell<Option<&'static Location<'static>>>,
 }
 
-const _: () = assert!(AtomicCell::<&'static Location<'static>>::is_lock_free());
+const _: () = assert!(AtomicCell::<Option<&'static Location<'static>>>::is_lock_free());
 
 //
 
@@ -39,21 +39,21 @@ unsafe impl lock_api::RawMutex for SpinLock {
 
     type GuardMarker = GuardSend;
 
+    #[track_caller]
     fn lock(&self) {
         let id = cpu_id();
 
         if self.lock.load(Ordering::Relaxed) == id {
+            let now = Location::caller();
+
             #[cfg(debug_assertions)]
-            panic!(
-                "deadlock:\n - earlier: {}\n - now: {}",
-                self.locked_from.load().unwrap(),
-                core::panic::Location::caller()
-            );
+            {
+                let from = self.locked_from.load().unwrap();
+                panic!("deadlock:\n - earlier: {from}\n - now: {now}",);
+            }
+
             #[cfg(not(debug_assertions))]
-            panic!(
-                "deadlock:\n - earlier: [debug mode needed]\n - now: {}",
-                Location::caller()
-            );
+            panic!("deadlock:\n - earlier: [debug mode needed]\n - now: {now}",);
         }
 
         while self

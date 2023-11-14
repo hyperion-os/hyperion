@@ -18,7 +18,6 @@ use hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
-use hyperion_log::println;
 use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
