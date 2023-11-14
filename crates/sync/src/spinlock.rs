@@ -1,8 +1,6 @@
 use core::{
-    cell::UnsafeCell,
-    ops,
     panic::Location,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use crossbeam::atomic::AtomicCell;
@@ -33,6 +31,7 @@ const _: () = assert!(AtomicCell::<&'static Location<'static>>::is_lock_free());
 //
 
 unsafe impl lock_api::RawMutex for SpinLock {
+    #[allow(clippy::declare_interior_mutable_const)]
     const INIT: SpinLock = SpinLock {
         lock: AtomicUsize::new(UNLOCKED),
         locked_from: AtomicCell::new(None),

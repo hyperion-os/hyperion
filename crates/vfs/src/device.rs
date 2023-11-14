@@ -1,28 +1,11 @@
 use alloc::sync::Arc;
-use core::sync::atomic::{AtomicBool, Ordering};
 
-use crossbeam::atomic::AtomicCell;
-use hyperion_log::{debug, warn};
 use lock_api::RawMutex;
 
 use crate::{
     error::{IoError, IoResult},
     tree::Node,
 };
-
-//
-
-pub fn set_io_device_loader(f: fn()) {
-    IO_DEVICES.store(f);
-}
-
-pub(crate) fn init() {
-    static IO_DEVICES_ONCE: AtomicBool = AtomicBool::new(true);
-    if IO_DEVICES_ONCE.swap(false, Ordering::Release) {
-        debug!("Initializing VFS");
-        IO_DEVICES.load()();
-    }
-}
 
 //
 
@@ -113,8 +96,3 @@ impl FileDevice for [u8] {
         Ok(len)
     }
 }
-
-//
-
-static IO_DEVICES: AtomicCell<fn()> =
-    AtomicCell::new(|| warn!("Device provicer wasn't given to VFS"));

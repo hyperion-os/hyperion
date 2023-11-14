@@ -27,7 +27,7 @@ use hyperion_scheduler::{
 use hyperion_vfs::{
     self,
     path::{Path, PathBuf},
-    tree::{FileRef, Node},
+    tree::Node,
 };
 use snafu::ResultExt;
 use spin::Mutex;

@@ -32,6 +32,7 @@ impl Futex {
 }
 
 unsafe impl lock_api::RawMutex for Futex {
+    #[allow(clippy::declare_interior_mutable_const)]
     const INIT: Self = Self::new();
 
     type GuardMarker = GuardSend;

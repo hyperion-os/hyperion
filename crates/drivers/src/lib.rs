@@ -9,7 +9,7 @@ pub use hyperion_driver_framebuffer as fbo;
 // pub use hyperion_driver_pic as pic;
 // pub use hyperion_driver_pit as pit;
 pub use hyperion_driver_rtc as rtc;
-use hyperion_vfs::tree::{IntoNode, IntoRoot, Node};
+use hyperion_vfs::tree::IntoNode;
 
 //
 

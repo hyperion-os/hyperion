@@ -1,7 +1,7 @@
 use alloc::sync::{Arc, Weak};
 
 use hyperion_log::*;
-use lock_api::{Mutex, RawMutex};
+use lock_api::Mutex;
 
 use crate::{
     device::DirectoryDevice,

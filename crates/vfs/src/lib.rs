@@ -5,18 +5,9 @@
 
 extern crate alloc;
 
-use alloc::sync::Arc;
+use lock_api::RawMutex;
 
-use hyperion_log::{debug, error};
-use lock_api::{Mutex, RawMutex};
-
-use self::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-    path::Path,
-    ramdisk::{Directory, File},
-    tree::{DirRef, FileRef, Node},
-};
+use self::device::FileDevice;
 
 //
 
