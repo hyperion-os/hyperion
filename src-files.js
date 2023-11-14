@@ -59,6 +59,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_int_safe_lazy":["",[],["lib.rs"]],\
 "hyperion_interrupts":["",[],["lib.rs"]],\
 "hyperion_kernel":["",[],["main.rs","panic.rs","syscall.rs"]],\
+"hyperion_kernel_impl":["",[],["lib.rs"]],\
 "hyperion_kernel_info":["",[],["lib.rs"]],\
 "hyperion_keyboard":["",[],["decode.rs","event.rs","lib.rs"]],\
 "hyperion_kshell":["",[],["lib.rs","shell.rs","snake.rs","term.rs"]],\

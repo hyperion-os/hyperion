@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["UNLOCKED"],"struct":["Mutex","MutexGuard"]};
+window.SIDEBAR_ITEMS = {"struct":["SpinLock"],"type":["Mutex","MutexGuard"]};

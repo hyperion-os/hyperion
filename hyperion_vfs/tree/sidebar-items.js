@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Node"],"type":["DirRef","FileRef","Root","WeakDirRef","WeakFileRef"]};
+window.SIDEBAR_ITEMS = {"enum":["Node"],"trait":["IntoNode","IntoRoot"],"type":["DirRef","FileRef","Root","WeakDirRef","WeakFileRef"]};

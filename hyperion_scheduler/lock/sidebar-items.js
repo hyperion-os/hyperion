@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Mutex","MutexGuard"]};
+window.SIDEBAR_ITEMS = {"struct":["Futex"],"type":["Mutex","MutexGuard"]};

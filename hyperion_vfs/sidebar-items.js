@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["create_device","get_dir","get_file","get_node","get_root","install_dev"],"mod":["device","error","path","ramdisk","tree"]};
+window.SIDEBAR_ITEMS = {"mod":["device","error","path","ramdisk","tree"],"traitalias":["AnyMutex"]};
