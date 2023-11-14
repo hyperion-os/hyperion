@@ -34,6 +34,8 @@ unsafe impl lock_api::RawMutex for SpinLock {
     #[allow(clippy::declare_interior_mutable_const)]
     const INIT: SpinLock = SpinLock {
         lock: AtomicUsize::new(UNLOCKED),
+
+        #[cfg(debug_assertions)]
         locked_from: AtomicCell::new(None),
     };
 
