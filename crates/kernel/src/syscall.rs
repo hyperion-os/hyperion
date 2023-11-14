@@ -7,13 +7,14 @@ use core::{
 use hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
+use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_log::*;
 use hyperion_mem::{
     pmm::{self, PageFrame},
     vmm::PageMapImpl,
 };
 use hyperion_scheduler::{
-    lock::Mutex,
+    lock::{Futex, Mutex},
     process,
     task::{Process, ProcessExt},
 };
@@ -302,29 +303,30 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 
     let mkdirs = true; // TODO: tmp
 
-    todo!();
-    // let file_ref = hyperion_vfs::open(path, mkdirs, create).map_err(map_vfs_err_to_syscall_err)?;
-    // let file = Some(File {
-    //     file_ref,
-    //     position: 0,
-    // });
+    let file_ref = VFS_ROOT
+        .find_file(path, mkdirs, create)
+        .map_err(map_vfs_err_to_syscall_err)?;
+    let file = Some(File {
+        file_ref,
+        position: 0,
+    });
 
-    // let mut files = ext.files.lock();
+    let mut files = ext.files.lock();
 
-    // let fd;
-    // if let Some((_fd, spot)) = files
-    //     .iter_mut()
-    //     .enumerate()
-    //     .find(|(_, file)| file.is_none())
-    // {
-    //     fd = _fd;
-    //     *spot = file;
-    // } else {
-    //     fd = files.len();
-    //     files.push(file);
-    // }
+    let fd;
+    if let Some((_fd, spot)) = files
+        .iter_mut()
+        .enumerate()
+        .find(|(_, file)| file.is_none())
+    {
+        fd = _fd;
+        *spot = file;
+    } else {
+        fd = files.len();
+        files.push(file);
+    }
 
-    // return Ok(fd);
+    return Ok(fd);
 }
 
 /// close a file
@@ -416,7 +418,7 @@ struct ProcessExtra {
 }
 
 struct File {
-    file_ref: FileRef<spin::mutex::Mutex<()>>,
+    file_ref: FileRef<Futex>,
     position: usize,
 }
 

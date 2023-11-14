@@ -27,6 +27,7 @@ use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
 use hyperion_drivers as drivers;
 use hyperion_futures as futures;
+use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
@@ -44,10 +45,6 @@ pub mod panic;
 pub mod syscall;
 #[cfg(test)]
 pub mod testfw;
-
-//
-
-static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(|| Node::new_root());
 
 //
 

@@ -12,6 +12,7 @@ use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
 use hyperion_futures::timer::{sleep, ticks};
 use hyperion_instant::Instant;
+use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -199,72 +200,75 @@ impl Shell {
         let resource = Path::from_str(args.unwrap_or(".")).to_absolute(&self.current_dir);
         let resource = resource.as_ref();
 
-        todo!();
-        // let dir = hyperion_vfs::get_node(resource, false).context(IoSnafu { resource })?;
+        let dir = VFS_ROOT
+            .find(resource, false)
+            .context(IoSnafu { resource })?;
 
-        // match dir {
-        //     Node::File(_) => {
-        //         if let Some(file_name) = resource.file_name() {
-        //             _ = writeln!(self.term, "{file_name}");
-        //         } else {
-        //             return Err(Error::NamelessFile);
-        //         }
-        //     }
-        //     Node::Directory(dir) => {
-        //         let mut dir = dir.lock();
-        //         for entry in dir.nodes().context(IoSnafu { resource })?.iter() {
-        //             _ = writeln!(self.term, "{entry}");
-        //         }
-        //     }
-        // }
+        match dir {
+            Node::File(_) => {
+                if let Some(file_name) = resource.file_name() {
+                    _ = writeln!(self.term, "{file_name}");
+                } else {
+                    return Err(Error::NamelessFile);
+                }
+            }
+            Node::Directory(dir) => {
+                let mut dir = dir.lock();
+                for entry in dir.nodes().context(IoSnafu { resource })?.iter() {
+                    _ = writeln!(self.term, "{entry}");
+                }
+            }
+        }
 
-        // Ok(())
+        Ok(())
     }
 
     fn cat_cmd(&mut self, args: Option<&str>) -> Result<()> {
         let resource = Path::from_str(args.unwrap_or(".")).to_absolute(&self.current_dir);
         let resource = resource.as_ref();
 
-        todo!();
-        // let file = hyperion_vfs::get_file(resource, false, false).context(IoSnafu { resource })?;
-        // let file = file.lock();
+        let file = VFS_ROOT
+            .find_file(resource, false, false)
+            .context(IoSnafu { resource })?;
+        let file = file.lock();
 
-        // let mut at = 0usize;
-        // let mut buf = [0u8; 16];
-        // loop {
-        //     let _addr = (&*file) as *const _ as *const () as u64;
-        //     let read = file.read(at, &mut buf).context(IoSnafu { resource })?;
+        let mut at = 0usize;
+        let mut buf = [0u8; 16];
+        loop {
+            let _addr = (&*file) as *const _ as *const () as u64;
+            let read = file.read(at, &mut buf).context(IoSnafu { resource })?;
 
-        //     if read == 0 {
-        //         break;
-        //     }
-        //     at += read;
+            if read == 0 {
+                break;
+            }
+            at += read;
 
-        //     for byte in &buf[..read] {
-        //         self.term.write_byte(*byte);
-        //     }
-        //     self.term.write_byte(b'\n');
-        // }
+            for byte in &buf[..read] {
+                self.term.write_byte(*byte);
+            }
+            self.term.write_byte(b'\n');
+        }
 
-        // Ok(())
+        Ok(())
     }
 
     fn date_cmd(&mut self, _: Option<&str>) -> Result<()> {
         let resource = Path::from_str("/dev/rtc");
 
-        todo!();
-        // let file = hyperion_vfs::get_file(resource, false, false).context(IoSnafu { resource })?;
-        // let file = file.lock();
+        let file = VFS_ROOT
+            .find_file(resource, false, false)
+            .context(IoSnafu { resource })?;
+        let file = file.lock();
 
-        // let mut timestamp = [0u8; 8];
-        // file.read_exact(0, &mut timestamp)
-        //     .context(IoSnafu { resource })?;
+        let mut timestamp = [0u8; 8];
+        file.read_exact(0, &mut timestamp)
+            .context(IoSnafu { resource })?;
 
-        // let date = OffsetDateTime::from_unix_timestamp(i64::from_le_bytes(timestamp));
+        let date = OffsetDateTime::from_unix_timestamp(i64::from_le_bytes(timestamp));
 
-        // _ = writeln!(self.term, "{date:?}");
+        _ = writeln!(self.term, "{date:?}");
 
-        // Ok(())
+        Ok(())
     }
 
     fn mem_cmd(&mut self, _: Option<&str>) -> Result<()> {
@@ -398,10 +402,11 @@ impl Shell {
         let resource = Path::from_str(file).to_absolute(&self.current_dir);
         let resource = resource.as_ref();
 
-        todo!();
-        // hyperion_vfs::get_file(file, true, true).context(IoSnafu { resource })?;
+        VFS_ROOT
+            .find_file(file, true, true)
+            .context(IoSnafu { resource })?;
 
-        // Ok(())
+        Ok(())
     }
 
     fn rand_cmd(&mut self, _: Option<&str>) -> Result<()> {

@@ -32,5 +32,6 @@ hyperion-random.path = "../random"
 hyperion-scheduler.path = "../scheduler"
 hyperion-vfs.path = "../vfs"
 hyperion-cpu-id.path = "../cpu-id"
+hyperion-kernel-impl.path = "../kernel-impl"
 
 hyperion-sample-elf = { path = "../sample-elf", artifact = "bin", target = "x86_64-unknown-none" }

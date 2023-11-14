@@ -1,0 +1,14 @@
+[package]
+name = "hyperion-kernel-impl"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+spin.workspace = true
+
+hyperion-vfs.path = "../vfs"
+hyperion-sync.path = "../sync"
+hyperion-scheduler.path = "../scheduler"
+

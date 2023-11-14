@@ -632,6 +632,7 @@ dependencies = [
  "hyperion-futures",
  "hyperion-instant",
  "hyperion-interrupts",
+ "hyperion-kernel-impl",
  "hyperion-kernel-info",
  "hyperion-kshell",
  "hyperion-log",
@@ -646,6 +647,16 @@ dependencies = [
  "spin",
  "time 0.3.22",
  "x86_64",
+]
+
+[[package]]
+name = "hyperion-kernel-impl"
+version = "0.1.0"
+dependencies = [
+ "hyperion-scheduler",
+ "hyperion-sync",
+ "hyperion-vfs",
+ "spin",
 ]
 
 [[package]]
@@ -682,6 +693,7 @@ dependencies = [
  "hyperion-framebuffer",
  "hyperion-futures",
  "hyperion-instant",
+ "hyperion-kernel-impl",
  "hyperion-kernel-info",
  "hyperion-keyboard",
  "hyperion-loader",

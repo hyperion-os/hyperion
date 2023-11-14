@@ -41,6 +41,7 @@ hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
 hyperion-sync.path = "../sync"
 hyperion-cpu-id.path = "../cpu-id"
+hyperion-kernel-impl.path = "../kernel-impl"
 
 [dependencies.hyperion-mem]
 path = "../mem"
