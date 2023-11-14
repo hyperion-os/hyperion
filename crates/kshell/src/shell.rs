@@ -1,4 +1,5 @@
 use alloc::{
+    borrow::Cow,
     format,
     string::{String, ToString},
     sync::Arc,
@@ -17,6 +18,7 @@ use hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
+use hyperion_log::println;
 use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
@@ -197,7 +199,9 @@ impl Shell {
     }
 
     fn ls_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let resource = Path::from_str(args.unwrap_or(".")).to_absolute(&self.current_dir);
+        let resource = args
+            .map(|p| Path::from_str(p).to_absolute(&self.current_dir))
+            .unwrap_or(Cow::Borrowed(&self.current_dir));
         let resource = resource.as_ref();
 
         let dir = VFS_ROOT

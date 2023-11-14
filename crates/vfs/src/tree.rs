@@ -98,7 +98,7 @@ impl<Mut: AnyMutex> Node<Mut> {
     pub fn find(&self, path: impl AsRef<Path>, make_dirs: bool) -> IoResult<Self> {
         let mut this = self.clone();
         for part in path.as_ref().iter() {
-            match self {
+            match this {
                 Node::File(_) => return Err(IoError::NotADirectory),
                 Node::Directory(_dir) => {
                     let mut dir = _dir.lock();
