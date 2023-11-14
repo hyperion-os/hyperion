@@ -35,6 +35,7 @@ use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
 use hyperion_vfs::tree::{Node, Root};
+use scheduler::lock::Futex;
 use spin::{Lazy, Mutex};
 
 //
@@ -46,7 +47,7 @@ pub mod testfw;
 
 //
 
-static VFS_ROOT: Lazy<Node<spin::Mutex<()>>> = Lazy::new(|| Node::new_root());
+static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(|| Node::new_root());
 
 //
 

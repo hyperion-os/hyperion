@@ -804,6 +804,7 @@ dependencies = [
  "hyperion-random",
  "hyperion-sync",
  "hyperion-timer",
+ "lock_api",
  "spin",
  "time 0.3.22",
  "x86_64",

@@ -12,6 +12,7 @@ time.workspace = true
 crossbeam.workspace = true
 crossbeam-queue.workspace = true
 x86_64.workspace = true
+lock_api.workspace = true
 # rpds.workspace = true
 
 hyperion-arch.path = "../arch"
