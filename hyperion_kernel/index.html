@@ -16,11 +16,9 @@ of a modern operating system.</p>
 <h3 id="how-do-i-run-it"><a href="#how-do-i-run-it">How do I run it?</a></h3><h4 id="in-qemu"><a href="#in-qemu">In QEMU</a></h4>
 <p>It is as simple as just:</p>
 <div class="example-wrap"><pre class="language-bash"><code># normal
-make run
-# without kvm
-make KVM=false run
-# with uefi
-make UEFI=true run
+cargo run
+# to see the launch options, run
+cargo run -- --help
 </code></pre></div><h4 id="on-hw"><a href="#on-hw">On HW?</a></h4>
 <p>Please don’t</p>
 <h3 id="dependencies"><a href="#dependencies">Dependencies</a></h3>
