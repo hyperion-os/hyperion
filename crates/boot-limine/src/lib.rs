@@ -9,7 +9,6 @@ pub use kernel::kernel_file;
 pub use mem::memmap;
 pub use rsdp::rsdp;
 pub use smp::{boot_cpu, cpu_count, lapics, smp_init};
-pub use term::_print;
 
 //
 
@@ -20,7 +19,6 @@ mod kernel;
 mod mem;
 mod rsdp;
 mod smp;
-mod term;
 
 //
 

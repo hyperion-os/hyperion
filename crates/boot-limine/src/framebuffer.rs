@@ -1,12 +1,12 @@
 use core::slice;
 
 use hyperion_boot_interface::FramebufferCreateInfo;
-use limine::LimineFramebufferRequest;
+use limine::FramebufferRequest;
 
 //
 
 pub fn framebuffer() -> Option<FramebufferCreateInfo> {
-    static FB_REQ: LimineFramebufferRequest = LimineFramebufferRequest::new(0);
+    static FB_REQ: FramebufferRequest = FramebufferRequest::new(0);
 
     FB_REQ
         .get_response()

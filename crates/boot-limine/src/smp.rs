@@ -1,6 +1,6 @@
 use hyperion_boot_interface::Cpu;
 use hyperion_log::{debug, error};
-use limine::{LimineSmpInfo, LimineSmpRequest};
+use limine::{SmpInfo, SmpRequest};
 use spin::Lazy;
 
 //
@@ -62,10 +62,10 @@ extern "C" {
     fn _start() -> !;
 }
 
-extern "C" fn smp_start(_info: *const LimineSmpInfo) -> ! {
+extern "C" fn smp_start(_info: *const SmpInfo) -> ! {
     unsafe { _start() };
 }
 
 //
 
-static REQ: LimineSmpRequest = LimineSmpRequest::new(0);
+static REQ: SmpRequest = SmpRequest::new(0);

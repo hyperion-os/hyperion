@@ -1,10 +1,10 @@
 use core::slice;
 
-use limine::LimineKernelFileRequest;
+use limine::KernelFileRequest;
 
 //
 
-pub(crate) static REQ: LimineKernelFileRequest = LimineKernelFileRequest::new(0);
+pub(crate) static REQ: KernelFileRequest = KernelFileRequest::new(0);
 
 pub fn kernel_file() -> Option<&'static [u8]> {
     REQ.get_response()

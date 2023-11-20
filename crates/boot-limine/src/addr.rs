@@ -1,4 +1,4 @@
-use limine::{LimineHhdmRequest, LimineKernelAddressRequest, LimineKernelAddressResponse};
+use limine::{HhdmRequest, KernelAddressRequest, KernelAddressResponse};
 use spin::Lazy;
 
 //
@@ -13,10 +13,10 @@ pub fn virt_addr() -> usize {
 
 pub fn hhdm_offset() -> u64 {
     static HHDM_OFFSET: Lazy<u64> = Lazy::new(|| {
-        static REQ: LimineHhdmRequest = LimineHhdmRequest::new(0);
+        static REQ: HhdmRequest = HhdmRequest::new(0);
         REQ.get_response()
             .get()
-            .expect("Cannot get Limine HHDM response")
+            .expect("Cannot get LimineHHDM response")
             .offset
     });
 
@@ -25,9 +25,9 @@ pub fn hhdm_offset() -> u64 {
 
 //
 
-static KERNEL_ADDR: Lazy<&'static LimineKernelAddressResponse> = Lazy::new(|| {
-    static REQ: LimineKernelAddressRequest = LimineKernelAddressRequest::new(0);
+static KERNEL_ADDR: Lazy<&'static KernelAddressResponse> = Lazy::new(|| {
+    static REQ: KernelAddressRequest = KernelAddressRequest::new(0);
     REQ.get_response()
         .get()
-        .expect("Cannot get Limine HHDM response")
+        .expect("Cannot get LimineHHDM response")
 });

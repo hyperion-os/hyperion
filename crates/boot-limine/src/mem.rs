@@ -2,7 +2,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use hyperion_boot_interface::{Memmap, Memtype};
 use hyperion_log::trace;
-use limine::{LimineMemmapEntry, LimineMemmapRequest, LimineMemoryMapEntryType, NonNullPtr};
+use limine::{MemmapEntry, MemmapRequest, MemoryMapEntryType, NonNullPtr};
 
 //
 
@@ -22,10 +22,10 @@ pub fn memmap() -> impl Iterator<Item = Memmap> {
         }
 
         let ty = match memmap.typ {
-            LimineMemoryMapEntryType::Usable => Memtype::Usable,
-            LimineMemoryMapEntryType::BootloaderReclaimable => Memtype::BootloaderReclaimable,
-            LimineMemoryMapEntryType::KernelAndModules => Memtype::KernelAndModules,
-            LimineMemoryMapEntryType::Framebuffer => Memtype::Framebuffer,
+            MemoryMapEntryType::Usable => Memtype::Usable,
+            MemoryMapEntryType::BootloaderReclaimable => Memtype::BootloaderReclaimable,
+            MemoryMapEntryType::KernelAndModules => Memtype::KernelAndModules,
+            MemoryMapEntryType::Framebuffer => Memtype::Framebuffer,
             _ => return None,
         };
 
@@ -37,8 +37,8 @@ pub fn memmap() -> impl Iterator<Item = Memmap> {
     })
 }
 
-fn memiter() -> impl Iterator<Item = &'static NonNullPtr<LimineMemmapEntry>> {
-    static REQ: LimineMemmapRequest = LimineMemmapRequest::new(0);
+fn memiter() -> impl Iterator<Item = &'static NonNullPtr<MemmapEntry>> {
+    static REQ: MemmapRequest = MemmapRequest::new(0);
     REQ.get_response()
         .get()
         .into_iter()
