@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["cpu_count","cpu_id","init"],"struct":["Tls"]};
+window.SIDEBAR_ITEMS = {"fn":["cpu_count","cpu_id","cpu_id_dyn_type","init"],"struct":["Tls"]};

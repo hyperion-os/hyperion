@@ -145,6 +145,10 @@
 <a href="#145" id="145">145</a>
 <a href="#146" id="146">146</a>
 <a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>core::{arch::asm, mem::size_of, sync::atomic::Ordering};
 
 <span class="kw">use </span>hyperion_mem::{to_higher_half, vmm::PageMapImpl};
@@ -230,9 +234,15 @@
     <span class="kw">let </span>tls: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>ThreadLocalStorage = <span class="kw">unsafe </span>{ <span class="kw-2">&amp;*</span>KernelGsBase::read().as_ptr() };
     <span class="kw">let </span>next_syscall_stack = <span class="kw">unsafe </span>{ (<span class="kw-2">*</span>next).syscall_stack.as_mut_ptr() };
 
-    tls.kernel_stack.store(next_syscall_stack, Ordering::SeqCst);
+    <span class="comment">// TODO: kernel stack per CPU, instead of kernel stack per task
 
-    <span class="kw">unsafe </span>{
+    // syscalls should use this task&#39;s stack to allow switching tasks from a syscall
+    </span>tls.kernel_stack.store(next_syscall_stack, Ordering::SeqCst);
+
+    <span class="comment">// set the TSS privilege stack for this CPU point to the same syscall stack
+    //
+    // switching tasks from a privilege stack would corrupt the stack otherwise
+    </span><span class="kw">unsafe </span>{
         tls.cpu
             .tss
             .set_privilege_stack(VirtAddr::from_ptr(next_syscall_stack));
@@ -266,8 +276,6 @@
             // load next task
             </span><span class="string">&quot;mov rsp, [rsi+{rsp}]&quot;</span>, <span class="comment">// load next stack
             </span><span class="string">&quot;mov rax, [rsi+{cr3}]&quot;</span>, <span class="comment">// rax = next virtual address space
-
-            // TODO: load TSS privilege stack
 
             // optional virtual address space switch
             </span><span class="string">&quot;mov rcx, cr3&quot;</span>, <span class="comment">// rcx = prev virtual address space

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["are_enabled","debug","disable","enable","wait","without"]};
+window.SIDEBAR_ITEMS = {"fn":["are_enabled","debug","disable","enable","enable_and_nop64","wait","without"]};

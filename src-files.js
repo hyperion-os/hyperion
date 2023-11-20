@@ -75,7 +75,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_scheduler":["",[],["cleanup.rs","futex.rs","ipc.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]],\
 "hyperion_static_str":["",[],["lib.rs"]],\
 "hyperion_sync":["",[],["lib.rs","spinlock.rs"]],\
-"hyperion_syscall":["",[],["err.rs","fs.rs","lib.rs"]],\
+"hyperion_syscall":["",[],["err.rs","fs.rs","lib.rs","net.rs"]],\
 "hyperion_timer":["",[],["lib.rs"]],\
 "hyperion_vfs":["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]],\
 "iana_time_zone":["",[],["ffi_utils.rs","lib.rs","tz_linux.rs"]],\

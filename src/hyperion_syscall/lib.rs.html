@@ -177,18 +177,87 @@
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
 <a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="kw">use </span>core::ptr::NonNull;
 
 <span class="kw">use </span>err::Result;
 
-<span class="kw">use </span><span class="self">self</span>::fs::{FileDesc, FileOpenFlags};
+<span class="kw">use </span><span class="self">self</span>::{
+    fs::{FileDesc, FileOpenFlags},
+    net::{Protocol, SocketDesc, SocketDomain, SocketType},
+};
 
 <span class="comment">//
 
 </span><span class="kw">pub mod </span>err;
 <span class="kw">pub mod </span>fs;
+<span class="kw">pub mod </span>net;
+
+<span class="kw">pub mod </span>id {
+    <span class="kw">pub const </span>LOG: usize = <span class="number">1</span>;
+    <span class="kw">pub const </span>EXIT: usize = <span class="number">2</span>;
+    <span class="kw">pub const </span>YIELD_NOW: usize = <span class="number">3</span>;
+    <span class="kw">pub const </span>TIMESTAMP: usize = <span class="number">4</span>;
+    <span class="kw">pub const </span>NANOSLEEP: usize = <span class="number">5</span>;
+    <span class="kw">pub const </span>NANOSLEEP_UNTIL: usize = <span class="number">6</span>;
+
+    <span class="kw">pub const </span>PTHREAD_SPAWN: usize = <span class="number">8</span>;
+    <span class="kw">pub const </span>PALLOC: usize = <span class="number">9</span>;
+    <span class="kw">pub const </span>PFREE: usize = <span class="number">10</span>;
+    <span class="kw">pub const </span>SEND: usize = <span class="number">11</span>;
+    <span class="kw">pub const </span>RECV: usize = <span class="number">12</span>;
+    <span class="kw">pub const </span>RENAME: usize = <span class="number">13</span>;
+
+    <span class="kw">pub const </span>OPEN: usize = <span class="number">1000</span>;
+    <span class="kw">pub const </span>CLOSE: usize = <span class="number">1100</span>;
+    <span class="kw">pub const </span>READ: usize = <span class="number">1200</span>;
+    <span class="kw">pub const </span>WRITE: usize = <span class="number">1300</span>;
+
+    <span class="kw">pub const </span>SOCKET: usize = <span class="number">2000</span>;
+}
 
 <span class="comment">//
 
@@ -259,34 +328,34 @@
     <span class="comment">// TODO: should null terminated strings be used instead to save registers?
     // decide later™
 
-    </span><span class="kw">unsafe </span>{ syscall_2(<span class="number">1</span>, str.as_ptr() <span class="kw">as </span>usize, str.len()) }.map(|<span class="kw">_</span>| {})
+    </span><span class="kw">unsafe </span>{ syscall_2(id::LOG, str.as_ptr() <span class="kw">as </span>usize, str.len()) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// exit the process with a code
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>exit(code: i64) -&gt; ! {
-    <span class="kw">let </span>result = <span class="kw">unsafe </span>{ syscall_1(<span class="number">2</span>, code <span class="kw">as </span>usize) };
+    <span class="kw">let </span>result = <span class="kw">unsafe </span>{ syscall_1(id::EXIT, code <span class="kw">as </span>usize) };
     <span class="macro">unreachable!</span>(<span class="string">&quot;{result:?}&quot;</span>);
 }
 
 <span class="doccomment">/// context switch from this process, no guarantees about actually switching
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>yield_now() {
-    <span class="kw">unsafe </span>{ syscall_0(<span class="number">3</span>) }.unwrap();
+    <span class="kw">unsafe </span>{ syscall_0(id::YIELD_NOW) }.unwrap();
 }
 
 <span class="doccomment">/// u128 nanoseconds since boot
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>timestamp() -&gt; <span class="prelude-ty">Result</span>&lt;u128&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>result: u128 = <span class="number">0</span>;
-    <span class="kw">unsafe </span>{ syscall_1(<span class="number">4</span>, <span class="kw-2">&amp;mut </span>result <span class="kw">as </span><span class="kw-2">*mut </span>u128 <span class="kw">as </span>usize) }.map(<span class="kw">move </span>|<span class="kw">_</span>| result)
+    <span class="kw">unsafe </span>{ syscall_1(id::TIMESTAMP, <span class="kw-2">&amp;mut </span>result <span class="kw">as </span><span class="kw-2">*mut </span>u128 <span class="kw">as </span>usize) }.map(<span class="kw">move </span>|<span class="kw">_</span>| result)
 }
 
 <span class="doccomment">/// context switch from this process and switch back when `nanos` nanoseconds have passed
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>nanosleep(nanos: u64) {
     <span class="comment">// TODO: u128
-    </span><span class="kw">unsafe </span>{ syscall_1(<span class="number">5</span>, nanos <span class="kw">as </span>usize) }.unwrap();
+    </span><span class="kw">unsafe </span>{ syscall_1(id::NANOSLEEP, nanos <span class="kw">as </span>usize) }.unwrap();
 }
 
 <span class="doccomment">/// context switch from this process and switch back when [`timestamp()`] &gt; `deadline_nanos`
@@ -295,65 +364,80 @@
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>nanosleep_until(deadline_nanos: u64) {
     <span class="comment">// TODO: u128
-    </span><span class="kw">unsafe </span>{ syscall_1(<span class="number">6</span>, deadline_nanos <span class="kw">as </span>usize) }.unwrap();
+    </span><span class="kw">unsafe </span>{ syscall_1(id::NANOSLEEP_UNTIL, deadline_nanos <span class="kw">as </span>usize) }.unwrap();
 }
 
 <span class="doccomment">/// spawn a new pthread for the same process
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>pthread_spawn(thread_entry: <span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(usize, usize) -&gt; !, arg: usize) {
-    <span class="kw">unsafe </span>{ syscall_2(<span class="number">8</span>, thread_entry <span class="kw">as </span>usize, arg) }.unwrap();
+    <span class="kw">unsafe </span>{ syscall_2(id::PTHREAD_SPAWN, thread_entry <span class="kw">as </span>usize, arg) }.unwrap();
 }
 
 <span class="doccomment">/// allocate physical pages and map to heap
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>palloc(pages: usize) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;NonNull&lt;u8&gt;&gt;&gt; {
-    <span class="kw">unsafe </span>{ syscall_1(<span class="number">9</span>, pages) }.map(|ptr| NonNull::new(ptr <span class="kw">as _</span>))
+    <span class="kw">unsafe </span>{ syscall_1(id::PALLOC, pages) }.map(|ptr| NonNull::new(ptr <span class="kw">as _</span>))
 }
 
 <span class="doccomment">/// deallocate physical pages and unmap from heap
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>pfree(ptr: NonNull&lt;u8&gt;, pages: usize) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">unsafe </span>{ syscall_2(<span class="number">10</span>, ptr.as_ptr() <span class="kw">as </span>usize, pages) }.map(|<span class="kw">_</span>| {})
+    <span class="kw">unsafe </span>{ syscall_2(id::PFREE, ptr.as_ptr() <span class="kw">as </span>usize, pages) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// send data to a PID based single naïve IPC channel
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>send(target: u64, data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">unsafe </span>{ syscall_3(<span class="number">11</span>, target <span class="kw">as </span>usize, data.as_ptr() <span class="kw">as </span>usize, data.len()) }.map(|<span class="kw">_</span>| {})
+</span><span class="kw">pub fn </span>send(target: usize, data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">unsafe </span>{ syscall_3(id::SEND, target, data.as_ptr() <span class="kw">as </span>usize, data.len()) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// read data from a PID based single naïve IPC channel
 </span><span class="kw">pub fn </span>recv(buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">unsafe </span>{ syscall_2(<span class="number">12</span>, buf.as_mut_ptr() <span class="kw">as </span>usize, buf.len()) }
+    <span class="kw">unsafe </span>{ syscall_2(id::RECV, buf.as_mut_ptr() <span class="kw">as </span>usize, buf.len()) }
 }
 
 <span class="doccomment">/// rename the current process
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>rename(new_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">unsafe </span>{ syscall_2(<span class="number">13</span>, new_name.as_ptr() <span class="kw">as </span>usize, new_name.len()) }.map(|<span class="kw">_</span>| {})
+    <span class="kw">unsafe </span>{ syscall_2(id::RENAME, new_name.as_ptr() <span class="kw">as </span>usize, new_name.len()) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// open a file
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>open(path: <span class="kw-2">&amp;</span>str, flags: FileOpenFlags, mode: usize) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
-    <span class="kw">unsafe </span>{ syscall_4(<span class="number">1000</span>, path.as_ptr() <span class="kw">as </span>usize, path.len(), flags.bits(), mode) }.map(FileDesc)
+    <span class="kw">unsafe </span>{
+        syscall_4(
+            id::OPEN,
+            path.as_ptr() <span class="kw">as </span>usize,
+            path.len(),
+            flags.bits(),
+            mode,
+        )
+    }
+    .map(FileDesc)
 }
 
 <span class="doccomment">/// close a file
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>close(file: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">unsafe </span>{ syscall_1(<span class="number">1100</span>, file.<span class="number">0</span>) }.map(|<span class="kw">_</span>| {})
+    <span class="kw">unsafe </span>{ syscall_1(id::CLOSE, file.<span class="number">0</span>) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// read from a file
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>read(file: FileDesc, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">unsafe </span>{ syscall_3(<span class="number">1200</span>, file.<span class="number">0</span>, buf.as_mut_ptr() <span class="kw">as </span>usize, buf.len()) }
+    <span class="kw">unsafe </span>{ syscall_3(id::READ, file.<span class="number">0</span>, buf.as_mut_ptr() <span class="kw">as </span>usize, buf.len()) }
 }
 
 <span class="doccomment">/// write into a file
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>write(file: FileDesc, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">unsafe </span>{ syscall_3(<span class="number">1300</span>, file.<span class="number">0</span>, buf.as_ptr() <span class="kw">as </span>usize, buf.len()) }
+    <span class="kw">unsafe </span>{ syscall_3(id::WRITE, file.<span class="number">0</span>, buf.as_ptr() <span class="kw">as </span>usize, buf.len()) }
+}
+
+<span class="doccomment">/// create a socket
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -&gt; <span class="prelude-ty">Result</span>&lt;SocketDesc&gt; {
+    <span class="kw">unsafe </span>{ syscall_3(id::SOCKET, domain.<span class="number">0</span>, ty.<span class="number">0</span>, protocol.<span class="number">0</span>) }.map(SocketDesc)
 }
 </code></pre></div></section></main></body></html>

@@ -283,6 +283,10 @@
 <a href="#283" id="283">283</a>
 <a href="#284" id="284">284</a>
 <a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![no_main]
 #![feature(format_args_nl, slice_internals)]
@@ -301,6 +305,7 @@
 
 <span class="kw">use </span>hyperion_syscall::{
     fs::{File, OpenOptions},
+    net::{Protocol, SocketDomain, SocketType},
     <span class="kw-2">*</span>,
 };
 
@@ -323,7 +328,10 @@
     //     println!(&quot;{:?}&quot;, unsafe { syscall_0(i) });
     // }
 
-    </span><span class="kw">match </span>args.iter().next().expect(<span class="string">&quot;arg0 to be present&quot;</span>) {
+    </span><span class="kw">let </span>_sock =
+        hyperion_syscall::socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
+
+    <span class="kw">match </span>args.iter().next().expect(<span class="string">&quot;arg0 to be present&quot;</span>) {
         <span class="comment">// busybox style single binary &#39;coreutils&#39;
         </span><span class="string">&quot;/bin/run&quot; </span>=&gt; {
             <span class="kw">let </span>inc = Arc::new(AtomicUsize::new(<span class="number">0</span>));
@@ -367,7 +375,7 @@
         <span class="string">&quot;/bin/task1&quot; </span>=&gt; {
             rename(<span class="string">&quot;&lt;Get_Input&gt;&quot;</span>).unwrap();
 
-            <span class="kw">let </span>pid: u64 = args
+            <span class="kw">let </span>pid: usize = args
                 .iter()
                 .nth(<span class="number">1</span>)
                 .expect(<span class="string">&quot;missing arg: PID&quot;</span>)
@@ -390,7 +398,7 @@
         <span class="string">&quot;/bin/task2&quot; </span>=&gt; {
             rename(<span class="string">&quot;&lt;Clean_Input&gt;&quot;</span>).unwrap();
 
-            <span class="kw">let </span>pid: u64 = args
+            <span class="kw">let </span>pid: usize = args
                 .iter()
                 .nth(<span class="number">1</span>)
                 .expect(<span class="string">&quot;missing arg: PID&quot;</span>)

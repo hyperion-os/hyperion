@@ -722,6 +722,12 @@
 <a href="#722" id="722">722</a>
 <a href="#723" id="723">723</a>
 <a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     borrow::Cow,
     format,
@@ -881,6 +887,7 @@
             <span class="string">&quot;task2&quot; </span>=&gt; <span class="self">self</span>.task2_cmd(args)<span class="question-mark">?</span>,
             <span class="string">&quot;task3&quot; </span>=&gt; <span class="self">self</span>.task3_cmd(args)<span class="question-mark">?</span>,
             <span class="string">&quot;lapic_id&quot; </span>=&gt; <span class="self">self</span>.lapic_id_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">&quot;cpu_id&quot; </span>=&gt; <span class="self">self</span>.cpu_id_cmd(args)<span class="question-mark">?</span>,
             <span class="string">&quot;ps&quot; </span>=&gt; <span class="self">self</span>.ps_cmd(args)<span class="question-mark">?</span>,
             <span class="string">&quot;nproc&quot; </span>=&gt; <span class="self">self</span>.nproc_cmd(args)<span class="question-mark">?</span>,
             <span class="string">&quot;top&quot; </span>=&gt; <span class="self">self</span>.top_cmd(args)<span class="question-mark">?</span>,
@@ -1148,7 +1155,7 @@
     </span>}
 
     <span class="kw">fn </span>help_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, ps, nproc, top, send, exit, clear&quot;</span>);
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, cpu_id, ps, nproc, top, send, exit, clear&quot;</span>);
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -1339,6 +1346,11 @@
 
     <span class="kw">fn </span>lapic_id_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{:?}&quot;</span>, ApicId::current());
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn </span>cpu_id_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{:?}&quot;</span>, hyperion_cpu_id::cpu_id());
         <span class="prelude-val">Ok</span>(())
     }
 

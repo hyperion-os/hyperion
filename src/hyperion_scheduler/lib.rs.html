@@ -341,6 +341,7 @@
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
 <a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![feature(new_uninit, type_name_of_val, extract_if, sync_unsafe_cell, offset_of)]
 #![allow(clippy::needless_return)]
@@ -428,7 +429,8 @@
     <span class="kw-2">*</span>process().name.write() = new_name;
 }
 
-<span class="doccomment">/// init this processors scheduling
+<span class="doccomment">/// init this processors scheduling and
+/// immediately switch to the provided task
 </span><span class="kw">pub fn </span>init(task: <span class="kw">impl </span>Into&lt;Task&gt;) -&gt; ! {
     hyperion_arch::int::disable();
 
