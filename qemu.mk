@@ -9,7 +9,7 @@ ifeq (${GDB},true)
 QEMU_FLAGS      += -s -S
 endif
 QEMU_FLAGS      += -machine q35
-QEMU_FLAGS      += -cpu qemu64,+rdrand,+rdseed,+rdtscp
+QEMU_FLAGS      += -cpu qemu64,+rdrand,+rdseed,+rdtscp,+rdpid
 QEMU_FLAGS      += -smp ${CPUS}
 QEMU_FLAGS      += -m ${MEMORY}
 ifeq (${KVM},true)

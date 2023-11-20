@@ -1,6 +1,6 @@
 use core::{
     arch::asm,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicU8, AtomicUsize, Ordering},
 };
 
 use x86_64::registers::model_specific::Msr;
@@ -8,6 +8,7 @@ use x86_64::registers::model_specific::Msr;
 //
 
 const IA32_TSC_AUX: u32 = 0xC0000103;
+static CPU_ID_DYN: AtomicU8 = AtomicU8::new(0);
 
 //
 
@@ -16,15 +17,58 @@ pub fn cpu_count() -> usize {
     hyperion_boot::cpu_count()
 }
 
+// TODO: the return type is not usize, its u32
 /// technically UB to read before a call to [`init`] on this CPU
 #[inline(always)]
 pub extern "C" fn cpu_id() -> usize {
-    // TODO: its not usize, its u32
-    _cpu_id_rdpid()
+    _cpu_id_dyn()
+
+    // _cpu_id_rdpid()
+    // _cpu_id_rdtscp()
     // _cpu_id_tsc_msr()
 }
 
-// 1M calls in 0ms on my system, wtf
+pub fn cpu_id_dyn_type() -> u8 {
+    CPU_ID_DYN.load(Ordering::Relaxed)
+}
+
+/// 5M cpu_id calls in 101ms515µs460ns
+#[inline(always)]
+fn _cpu_id_dyn() -> usize {
+    // the dynamic switch seems to add about 25ms/5M iterations (on my system)
+    // 75ms + 25ms
+    match CPU_ID_DYN.load(Ordering::Relaxed) {
+        1 => _cpu_id_rdpid(),
+        2 => _cpu_id_rdtscp(),
+        3 => _cpu_id_tsc_msr(),
+        _ => unreachable!(),
+    }
+}
+
+fn select_cpu_id_dyn() {
+    let val;
+    if unsafe { core::arch::x86_64::__cpuid(0x7) }.ecx & (1 << 22) != 0 {
+        // rdpid support
+        //
+        // rdpid is the fastest??? (I cannot test it yet)
+        // it only reads the IA32_TSC_AUX into any register
+        val = 1;
+    } else if unsafe { core::arch::x86_64::__cpuid(0x80000001) }.edx & (1 << 27) != 0 {
+        // rdtscp support
+        //
+        // tdtscp is alot faster than rdmsr
+        // but it reads the timestamp counter for no reason
+        val = 2;
+    } else {
+        // at least rdmsr support is expected, processor identification
+        // would require APIC or gs or something otherwise
+        val = 3;
+    };
+
+    CPU_ID_DYN.store(val, Ordering::Relaxed);
+}
+
+/// not supported on my system
 #[inline(always)]
 fn _cpu_id_rdpid() -> usize {
     let cpu_id: usize;
@@ -34,26 +78,44 @@ fn _cpu_id_rdpid() -> usize {
     cpu_id
 }
 
-/// 1M calls in 591ms on my system
+/// 5M cpu_id calls in 75ms490µs900ns (on my system)
+#[inline(always)]
+fn _cpu_id_rdtscp() -> usize {
+    let cpu_id: usize;
+    unsafe {
+        asm!("rdtscp", out("rdx") _, out("rax") _, out("rcx") cpu_id);
+    }
+    cpu_id
+}
+
+/// 5M cpu_id calls in 3s560ms9µs270ns (on my system)
 #[inline(always)]
 fn _cpu_id_tsc_msr() -> usize {
     let tsc = Msr::new(IA32_TSC_AUX);
     unsafe { tsc.read() as _ }
 }
 
-/* fn benchmark() {
+/* fn benchmark() -> ! {
+    drivers::lazy_install_early(VFS_ROOT.clone());
+    drivers::lazy_install_late();
     let mut i = 0usize;
     let start = Instant::now();
-    for _ in 0..1_000_000 {
-        i += core::hint::black_box(|| (i, cpu_id()))().0;
+    println!("cpuid ty: {}", hyperion_cpu_id::cpu_id_dyn_type());
+    for _ in 0..5_000_000 {
+        i += core::hint::black_box(cpu_id)();
     }
-    println!("1M cpu_id calls in {}", start.elapsed());
-} */
+    core::hint::black_box(i);
+    println!("5M cpu_id calls in {}", start.elapsed());
+    panic!();
+}
+benchmark(); */
 
 /// initialize [`cpu_id`]
 pub fn init() {
     static CPU_ID_GEN: AtomicUsize = AtomicUsize::new(0);
     let cpu_id = CPU_ID_GEN.fetch_add(1, Ordering::SeqCst);
+
+    select_cpu_id_dyn();
 
     if cpu_id >= cpu_count() {
         panic!("generated cpu_id exceeds cpu_count");
