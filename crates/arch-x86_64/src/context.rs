@@ -83,8 +83,14 @@ pub unsafe fn switch(prev: *mut Context, next: *mut Context) {
     let tls: &'static ThreadLocalStorage = unsafe { &*KernelGsBase::read().as_ptr() };
     let next_syscall_stack = unsafe { (*next).syscall_stack.as_mut_ptr() };
 
+    // TODO: kernel stack per CPU, instead of kernel stack per task
+
+    // syscalls should use this task's stack to allow switching tasks from a syscall
     tls.kernel_stack.store(next_syscall_stack, Ordering::SeqCst);
 
+    // set the TSS privilege stack for this CPU point to the same syscall stack
+    //
+    // switching tasks from a privilege stack would corrupt the stack otherwise
     unsafe {
         tls.cpu
             .tss
@@ -119,8 +125,6 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
             // load next task
             "mov rsp, [rsi+{rsp}]", // load next stack
             "mov rax, [rsi+{cr3}]", // rax = next virtual address space
-
-            // TODO: load TSS privilege stack
 
             // optional virtual address space switch
             "mov rcx, cr3", // rcx = prev virtual address space
