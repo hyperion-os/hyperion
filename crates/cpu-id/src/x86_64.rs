@@ -22,7 +22,6 @@ pub fn cpu_count() -> usize {
 #[inline(always)]
 pub extern "C" fn cpu_id() -> usize {
     _cpu_id_dyn()
-
     // _cpu_id_rdpid()
     // _cpu_id_rdtscp()
     // _cpu_id_tsc_msr()
@@ -32,11 +31,9 @@ pub fn cpu_id_dyn_type() -> u8 {
     CPU_ID_DYN.load(Ordering::Relaxed)
 }
 
-/// 5M cpu_id calls in 101ms515µs460ns
+/// 5M cpu_id calls in 47ms141µs160ns (on my system, uses rdtscp)
 #[inline(always)]
 fn _cpu_id_dyn() -> usize {
-    // the dynamic switch seems to add about 25ms/5M iterations (on my system)
-    // 75ms + 25ms
     match CPU_ID_DYN.load(Ordering::Relaxed) {
         1 => _cpu_id_rdpid(),
         2 => _cpu_id_rdtscp(),
@@ -78,7 +75,7 @@ fn _cpu_id_rdpid() -> usize {
     cpu_id
 }
 
-/// 5M cpu_id calls in 75ms490µs900ns (on my system)
+/// 5M cpu_id calls in 45ms973µs460ns (on my system)
 #[inline(always)]
 fn _cpu_id_rdtscp() -> usize {
     let cpu_id: usize;
@@ -88,7 +85,7 @@ fn _cpu_id_rdtscp() -> usize {
     cpu_id
 }
 
-/// 5M cpu_id calls in 3s560ms9µs270ns (on my system)
+/// 5M cpu_id calls in 3s410ms622µs880ns (on my system)
 #[inline(always)]
 fn _cpu_id_tsc_msr() -> usize {
     let tsc = Msr::new(IA32_TSC_AUX);
@@ -99,7 +96,7 @@ fn _cpu_id_tsc_msr() -> usize {
     drivers::lazy_install_early(VFS_ROOT.clone());
     drivers::lazy_install_late();
     let mut i = 0usize;
-    let start = Instant::now();
+    let start = hyperion_instant::Instant::now();
     println!("cpuid ty: {}", hyperion_cpu_id::cpu_id_dyn_type());
     for _ in 0..5_000_000 {
         i += core::hint::black_box(cpu_id)();
