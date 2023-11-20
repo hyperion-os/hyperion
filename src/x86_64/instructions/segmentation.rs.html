@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.10/src/instructions/segmentation.rs`."><title>segmentation.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (ba7c7a301 2023-11-13)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.11/src/instructions/segmentation.rs`."><title>segmentation.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -192,6 +192,12 @@
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Provides functions to read and write segment registers.
 
 </span><span class="kw">pub use </span><span class="kw">crate</span>::registers::segmentation::{Segment, Segment64, CS, DS, ES, FS, GS, SS};
@@ -204,7 +210,8 @@
 
 <span class="macro">macro_rules! </span>get_reg_impl {
     (<span class="macro-nonterminal">$name</span>:literal) =&gt; {
-        <span class="kw">fn </span>get_reg() -&gt; SegmentSelector {
+        <span class="attr">#[inline]
+        </span><span class="kw">fn </span>get_reg() -&gt; SegmentSelector {
             <span class="kw">let </span>segment: u16;
             <span class="kw">unsafe </span>{
                 <span class="macro">asm!</span>(<span class="macro">concat!</span>(<span class="string">&quot;mov {0:x}, &quot;</span>, <span class="macro-nonterminal">$name</span>), out(reg) segment, options(nomem, nostack, preserves_flags));
@@ -219,7 +226,8 @@
         <span class="kw">impl </span>Segment <span class="kw">for </span><span class="macro-nonterminal">$</span><span class="kw">type </span>{
             <span class="macro">get_reg_impl!</span>(<span class="macro-nonterminal">$name</span>);
 
-            <span class="kw">unsafe fn </span>set_reg(sel: SegmentSelector) {
+            <span class="attr">#[inline]
+            </span><span class="kw">unsafe fn </span>set_reg(sel: SegmentSelector) {
                 <span class="kw">unsafe </span>{
                     <span class="macro">asm!</span>(<span class="macro">concat!</span>(<span class="string">&quot;mov &quot;</span>, <span class="macro-nonterminal">$name</span>, <span class="string">&quot;, {0:x}&quot;</span>), <span class="kw">in</span>(reg) sel.<span class="number">0</span>, options(nostack, preserves_flags));
                 }
@@ -232,7 +240,8 @@
     (<span class="macro-nonterminal">$</span><span class="kw">type</span>:<span class="macro-nonterminal">ty</span>, <span class="macro-nonterminal">$name</span>:literal, <span class="macro-nonterminal">$base</span>:ty) =&gt; {
         <span class="kw">impl </span>Segment64 <span class="kw">for </span><span class="macro-nonterminal">$</span><span class="kw">type </span>{
             <span class="kw">const </span><span class="macro-nonterminal">BASE</span>: Msr = &lt;<span class="macro-nonterminal">$base</span>&gt;::MSR;
-            <span class="kw">fn </span>read_base() -&gt; VirtAddr {
+            <span class="attr">#[inline]
+            </span><span class="kw">fn </span>read_base() -&gt; VirtAddr {
                 <span class="kw">unsafe </span>{
                     <span class="kw">let </span>val: u64;
                     <span class="macro">asm!</span>(<span class="macro">concat!</span>(<span class="string">&quot;rd&quot;</span>, <span class="macro-nonterminal">$name</span>, <span class="string">&quot;base {}&quot;</span>), out(reg) val, options(nomem, nostack, preserves_flags));
@@ -240,7 +249,8 @@
                 }
             }
 
-            <span class="kw">unsafe fn </span>write_base(base: VirtAddr) {
+            <span class="attr">#[inline]
+            </span><span class="kw">unsafe fn </span>write_base(base: VirtAddr) {
                 <span class="kw">unsafe</span>{
                     <span class="macro">asm!</span>(<span class="macro">concat!</span>(<span class="string">&quot;wr&quot;</span>, <span class="macro-nonterminal">$name</span>, <span class="string">&quot;base {}&quot;</span>), <span class="kw">in</span>(reg) base.as_u64(), options(nostack, preserves_flags));
                 }
@@ -260,6 +270,7 @@
     /// Note we cannot use a &quot;far call&quot; (`lcall`) or &quot;far jmp&quot; (`ljmp`) to do this because then we
     /// would only be able to jump to 32-bit instruction pointers. Only Intel implements support
     /// for 64-bit far calls/jumps in long-mode, AMD does not.
+    </span><span class="attr">#[inline]
     </span><span class="kw">unsafe fn </span>set_reg(sel: SegmentSelector) {
         <span class="kw">unsafe </span>{
             <span class="macro">asm!</span>(
@@ -291,6 +302,7 @@
     ///
     /// This function is unsafe because the caller must ensure that the
     /// swap operation cannot lead to undefined behavior.
+    </span><span class="attr">#[inline]
     </span><span class="kw">pub unsafe fn </span>swap() {
         <span class="kw">unsafe </span>{
             <span class="macro">asm!</span>(<span class="string">&quot;swapgs&quot;</span>, options(nostack, preserves_flags));

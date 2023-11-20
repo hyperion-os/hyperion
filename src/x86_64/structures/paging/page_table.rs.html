@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.10/src/structures/paging/page_table.rs`."><title>page_table.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (ba7c7a301 2023-11-13)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.11/src/structures/paging/page_table.rs`."><title>page_table.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -399,6 +399,46 @@
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
 <a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Abstractions for page tables and page table entries.
 
 </span><span class="kw">use </span>core::fmt;
@@ -507,6 +547,7 @@
 
 <span class="macro">bitflags! </span>{
     <span class="doccomment">/// Possible flags for a page table entry.
+    </span><span class="attr">#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
     </span><span class="kw">pub struct </span>PageTableFlags: u64 {
         <span class="doccomment">/// Specifies whether the mapped frame or page table is loaded in memory.
         </span><span class="kw">const </span>PRESENT =         <span class="number">1</span>;
@@ -569,6 +610,14 @@
     }
 }
 
+<span class="kw">impl </span>PageTableFlags {
+    <span class="attr">#[deprecated = <span class="string">&quot;use the safe `from_bits_retain` method instead&quot;</span>]
+    </span><span class="doccomment">/// Convert from underlying bit representation, preserving all bits (even those not corresponding to a defined flag).
+    </span><span class="kw">pub const unsafe fn </span>from_bits_unchecked(bits: u64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::from_bits_retain(bits)
+    }
+}
+
 <span class="doccomment">/// The number of entries in a page table.
 </span><span class="kw">const </span>ENTRY_COUNT: usize = <span class="number">512</span>;
 
@@ -577,7 +626,7 @@
 /// Always page-sized.
 ///
 /// This struct implements the `Index` and `IndexMut` traits, so the entries can be accessed
-/// through index operations. For example, `page_table[15]` returns the 15th page table entry.
+/// through index operations. For example, `page_table[15]` returns the 16th page table entry.
 ///
 /// Note that while this type implements [`Clone`], the users must be careful not to introduce
 /// mutable aliasing by using the cloned page tables.
@@ -601,7 +650,7 @@
     <span class="doccomment">/// Clears all entries.
     </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">for </span>entry <span class="kw">in </span><span class="self">self</span>.entries.iter_mut() {
+        <span class="kw">for </span>entry <span class="kw">in </span><span class="self">self</span>.iter_mut() {
             entry.set_unused();
         }
     }
@@ -609,13 +658,34 @@
     <span class="doccomment">/// Returns an iterator over the entries of the page table.
     </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>PageTableEntry&gt; {
-        <span class="self">self</span>.entries.iter()
+        (<span class="number">0</span>..<span class="number">512</span>).map(<span class="kw">move </span>|i| <span class="kw-2">&amp;</span><span class="self">self</span>.entries[i])
     }
 
     <span class="doccomment">/// Returns an iterator that allows modifying the entries of the page table.
     </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;mut </span>PageTableEntry&gt; {
-        <span class="self">self</span>.entries.iter_mut()
+        <span class="comment">// Note that we intentionally don&#39;t just return `self.entries.iter()`:
+        // Some users may choose to create a reference to a page table at
+        // `0xffff_ffff_ffff_f000`. This causes problems because calculating
+        // the end pointer of the page tables causes an overflow. Therefore
+        // creating page tables at that address is unsound and must be avoided.
+        // Unfortunately creating such page tables is quite common when
+        // recursive page tables are used, so we try to avoid calculating the
+        // end pointer if possible. `core::slice::Iter` calculates the end
+        // pointer to determine when it should stop yielding elements. Because
+        // we want to avoid calculating the end pointer, we don&#39;t use
+        // `core::slice::Iter`, we implement our own iterator that doesn&#39;t
+        // calculate the end pointer. This doesn&#39;t make creating page tables at
+        // that address sound, but it avoids some easy to trigger
+        // miscompilations.
+        </span><span class="kw">let </span>ptr = <span class="self">self</span>.entries.as_mut_ptr();
+        (<span class="number">0</span>..<span class="number">512</span>).map(<span class="kw">move </span>|i| <span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut *</span>ptr.add(i) })
+    }
+
+    <span class="doccomment">/// Checks if the page table is empty (all entries are zero).
+    </span><span class="attr">#[inline]
+    </span><span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.iter().all(|entry| entry.is_unused())
     }
 }
 
@@ -787,6 +857,16 @@
             PageTableLevel::Three =&gt; <span class="prelude-val">Some</span>(PageTableLevel::Two),
             PageTableLevel::Two =&gt; <span class="prelude-val">Some</span>(PageTableLevel::One),
             PageTableLevel::One =&gt; <span class="prelude-val">None</span>,
+        }
+    }
+
+    <span class="doccomment">/// Returns the next higher level or `None` for level 4
+    </span><span class="kw">pub const fn </span>next_higher_level(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            PageTableLevel::Four =&gt; <span class="prelude-val">None</span>,
+            PageTableLevel::Three =&gt; <span class="prelude-val">Some</span>(PageTableLevel::Four),
+            PageTableLevel::Two =&gt; <span class="prelude-val">Some</span>(PageTableLevel::Three),
+            PageTableLevel::One =&gt; <span class="prelude-val">Some</span>(PageTableLevel::Two),
         }
     }
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/arch-x86_64/src/cpu/tss.rs`."><title>tss.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="hyperion_arch_x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (ba7c7a301 2023-11-13)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/arch-x86_64/src/cpu/tss.rs`."><title>tss.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="hyperion_arch_x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -75,16 +75,39 @@
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>core::sync::atomic::{AtomicBool, Ordering};
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>core::{
+    cell::UnsafeCell,
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+};
 
 <span class="kw">use </span>hyperion_mem::pmm;
+<span class="kw">use </span>memoffset::raw_field;
 <span class="kw">use </span>x86_64::{structures::tss::TaskStateSegment, VirtAddr};
 
 <span class="comment">//
 
 </span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>Tss {
-    <span class="kw">pub </span>inner: TaskStateSegment,
+    <span class="kw">pub </span>inner: UnsafeCell&lt;TaskStateSegment&gt;,
     <span class="kw">pub </span>stacks: TssStacks,
 }
 
@@ -99,7 +122,7 @@
 </span><span class="kw">impl </span>Tss {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>tss = <span class="self">Self </span>{
-            inner: TaskStateSegment::new(),
+            inner: UnsafeCell::new(TaskStateSegment::new()),
             stacks: TssStacks {
                 interrupt: [(); <span class="number">7</span>].map(|<span class="kw">_</span>| AtomicBool::new(<span class="bool-val">false</span>)),
                 <span class="comment">// privilege: [false; 3],
@@ -121,15 +144,30 @@
         </span>tss
     }
 
+    <span class="doccomment">/// # Safety
+    /// the stack ptr must be valid when an interrupt happens from user space in this CPU
+    ///
+    /// switching address spaces does not automatically switch the privilege stack ptr
+    </span><span class="kw">pub unsafe fn </span>set_privilege_stack(<span class="kw-2">&amp;</span><span class="self">self</span>, ptr: VirtAddr) {
+        <span class="comment">// force the save immediately
+        </span><span class="kw">let </span>pst: <span class="kw-2">*const </span>[VirtAddr; <span class="number">3</span>] =
+            <span class="macro">raw_field!</span>(<span class="self">self</span>.inner.get(), TaskStateSegment, privilege_stack_table);
+        <span class="kw">let </span>first = pst.cast::&lt;AtomicU64&gt;();
+
+        <span class="kw">unsafe </span>{ <span class="kw-2">&amp;*</span>first }.store(ptr.as_u64(), Ordering::SeqCst);
+    }
+
     <span class="kw">fn </span>add_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>, idx: usize) {
         <span class="kw">let </span>stack = <span class="self">Self</span>::alloc_stack();
-        <span class="self">self</span>.inner.interrupt_stack_table[idx] = VirtAddr::from_ptr(stack.as_ptr_range().end);
+        <span class="self">self</span>.inner.get_mut().interrupt_stack_table[idx] =
+            VirtAddr::from_ptr(stack.as_ptr_range().end);
         <span class="self">self</span>.stacks.interrupt[idx].store(<span class="bool-val">true</span>, Ordering::SeqCst);
     }
 
     <span class="kw">fn </span>add_priv(<span class="kw-2">&amp;mut </span><span class="self">self</span>, idx: usize) {
         <span class="kw">let </span>stack = <span class="self">Self</span>::alloc_stack();
-        <span class="self">self</span>.inner.privilege_stack_table[idx] = VirtAddr::from_ptr(stack.as_ptr_range().end);
+        <span class="self">self</span>.inner.get_mut().privilege_stack_table[idx] =
+            VirtAddr::from_ptr(stack.as_ptr_range().end);
         <span class="comment">// self.stacks.privilege[idx] = true;
     </span>}
 

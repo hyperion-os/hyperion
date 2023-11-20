@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.10/src/structures/idt.rs`."><title>idt.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (ba7c7a301 2023-11-13)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.11/src/structures/idt.rs`."><title>idt.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -1447,6 +1447,92 @@
 <a href="#1447" id="1447">1447</a>
 <a href="#1448" id="1448">1448</a>
 <a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a>
+<a href="#1518" id="1518">1518</a>
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a>
+<a href="#1531" id="1531">1531</a>
+<a href="#1532" id="1532">1532</a>
+<a href="#1533" id="1533">1533</a>
+<a href="#1534" id="1534">1534</a>
+<a href="#1535" id="1535">1535</a>
 </pre></div><pre class="rust"><code><span class="comment">// Copyright 2017 Philipp Oppermann. See the README.md
 // file at the top-level directory of this distribution.
 //
@@ -1485,7 +1571,7 @@
 /// first entry, the entry for the `divide_error` exception. Note that the index access is
 /// not possible for entries for which an error code is pushed.
 ///
-/// The remaining entries are used for interrupts. They can be accesed through index
+/// The remaining entries are used for interrupts. They can be accessed through index
 /// operations on the idt, e.g. `idt[32]` returns the first interrupt entry, which is the 32nd IDT
 /// entry).
 ///
@@ -1789,8 +1875,38 @@
     <span class="doccomment">/// vector nr. 20
     </span><span class="kw">pub </span>virtualization: Entry&lt;HandlerFunc&gt;,
 
-    <span class="doccomment">/// vector nr. 21-28
-    </span>reserved_2: [Entry&lt;HandlerFunc&gt;; <span class="number">8</span>],
+    <span class="doccomment">/// A #CP exception is generated when shadow stacks are enabled and mismatch
+    /// scenarios are detected (possible error code cases below).
+    ///
+    /// The error code is the #CP error code, for each of the following situations:
+    /// - A RET (near) instruction encountered a return address mismatch.
+    /// - A RET (far) instruction encountered a return address mismatch.
+    /// - A RSTORSSP instruction encountered an invalid shadow stack restore token.
+    /// - A SETSSBY instruction encountered an invalid supervisor shadow stack token.
+    /// - A missing ENDBRANCH instruction if indirect branch tracking is enabled.
+    ///
+    /// vector nr. 21
+    </span><span class="kw">pub </span>cp_protection_exception: Entry&lt;HandlerFuncWithErrCode&gt;,
+
+    <span class="doccomment">/// vector nr. 22-27
+    </span>reserved_2: [Entry&lt;HandlerFunc&gt;; <span class="number">6</span>],
+
+    <span class="doccomment">/// The Hypervisor Injection Exception (`#HV`) is injected by a hypervisor
+    /// as a doorbell to inform an `SEV-SNP` enabled guest running with the
+    /// `Restricted Injection` feature of events to be processed.
+    ///
+    /// `SEV-SNP` stands for the _&quot;Secure Nested Paging&quot;_ feature of the _&quot;AMD
+    /// Secure Encrypted Virtualization&quot;_  technology. The `Restricted
+    /// Injection` feature disables all hypervisor-based interrupt queuing
+    /// and event injection of all vectors except #HV.
+    ///
+    /// The `#HV` exception is a benign exception and can only be injected as
+    /// an exception and without an error code. `SEV-SNP` enabled guests are
+    /// expected to communicate with the hypervisor about events via a
+    /// software-managed para-virtualization interface.
+    ///
+    /// The vector number of the ``#HV`` exception is 28.
+    </span><span class="kw">pub </span>hv_injection_exception: Entry&lt;HandlerFunc&gt;,
 
     <span class="doccomment">/// The VMM Communication Exception (`#VC`) is always generated by hardware when an `SEV-ES`
     /// enabled guest is running and an `NAE` event occurs.
@@ -1885,7 +2001,9 @@
             machine_check: Entry::missing(),
             simd_floating_point: Entry::missing(),
             virtualization: Entry::missing(),
-            reserved_2: [Entry::missing(); <span class="number">8</span>],
+            cp_protection_exception: Entry::missing(),
+            reserved_2: [Entry::missing(); <span class="number">6</span>],
+            hv_injection_exception: Entry::missing(),
             vmm_communication_exception: Entry::missing(),
             security_exception: Entry::missing(),
             reserved_3: Entry::missing(),
@@ -2004,9 +2122,10 @@
             <span class="number">16 </span>=&gt; <span class="kw-2">&amp;</span><span class="self">self</span>.x87_floating_point,
             <span class="number">19 </span>=&gt; <span class="kw-2">&amp;</span><span class="self">self</span>.simd_floating_point,
             <span class="number">20 </span>=&gt; <span class="kw-2">&amp;</span><span class="self">self</span>.virtualization,
+            <span class="number">28 </span>=&gt; <span class="kw-2">&amp;</span><span class="self">self</span>.hv_injection_exception,
             i @ <span class="number">32</span>..=<span class="number">255 </span>=&gt; <span class="kw-2">&amp;</span><span class="self">self</span>.interrupts[i - <span class="number">32</span>],
-            i @ <span class="number">15 </span>| i @ <span class="number">31 </span>| i @ <span class="number">21</span>..=<span class="number">28 </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;entry {} is reserved&quot;</span>, i),
-            i @ <span class="number">8 </span>| i @ <span class="number">10</span>..=<span class="number">14 </span>| i @ <span class="number">17 </span>| i @ <span class="number">29 </span>| i @ <span class="number">30 </span>=&gt; {
+            i @ <span class="number">15 </span>| i @ <span class="number">31 </span>| i @ <span class="number">22</span>..=<span class="number">27 </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;entry {} is reserved&quot;</span>, i),
+            i @ <span class="number">8 </span>| i @ <span class="number">10</span>..=<span class="number">14 </span>| i @ <span class="number">17 </span>| i @ <span class="number">21 </span>| i @ <span class="number">29 </span>| i @ <span class="number">30 </span>=&gt; {
                 <span class="macro">panic!</span>(<span class="string">&quot;entry {} is an exception with error code&quot;</span>, i)
             }
             i @ <span class="number">18 </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;entry {} is an diverging exception (must not return)&quot;</span>, i),
@@ -2035,9 +2154,10 @@
             <span class="number">16 </span>=&gt; <span class="kw-2">&amp;mut </span><span class="self">self</span>.x87_floating_point,
             <span class="number">19 </span>=&gt; <span class="kw-2">&amp;mut </span><span class="self">self</span>.simd_floating_point,
             <span class="number">20 </span>=&gt; <span class="kw-2">&amp;mut </span><span class="self">self</span>.virtualization,
+            <span class="number">28 </span>=&gt; <span class="kw-2">&amp;mut </span><span class="self">self</span>.hv_injection_exception,
             i @ <span class="number">32</span>..=<span class="number">255 </span>=&gt; <span class="kw-2">&amp;mut </span><span class="self">self</span>.interrupts[i - <span class="number">32</span>],
-            i @ <span class="number">15 </span>| i @ <span class="number">31 </span>| i @ <span class="number">21</span>..=<span class="number">28 </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;entry {} is reserved&quot;</span>, i),
-            i @ <span class="number">8 </span>| i @ <span class="number">10</span>..=<span class="number">14 </span>| i @ <span class="number">17 </span>| i @ <span class="number">29 </span>| i @ <span class="number">30 </span>=&gt; {
+            i @ <span class="number">15 </span>| i @ <span class="number">31 </span>| i @ <span class="number">22</span>..=<span class="number">27 </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;entry {} is reserved&quot;</span>, i),
+            i @ <span class="number">8 </span>| i @ <span class="number">10</span>..=<span class="number">14 </span>| i @ <span class="number">17 </span>| i @ <span class="number">21 </span>| i @ <span class="number">29 </span>| i @ <span class="number">30 </span>=&gt; {
                 <span class="macro">panic!</span>(<span class="string">&quot;entry {} is an exception with error code&quot;</span>, i)
             }
             i @ <span class="number">18 </span>=&gt; <span class="macro">panic!</span>(<span class="string">&quot;entry {} is an diverging exception (must not return)&quot;</span>, i),
@@ -2357,6 +2477,40 @@
     </span><span class="kw">pub </span>stack_segment: u64,
 }
 
+<span class="kw">impl </span>InterruptStackFrameValue {
+    <span class="doccomment">/// Call the `iretq` (interrupt return) instruction.
+    ///
+    /// This function doesn&#39;t have to be called in an interrupt handler.
+    /// By manually construction a new [`InterruptStackFrameValue`] it&#39;s possible to transition
+    /// from a higher privilege level to a lower one.
+    ///
+    /// ## Safety
+    ///
+    /// Calling `iretq` is unsafe because setting the instruction pointer, stack pointer, RFlags,
+    /// CS and SS register can all cause undefined behaviour when done incorrectly.
+    ///
+    </span><span class="attr">#[inline(always)]
+    #[cfg(feature = <span class="string">&quot;instructions&quot;</span>)]
+    </span><span class="kw">pub unsafe fn </span>iretq(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ! {
+        <span class="kw">unsafe </span>{
+            <span class="macro">core::arch::asm!</span>(
+                <span class="string">&quot;push {stack_segment}&quot;</span>,
+                <span class="string">&quot;push {new_stack_pointer}&quot;</span>,
+                <span class="string">&quot;push {rflags}&quot;</span>,
+                <span class="string">&quot;push {code_segment}&quot;</span>,
+                <span class="string">&quot;push {new_instruction_pointer}&quot;</span>,
+                <span class="string">&quot;iretq&quot;</span>,
+                rflags = <span class="kw">in</span>(reg) <span class="self">self</span>.cpu_flags,
+                new_instruction_pointer = <span class="kw">in</span>(reg) <span class="self">self</span>.instruction_pointer.as_u64(),
+                new_stack_pointer = <span class="kw">in</span>(reg) <span class="self">self</span>.stack_pointer.as_u64(),
+                code_segment = <span class="kw">in</span>(reg) <span class="self">self</span>.code_segment,
+                stack_segment = <span class="kw">in</span>(reg) <span class="self">self</span>.stack_segment,
+                options(noreturn)
+            )
+        }
+    }
+}
+
 <span class="kw">impl </span>fmt::Debug <span class="kw">for </span>InterruptStackFrameValue {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">struct </span>Hex(u64);
@@ -2383,6 +2537,7 @@
     ///   * AMD Volume 2: 8.4.2
     ///   * Intel Volume 3A: 4.7
     </span><span class="attr">#[repr(transparent)]
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
     </span><span class="kw">pub struct </span>PageFaultErrorCode: u64 {
         <span class="doccomment">/// If this flag is set, the page fault was caused by a page-protection violation,
         /// else the page fault was caused by a not-present page.
@@ -2420,6 +2575,14 @@
         <span class="doccomment">/// If this flag is set, it indicates that the page fault is a result of the processor
         /// encountering an RMP violation (AMD-only).
         </span><span class="kw">const </span>RMP = <span class="number">1 </span>&lt;&lt; <span class="number">31</span>;
+    }
+}
+
+<span class="kw">impl </span>PageFaultErrorCode {
+    <span class="attr">#[deprecated = <span class="string">&quot;use the safe `from_bits_retain` method instead&quot;</span>]
+    </span><span class="doccomment">/// Convert from underlying bit representation, preserving all bits (even those not corresponding to a defined flag).
+    </span><span class="kw">pub const unsafe fn </span>from_bits_unchecked(bits: u64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::from_bits_retain(bits)
     }
 }
 
@@ -2643,7 +2806,7 @@
 #[macro_export]
 #[doc(hidden)]
 </span><span class="doccomment">/// We can&#39;t loop in macros, but we can use recursion.
-/// This macro recursivly adds one more bit to it&#39;s arguments until we have 8 bits so that we can call set_general_handler_entry.
+/// This macro recursively adds one more bit to it&#39;s arguments until we have 8 bits so that we can call set_general_handler_entry.
 </span><span class="macro">macro_rules! </span>set_general_handler_recursive_bits {
     <span class="comment">// if we have 8 all bits, construct the index from the bits, check if the entry is in range and invoke the macro that sets the handler
     </span>(<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$range</span>:expr, <span class="macro-nonterminal">$bit7</span>:tt, <span class="macro-nonterminal">$bit6</span>:tt, <span class="macro-nonterminal">$bit5</span>:tt, <span class="macro-nonterminal">$bit4</span>:tt, <span class="macro-nonterminal">$bit3</span>:tt, <span class="macro-nonterminal">$bit2</span>:tt, <span class="macro-nonterminal">$bit1</span>:tt, <span class="macro-nonterminal">$bit0</span>:tt) =&gt; {{
@@ -2654,7 +2817,7 @@
             <span class="macro-nonterminal">$</span><span class="macro">crate::set_general_handler_entry!</span>(<span class="macro-nonterminal">$idt</span>, <span class="macro-nonterminal">$handler</span>, IDX, <span class="macro-nonterminal">$bit7</span>, <span class="macro-nonterminal">$bit6</span>, <span class="macro-nonterminal">$bit5</span>, <span class="macro-nonterminal">$bit4</span>, <span class="macro-nonterminal">$bit3</span>, <span class="macro-nonterminal">$bit2</span>, <span class="macro-nonterminal">$bit1</span>, <span class="macro-nonterminal">$bit0</span>);
         }
     }};
-    <span class="comment">// otherwise recursivly invoke the macro adding one more bit
+    <span class="comment">// otherwise recursively invoke the macro adding one more bit
     </span>(<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$range</span>:expr $(, <span class="macro-nonterminal">$bits</span>:tt)<span class="kw-2">*</span>) =&gt; {
         <span class="macro-nonterminal">$</span><span class="macro">crate::set_general_handler_recursive_bits!</span>(<span class="macro-nonterminal">$idt</span>, <span class="macro-nonterminal">$handler</span>, <span class="macro-nonterminal">$range </span>$(, <span class="macro-nonterminal">$bits</span>)<span class="kw-2">*</span>, <span class="number">0</span>);
         <span class="macro-nonterminal">$</span><span class="macro">crate::set_general_handler_recursive_bits!</span>(<span class="macro-nonterminal">$idt</span>, <span class="macro-nonterminal">$handler</span>, <span class="macro-nonterminal">$range </span>$(, <span class="macro-nonterminal">$bits</span>)<span class="kw-2">*</span>, <span class="number">1</span>);
@@ -2739,6 +2902,15 @@
         }
         <span class="macro-nonterminal">$idt</span>.machine_check.set_handler_fn(handler);
     }};
+    (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>) =&gt; {{
+        <span class="kw">extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>handler(
+            frame: <span class="macro-nonterminal">$crate::structures::idt::InterruptStackFrame</span>,
+            error_code: u64,
+        ) {
+            <span class="macro-nonterminal">$handler</span>(frame, <span class="macro-nonterminal">$idx</span>.into(), <span class="prelude-val">Some</span>(error_code));
+        }
+        <span class="macro-nonterminal">$idt</span>.cp_protection_exception.set_handler_fn(handler);
+    }};
     (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>) =&gt; {
         <span class="kw">extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>handler(
             frame: <span class="macro-nonterminal">$crate::structures::idt::InterruptStackFrame</span>,
@@ -2761,14 +2933,12 @@
     <span class="comment">// reserved_1
     </span>(<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>) =&gt; {};
     <span class="comment">// reserved_2
-    </span>(<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>) =&gt; {};
-    (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>) =&gt; {};
+    </span>(<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>) =&gt; {};
     (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>) =&gt; {};
     (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>) =&gt; {};
     (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>) =&gt; {};
     (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">0</span>) =&gt; {};
     (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>) =&gt; {};
-    (<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>) =&gt; {};
     <span class="comment">// reserved_3
     </span>(<span class="macro-nonterminal">$idt</span>:expr, <span class="macro-nonterminal">$handler</span>:ident, <span class="macro-nonterminal">$idx</span>:ident, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>, <span class="number">1</span>) =&gt; {};
 
@@ -2797,7 +2967,9 @@
             <span class="number">15 </span>=&gt; <span class="kw-2">&amp;</span>idt.reserved_1.options,
             <span class="number">17 </span>=&gt; <span class="kw-2">&amp;</span>idt.alignment_check.options,
             <span class="number">18 </span>=&gt; <span class="kw-2">&amp;</span>idt.machine_check.options,
-            i @ <span class="number">21</span>..=<span class="number">28 </span>=&gt; <span class="kw-2">&amp;</span>idt.reserved_2[i - <span class="number">21</span>].options,
+            <span class="number">21 </span>=&gt; <span class="kw-2">&amp;</span>idt.cp_protection_exception.options,
+            i @ <span class="number">22</span>..=<span class="number">27 </span>=&gt; <span class="kw-2">&amp;</span>idt.reserved_2[i - <span class="number">22</span>].options,
+            <span class="number">28 </span>=&gt; <span class="kw-2">&amp;</span>idt.hv_injection_exception.options,
             <span class="number">29 </span>=&gt; <span class="kw-2">&amp;</span>idt.vmm_communication_exception.options,
             <span class="number">30 </span>=&gt; <span class="kw-2">&amp;</span>idt.security_exception.options,
             <span class="number">31 </span>=&gt; <span class="kw-2">&amp;</span>idt.reserved_3.options,
@@ -2853,7 +3025,7 @@
         }
         <span class="macro">set_general_handler!</span>(<span class="kw-2">&amp;mut </span>idt, general_handler);
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">256 </span>{
-            <span class="kw">if </span>i == <span class="number">15 </span>|| i == <span class="number">31 </span>|| (<span class="number">21</span>..=<span class="number">28</span>).contains(<span class="kw-2">&amp;</span>i) {
+            <span class="kw">if </span>i == <span class="number">15 </span>|| i == <span class="number">31 </span>|| (<span class="number">22</span>..=<span class="number">27</span>).contains(<span class="kw-2">&amp;</span>i) {
                 <span class="comment">// reserved entries should not be set
                 </span><span class="macro">assert!</span>(!entry_present(<span class="kw-2">&amp;</span>idt, i));
             } <span class="kw">else </span>{

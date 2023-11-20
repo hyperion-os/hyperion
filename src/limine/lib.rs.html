@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/limine-0.1.10/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="limine" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (ba7c7a301 2023-11-13)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/limine-0.1.12/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="limine" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -680,6 +680,101 @@
 <a href="#680" id="680">680</a>
 <a href="#681" id="681">681</a>
 <a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Rust crate for parsing the limine boot protocol structures.
 //!
 //! ## Resources
@@ -687,6 +782,7 @@
 
 </span><span class="attr">#![no_std]
 #![feature(const_nonnull_new)]
+#![allow(deprecated)]
 
 #[cfg(feature = <span class="string">&quot;requests-section&quot;</span>)]
 </span><span class="kw">pub use </span>limine_proc::<span class="kw-2">*</span>;
@@ -700,7 +796,7 @@
 
 <span class="attr">#[derive(Debug)]
 #[repr(transparent)]
-</span><span class="kw">pub struct </span>LimineEntryPoint(<span class="kw-2">*const </span>());
+</span><span class="kw">pub struct </span>EntryPoint(<span class="kw-2">*const </span>());
 
 <span class="doccomment">/// [`NonNull`] with the dereference traits implemented.
 </span><span class="attr">#[repr(transparent)]
@@ -745,8 +841,13 @@
     }
 }
 
+<span class="comment">// SAFETY: The underlying type (`T`) implements {Send, Sync} so, it is safe
+//         for NonNullPtr&lt;T&gt; to implement {Send, Sync}.
+</span><span class="kw">unsafe impl</span>&lt;T: Send&gt; Send <span class="kw">for </span>NonNullPtr&lt;T&gt; {}
+<span class="kw">unsafe impl</span>&lt;T: Sync&gt; Sync <span class="kw">for </span>NonNullPtr&lt;T&gt; {}
+
 <span class="attr">#[repr(transparent)]
-</span><span class="kw">pub struct </span>LiminePtr&lt;T&gt; {
+</span><span class="kw">pub struct </span>Ptr&lt;T&gt; {
     ptr: <span class="prelude-ty">Option</span>&lt;NonNull&lt;T&gt;&gt;,
     <span class="comment">// This marker does not affect the variance but is required for
     // dropck to undestand that we logically own a `T`.
@@ -755,8 +856,8 @@
     </span>_phantom: PhantomData&lt;T&gt;,
 }
 
-<span class="kw">impl</span>&lt;T&gt; LiminePtr&lt;T&gt; {
-    <span class="kw">const </span>DEFAULT: LiminePtr&lt;T&gt; = <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;T&gt; Ptr&lt;T&gt; {
+    <span class="kw">const </span>DEFAULT: Ptr&lt;T&gt; = <span class="self">Self </span>{
         ptr: <span class="prelude-val">None</span>,
         _phantom: PhantomData,
     };
@@ -768,40 +869,40 @@
 
     <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>get&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>T&gt; {
-        <span class="comment">// SAFETY: According to the specication the bootloader provides
-        // a aligned pointer and there is no public API to construct a [`LiminePtr`]
-        // so, its safe to assume that the [`NonNull::as_ref`] are applied. If not,
-        // its the bootloader&#39;s fault that they have violated the
-        // specification!.
+        <span class="comment">// SAFETY: According to the specication the bootloader provides a aligned
+        //         pointer and there is no public API to construct a [`Ptr`]
+        //         so, its safe to assume that the [`NonNull::as_ref`] are applied.
+        //         If not, its the bootloader&#39;s fault that they have violated the
+        //         specification!.
         //
         // Also, we have a shared reference to the data and there is no
-        // legal way to mutate it, unless through [`LiminePtr::as_ptr`]
-        // (requires pointer dereferencing which is unsafe) or [`LiminePtr::get_mut`]
-        // (requires exclusive access to the [`LiminePtr`]).
+        // legal way to mutate it, unless through [`Ptr::as_ptr`]
+        // (requires pointer dereferencing which is unsafe) or [`Ptr::get_mut`]
+        // (requires exclusive access to the [`Ptr`]).
         </span><span class="self">self</span>.ptr.map(|e| <span class="kw">unsafe </span>{ e.as_ref() })
     }
 
     <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>get_mut&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>T&gt; {
-        <span class="comment">// SAFETY: Check the safety for [`LiminePtr::get`] and we have
+        <span class="comment">// SAFETY: Check the safety for [`Ptr::get`] and we have
         // exclusive access to the data.
         </span><span class="self">self</span>.ptr.as_mut().map(|e| <span class="kw">unsafe </span>{ e.as_mut() })
     }
 }
 
-<span class="kw">impl </span>LiminePtr&lt;c_char&gt; {
-    <span class="doccomment">/// Converts the limine string pointer into a rust string.
+<span class="kw">impl </span>Ptr&lt;c_char&gt; {
+    <span class="doccomment">/// Converts the  string pointer into a rust string.
     </span><span class="kw">pub fn </span>to_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>CStr&gt; {
-        <span class="comment">// SAFETY: According to the limine specification, the pointer points
-        // to a valid C string with a NULL terminator of size less than
-        // `isize::MAX`. Also we know that the `LiminePtr` is a valid C string,
-        // because it has a `T` of `c_char`. See the [`LiminePtr::get`] for more
-        // details.
+        <span class="comment">// SAFETY: According to the  specification, the pointer points
+        //         to a valid C string with a NULL terminator of size less than
+        //         `isize::MAX`. Also we know that the `Ptr` is a valid C
+        //         string, because it has a `T` of `c_char`. See the [`Ptr::get`]
+        //         for more details.
         </span><span class="kw">unsafe </span>{ <span class="prelude-val">Some</span>(CStr::from_ptr(<span class="self">self</span>.as_ptr()<span class="question-mark">?</span>)) }
     }
 }
 
-<span class="kw">impl </span>LiminePtr&lt;LimineEntryPoint&gt; {
+<span class="kw">impl </span>Ptr&lt;EntryPoint&gt; {
     <span class="attr">#[inline]
     </span><span class="kw">pub const fn </span>new(entry_point: <span class="kw">fn</span>() -&gt; !) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
@@ -811,15 +912,18 @@
     }
 }
 
-<span class="kw">impl</span>&lt;T: Debug&gt; Debug <span class="kw">for </span>LiminePtr&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: Debug&gt; Debug <span class="kw">for </span>Ptr&lt;T&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>core::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; core::fmt::Result {
-        f.debug_tuple(<span class="string">&quot;LiminePtr&quot;</span>)
+        f.debug_tuple(<span class="string">&quot;Ptr&quot;</span>)
             .field(<span class="kw-2">&amp;</span><span class="macro">format_args!</span>(<span class="string">&quot;{:#x?}&quot;</span>, <span class="self">self</span>.get()))
             .finish()
     }
 }
 
-<span class="kw">unsafe impl</span>&lt;T: Sync&gt; Sync <span class="kw">for </span>LiminePtr&lt;T&gt; {}
+<span class="comment">// SAFETY: The underlying type (`T`) implements {Send, Sync} so, it is safe
+//         for Ptr&lt;T&gt; to implement {Send, Sync}.
+</span><span class="kw">unsafe impl</span>&lt;T: Send&gt; Send <span class="kw">for </span>Ptr&lt;T&gt; {}
+<span class="kw">unsafe impl</span>&lt;T: Sync&gt; Sync <span class="kw">for </span>Ptr&lt;T&gt; {}
 
 <span class="kw">type </span>ArrayPtr&lt;T&gt; = NonNullPtr&lt;NonNullPtr&lt;T&gt;&gt;;
 
@@ -835,7 +939,7 @@
     }
 }
 
-<span class="doccomment">/// Used to create the limine request struct.
+<span class="doccomment">/// Used to create the  request struct.
 </span><span class="macro">macro_rules! </span>make_struct {
     (
         $(<span class="attr">#[<span class="macro-nonterminal">$meta</span>:meta]</span>)*
@@ -850,43 +954,45 @@
             id: [u64; <span class="number">4</span>],
             revision: u64,
 
-            <span class="comment">// NOTE: The response is required to be wrapped inside an unsafe cell, since
-            // by default the response is set to NULL and when the compiler does not see
-            // any writes to the field, it is free to assume that the response is NULL. In
-            // our situation the bootloader mutates the field and we need to ensure that
-            // the compiler does not optimize the read away.
-            </span>response: UnsafeCell&lt;LiminePtr&lt;<span class="macro-nonterminal">$response_ty</span>&gt;&gt;,
+            <span class="comment">// XXX: The response is required to be wrapped inside an unsafe cell, since
+            //      by default the response is set to NULL and when the compiler does not see
+            //      any writes to the field, it is free to assume that the response is NULL. In
+            //      our situation the bootloader mutates the field and we need to ensure that
+            //      the compiler does not optimize the read away.
+            </span>response: UnsafeCell&lt;Ptr&lt;<span class="macro-nonterminal">$response_ty</span>&gt;&gt;,
             $(<span class="kw">pub </span><span class="macro-nonterminal">$field_name</span>: <span class="macro-nonterminal">$field_ty</span>),*
         }
 
         <span class="kw">impl </span><span class="macro-nonterminal">$name </span>{
-            <span class="comment">// NOTE: The request ID is composed of 4 64-bit wide unsigned integers but the first
-            // two remain constant. This is refered as `LIMINE_COMMON_MAGIC` in the limine protocol
-            // header.
-            </span><span class="kw">pub const </span>ID: [u64; <span class="number">4</span>] = [<span class="number">0xc7b1dd30df4c8b88</span>, <span class="number">0x0a82e883a194f07b</span>, <span class="macro-nonterminal">$id1</span>, <span class="macro-nonterminal">$id2</span>];
-
             <span class="kw">pub const fn </span>new(revision: u64) -&gt; <span class="self">Self </span>{
                 <span class="self">Self </span>{
-                    id: <span class="self">Self</span>::ID,
+                    <span class="comment">// The request ID is composed of 4 64-bit wide unsigned integers but the first
+                    // two remain constant. This is refered as `_COMMON_MAGIC` in the  protocol
+                    // header.
+                    </span>id: [<span class="number">0xc7b1dd30df4c8b88</span>, <span class="number">0x0a82e883a194f07b</span>, <span class="macro-nonterminal">$id1</span>, <span class="macro-nonterminal">$id2</span>],
                     revision,
 
-                    response: UnsafeCell::new(LiminePtr::DEFAULT),
+                    response: UnsafeCell::new(Ptr::DEFAULT),
                     $(<span class="macro-nonterminal">$field_name</span>: <span class="macro-nonterminal">$field_default</span>),*
                 }
             }
 
-            <span class="kw">pub fn </span>get_response(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LiminePtr&lt;<span class="macro-nonterminal">$response_ty</span>&gt; {
+            <span class="kw">pub fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; [u64; <span class="number">4</span>] {
+                <span class="self">self</span>.id
+            }
+
+            <span class="kw">pub fn </span>get_response(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Ptr&lt;<span class="macro-nonterminal">$response_ty</span>&gt; {
                 <span class="kw">unsafe </span>{ core::ptr::read_volatile(<span class="self">self</span>.response.get()) }
             }
 
-            <span class="comment">// generate a getter method for each field:
+            <span class="comment">// generate a setter method for each field:
             </span>$($(<span class="attr">#[<span class="macro-nonterminal">$field_meta</span>]</span>)* <span class="kw">pub const fn </span><span class="macro-nonterminal">$field_name</span>(<span class="kw-2">mut </span><span class="self">self</span>, value: <span class="macro-nonterminal">$field_ty</span>) -&gt; <span class="self">Self </span>{
                 <span class="self">self</span>.<span class="macro-nonterminal">$field_name </span>= value;
                 <span class="self">self
             </span>})*
         }
 
-        <span class="comment">// maker trait implementations for limine request struct:
+        <span class="comment">// maker trait implementations for  request struct:
         </span><span class="kw">unsafe impl </span>Sync <span class="kw">for </span><span class="macro-nonterminal">$name </span>{}
     };
 }
@@ -895,7 +1001,7 @@
 
 </span><span class="attr">#[repr(C)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-</span><span class="kw">pub struct </span>LimineUuid {
+</span><span class="kw">pub struct </span>Uuid {
     <span class="kw">pub </span>a: u32,
     <span class="kw">pub </span>b: u16,
     <span class="kw">pub </span>c: u16,
@@ -903,14 +1009,14 @@
 }
 
 <span class="attr">#[cfg(feature = <span class="string">&quot;into-uuid&quot;</span>)]
-</span><span class="kw">impl </span>From&lt;LimineUuid&gt; <span class="kw">for </span>uuid::Uuid {
-    <span class="kw">fn </span>from(lim: LimineUuid) -&gt; <span class="self">Self </span>{
+</span><span class="kw">impl </span>From&lt;Uuid&gt; <span class="kw">for </span>uuid::Uuid {
+    <span class="kw">fn </span>from(lim: Uuid) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::from_fields(lim.a, lim.b, lim.c, <span class="kw-2">&amp;</span>lim.d)
     }
 }
 
 <span class="attr">#[cfg(feature = <span class="string">&quot;into-uuid&quot;</span>)]
-</span><span class="kw">impl </span>From&lt;uuid::Uuid&gt; <span class="kw">for </span>LimineUuid {
+</span><span class="kw">impl </span>From&lt;uuid::Uuid&gt; <span class="kw">for </span>Uuid {
     <span class="kw">fn </span>from(uuid: uuid::Uuid) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>(a, b, c, d) = uuid.as_fields();
         <span class="self">Self </span>{
@@ -924,17 +1030,17 @@
 
 <span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineFile {
+</span><span class="kw">pub struct </span>File {
     <span class="doccomment">/// Revision of this structure.
     </span><span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// The address of the file.
-    </span><span class="kw">pub </span>base: LiminePtr&lt;u8&gt;,
+    </span><span class="kw">pub </span>base: Ptr&lt;u8&gt;,
     <span class="doccomment">/// The size of the file.
     </span><span class="kw">pub </span>length: u64,
     <span class="doccomment">/// The path of the file within the volume, with a leading slash.
-    </span><span class="kw">pub </span>path: LiminePtr&lt;c_char&gt;,
+    </span><span class="kw">pub </span>path: Ptr&lt;c_char&gt;,
     <span class="doccomment">/// A command line associated with the file.
-    </span><span class="kw">pub </span>cmdline: LiminePtr&lt;c_char&gt;,
+    </span><span class="kw">pub </span>cmdline: Ptr&lt;c_char&gt;,
     <span class="doccomment">/// Type of media file resides on.
     </span><span class="kw">pub </span>media_type: u64,
     <span class="kw">pub </span>unused: u32,
@@ -948,37 +1054,60 @@
     <span class="doccomment">/// If non-0, this is the ID of the disk the file was loaded from as reported in its MBR.
     </span><span class="kw">pub </span>mbr_disk_id: u32,
     <span class="doccomment">/// If non-0, this is the UUID of the disk the file was loaded from as reported in its GPT.
-    </span><span class="kw">pub </span>gpt_disk_uuid: LimineUuid,
+    </span><span class="kw">pub </span>gpt_disk_uuid: Uuid,
     <span class="doccomment">/// If non-0, this is the UUID of the partition the file was loaded from as reported in the GPT.
-    </span><span class="kw">pub </span>gpt_part_uuid: LimineUuid,
+    </span><span class="kw">pub </span>gpt_part_uuid: Uuid,
     <span class="doccomment">/// If non-0, this is the UUID of the filesystem of the partition the file was loaded from.
-    </span><span class="kw">pub </span>part_uuid: LimineUuid,
+    </span><span class="kw">pub </span>part_uuid: Uuid,
 }
+
+<span class="attr">#[repr(C)]
+#[derive(Debug)]
+</span><span class="kw">pub struct </span>BaseRevision {
+    id: [u64; <span class="number">2</span>],
+    revision: UnsafeCell&lt;u64&gt;,
+}
+
+<span class="kw">impl </span>BaseRevision {
+    <span class="kw">pub const fn </span>new(revision: u64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            id: [<span class="number">0xf9562b2d5c95a6c8</span>, <span class="number">0x6a7b384944536bdc</span>],
+            revision: UnsafeCell::new(revision),
+        }
+    }
+
+    <span class="kw">pub fn </span>is_supported(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">let </span>revision: u64 = <span class="kw">unsafe </span>{ core::ptr::read_volatile(<span class="self">self</span>.revision.get()) };
+        revision == <span class="number">0
+    </span>}
+}
+
+<span class="kw">unsafe impl </span>Sync <span class="kw">for </span>BaseRevision {}
 
 <span class="comment">// boot info request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineBootInfoResponse {
+</span><span class="kw">pub struct </span>BootInfoResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// Null-terminated string containing the name of the bootloader.
-    </span><span class="kw">pub </span>name: LiminePtr&lt;c_char&gt;,
+    </span><span class="kw">pub </span>name: Ptr&lt;c_char&gt;,
     <span class="doccomment">/// Null-terminated string containg the version of the bootloader.
-    </span><span class="kw">pub </span>version: LiminePtr&lt;c_char&gt;,
+    </span><span class="kw">pub </span>version: Ptr&lt;c_char&gt;,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineBootInfoRequest: [<span class="number">0xf55038d8e2a1202f</span>, <span class="number">0x279426fcf5f59740</span>] =&gt; LimineBootInfoResponse {};
+    <span class="kw">struct </span>BootInfoRequest: [<span class="number">0xf55038d8e2a1202f</span>, <span class="number">0x279426fcf5f59740</span>] =&gt; BootInfoResponse {};
 );
 
 <span class="comment">// stack size request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineStackSizeResponse {
+</span><span class="kw">pub struct </span>StackSizeResponse {
     <span class="kw">pub </span>revision: u64,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineStackSizeRequest: [<span class="number">0x224ef0460a8e8926</span>, <span class="number">0xe1cb0fc25f46ea3d</span>] =&gt; LimineStackSizeResponse {
+    <span class="kw">struct </span>StackSizeRequest: [<span class="number">0x224ef0460a8e8926</span>, <span class="number">0xe1cb0fc25f46ea3d</span>] =&gt; StackSizeResponse {
         <span class="doccomment">/// The requested stack size (also used for SMP processors).
         </span>stack_size: u64 = <span class="number">0
     </span>};
@@ -987,21 +1116,21 @@
 <span class="comment">// HHDM request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineHhdmResponse {
+</span><span class="kw">pub struct </span>HhdmResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// The virtual address offset of the beginning of the higher half direct map.
     </span><span class="kw">pub </span>offset: u64,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineHhdmRequest: [<span class="number">0x48dcf1cb8ad2b852</span>, <span class="number">0x63984e959a98244b</span>] =&gt; LimineHhdmResponse {};
+    <span class="kw">struct </span>HhdmRequest: [<span class="number">0x48dcf1cb8ad2b852</span>, <span class="number">0x63984e959a98244b</span>] =&gt; HhdmResponse {};
 );
 
 <span class="comment">// framebuffer request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineFramebuffer {
-    <span class="kw">pub </span>address: LiminePtr&lt;u8&gt;,
+</span><span class="kw">pub struct </span>Framebuffer {
+    <span class="kw">pub </span>address: Ptr&lt;u8&gt;,
     <span class="kw">pub </span>width: u64,
     <span class="kw">pub </span>height: u64,
     <span class="kw">pub </span>pitch: u64,
@@ -1015,10 +1144,10 @@
     <span class="kw">pub </span>blue_mask_shift: u8,
     <span class="kw">pub </span>reserved: [u8; <span class="number">7</span>],
     <span class="kw">pub </span>edid_size: u64,
-    <span class="kw">pub </span>edid: LiminePtr&lt;u8&gt;,
+    <span class="kw">pub </span>edid: Ptr&lt;u8&gt;,
 }
 
-<span class="kw">impl </span>LimineFramebuffer {
+<span class="kw">impl </span>Framebuffer {
     <span class="doccomment">/// Returns the size of the framebuffer.
     </span><span class="kw">pub fn </span>size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.pitch <span class="kw">as </span>usize * <span class="self">self</span>.height <span class="kw">as </span>usize * (<span class="self">self</span>.bpp <span class="kw">as </span>usize / <span class="number">8</span>)
@@ -1027,66 +1156,70 @@
 
 <span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineFramebufferResponse {
+</span><span class="kw">pub struct </span>FramebufferResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// How many framebuffers are present.
     </span><span class="kw">pub </span>framebuffer_count: u64,
-    <span class="doccomment">/// Pointer to an array of `framebuffer_count` pointers to struct [`LimineFramebuffer`] structures.
-    </span><span class="kw">pub </span>framebuffers: ArrayPtr&lt;LimineFramebuffer&gt;,
+    <span class="doccomment">/// Pointer to an array of `framebuffer_count` pointers to struct [`Framebuffer`] structures.
+    </span><span class="kw">pub </span>framebuffers: ArrayPtr&lt;Framebuffer&gt;,
 }
 
-<span class="kw">impl </span>LimineFramebufferResponse {
-    <span class="kw">pub fn </span>framebuffers&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[NonNullPtr&lt;LimineFramebuffer&gt;] {
+<span class="kw">impl </span>FramebufferResponse {
+    <span class="kw">pub fn </span>framebuffers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[NonNullPtr&lt;Framebuffer&gt;] {
         <span class="self">self</span>.framebuffers
             .into_slice(<span class="self">self</span>.framebuffer_count <span class="kw">as </span>usize)
     }
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineFramebufferRequest: [<span class="number">0x9d5827dcd881dd75</span>, <span class="number">0xa3148604f6fab11b</span>] =&gt; LimineFramebufferResponse {};
+    <span class="kw">struct </span>FramebufferRequest: [<span class="number">0x9d5827dcd881dd75</span>, <span class="number">0xa3148604f6fab11b</span>] =&gt; FramebufferResponse {};
 );
 
 <span class="comment">// terminal request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineTerminal {
+#[deprecated(note = <span class="string">&quot;This feature is deprecated, do not use if possible.&quot;</span>)]
+</span><span class="kw">pub struct </span>Terminal {
     <span class="doccomment">/// Number of columns provided by the terminal.
     </span><span class="kw">pub </span>cols: u64,
     <span class="doccomment">/// Number of rows provided by the terminal.
     </span><span class="kw">pub </span>rows: u64,
     <span class="doccomment">/// The framebuffer associated with this terminal.
-    </span><span class="kw">pub </span>framebuffer: LiminePtr&lt;LimineFramebuffer&gt;,
+    </span><span class="kw">pub </span>framebuffer: Ptr&lt;Framebuffer&gt;,
 }
 
-<span class="kw">type </span>LimineTerminalWrite =
-    <span class="prelude-ty">Option</span>&lt;<span class="kw">unsafe extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(terminal: <span class="kw-2">*const </span>LimineTerminal, string: <span class="kw-2">*const </span>u8, length: u64)&gt;;
+<span class="attr">#[deprecated(note = <span class="string">&quot;This feature is deprecated, do not use if possible.&quot;</span>)]
+</span><span class="kw">type </span>TerminalWrite =
+    <span class="prelude-ty">Option</span>&lt;<span class="kw">unsafe extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(terminal: <span class="kw-2">*const </span>Terminal, string: <span class="kw-2">*const </span>u8, length: u64)&gt;;
 
 <span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineTerminalResponse {
+#[deprecated(note = <span class="string">&quot;This feature is deprecated, do not use if possible.&quot;</span>)]
+</span><span class="kw">pub struct </span>TerminalResponse {
     <span class="kw">pub </span>revision: u64,
 
     <span class="doccomment">/// How many terminals are present.
     </span><span class="kw">pub </span>terminal_count: u64,
-    <span class="doccomment">/// Pointer to an array of `terminal_count` pointers to struct `limine_terminal` structures.
-    </span><span class="kw">pub </span>terminals: ArrayPtr&lt;LimineTerminal&gt;,
+    <span class="doccomment">/// Pointer to an array of `terminal_count` pointers to struct `_terminal` structures.
+    </span><span class="kw">pub </span>terminals: ArrayPtr&lt;Terminal&gt;,
     <span class="doccomment">/// Physical pointer to the terminal `write()` function. The function is not thread-safe, nor
     /// reentrant, per-terminal. This means multiple terminals may be called simultaneously, and
     /// multiple callbacks may be handled simultaneously. The terminal parameter points to the
-    /// [`LimineTerminal`] structure to use to output the string; the string parameter points to
+    /// [`Terminal`] structure to use to output the string; the string parameter points to
     /// a string to print; the length paremeter contains the length, in bytes, of the string to print.
-    </span>write_fn: LimineTerminalWrite,
+    </span>write_fn: TerminalWrite,
 }
 
-<span class="kw">impl </span>LimineTerminalResponse {
-    <span class="kw">pub fn </span>terminals&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[NonNullPtr&lt;LimineTerminal&gt;] {
+<span class="attr">#[deprecated(note = <span class="string">&quot;This feature is deprecated, do not use if possible.&quot;</span>)]
+</span><span class="kw">impl </span>TerminalResponse {
+    <span class="kw">pub fn </span>terminals(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[NonNullPtr&lt;Terminal&gt;] {
         <span class="self">self</span>.terminals.into_slice(<span class="self">self</span>.terminal_count <span class="kw">as </span>usize)
     }
 
-    <span class="kw">pub fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>LimineTerminal, <span class="kw-2">&amp;</span>str)&gt; {
+    <span class="kw">pub fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Terminal, <span class="kw-2">&amp;</span>str)&gt; {
         <span class="kw">let </span>term_func = <span class="self">self</span>.write_fn<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Some</span>(<span class="kw">move </span>|terminal: <span class="kw-2">&amp;</span>LimineTerminal, txt: <span class="kw-2">&amp;</span>str| <span class="kw">unsafe </span>{
+        <span class="prelude-val">Some</span>(<span class="kw">move </span>|terminal: <span class="kw-2">&amp;</span>Terminal, txt: <span class="kw-2">&amp;</span>str| <span class="kw">unsafe </span>{
             term_func(terminal <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_</span>, txt.as_ptr(), txt.len() <span class="kw">as </span>u64);
         })
     }
@@ -1094,28 +1227,85 @@
 
 <span class="macro">make_struct!</span>(
     <span class="doccomment">/// Omitting this request will cause the bootloader to not initialise the terminal service.
-    </span><span class="kw">struct </span>LimineTerminalRequest: [<span class="number">0xc8ac59310c2b0844</span>, <span class="number">0xa68d0c7265d38878</span>] =&gt; LimineTerminalResponse {
-        callback: LiminePtr&lt;()&gt; = LiminePtr::DEFAULT
+    </span><span class="attr">#[deprecated(note = <span class="string">&quot;This feature is deprecated, do not use if possible.&quot;</span>)]
+    </span><span class="kw">struct </span>TerminalRequest: [<span class="number">0xc8ac59310c2b0844</span>, <span class="number">0xa68d0c7265d38878</span>] =&gt; TerminalResponse {
+        callback: Ptr&lt;()&gt; = Ptr::DEFAULT
     };
 );
 
 <span class="comment">// 5-level paging request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>Limine5LevelPagingResponse {
+#[deprecated(note = <span class="string">&quot;This feature is deprecated, do not use if possible.&quot;</span>)]
+</span><span class="kw">pub struct </span>Level5PagingResponse {
     <span class="kw">pub </span>revision: u64,
 }
 
 <span class="macro">make_struct!</span>(
     <span class="doccomment">/// The presence of this request will prompt the bootloader to turn on x86_64 5-level paging. It will not be
     /// turned on if this request is not present. If the response pointer is unchanged, 5-level paging is engaged.
-    </span><span class="kw">struct </span>Limine5LevelPagingRequest: [<span class="number">0x94469551da9b3192</span>, <span class="number">0xebe5e86db7382888</span>] =&gt; Limine5LevelPagingResponse {};
+    </span><span class="attr">#[deprecated(note = <span class="string">&quot;This feature is deprecated, do not use if possible.&quot;</span>)]
+    </span><span class="kw">struct </span>Level5PagingRequest: [<span class="number">0x94469551da9b3192</span>, <span class="number">0xebe5e86db7382888</span>] =&gt; Level5PagingResponse {};
+);
+
+<span class="attr">#[repr(u64)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+</span><span class="kw">pub enum </span>PagingMode {
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;x86_64&quot;</span>)]
+    </span>Lvl4 = <span class="number">0</span>,
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;x86_64&quot;</span>)]
+    </span>Lvl5 = <span class="number">1</span>,
+
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;aarch64&quot;</span>)]
+    </span>Lvl4 = <span class="number">0</span>,
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;aarch64&quot;</span>)]
+    </span>Lvl5 = <span class="number">1</span>,
+
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;riscv64&quot;</span>)]
+    </span>Sv39 = <span class="number">0</span>,
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;riscv64&quot;</span>)]
+    </span>Sv48 = <span class="number">1</span>,
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;riscv64&quot;</span>)]
+    </span>Sv57 = <span class="number">2</span>,
+}
+
+<span class="kw">impl </span>PagingMode {
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;x86_64&quot;</span>)]
+    </span><span class="kw">pub const fn </span>default() -&gt; <span class="self">Self </span>{
+        PagingMode::Lvl4
+    }
+
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;aarch64&quot;</span>)]
+    </span><span class="kw">pub const fn </span>default() -&gt; <span class="self">Self </span>{
+        PagingMode::Lvl4
+    }
+
+    <span class="attr">#[cfg(target_arch = <span class="string">&quot;riscv64&quot;</span>)]
+    </span><span class="kw">pub const fn </span>default() -&gt; <span class="self">Self </span>{
+        PagingMode::Sv48
+    }
+}
+
+<span class="comment">// Paging mode request tag:
+</span><span class="attr">#[repr(C)]
+#[derive(Debug)]
+</span><span class="kw">pub struct </span>PagingModeResponse {
+    <span class="kw">pub </span>revision: u64,
+    <span class="kw">pub </span>mode: PagingMode,
+    <span class="kw">pub </span>flags: u64,
+}
+
+<span class="macro">make_struct!</span>(
+    <span class="kw">struct </span>PagingModeRequest: [<span class="number">0x95c1a0edab0944cb</span>, <span class="number">0xa4e5cb3842f7488a</span>] =&gt; PagingModeResponse {
+        mode: PagingMode = PagingMode::default(),
+        flags: u64 = <span class="number">0
+    </span>};
 );
 
 <span class="comment">// smp request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineSmpInfo {
+</span><span class="kw">pub struct </span>SmpInfo {
     <span class="doccomment">/// ACPI Processor UID as specified by the MADT.
     </span><span class="kw">pub </span>processor_id: u32,
     <span class="doccomment">/// Local APIC ID of the processor as specified by the MADT.
@@ -1123,18 +1313,18 @@
     <span class="kw">pub </span>reserved: u64,
     <span class="doccomment">/// An atomic write to this field causes the parked CPU to jump to the
     /// written address, on a 64KiB (or Stack Size Request size) stack. A pointer
-    /// to the struct [`LimineSmpInfo`] structure of the CPU is passed in RDI. Other
+    /// to the struct [`SmpInfo`] structure of the CPU is passed in RDI. Other
     /// than that, the CPU state will be the same as described for the bootstrap
     /// processor. This field is unused for the structure describing the bootstrap
     /// processor.
-    </span><span class="kw">pub </span>goto_address: <span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(info: <span class="kw-2">*const </span>LimineSmpInfo) -&gt; !,
+    </span><span class="kw">pub </span>goto_address: <span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(info: <span class="kw-2">*const </span>SmpInfo) -&gt; !,
     <span class="doccomment">/// A free for use field.
     </span><span class="kw">pub </span>extra_argument: u64,
 }
 
 <span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineSmpResponse {
+</span><span class="kw">pub struct </span>SmpResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// Bit 0: X2APIC has been enabled.
     </span><span class="kw">pub </span>flags: u32,
@@ -1142,12 +1332,12 @@
     </span><span class="kw">pub </span>bsp_lapic_id: u32,
     <span class="doccomment">/// How many CPUs are present. It includes the bootstrap processor.
     </span><span class="kw">pub </span>cpu_count: u64,
-    <span class="doccomment">/// Pointer to an array of `cpu_count` pointers to struct [`LimineSmpInfo`]
+    <span class="doccomment">/// Pointer to an array of `cpu_count` pointers to struct [`SmpInfo`]
     /// structures.
-    </span><span class="kw">pub </span>cpus: ArrayPtr&lt;LimineSmpInfo&gt;,
+    </span><span class="kw">pub </span>cpus: ArrayPtr&lt;SmpInfo&gt;,
 }
 
-<span class="kw">impl </span>LimineSmpResponse {
+<span class="kw">impl </span>SmpResponse {
     <span class="doccomment">/// Return&#39;s the SMP info array pointer as a mutable rust slice.
     ///
     /// ## Safety
@@ -1155,12 +1345,12 @@
     /// If this tag was returned by a bootloader mutating the slice must conform to the following
     /// rules in order to not trigger UB:
     ///
-    /// - Writing to [`LimineSmpInfo::goto_address`] will cause it to start executing at the
+    /// - Writing to [`SmpInfo::goto_address`] will cause it to start executing at the
     /// provided address.
-    /// - The address pointed by [`LimineSmpInfo::goto_address`] must be that of a
-    /// `extern &quot;C&quot; fn(&amp;&#39;static LimineSmpInfo) -&gt; !`, this also means that once written this
+    /// - The address pointed by [`SmpInfo::goto_address`] must be that of a
+    /// `extern &quot;C&quot; fn(&amp;&#39;static SmpInfo) -&gt; !`, this also means that once written this
     /// struct must not be mutated any further.
-    </span><span class="kw">pub fn </span>cpus&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>[NonNullPtr&lt;LimineSmpInfo&gt;] {
+    </span><span class="kw">pub fn </span>cpus(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[NonNullPtr&lt;SmpInfo&gt;] {
         <span class="self">self</span>.cpus.into_slice_mut(<span class="self">self</span>.cpu_count <span class="kw">as </span>usize)
     }
 }
@@ -1168,7 +1358,7 @@
 <span class="macro">make_struct!</span>(
     <span class="doccomment">/// The presence of this request will prompt the bootloader to bootstrap the
     /// secondary processors. This will not be done if this request is not present.
-    </span><span class="kw">struct </span>LimineSmpRequest: [<span class="number">0x95a67b819a1b857e</span>, <span class="number">0xa0b61b723b6a73e0</span>] =&gt; LimineSmpResponse {
+    </span><span class="kw">struct </span>SmpRequest: [<span class="number">0x95a67b819a1b857e</span>, <span class="number">0xa0b61b723b6a73e0</span>] =&gt; SmpResponse {
         <span class="doccomment">/// Bit 0: Enable X2APIC, if possible.
         </span>flags: u32 = <span class="number">0
     </span>};
@@ -1177,7 +1367,7 @@
 <span class="comment">// memory map request tag:
 </span><span class="attr">#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq)]
-</span><span class="kw">pub enum </span>LimineMemoryMapEntryType {
+</span><span class="kw">pub enum </span>MemoryMapEntryType {
     Usable = <span class="number">0</span>,
     Reserved = <span class="number">1</span>,
     AcpiReclaimable = <span class="number">2</span>,
@@ -1198,142 +1388,142 @@
 
 <span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineMemmapEntry {
+</span><span class="kw">pub struct </span>MemmapEntry {
     <span class="kw">pub </span>base: u64,
     <span class="kw">pub </span>len: u64,
-    <span class="kw">pub </span>typ: LimineMemoryMapEntryType,
+    <span class="kw">pub </span>typ: MemoryMapEntryType,
 }
 
 <span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineMemmapResponse {
+</span><span class="kw">pub struct </span>MemmapResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// How many memory map entries are present.
     </span><span class="kw">pub </span>entry_count: u64,
-    <span class="doccomment">/// Pointer to an array of `entry_count` pointers to struct [`LimineMemmapEntry`] structures.
-    </span><span class="kw">pub </span>entries: ArrayPtr&lt;LimineMemmapEntry&gt;,
+    <span class="doccomment">/// Pointer to an array of `entry_count` pointers to struct [`MemmapEntry`] structures.
+    </span><span class="kw">pub </span>entries: ArrayPtr&lt;MemmapEntry&gt;,
 }
 
-<span class="kw">impl </span>LimineMemmapResponse {
-    <span class="kw">pub fn </span>memmap&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[NonNullPtr&lt;LimineMemmapEntry&gt;] {
+<span class="kw">impl </span>MemmapResponse {
+    <span class="kw">pub fn </span>memmap(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[NonNullPtr&lt;MemmapEntry&gt;] {
         <span class="self">self</span>.entries.into_slice(<span class="self">self</span>.entry_count <span class="kw">as </span>usize)
     }
 
-    <span class="kw">pub fn </span>memmap_mut&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>[NonNullPtr&lt;LimineMemmapEntry&gt;] {
+    <span class="kw">pub fn </span>memmap_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[NonNullPtr&lt;MemmapEntry&gt;] {
         <span class="self">self</span>.entries.into_slice_mut(<span class="self">self</span>.entry_count <span class="kw">as </span>usize)
     }
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineMemmapRequest: [<span class="number">0x67cf3d9d378a806f</span>, <span class="number">0xe304acdfc50c3c62</span>] =&gt; LimineMemmapResponse {};
+    <span class="kw">struct </span>MemmapRequest: [<span class="number">0x67cf3d9d378a806f</span>, <span class="number">0xe304acdfc50c3c62</span>] =&gt; MemmapResponse {};
 );
 
 <span class="comment">// entry point request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineEntryPointResponse {
+</span><span class="kw">pub struct </span>EntryPointResponse {
     <span class="kw">pub </span>revision: u64,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineEntryPointRequest: [<span class="number">0x13d86c035a1cd3e1</span>, <span class="number">0x2b0caa89d8f3026a</span>] =&gt; LimineEntryPointResponse {
+    <span class="kw">struct </span>EntryPointRequest: [<span class="number">0x13d86c035a1cd3e1</span>, <span class="number">0x2b0caa89d8f3026a</span>] =&gt; EntryPointResponse {
         <span class="doccomment">/// The requested entry point.
-        </span>entry: LiminePtr&lt;LimineEntryPoint&gt; = LiminePtr::DEFAULT
+        </span>entry: Ptr&lt;EntryPoint&gt; = Ptr::DEFAULT
     };
 );
 
 <span class="comment">// kernel file request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineKernelFileResponse {
+</span><span class="kw">pub struct </span>KernelFileResponse {
     <span class="kw">pub </span>revision: u64,
-    <span class="doccomment">/// Pointer to the struct [`LimineFile`] structure for the kernel file.
-    </span><span class="kw">pub </span>kernel_file: LiminePtr&lt;LimineFile&gt;,
+    <span class="doccomment">/// Pointer to the struct [`File`] structure for the kernel file.
+    </span><span class="kw">pub </span>kernel_file: Ptr&lt;File&gt;,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineKernelFileRequest: [<span class="number">0xad97e90e83f1ed67</span>, <span class="number">0x31eb5d1c5ff23b69</span>] =&gt; LimineKernelFileResponse {};
+    <span class="kw">struct </span>KernelFileRequest: [<span class="number">0xad97e90e83f1ed67</span>, <span class="number">0x31eb5d1c5ff23b69</span>] =&gt; KernelFileResponse {};
 );
 
 <span class="comment">// module request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineModuleResponse {
+</span><span class="kw">pub struct </span>ModuleResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// How many modules are present.
     </span><span class="kw">pub </span>module_count: u64,
-    <span class="doccomment">/// Pointer to an array of `module_count` pointers to struct [`LimineFile`] structures
-    </span><span class="kw">pub </span>modules: ArrayPtr&lt;LimineFile&gt;,
+    <span class="doccomment">/// Pointer to an array of `module_count` pointers to struct [`File`] structures
+    </span><span class="kw">pub </span>modules: ArrayPtr&lt;File&gt;,
 }
 
-<span class="kw">impl </span>LimineModuleResponse {
-    <span class="kw">pub fn </span>modules&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[NonNullPtr&lt;LimineFile&gt;] {
+<span class="kw">impl </span>ModuleResponse {
+    <span class="kw">pub fn </span>modules(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[NonNullPtr&lt;File&gt;] {
         <span class="self">self</span>.modules.into_slice(<span class="self">self</span>.module_count <span class="kw">as </span>usize)
     }
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineModuleRequest: [<span class="number">0x3e7e279702be32af</span>, <span class="number">0xca1c4f3bd1280cee</span>] =&gt; LimineModuleResponse {};
+    <span class="kw">struct </span>ModuleRequest: [<span class="number">0x3e7e279702be32af</span>, <span class="number">0xca1c4f3bd1280cee</span>] =&gt; ModuleResponse {};
 );
 
 <span class="comment">// RSDP request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineRsdpResponse {
+</span><span class="kw">pub struct </span>RsdpResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// Address of the RSDP table.
-    </span><span class="kw">pub </span>address: LiminePtr&lt;u8&gt;,
+    </span><span class="kw">pub </span>address: Ptr&lt;u8&gt;,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineRsdpRequest: [<span class="number">0xc5e77b6b397e7b43</span>, <span class="number">0x27637845accdcf3c</span>] =&gt; LimineRsdpResponse {};
+    <span class="kw">struct </span>RsdpRequest: [<span class="number">0xc5e77b6b397e7b43</span>, <span class="number">0x27637845accdcf3c</span>] =&gt; RsdpResponse {};
 );
 
 <span class="comment">// SMBIOS request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineSmbiosResponse {
+</span><span class="kw">pub struct </span>SmbiosResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// Address of the 32-bit SMBIOS entry point. NULL if not present.
-    </span><span class="kw">pub </span>entry_32: LiminePtr&lt;u8&gt;,
+    </span><span class="kw">pub </span>entry_32: Ptr&lt;u8&gt;,
     <span class="doccomment">/// Address of the 64-bit SMBIOS entry point. NULL if not present.
-    </span><span class="kw">pub </span>entry_64: LiminePtr&lt;u8&gt;,
+    </span><span class="kw">pub </span>entry_64: Ptr&lt;u8&gt;,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineSmbiosRequest: [<span class="number">0x9e9046f11e095391</span>, <span class="number">0xaa4a520fefbde5ee</span>] =&gt; LimineSmbiosResponse {};
+    <span class="kw">struct </span>SmbiosRequest: [<span class="number">0x9e9046f11e095391</span>, <span class="number">0xaa4a520fefbde5ee</span>] =&gt; SmbiosResponse {};
 );
 
 <span class="comment">// EFI system table request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineEfiSystemTableResponse {
+</span><span class="kw">pub struct </span>EfiSystemTableResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// Address of EFI system table.
-    </span><span class="kw">pub </span>address: LiminePtr&lt;u8&gt;,
+    </span><span class="kw">pub </span>address: Ptr&lt;u8&gt;,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineEfiSystemTableRequest: [<span class="number">0x5ceba5163eaaf6d6</span>, <span class="number">0x0a6981610cf65fcc</span>] =&gt; LimineEfiSystemTableResponse {};
+    <span class="kw">struct </span>EfiSystemTableRequest: [<span class="number">0x5ceba5163eaaf6d6</span>, <span class="number">0x0a6981610cf65fcc</span>] =&gt; EfiSystemTableResponse {};
 );
 
 <span class="comment">// boot time request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineBootTimeResponse {
+</span><span class="kw">pub struct </span>BootTimeResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// The UNIX time on boot, in seconds, taken from the system RTC.
     </span><span class="kw">pub </span>boot_time: i64,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineBootTimeRequest: [<span class="number">0x502746e184c088aa</span>, <span class="number">0xfbc5ec83e6327893</span>] =&gt; LimineBootTimeResponse {};
+    <span class="kw">struct </span>BootTimeRequest: [<span class="number">0x502746e184c088aa</span>, <span class="number">0xfbc5ec83e6327893</span>] =&gt; BootTimeResponse {};
 );
 
 <span class="comment">// kernel address request tag:
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineKernelAddressResponse {
+</span><span class="kw">pub struct </span>KernelAddressResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// The physical base address of the kernel.
     </span><span class="kw">pub </span>physical_base: u64,
@@ -1342,7 +1532,7 @@
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineKernelAddressRequest: [<span class="number">0x71ba76863cc55f63</span>, <span class="number">0xb2644a48c516a487</span>] =&gt; LimineKernelAddressResponse {};
+    <span class="kw">struct </span>KernelAddressRequest: [<span class="number">0x71ba76863cc55f63</span>, <span class="number">0xb2644a48c516a487</span>] =&gt; KernelAddressResponse {};
 );
 
 <span class="comment">// device tree blob request tag:
@@ -1353,13 +1543,13 @@
 /// be ignored.
 </span><span class="attr">#[repr(C)]
 #[derive(Debug)]
-</span><span class="kw">pub struct </span>LimineDtbResponse {
+</span><span class="kw">pub struct </span>DtbResponse {
     <span class="kw">pub </span>revision: u64,
     <span class="doccomment">/// Virtual pointer to the device tree blob.
-    </span><span class="kw">pub </span>dtb_ptr: LiminePtr&lt;u8&gt;,
+    </span><span class="kw">pub </span>dtb_ptr: Ptr&lt;u8&gt;,
 }
 
 <span class="macro">make_struct!</span>(
-    <span class="kw">struct </span>LimineDtbRequest: [<span class="number">0xb40ddb48fb54bac7</span>, <span class="number">0x545081493f81ffb7</span>] =&gt; LimineDtbResponse {};
+    <span class="kw">struct </span>DtbRequest: [<span class="number">0xb40ddb48fb54bac7</span>, <span class="number">0x545081493f81ffb7</span>] =&gt; DtbResponse {};
 );
 </code></pre></div></section></main></body></html>

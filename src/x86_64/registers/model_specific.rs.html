@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.10/src/registers/model_specific.rs`."><title>model_specific.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (ba7c7a301 2023-11-13)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.11/src/registers/model_specific.rs`."><title>model_specific.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -559,6 +559,40 @@
 <a href="#559" id="559">559</a>
 <a href="#560" id="560">560</a>
 <a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Functions to read and write model specific registers.
 
 </span><span class="kw">use </span>bitflags::bitflags;
@@ -671,6 +705,8 @@
 
 <span class="macro">bitflags! </span>{
     <span class="doccomment">/// Flags of the Extended Feature Enable Register.
+    </span><span class="attr">#[repr(transparent)]
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
     </span><span class="kw">pub struct </span>EferFlags: u64 {
         <span class="doccomment">/// Enables the `syscall` and `sysret` instructions.
         </span><span class="kw">const </span>SYSTEM_CALL_EXTENSIONS = <span class="number">1</span>;
@@ -691,9 +727,19 @@
     }
 }
 
+<span class="kw">impl </span>EferFlags {
+    <span class="attr">#[deprecated = <span class="string">&quot;use the safe `from_bits_retain` method instead&quot;</span>]
+    </span><span class="doccomment">/// Convert from underlying bit representation, preserving all bits (even those not corresponding to a defined flag).
+    </span><span class="kw">pub const unsafe fn </span>from_bits_unchecked(bits: u64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::from_bits_retain(bits)
+    }
+}
+
 <span class="macro">bitflags! </span>{
     <span class="doccomment">/// Flags stored in IA32_U_CET and IA32_S_CET (Table-2-2 in Intel SDM Volume
     /// 4). The Intel SDM-equivalent names are described in parentheses.
+    </span><span class="attr">#[repr(transparent)]
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone, Copy)]
     </span><span class="kw">pub struct </span>CetFlags: u64 {
         <span class="doccomment">/// Enable shadow stack (SH_STK_EN)
         </span><span class="kw">const </span>SS_ENABLE = <span class="number">1 </span>&lt;&lt; <span class="number">0</span>;
@@ -711,6 +757,14 @@
         </span><span class="kw">const </span>IBT_SUPPRESS_ENABLE = <span class="number">1 </span>&lt;&lt; <span class="number">10</span>;
         <span class="doccomment">/// Is IBT waiting for a branch to return? (read-only, TRACKER)
         </span><span class="kw">const </span>IBT_TRACKED = <span class="number">1 </span>&lt;&lt; <span class="number">11</span>;
+    }
+}
+
+<span class="kw">impl </span>CetFlags {
+    <span class="attr">#[deprecated = <span class="string">&quot;use the safe `from_bits_retain` method instead&quot;</span>]
+    </span><span class="doccomment">/// Convert from underlying bit representation, preserving all bits (even those not corresponding to a defined flag).
+    </span><span class="kw">pub const unsafe fn </span>from_bits_unchecked(bits: u64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::from_bits_retain(bits)
     }
 }
 
@@ -984,11 +1038,25 @@
             cs_syscall: SegmentSelector,
             ss_syscall: SegmentSelector,
         ) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str&gt; {
-            <span class="kw">if </span>cs_sysret.<span class="number">0 </span>- <span class="number">16 </span>!= ss_sysret.<span class="number">0 </span>- <span class="number">8 </span>{
+            <span class="kw">let </span>cs_sysret_cmp = cs_sysret
+                .<span class="number">0
+                </span>.checked_sub(<span class="number">16</span>)
+                .ok_or(<span class="string">&quot;Sysret CS is not at least 16.&quot;</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>ss_sysret_cmp = ss_sysret
+                .<span class="number">0
+                </span>.checked_sub(<span class="number">8</span>)
+                .ok_or(<span class="string">&quot;Sysret SS is not at least 8.&quot;</span>)<span class="question-mark">?</span>;
+            <span class="kw">let </span>cs_syscall_cmp = cs_syscall.<span class="number">0</span>;
+            <span class="kw">let </span>ss_syscall_cmp = ss_syscall
+                .<span class="number">0
+                </span>.checked_sub(<span class="number">8</span>)
+                .ok_or(<span class="string">&quot;Syscall SS is not at least 8.&quot;</span>)<span class="question-mark">?</span>;
+
+            <span class="kw">if </span>cs_sysret_cmp != ss_sysret_cmp {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">&quot;Sysret CS and SS is not offset by 8.&quot;</span>);
             }
 
-            <span class="kw">if </span>cs_syscall.<span class="number">0 </span>!= ss_syscall.<span class="number">0 </span>- <span class="number">8 </span>{
+            <span class="kw">if </span>cs_syscall_cmp != ss_syscall_cmp {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">&quot;Syscall CS and SS is not offset by 8.&quot;</span>);
             }
 

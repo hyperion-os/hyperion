@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.10/src/structures/paging/page.rs`."><title>page.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (ba7c7a301 2023-11-13)" data-channel="nightly" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/registry/src/index.crates.io-6f17d22bba15001f/x86_64-0.14.11/src/structures/paging/page.rs`."><title>page.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -458,6 +458,16 @@
 <a href="#458" id="458">458</a>
 <a href="#459" id="459">459</a>
 <a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Abstractions for default-sized and huge virtual memory pages.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::structures::paging::page_table::PageTableLevel;
@@ -608,6 +618,22 @@
     </span><span class="kw">pub fn </span>range_inclusive(start: <span class="self">Self</span>, end: <span class="self">Self</span>) -&gt; PageRangeInclusive&lt;S&gt; {
         PageRangeInclusive { start, end }
     }
+
+    <span class="comment">// FIXME: Move this into the `Step` impl, once `Step` is stabilized.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>steps_between_impl(start: <span class="kw-2">&amp;</span><span class="self">Self</span>, end: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+        VirtAddr::steps_between_impl(<span class="kw-2">&amp;</span>start.start_address, <span class="kw-2">&amp;</span>end.start_address)
+            .map(|steps| steps / S::SIZE <span class="kw">as </span>usize)
+    }
+
+    <span class="comment">// FIXME: Move this into the `Step` impl, once `Step` is stabilized.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>forward_checked_impl(start: <span class="self">Self</span>, count: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">let </span>count = count.checked_mul(S::SIZE <span class="kw">as </span>usize)<span class="question-mark">?</span>;
+        <span class="kw">let </span>start_address = VirtAddr::forward_checked_impl(start.start_address, count)<span class="question-mark">?</span>;
+        <span class="prelude-val">Some</span>(<span class="self">Self </span>{
+            start_address,
+            size: PhantomData,
+        })
+    }
 }
 
 <span class="kw">impl</span>&lt;S: NotGiantPageSize&gt; Page&lt;S&gt; {
@@ -730,17 +756,11 @@
 <span class="attr">#[cfg(feature = <span class="string">&quot;step_trait&quot;</span>)]
 </span><span class="kw">impl</span>&lt;S: PageSize&gt; Step <span class="kw">for </span>Page&lt;S&gt; {
     <span class="kw">fn </span>steps_between(start: <span class="kw-2">&amp;</span><span class="self">Self</span>, end: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
-        Step::steps_between(<span class="kw-2">&amp;</span>start.start_address, <span class="kw-2">&amp;</span>end.start_address)
-            .map(|steps| steps / S::SIZE <span class="kw">as </span>usize)
+        <span class="self">Self</span>::steps_between_impl(start, end)
     }
 
     <span class="kw">fn </span>forward_checked(start: <span class="self">Self</span>, count: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">let </span>count = count.checked_mul(S::SIZE <span class="kw">as </span>usize)<span class="question-mark">?</span>;
-        <span class="kw">let </span>start_address = Step::forward_checked(start.start_address, count)<span class="question-mark">?</span>;
-        <span class="prelude-val">Some</span>(<span class="self">Self </span>{
-            start_address,
-            size: PhantomData,
-        })
+        <span class="self">Self</span>::forward_checked_impl(start, count)
     }
 
     <span class="kw">fn </span>backward_checked(start: <span class="self">Self</span>, count: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
@@ -817,7 +837,7 @@
 }
 
 <span class="kw">impl</span>&lt;S: PageSize&gt; PageRangeInclusive&lt;S&gt; {
-    <span class="doccomment">/// Returns wether this range contains no pages.
+    <span class="doccomment">/// Returns whether this range contains no pages.
     </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.start &gt; <span class="self">self</span>.end
