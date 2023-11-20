@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::ToString, vec::Vec};
+use alloc::{boxed::Box, collections::VecDeque, string::ToString, vec::Vec};
 use core::{
     any::{type_name_of_val, Any},
     sync::atomic::Ordering,
@@ -425,17 +425,43 @@ pub fn write(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::socket`]
 fn socket(_args: &mut SyscallRegs) -> Result<usize> {
-    warn!("TODO: socket");
-    return Err(Error::INTERRUPTED);
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let socket = Some(Socket {
+        socket: Mutex::new(VecDeque::new()),
+    });
+
+    let mut sockets = ext.sockets.lock();
+
+    let fd;
+    if let Some((_fd, spot)) = sockets
+        .iter_mut()
+        .enumerate()
+        .find(|(_, socket)| socket.is_none())
+    {
+        fd = _fd;
+        *spot = socket;
+    } else {
+        fd = sockets.len();
+        sockets.push(socket);
+    }
+
+    return Ok(fd);
 }
 
 struct ProcessExtra {
     files: Mutex<Vec<Option<File>>>,
+    sockets: Mutex<Vec<Option<Socket>>>,
 }
 
 struct File {
     file_ref: FileRef<Futex>,
     position: usize,
+}
+
+struct Socket {
+    socket: Mutex<VecDeque<u8>>,
 }
 
 impl ProcessExt for ProcessExtra {
@@ -451,6 +477,7 @@ fn process_ext_with(proc: &Process) -> &ProcessExtra {
         .call_once(|| {
             Box::new(ProcessExtra {
                 files: Mutex::new(Vec::new()),
+                sockets: Mutex::new(Vec::new()),
             })
         })
         .as_any()
