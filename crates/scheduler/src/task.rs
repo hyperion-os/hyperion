@@ -26,88 +26,89 @@ use hyperion_mem::{pmm, vmm::PageMapImpl};
 use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
-use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TLS};
+use crate::{cleanup::Cleanup, ipc::SimpleIpc, task, Scheduler, TLS};
 
 //
 
-// static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
+impl<E: Ext> Scheduler<E> {
+    pub fn processes(&self) -> Vec<Arc<Process<E>>> {
+        let processes = self.processes.lock();
+        // processes.retain(|_, proc| proc.upgrade().is_some());
 
-// TODO: get rid of the slow dumbass spinlock mutexes everywhere
-pub static PROCESSES: Mutex<BTreeMap<Pid, Weak<Process>>> = Mutex::new(BTreeMap::new());
-// pub static TASKS: Mutex<Vec<Weak<Process>>> = Mutex::new(Vec::new());
+        processes
+            .values()
+            .filter_map(|proc| proc.upgrade())
+            .collect()
+    }
 
-pub static TASKS_RUNNING: AtomicUsize = AtomicUsize::new(0);
-pub static TASKS_SLEEPING: AtomicUsize = AtomicUsize::new(0);
-pub static TASKS_READY: AtomicUsize = AtomicUsize::new(0);
-pub static TASKS_DROPPING: AtomicUsize = AtomicUsize::new(0);
+    #[track_caller]
+    pub fn switch_because(&self, next: Task<E>, new_state: TaskState, cleanup: Cleanup) {
+        // debug!("switching to {}", next.name.read().clone());
+        if !next.is_valid {
+            panic!("this task is not safe to switch to");
+        }
+
+        let next_ctx = next.context.get();
+        if next.swap_state(TaskState::Running) == TaskState::Running {
+            panic!("this task is already running");
+        }
+
+        // tell the page fault handler that the actual current task is still this one
+        let task = self.task();
+        let task_inner: &TaskInner = &task;
+        TLS.switch_last_active.store(
+            task_inner as *const TaskInner as *mut TaskInner,
+            Ordering::SeqCst,
+        );
+        drop(task);
+
+        let prev = self.swap_current(next);
+        let prev_ctx = prev.context.get();
+        if prev.swap_state(new_state) != TaskState::Running {
+            panic!("previous task wasn't running");
+        }
+
+        // push the current thread to the drop queue AFTER switching
+        self.after().push(cleanup.task(prev));
+
+        // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
+        // the box keeps the pointer pinned in memory
+        debug_assert!(TLS.initialized.load(Ordering::SeqCst));
+        unsafe { ctx_switch(prev_ctx, next_ctx) };
+
+        // the ctx_switch can continue either in `thread_entry` or here:
+
+        self.post_ctx_switch();
+    }
+
+    fn post_ctx_switch(&self) {
+        // invalidate the page fault handler's old task store
+        self.tls
+            .switch_last_active
+            .store(ptr::null_mut(), Ordering::SeqCst);
+
+        self.cleanup();
+    }
+
+    extern "C" fn thread_entry(&self) -> ! {
+        self.post_ctx_switch();
+
+        let job = self.task().job.take().expect("no active jobs");
+        job();
+
+        self.stop();
+    }
+}
 
 //
 
-pub fn processes() -> Vec<Arc<Process>> {
-    let processes = PROCESSES.lock();
-    // processes.retain(|_, proc| proc.upgrade().is_some());
+pub trait Ext {
+    type ProcExt;
+    type TaskExt;
 
-    processes
-        .values()
-        .filter_map(|proc| proc.upgrade())
-        .collect()
-}
+    fn new_proc() -> Self::ProcExt;
 
-#[track_caller]
-pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
-    // debug!("switching to {}", next.name.read().clone());
-    if !next.is_valid {
-        panic!("this task is not safe to switch to");
-    }
-
-    let next_ctx = next.context.get();
-    if next.swap_state(TaskState::Running) == TaskState::Running {
-        panic!("this task is already running");
-    }
-
-    // tell the page fault handler that the actual current task is still this one
-    let task = task();
-    let task_inner: &TaskInner = &task;
-    TLS.switch_last_active.store(
-        task_inner as *const TaskInner as *mut TaskInner,
-        Ordering::SeqCst,
-    );
-    drop(task);
-
-    let prev = swap_current(next);
-    let prev_ctx = prev.context.get();
-    if prev.swap_state(new_state) != TaskState::Running {
-        panic!("previous task wasn't running");
-    }
-
-    // push the current thread to the drop queue AFTER switching
-    after().push(cleanup.task(prev));
-
-    // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
-    // the box keeps the pointer pinned in memory
-    debug_assert!(TLS.initialized.load(Ordering::SeqCst));
-    unsafe { ctx_switch(prev_ctx, next_ctx) };
-
-    // the ctx_switch can continue either in `thread_entry` or here:
-
-    post_ctx_switch();
-}
-
-fn post_ctx_switch() {
-    // invalidate the page fault handler's old task store
-    TLS.switch_last_active
-        .store(ptr::null_mut(), Ordering::SeqCst);
-
-    crate::cleanup();
-}
-
-extern "C" fn thread_entry() -> ! {
-    post_ctx_switch();
-
-    let job = task().job.take().expect("no active jobs");
-    job();
-
-    stop();
+    fn new_task() -> Self::TaskExt;
 }
 
 //
@@ -151,8 +152,9 @@ impl Pid {
 }
 
 impl Pid {
-    pub fn find(self) -> Option<Arc<Process>> {
-        PROCESSES
+    pub fn find<E: Ext>(self, scheduler: &Scheduler<E>) -> Option<Arc<Process<E>>> {
+        scheduler
+            .processes
             .lock()
             .get(&self)
             .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
@@ -175,7 +177,7 @@ impl Tid {
         Self(num)
     }
 
-    pub fn next(proc: &Process) -> Self {
+    pub fn next<P>(proc: &Process<P>) -> Self {
         Self::new(proc.next_tid.fetch_add(1, Ordering::Relaxed))
     }
 
@@ -187,7 +189,7 @@ impl Tid {
 //
 
 /// A process, each process can have multiple 'tasks' (pthreads)
-pub struct Process {
+pub struct Process<E: Ext> {
     /// process id
     pub pid: Pid,
 
@@ -212,34 +214,31 @@ pub struct Process {
     /// a store for all allocated (and mapped) physical pages
     pub allocs: PageAllocs,
 
-    /// extra process info added by the kernel (like file descriptors)
-    pub ext: Once<Box<dyn ProcessExt + 'static>>,
-
+    /// the process should be terminated, caused by GPFs at the moment
     pub should_terminate: AtomicBool,
+
+    /// extra process info added by the kernel (like file descriptors)
+    pub process_ext: E::ProcExt,
+
+    scheduler: &'static Scheduler<E>,
 }
 
-impl Drop for Process {
+impl<P> Drop for Process<P> {
     fn drop(&mut self) {
-        PROCESSES.lock().remove(&self.pid);
+        self.scheduler.processes.lock().remove(&self.pid);
     }
 }
 
 //
 
-pub trait ProcessExt: Sync + Send {
-    fn as_any(&self) -> &dyn Any;
-}
-
-//
-
-pub struct TaskInner {
+pub struct TaskInner<E: Ext> {
     /// thread id
     ///
     /// thread id's are per process, each process has at least TID 0
     pub tid: Tid,
 
     /// a shared process ref, multiple tasks can point to the same process
-    pub process: Arc<Process>,
+    pub process: Arc<Process<E>>,
 
     /// task state, 'is the task waiting or what?'
     pub state: AtomicCell<TaskState>,
@@ -255,6 +254,9 @@ pub struct TaskInner {
     /// thread_entry runs this function once, and stops the process after returning
     pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>, Mutex<()>>,
 
+    /// extra task info added by the kernel (not to be confused with `process_ext` in [`Process`])
+    pub task_ext: E::TaskExt,
+
     // context is used 'unsafely' only in the switch
     // TaskInner is pinned in heap using a Box to make sure a pointer to this (`context`)
     // is valid after switching task before switching context
@@ -264,17 +266,23 @@ pub struct TaskInner {
     is_valid: bool,
 }
 
-impl Deref for TaskInner {
-    type Target = Process;
+impl<E: Ext> Deref for TaskInner<E> {
+    type Target = Process<E>;
 
     fn deref(&self) -> &Self::Target {
         &self.process
     }
 }
 
-unsafe impl Sync for TaskInner {}
+unsafe impl<E> Sync for TaskInner<E>
+where
+    E: Ext,
+    E::ProcExt: Sync,
+    E::TaskExt: Sync,
+{
+}
 
-impl Drop for TaskInner {
+impl<E: Ext> Drop for TaskInner<E> {
     #[track_caller]
     fn drop(&mut self) {
         assert_eq!(
@@ -284,7 +292,10 @@ impl Drop for TaskInner {
             self.name.read().clone(),
             core::panic::Location::caller(),
         );
-        TASKS_DROPPING.fetch_sub(1, Ordering::Relaxed);
+        self.scheduler
+            .stats
+            .dropping
+            .fetch_sub(1, Ordering::Relaxed);
 
         // TODO: drop pages
 
@@ -300,15 +311,15 @@ impl Drop for TaskInner {
 //
 
 #[derive(Clone)]
-pub struct Task(Arc<TaskInner>);
+pub struct Task<E: Ext>(Arc<TaskInner<E>>);
 
-impl Task {
-    pub fn new(f: impl FnOnce() + Send + 'static) -> Task {
+impl<E: Ext> Task<E> {
+    pub fn new(f: impl FnOnce() + Send + 'static) -> Self {
         let name = type_name_of_val(&f);
         Self::new_any(Box::new(f) as _, name.into())
     }
 
-    pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Task {
+    pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Self {
         trace!("initializing task {name}");
 
         let process = Arc::new(Process {
@@ -320,9 +331,10 @@ impl Task {
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
-            ext: Once::new(),
             should_terminate: AtomicBool::new(false),
+            process_ext: E::new_proc(),
         });
+
         PROCESSES
             .lock()
             .insert(process.pid, Arc::downgrade(&process));
@@ -352,18 +364,23 @@ impl Task {
             job: TakeOnce::new(f),
             context,
             is_valid: true,
+            task_ext: E::new_task(),
         }))
     }
 
-    pub fn thread(this: Task, f: impl FnOnce() + Send + 'static) -> Task {
+    pub fn thread(this: Self, f: impl FnOnce() + Send + 'static) -> Self {
         Self::thread_any(this, Box::new(f))
     }
 
-    pub fn thread_any(this: Task, f: Box<dyn FnOnce() + Send + 'static>) -> Task {
+    pub fn thread_any(this: Self, f: Box<dyn FnOnce() + Send + 'static>) -> Self {
         trace!(
             "initializing secondary thread for process {}",
             this.name.read().clone()
         );
+
+        if !this.is_valid {
+            panic!("cannot create a thread for an invalid process");
+        }
 
         let process = this.process.clone();
 
@@ -387,10 +404,11 @@ impl Task {
             job: TakeOnce::new(f),
             context,
             is_valid: true,
+            task_ext: E::new_task(),
         }))
     }
 
-    pub fn bootloader() -> Task {
+    pub fn bootloader() -> Self {
         // TODO: dropping this task should also free the bootloader stacks
         // they are currently dropped by a task in kernel/src/main.rs
 
@@ -405,8 +423,8 @@ impl Task {
             heap_bottom: AtomicUsize::new(0x1000),
             simple_ipc: SimpleIpc::new(),
             allocs: PageAllocs::default(),
-            ext: Once::new(),
             should_terminate: AtomicBool::new(true),
+            process_ext: E::new_proc(),
         });
 
         let mut kernel_stack = process
@@ -434,6 +452,7 @@ impl Task {
             job: TakeOnce::none(),
             context,
             is_valid: false,
+            task_ext: E::new_task(),
         }))
     }
 
@@ -459,21 +478,22 @@ impl Task {
         old
     }
 
-    pub fn ptr_eq(&self, other: &Task) -> bool {
+    pub fn ptr_eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
-impl Deref for Task {
-    type Target = TaskInner;
+impl<E> Deref for Task<E> {
+    type Target = TaskInner<E>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<F> From<F> for Task
+impl<E, F> From<F> for Task<E>
 where
+    E: Ext,
     F: FnOnce() + Send + 'static,
 {
     fn from(value: F) -> Self {

@@ -10,56 +10,63 @@ use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use spin::Mutex;
 use x86_64::VirtAddr;
 
-use crate::{stop, task, task::TaskInner, TLS};
+use crate::{
+    task::{Ext, TaskInner},
+    Scheduler,
+};
 
 //
 
-pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
-    trace!("scheduler page fault (from {user:?}) (cpu: {})", cpu_id());
+impl<E: Ext> Scheduler<E> {
+    pub fn page_fault_handler(&self, addr: usize, user: Privilege) -> PageFaultResult {
+        trace!("scheduler page fault (from {user:?}) (cpu: {})", cpu_id());
 
-    let actual_current = TLS.switch_last_active.load(Ordering::SeqCst);
-    if !actual_current.is_null() {
-        let current: &TaskInner = unsafe { &*actual_current };
+        let actual_current = self.tls.switch_last_active.load(Ordering::SeqCst);
+        if !actual_current.is_null() {
+            let current: &TaskInner = unsafe { &*actual_current };
 
-        // try handling the page fault first if it happened during a task switch
+            // try handling the page fault first if it happened during a task switch
+            if user == Privilege::User {
+                // `Err(Handled)` short circuits and returns
+                handle_stack_grow(&current.user_stack, addr)?;
+            } else {
+                handle_stack_grow(&current.kernel_stack, addr)?;
+                handle_stack_grow(&current.user_stack, addr)?;
+            }
+
+            // otherwise fall back to handling this task's page fault
+        }
+
+        let current = self.task();
+
         if user == Privilege::User {
             // `Err(Handled)` short circuits and returns
             handle_stack_grow(&current.user_stack, addr)?;
+
+            // user process tried to access memory thats not available to it
+            hyperion_log::warn!("killing user-space process");
+            current.should_terminate.store(true, Ordering::SeqCst);
+            self.stop();
         } else {
             handle_stack_grow(&current.kernel_stack, addr)?;
             handle_stack_grow(&current.user_stack, addr)?;
-        }
 
-        // otherwise fall back to handling this task's page fault
+            hyperion_log::error!("{:?}", current.kernel_stack.lock());
+            hyperion_log::error!("page fault from kernel-space");
+        };
+
+        let page = PageMap::current();
+        let v = VirtAddr::new(addr as _);
+        let p = page.virt_to_phys(v);
+        error!("{v:018x?} -> {p:018x?}");
+
+        error!("couldn't handle a page fault {}", cpu_id());
+
+        Ok(NotHandled)
     }
-
-    let current = task();
-
-    if user == Privilege::User {
-        // `Err(Handled)` short circuits and returns
-        handle_stack_grow(&current.user_stack, addr)?;
-
-        // user process tried to access memory thats not available to it
-        hyperion_log::warn!("killing user-space process");
-        current.should_terminate.store(true, Ordering::SeqCst);
-        stop();
-    } else {
-        handle_stack_grow(&current.kernel_stack, addr)?;
-        handle_stack_grow(&current.user_stack, addr)?;
-
-        hyperion_log::error!("{:?}", current.kernel_stack.lock());
-        hyperion_log::error!("page fault from kernel-space");
-    };
-
-    let page = PageMap::current();
-    let v = VirtAddr::new(addr as _);
-    let p = page.virt_to_phys(v);
-    error!("{v:018x?} -> {p:018x?}");
-
-    error!("couldn't handle a page fault {}", cpu_id());
-
-    Ok(NotHandled)
 }
+
+//
 
 fn handle_stack_grow<T: StackType + Debug>(
     stack: &Mutex<Stack<T>>,
