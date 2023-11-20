@@ -157,6 +157,7 @@ impl Shell {
             "task2" => self.task2_cmd(args)?,
             "task3" => self.task3_cmd(args)?,
             "lapic_id" => self.lapic_id_cmd(args)?,
+            "cpu_id" => self.cpu_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
             "nproc" => self.nproc_cmd(args)?,
             "top" => self.top_cmd(args)?,
@@ -424,7 +425,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, ps, nproc, top, send, exit, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, cpu_id, ps, nproc, top, send, exit, clear");
 
         Ok(())
     }
@@ -615,6 +616,11 @@ impl Shell {
 
     fn lapic_id_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         _ = writeln!(self.term, "{:?}", ApicId::current());
+        Ok(())
+    }
+
+    fn cpu_id_cmd(&mut self, _args: Option<&str>) -> Result<()> {
+        _ = writeln!(self.term, "{:?}", hyperion_cpu_id::cpu_id());
         Ok(())
     }
 
