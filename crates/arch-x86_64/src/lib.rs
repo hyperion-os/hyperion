@@ -95,6 +95,14 @@ pub mod int {
         int::without_interrupts(f)
     }
 
+    pub extern "C" fn enable_and_nop64() {
+        enable();
+        for _ in 0..64 {
+            x86_64::instructions::nop();
+        }
+        disable();
+    }
+
     pub extern "C" fn wait() {
         // extern "C" disables red zones and red zones fuck up the stack when an interrupt happens
         // https://doc.rust-lang.org/rustc/platform-support/x86_64-unknown-none.html

@@ -4,12 +4,39 @@ use core::ptr::NonNull;
 
 use err::Result;
 
-use self::fs::{FileDesc, FileOpenFlags};
+use self::{
+    fs::{FileDesc, FileOpenFlags},
+    net::{Protocol, SocketDesc, SocketDomain, SocketType},
+};
 
 //
 
 pub mod err;
 pub mod fs;
+pub mod net;
+
+pub mod id {
+    pub const LOG: usize = 1;
+    pub const EXIT: usize = 2;
+    pub const YIELD_NOW: usize = 3;
+    pub const TIMESTAMP: usize = 4;
+    pub const NANOSLEEP: usize = 5;
+    pub const NANOSLEEP_UNTIL: usize = 6;
+
+    pub const PTHREAD_SPAWN: usize = 8;
+    pub const PALLOC: usize = 9;
+    pub const PFREE: usize = 10;
+    pub const SEND: usize = 11;
+    pub const RECV: usize = 12;
+    pub const RENAME: usize = 13;
+
+    pub const OPEN: usize = 1000;
+    pub const CLOSE: usize = 1100;
+    pub const READ: usize = 1200;
+    pub const WRITE: usize = 1300;
+
+    pub const SOCKET: usize = 2000;
+}
 
 //
 
@@ -80,34 +107,34 @@ pub fn log(str: &str) -> Result<()> {
     // TODO: should null terminated strings be used instead to save registers?
     // decide later™
 
-    unsafe { syscall_2(1, str.as_ptr() as usize, str.len()) }.map(|_| {})
+    unsafe { syscall_2(id::LOG, str.as_ptr() as usize, str.len()) }.map(|_| {})
 }
 
 /// exit the process with a code
 #[inline(always)]
 pub fn exit(code: i64) -> ! {
-    let result = unsafe { syscall_1(2, code as usize) };
+    let result = unsafe { syscall_1(id::EXIT, code as usize) };
     unreachable!("{result:?}");
 }
 
 /// context switch from this process, no guarantees about actually switching
 #[inline(always)]
 pub fn yield_now() {
-    unsafe { syscall_0(3) }.unwrap();
+    unsafe { syscall_0(id::YIELD_NOW) }.unwrap();
 }
 
 /// u128 nanoseconds since boot
 #[inline(always)]
 pub fn timestamp() -> Result<u128> {
     let mut result: u128 = 0;
-    unsafe { syscall_1(4, &mut result as *mut u128 as usize) }.map(move |_| result)
+    unsafe { syscall_1(id::TIMESTAMP, &mut result as *mut u128 as usize) }.map(move |_| result)
 }
 
 /// context switch from this process and switch back when `nanos` nanoseconds have passed
 #[inline(always)]
 pub fn nanosleep(nanos: u64) {
     // TODO: u128
-    unsafe { syscall_1(5, nanos as usize) }.unwrap();
+    unsafe { syscall_1(id::NANOSLEEP, nanos as usize) }.unwrap();
 }
 
 /// context switch from this process and switch back when [`timestamp()`] > `deadline_nanos`
@@ -116,64 +143,79 @@ pub fn nanosleep(nanos: u64) {
 #[inline(always)]
 pub fn nanosleep_until(deadline_nanos: u64) {
     // TODO: u128
-    unsafe { syscall_1(6, deadline_nanos as usize) }.unwrap();
+    unsafe { syscall_1(id::NANOSLEEP_UNTIL, deadline_nanos as usize) }.unwrap();
 }
 
 /// spawn a new pthread for the same process
 #[inline(always)]
 pub fn pthread_spawn(thread_entry: extern "C" fn(usize, usize) -> !, arg: usize) {
-    unsafe { syscall_2(8, thread_entry as usize, arg) }.unwrap();
+    unsafe { syscall_2(id::PTHREAD_SPAWN, thread_entry as usize, arg) }.unwrap();
 }
 
 /// allocate physical pages and map to heap
 #[inline(always)]
 pub fn palloc(pages: usize) -> Result<Option<NonNull<u8>>> {
-    unsafe { syscall_1(9, pages) }.map(|ptr| NonNull::new(ptr as _))
+    unsafe { syscall_1(id::PALLOC, pages) }.map(|ptr| NonNull::new(ptr as _))
 }
 
 /// deallocate physical pages and unmap from heap
 #[inline(always)]
 pub fn pfree(ptr: NonNull<u8>, pages: usize) -> Result<()> {
-    unsafe { syscall_2(10, ptr.as_ptr() as usize, pages) }.map(|_| {})
+    unsafe { syscall_2(id::PFREE, ptr.as_ptr() as usize, pages) }.map(|_| {})
 }
 
 /// send data to a PID based single naïve IPC channel
 #[inline(always)]
-pub fn send(target: u64, data: &[u8]) -> Result<()> {
-    unsafe { syscall_3(11, target as usize, data.as_ptr() as usize, data.len()) }.map(|_| {})
+pub fn send(target: usize, data: &[u8]) -> Result<()> {
+    unsafe { syscall_3(id::SEND, target, data.as_ptr() as usize, data.len()) }.map(|_| {})
 }
 
 /// read data from a PID based single naïve IPC channel
 pub fn recv(buf: &mut [u8]) -> Result<usize> {
-    unsafe { syscall_2(12, buf.as_mut_ptr() as usize, buf.len()) }
+    unsafe { syscall_2(id::RECV, buf.as_mut_ptr() as usize, buf.len()) }
 }
 
 /// rename the current process
 #[inline(always)]
 pub fn rename(new_name: &str) -> Result<()> {
-    unsafe { syscall_2(13, new_name.as_ptr() as usize, new_name.len()) }.map(|_| {})
+    unsafe { syscall_2(id::RENAME, new_name.as_ptr() as usize, new_name.len()) }.map(|_| {})
 }
 
 /// open a file
 #[inline(always)]
 pub fn open(path: &str, flags: FileOpenFlags, mode: usize) -> Result<FileDesc> {
-    unsafe { syscall_4(1000, path.as_ptr() as usize, path.len(), flags.bits(), mode) }.map(FileDesc)
+    unsafe {
+        syscall_4(
+            id::OPEN,
+            path.as_ptr() as usize,
+            path.len(),
+            flags.bits(),
+            mode,
+        )
+    }
+    .map(FileDesc)
 }
 
 /// close a file
 #[inline(always)]
 pub fn close(file: FileDesc) -> Result<()> {
-    unsafe { syscall_1(1100, file.0) }.map(|_| {})
+    unsafe { syscall_1(id::CLOSE, file.0) }.map(|_| {})
 }
 
 /// read from a file
 #[inline(always)]
 pub fn read(file: FileDesc, buf: &mut [u8]) -> Result<usize> {
-    unsafe { syscall_3(1200, file.0, buf.as_mut_ptr() as usize, buf.len()) }
+    unsafe { syscall_3(id::READ, file.0, buf.as_mut_ptr() as usize, buf.len()) }
 }
 
 /// write into a file
 #[inline(always)]
 pub fn write(file: FileDesc, buf: &[u8]) -> Result<usize> {
-    unsafe { syscall_3(1300, file.0, buf.as_ptr() as usize, buf.len()) }
+    unsafe { syscall_3(id::WRITE, file.0, buf.as_ptr() as usize, buf.len()) }
+}
+
+/// create a socket
+#[inline(always)]
+pub fn socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -> Result<SocketDesc> {
+    unsafe { syscall_3(id::SOCKET, domain.0, ty.0, protocol.0) }.map(SocketDesc)
 }

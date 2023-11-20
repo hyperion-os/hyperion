@@ -85,7 +85,8 @@ pub fn rename(new_name: Cow<'static, str>) {
     *process().name.write() = new_name;
 }
 
-/// init this processors scheduling
+/// init this processors scheduling and
+/// immediately switch to the provided task
 pub fn init(task: impl Into<Task>) -> ! {
     hyperion_arch::int::disable();
 

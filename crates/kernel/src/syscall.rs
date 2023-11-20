@@ -49,6 +49,8 @@ pub fn syscall(args: &mut SyscallRegs) {
         1200 => call_id(read, args),
         1300 => call_id(write, args),
 
+        2000 => call_id(socket, args),
+
         _ => {
             debug!("invalid syscall");
             hyperion_scheduler::stop();
@@ -411,6 +413,20 @@ pub fn write(args: &mut SyscallRegs) -> Result<usize> {
     file.position += written;
 
     return Ok(written);
+}
+
+/// create a socket
+///
+/// # raw syscall form:
+///
+/// `fn syscall_3(SYSCALL_SOCKET, domain: usize, type: usize, protocol: usize) -> usize`
+///
+/// # wrapper
+///
+/// [`hyperion_syscall::socket`]
+fn socket(_args: &mut SyscallRegs) -> Result<usize> {
+    warn!("TODO: socket");
+    return Err(Error::INTERRUPTED);
 }
 
 struct ProcessExtra {

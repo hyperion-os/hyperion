@@ -16,6 +16,7 @@ use core::{
 
 use hyperion_syscall::{
     fs::{File, OpenOptions},
+    net::{Protocol, SocketDomain, SocketType},
     *,
 };
 
@@ -37,6 +38,9 @@ pub fn main(args: CliArgs) {
     //     }
     //     println!("{:?}", unsafe { syscall_0(i) });
     // }
+
+    let _sock =
+        hyperion_syscall::socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
 
     match args.iter().next().expect("arg0 to be present") {
         // busybox style single binary 'coreutils'
@@ -82,7 +86,7 @@ pub fn main(args: CliArgs) {
         "/bin/task1" => {
             rename("<Get_Input>").unwrap();
 
-            let pid: u64 = args
+            let pid: usize = args
                 .iter()
                 .nth(1)
                 .expect("missing arg: PID")
@@ -105,7 +109,7 @@ pub fn main(args: CliArgs) {
         "/bin/task2" => {
             rename("<Clean_Input>").unwrap();
 
-            let pid: u64 = args
+            let pid: usize = args
                 .iter()
                 .nth(1)
                 .expect("missing arg: PID")
