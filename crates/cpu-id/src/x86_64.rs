@@ -1,4 +1,7 @@
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::{
+    arch::asm,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use x86_64::registers::model_specific::Msr;
 
@@ -15,10 +18,37 @@ pub fn cpu_count() -> usize {
 
 /// technically UB to read before a call to [`init`] on this CPU
 #[inline(always)]
-pub fn cpu_id() -> usize {
+pub extern "C" fn cpu_id() -> usize {
+    // TODO: its not usize, its u32
+    _cpu_id_rdpid()
+    // _cpu_id_tsc_msr()
+}
+
+// 1M calls in 0ms on my system, wtf
+#[inline(always)]
+fn _cpu_id_rdpid() -> usize {
+    let cpu_id: usize;
+    unsafe {
+        asm!("rdpid {x}", x = out(reg) cpu_id);
+    }
+    cpu_id
+}
+
+/// 1M calls in 591ms on my system
+#[inline(always)]
+fn _cpu_id_tsc_msr() -> usize {
     let tsc = Msr::new(IA32_TSC_AUX);
     unsafe { tsc.read() as _ }
 }
+
+/* fn benchmark() {
+    let mut i = 0usize;
+    let start = Instant::now();
+    for _ in 0..1_000_000 {
+        i += core::hint::black_box(|| (i, cpu_id()))().0;
+    }
+    println!("1M cpu_id calls in {}", start.elapsed());
+} */
 
 /// initialize [`cpu_id`]
 pub fn init() {
