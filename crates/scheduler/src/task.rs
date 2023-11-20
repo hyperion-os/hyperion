@@ -23,7 +23,7 @@ use hyperion_arch::{
 use hyperion_bitmap::Bitmap;
 use hyperion_log::*;
 use hyperion_mem::{pmm, vmm::PageMapImpl};
-use hyperion_sync::{spinlock::SpinLock, TakeOnce};
+use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
 use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TLS};
@@ -142,7 +142,7 @@ impl Pid {
 
     pub fn next() -> Self {
         static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
-        Pid(NEXT_PID.fetch_add(1, Ordering::Relaxed))
+        Self::new(NEXT_PID.fetch_add(1, Ordering::Relaxed))
     }
 
     pub const fn num(self) -> usize {
@@ -167,10 +167,32 @@ impl fmt::Display for Pid {
 
 //
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Tid(usize);
+
+impl Tid {
+    pub const fn new(num: usize) -> Self {
+        Self(num)
+    }
+
+    pub fn next(proc: &Process) -> Self {
+        Self::new(proc.next_tid.fetch_add(1, Ordering::Relaxed))
+    }
+
+    pub const fn num(self) -> usize {
+        self.0
+    }
+}
+
+//
+
 /// A process, each process can have multiple 'tasks' (pthreads)
 pub struct Process {
     /// process id
     pub pid: Pid,
+
+    /// next thread id
+    pub next_tid: AtomicUsize,
 
     /// process name
     pub name: RwLock<Cow<'static, str>>,
@@ -211,6 +233,11 @@ pub trait ProcessExt: Sync + Send {
 //
 
 pub struct TaskInner {
+    /// thread id
+    ///
+    /// thread id's are per process, each process has at least TID 0
+    pub tid: Tid,
+
     /// a shared process ref, multiple tasks can point to the same process
     pub process: Arc<Process>,
 
@@ -226,7 +253,7 @@ pub struct TaskInner {
     pub kernel_stack: Mutex<Stack<KernelStack>>,
 
     /// thread_entry runs this function once, and stops the process after returning
-    pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>, SpinLock>,
+    pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>, Mutex<()>>,
 
     // context is used 'unsafely' only in the switch
     // TaskInner is pinned in heap using a Box to make sure a pointer to this (`context`)
@@ -286,6 +313,7 @@ impl Task {
 
         let process = Arc::new(Process {
             pid: Pid::next(),
+            next_tid: AtomicUsize::new(0),
             name: RwLock::new(name),
             nanos: AtomicU64::new(0),
             address_space: AddressSpace::new(PageMap::new()),
@@ -316,6 +344,7 @@ impl Task {
 
         TASKS_READY.fetch_add(1, Ordering::Relaxed);
         Self(Arc::new(TaskInner {
+            tid: Tid::next(&process),
             process,
             state: AtomicCell::new(TaskState::Ready),
             user_stack: Mutex::new(user_stack),
@@ -350,6 +379,7 @@ impl Task {
 
         TASKS_READY.fetch_add(1, Ordering::Relaxed);
         Self(Arc::new(TaskInner {
+            tid: Tid::next(&this.process),
             process,
             state: AtomicCell::new(TaskState::Ready),
             user_stack: Mutex::new(user_stack),
@@ -368,6 +398,7 @@ impl Task {
 
         let process = Arc::new(Process {
             pid: Pid(0),
+            next_tid: AtomicUsize::new(0),
             name: RwLock::new("bootloader".into()),
             nanos: AtomicU64::new(0),
             address_space: AddressSpace::new(PageMap::current()),
@@ -395,6 +426,7 @@ impl Task {
 
         TASKS_RUNNING.fetch_add(1, Ordering::Relaxed);
         Self(Arc::new(TaskInner {
+            tid: Tid::next(&process),
             process,
             state: AtomicCell::new(TaskState::Running),
             user_stack: Mutex::new(user_stack),

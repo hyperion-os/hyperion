@@ -111,11 +111,11 @@ pub fn init(task: impl Into<Task>) -> ! {
             return;
         }
 
-        yield_now();
-
         if process().should_terminate.load(Ordering::Relaxed) {
             stop();
         }
+
+        yield_now();
     });
 
     // hyperion_sync::init_futex(futex::wait, futex::wake);
@@ -163,7 +163,6 @@ pub fn yield_now_wait() {
 
     let Some(next) = next_task() else {
         wait();
-        update_cpu_usage();
         // no tasks -> keep the current task running
         return;
     };

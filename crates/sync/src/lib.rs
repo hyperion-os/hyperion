@@ -1,18 +1,13 @@
 #![no_std]
-#![feature(const_caller_location, custom_test_frameworks, test)]
 
 //
-
-// use core::{ptr::NonNull, sync::atomic::AtomicUsize};
-
-// use crossbeam::atomic::AtomicCell;
 
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use lock_api::{Mutex, RawMutex};
 
 // pub mod mutex;
-pub mod spinlock;
+// pub mod spinlock;
 
 //
 

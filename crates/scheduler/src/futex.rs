@@ -4,8 +4,6 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use hyperion_sync::spinlock;
-
 use crate::{
     cleanup::Cleanup,
     task::{switch_because, Task, TaskState},
@@ -14,8 +12,7 @@ use crate::{
 
 //
 
-static WAITING: spinlock::Mutex<BTreeMap<usize, VecDeque<Task>>> =
-    spinlock::Mutex::new(BTreeMap::new());
+static WAITING: spin::Mutex<BTreeMap<usize, VecDeque<Task>>> = spin::Mutex::new(BTreeMap::new());
 
 //
 

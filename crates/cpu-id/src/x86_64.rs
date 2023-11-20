@@ -31,7 +31,6 @@ pub fn cpu_id_dyn_type() -> u8 {
     CPU_ID_DYN.load(Ordering::Relaxed)
 }
 
-/// 5M cpu_id calls in 47ms141µs160ns (on my system, uses rdtscp)
 #[inline(always)]
 fn _cpu_id_dyn() -> usize {
     match CPU_ID_DYN.load(Ordering::Relaxed) {
@@ -65,7 +64,10 @@ fn select_cpu_id_dyn() {
     CPU_ID_DYN.store(val, Ordering::Relaxed);
 }
 
-/// not supported on my system
+/// # cpu_id impl using `rdpid`
+///
+/// - my laptop:  not supported
+/// - my desktop: 5M cpu_id calls in 2ms303µs450ns
 #[inline(always)]
 fn _cpu_id_rdpid() -> usize {
     let cpu_id: usize;
@@ -75,7 +77,10 @@ fn _cpu_id_rdpid() -> usize {
     cpu_id
 }
 
-/// 5M cpu_id calls in 45ms973µs460ns (on my system)
+/// # cpu_id impl using `rdtscp`
+///
+/// - my laptop:  5M cpu_id calls in 45ms973µs460ns
+/// - my desktop: 5M cpu_id calls in 74ms661µs860ns
 #[inline(always)]
 fn _cpu_id_rdtscp() -> usize {
     let cpu_id: usize;
@@ -85,7 +90,10 @@ fn _cpu_id_rdtscp() -> usize {
     cpu_id
 }
 
-/// 5M cpu_id calls in 3s410ms622µs880ns (on my system)
+/// # cpu_id impl using `rdmsr`
+///
+/// - my laptop:  5M cpu_id calls in 3s410ms622µs880ns
+/// - my desktop: 5M cpu_id calls in 3s66ms322µs470ns
 #[inline(always)]
 fn _cpu_id_tsc_msr() -> usize {
     let tsc = Msr::new(IA32_TSC_AUX);

@@ -12,7 +12,9 @@
     core_intrinsics,
     custom_test_frameworks,
     panic_can_unwind,
-    type_name_of_val
+    type_name_of_val,
+    asm_const,
+    offset_of
 )]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
