@@ -48,6 +48,10 @@ impl Tss {
         tss
     }
 
+    /// # Safety
+    /// the stack ptr must be valid when an interrupt happens from user space in this CPU
+    ///
+    /// switching address spaces does not automatically switch the privilege stack ptr
     pub unsafe fn set_privilege_stack(&self, ptr: VirtAddr) {
         // force the save immediately
         let pst: *const [VirtAddr; 3] =

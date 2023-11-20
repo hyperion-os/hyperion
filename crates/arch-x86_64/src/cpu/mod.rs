@@ -2,11 +2,9 @@ use alloc::boxed::Box;
 use core::{
     cell::{RefCell, RefMut},
     mem::MaybeUninit,
-    ops::Deref,
 };
 
 use hyperion_log::trace;
-use spin::{Mutex, MutexGuard};
 
 use self::{gdt::Gdt, idt::Idt, tss::Tss};
 use crate::{
