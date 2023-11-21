@@ -115,7 +115,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     let should_panic = name.ends_with("should_panic");
 
     if !should_panic {
-        let err = Some(format!("`{name}` paniced unexpectedly: {info}"));
+        let err = Some(format!("`{name}` panicked unexpectedly: {info}"));
         RESULTS.push((name, err));
     } else {
         RESULTS.push((name, None));

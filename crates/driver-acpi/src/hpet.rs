@@ -579,7 +579,7 @@ bitfield! {
         periodic_int_cap: 4,
 
         /// active mode
-        /// 0 = one-shot (non-peridic)
+        /// 0 = one-shot (non-periodic)
         /// 1 = periodic
         mode: 3,
 

@@ -500,7 +500,7 @@ impl PageMap {
         };
         println!("BEGIN PAGE TABLE SEGMENTS");
         print_output(output);
-        println!("BEGIN HIGER HALF PAGE TABLE SEGMENTS");
+        println!("BEGIN HIGHER HALF PAGE TABLE SEGMENTS");
         print_output(output_hh);
         println!("END PAGE TABLE SEGMENTS");
     }

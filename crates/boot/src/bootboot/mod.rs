@@ -67,7 +67,7 @@ struct BootBoot {
     protocol: u8,           /* 1, static addresses, see PROTOCOL_* and LOADER_* above */
     fb_type: u8,            /* framebuffer type, see FB_* above */
     numcores: u16,          /* number of processor cores */
-    bspid: u16,             /* Bootsrap processor ID (Local APIC Id on x86_64) */
+    bspid: u16,             /* Bootstrap processor ID (Local APIC Id on x86_64) */
     timezone: i16,          /* in minutes -1440..1440 */
     datetime: [u8; 8usize], /* in BCD yyyymmddhhiiss UTC (independent to timezone) */
 
