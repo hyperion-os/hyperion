@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["recv","send"],"struct":["Channel"],"type":["Pipe"]};

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (3a85a5cfe 2023-11-20)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -223,6 +223,14 @@
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
 <a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
 </pre></div><pre class="rust"><code><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">&quot;../../../README.md&quot;</span>)]
 </span><span class="comment">//
 </span><span class="attr">#![no_std]
@@ -237,7 +245,9 @@
     core_intrinsics,
     custom_test_frameworks,
     panic_can_unwind,
-    type_name_of_val
+    type_name_of_val,
+    asm_const,
+    offset_of
 )]
 #![test_runner(<span class="kw">crate</span>::testfw::test_runner)]
 #![reexport_test_harness_main = <span class="string">&quot;test_main&quot;</span>]
@@ -356,8 +366,10 @@
             <span class="comment">// let pid = scheduler::process().pid;
             // info!(&quot;I am pid:{pid}&quot;);
 
-            </span><span class="kw">loop </span>{
-                <span class="kw">let </span>data = scheduler::recv();
+            </span><span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">256</span>];
+            <span class="kw">loop </span>{
+                <span class="kw">let </span>len = scheduler::recv(<span class="kw-2">&amp;mut </span>buf);
+                <span class="kw">let </span>data = <span class="kw-2">&amp;</span>buf[..len];
                 <span class="kw">let </span>string = core::str::from_utf8(<span class="kw-2">&amp;</span>data).expect(<span class="string">&quot;data to be UTF-8&quot;</span>);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>found = [<span class="bool-val">false</span>; <span class="number">26</span>];
@@ -376,7 +388,7 @@
                 }
                 <span class="comment">// println!(&quot;&lt;Find_Missing&gt;: &#39;{buf}&#39;&quot;);
 
-                </span>scheduler::send(self_pid, Vec::from(buf).into()).expect(<span class="string">&quot;send err&quot;</span>);
+                </span>scheduler::send(self_pid, buf.as_bytes()).expect(<span class="string">&quot;send err&quot;</span>);
             }
         });
 
@@ -386,14 +398,16 @@
             <span class="comment">// let pid = scheduler::process().pid;
             // info!(&quot;I am pid:{pid}&quot;);
 
-            </span><span class="kw">loop </span>{
-                <span class="kw">let </span>messy_data = scheduler::recv();
+            </span><span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">256</span>];
+            <span class="kw">loop </span>{
+                <span class="kw">let </span>len = scheduler::recv(<span class="kw-2">&amp;mut </span>buf);
+                <span class="kw">let </span>messy_data = <span class="kw-2">&amp;</span>buf[..len];
                 <span class="kw">let </span>messy_string = core::str::from_utf8(<span class="kw-2">&amp;</span>messy_data).expect(<span class="string">&quot;data to be UTF-8&quot;</span>);
 
                 <span class="kw">let </span>clean_string = messy_string.replace(|c| !char::is_alphabetic(c), <span class="string">&quot;&quot;</span>);
                 <span class="comment">// println!(&quot;&lt;Clean_Input&gt;: &#39;{clean_string}&#39;&quot;);
 
-                </span>scheduler::send(task_3_pid, Vec::from(clean_string).into()).expect(<span class="string">&quot;send err&quot;</span>);
+                </span>scheduler::send(task_3_pid, clean_string.as_bytes()).expect(<span class="string">&quot;send err&quot;</span>);
             }
         });
 
@@ -406,16 +420,18 @@
             </span><span class="kw">loop </span>{
                 <span class="kw">let </span>messy_string = <span class="string">&quot;abc3de5fgh@lmno&amp;pqr%stuv(w)xyz&quot;</span>.to_string();
                 <span class="comment">// println!(&quot;&lt;Get_Input&gt;: &#39;{messy_string}&#39;&quot;);
-                </span>scheduler::send(task_2_pid, Vec::from(messy_string).into()).expect(<span class="string">&quot;send err&quot;</span>);
+                </span>scheduler::send(task_2_pid, messy_string.as_bytes()).expect(<span class="string">&quot;send err&quot;</span>);
 
                 <span class="comment">// wait 2500ms
                 </span>scheduler::sleep(time::Duration::milliseconds(<span class="number">2500</span>));
             }
         });
 
-        <span class="kw">let </span>result = scheduler::recv();
-        <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>result[..], <span class="kw-2">&amp;</span><span class="string">b&quot;ijk&quot;</span>[..])
-    }
+        <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">8</span>];
+        <span class="kw">let </span>len = scheduler::recv(<span class="kw-2">&amp;mut </span>buf);
+        <span class="kw">let </span>result = <span class="kw-2">&amp;</span>buf[..len];
+        <span class="comment">// assert_eq!(&amp;result[..], &amp;b&quot;ijk&quot;[..])
+    </span>}
 
     <span class="attr">#[test_case]
     </span><span class="kw">fn </span>scheduler_mutex_trivial() {

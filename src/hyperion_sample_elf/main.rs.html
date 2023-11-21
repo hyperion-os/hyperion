@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/sample-elf/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_sample_elf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (9a66e4471 2023-11-19)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/sample-elf/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_sample_elf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (3a85a5cfe 2023-11-20)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -287,6 +287,25 @@
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
 <a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![no_main]
 #![feature(format_args_nl, slice_internals)]
@@ -295,21 +314,17 @@
 
 </span><span class="kw">extern crate </span>alloc;
 
-<span class="kw">use </span>alloc::{boxed::Box, format, string::String, sync::Arc};
+<span class="kw">use </span>alloc::boxed::Box;
 <span class="kw">use </span>core::{
     alloc::GlobalAlloc,
     fmt::{<span class="self">self</span>, Write},
     ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
 };
 
 <span class="kw">use </span>hyperion_syscall::{
-    fs::{File, OpenOptions},
     net::{Protocol, SocketDomain, SocketType},
     <span class="kw-2">*</span>,
 };
-
-<span class="kw">use </span><span class="kw">crate</span>::io::{BufReader, SimpleIpcInputChannel};
 
 <span class="comment">//
 
@@ -317,145 +332,168 @@
 
 //
 
-</span><span class="kw">pub fn </span>main(args: CliArgs) {
-    <span class="macro">println!</span>(<span class="string">&quot;sample app main&quot;</span>);
-    <span class="macro">println!</span>(<span class="string">&quot;args: {args:?}&quot;</span>);
+</span><span class="kw">pub fn </span>main(_args: CliArgs) {
+    <span class="comment">// println!(&quot;sample app main&quot;);
+    // println!(&quot;args: {args:?}&quot;);
 
-    <span class="comment">// for i in 1..13 {
+    // for i in 1..13 {
     //     if i == 2 || i == 8 {
     //         continue;
     //     }
     //     println!(&quot;{:?}&quot;, unsafe { syscall_0(i) });
     // }
 
-    </span><span class="kw">let </span>_sock =
-        hyperion_syscall::socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
+    </span>spawn(|| {
+        <span class="kw">let </span>server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
 
-    <span class="kw">match </span>args.iter().next().expect(<span class="string">&quot;arg0 to be present&quot;</span>) {
-        <span class="comment">// busybox style single binary &#39;coreutils&#39;
-        </span><span class="string">&quot;/bin/run&quot; </span>=&gt; {
-            <span class="kw">let </span>inc = Arc::new(AtomicUsize::new(<span class="number">0</span>));
+        bind(server, <span class="string">&quot;/dev/server.sock&quot;</span>).unwrap();
 
-            <span class="kw">for </span>_n <span class="kw">in </span><span class="number">0</span>..<span class="number">80 </span>{
-                <span class="kw">let </span>inc = inc.clone();
-                spawn(<span class="kw">move </span>|| {
-                    <span class="comment">// println!(&quot;hello from thread {_n}&quot;);
-                    </span>inc.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
+        <span class="kw">let </span>_conn = accept(server).unwrap();
+
+        <span class="macro">println!</span>(<span class="string">&quot;connected&quot;</span>);
+
+        <span class="comment">// TODO: send(conn, b&quot;Hello&quot;).unwrap();
+    </span>});
+
+    <span class="comment">// wait for the server to be up
+    </span>nanosleep(<span class="number">50_000_000</span>);
+
+    <span class="kw">let </span>client = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
+
+    connect(client, <span class="string">&quot;/dev/server.sock&quot;</span>).unwrap();
+
+    <span class="macro">println!</span>(<span class="string">&quot;connected&quot;</span>);
+
+    <span class="comment">// TODO:
+    // let mut buf = [0u8; 64];
+    // let len = recv(client, &amp;mut buf).unwrap();
+    // assert_eq!(&amp;buf[..len], b&quot;Hello&quot;);
+
+    /* match args.iter().next().expect(&quot;arg0 to be present&quot;) {
+        // busybox style single binary &#39;coreutils&#39;
+        &quot;/bin/run&quot; =&gt; {
+            let inc = Arc::new(AtomicUsize::new(0));
+
+            for _n in 0..80 {
+                let inc = inc.clone();
+                spawn(move || {
+                    // println!(&quot;hello from thread {_n}&quot;);
+                    inc.fetch_add(1, Ordering::Relaxed);
                 });
             }
 
-            <span class="kw">let </span>hpet = File::open(<span class="string">&quot;/dev/hpet&quot;</span>).expect(<span class="string">&quot;failed to open /dev/hpet&quot;</span>);
-            <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">256</span>];
-            <span class="kw">let </span>bytes = hpet.read(<span class="kw-2">&amp;mut </span>buf).expect(<span class="string">&quot;failed to read from a file&quot;</span>);
+            let hpet = File::open(&quot;/dev/hpet&quot;).expect(&quot;failed to open /dev/hpet&quot;);
+            let mut buf = [0u8; 256];
+            let bytes = hpet.read(&amp;mut buf).expect(&quot;failed to read from a file&quot;);
 
-            <span class="macro">println!</span>(<span class="string">&quot;/dev/hpet bytes: {:?}&quot;</span>, <span class="kw-2">&amp;</span>buf[..bytes]);
+            println!(&quot;/dev/hpet bytes: {:?}&quot;, &amp;buf[..bytes]);
             drop(hpet);
 
-            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">10 </span>{
-                <span class="kw">let </span>file = OpenOptions::new()
-                    .write(<span class="bool-val">true</span>)
-                    .create(<span class="bool-val">true</span>)
-                    .open(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/tmp/tmp-{i}&quot;</span>))
-                    .expect(<span class="string">&quot;failed to open /testfile&quot;</span>);
-                file.write(<span class="string">b&quot;testing data&quot;</span>).expect(<span class="string">&quot;failed to write&quot;</span>);
+            for i in 0..10 {
+                let file = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(&amp;format!(&quot;/tmp/tmp-{i}&quot;))
+                    .expect(&quot;failed to open /testfile&quot;);
+                file.write(b&quot;testing data&quot;).expect(&quot;failed to write&quot;);
                 drop(file);
             }
 
-            <span class="kw">let </span><span class="kw-2">mut </span>next = timestamp().unwrap() <span class="kw">as </span>u64;
-            <span class="kw">for </span>i <span class="kw">in </span>next / <span class="number">1_000_000_000</span>.. {
-                <span class="macro">println!</span>(<span class="string">&quot;inc at: {}&quot;</span>, inc.load(Ordering::Relaxed));
+            let mut next = timestamp().unwrap() as u64;
+            for i in next / 1_000_000_000.. {
+                println!(&quot;inc at: {}&quot;, inc.load(Ordering::Relaxed));
 
                 nanosleep_until(next);
-                next += <span class="number">1_000_000_000</span>;
+                next += 1_000_000_000;
 
-                <span class="macro">println!</span>(<span class="string">&quot;seconds since boot: {i}&quot;</span>);
+                println!(&quot;seconds since boot: {i}&quot;);
             }
         }
 
-        <span class="string">&quot;/bin/task1&quot; </span>=&gt; {
-            rename(<span class="string">&quot;&lt;Get_Input&gt;&quot;</span>).unwrap();
+        &quot;/bin/task1&quot; =&gt; {
+            rename(&quot;&lt;Get_Input&gt;&quot;).unwrap();
 
-            <span class="kw">let </span>pid: usize = args
+            let pid: usize = args
                 .iter()
-                .nth(<span class="number">1</span>)
-                .expect(<span class="string">&quot;missing arg: PID&quot;</span>)
+                .nth(1)
+                .expect(&quot;missing arg: PID&quot;)
                 .parse()
-                .expect(<span class="string">&quot;failed to parse PID&quot;</span>);
+                .expect(&quot;failed to parse PID&quot;);
 
-            <span class="kw">let </span><span class="kw-2">mut </span>line = String::new();
-            <span class="kw">loop </span>{
+            let mut line = String::new();
+            loop {
                 line.clear();
-                <span class="kw">let </span><span class="kw-2">mut </span>input_channel = BufReader::new(SimpleIpcInputChannel);
-                input_channel.read_line(<span class="kw-2">&amp;mut </span>line).unwrap();
+                let mut input_channel = BufReader::new(SimpleIpcInputChannel);
+                input_channel.read_line(&amp;mut line).unwrap();
 
-                <span class="kw">let </span>input = line.trim();
-                <span class="macro">println!</span>(<span class="string">&quot;&lt;Get_Input&gt;: &#39;{input}&#39;&quot;</span>);
+                let input = line.trim();
+                println!(&quot;&lt;Get_Input&gt;: &#39;{input}&#39;&quot;);
                 send(pid, input.as_bytes()).unwrap();
-                send(pid, <span class="string">b&quot;\n&quot;</span>).unwrap(); <span class="comment">// BufReader::read_line waits for a \n
-            </span>}
+                send(pid, b&quot;\n&quot;).unwrap(); // BufReader::read_line waits for a \n
+            }
         }
 
-        <span class="string">&quot;/bin/task2&quot; </span>=&gt; {
-            rename(<span class="string">&quot;&lt;Clean_Input&gt;&quot;</span>).unwrap();
+        &quot;/bin/task2&quot; =&gt; {
+            rename(&quot;&lt;Clean_Input&gt;&quot;).unwrap();
 
-            <span class="kw">let </span>pid: usize = args
+            let pid: usize = args
                 .iter()
-                .nth(<span class="number">1</span>)
-                .expect(<span class="string">&quot;missing arg: PID&quot;</span>)
+                .nth(1)
+                .expect(&quot;missing arg: PID&quot;)
                 .parse()
-                .expect(<span class="string">&quot;failed to parse PID&quot;</span>);
+                .expect(&quot;failed to parse PID&quot;);
 
-            <span class="kw">let </span><span class="kw-2">mut </span>line = String::new();
-            <span class="kw">loop </span>{
+            let mut line = String::new();
+            loop {
                 line.clear();
-                <span class="kw">let </span><span class="kw-2">mut </span>input_channel = BufReader::new(SimpleIpcInputChannel);
-                input_channel.read_line(<span class="kw-2">&amp;mut </span>line).unwrap();
+                let mut input_channel = BufReader::new(SimpleIpcInputChannel);
+                input_channel.read_line(&amp;mut line).unwrap();
 
-                <span class="kw">let </span>messy_string = line.trim();
-                <span class="kw">let </span>clean_string = messy_string.replace(|c| !char::is_alphabetic(c), <span class="string">&quot;&quot;</span>);
-                <span class="macro">println!</span>(<span class="string">&quot;&lt;Clean_Input&gt;: &#39;{clean_string}&#39;&quot;</span>);
+                let messy_string = line.trim();
+                let clean_string = messy_string.replace(|c| !char::is_alphabetic(c), &quot;&quot;);
+                println!(&quot;&lt;Clean_Input&gt;: &#39;{clean_string}&#39;&quot;);
 
                 send(pid, clean_string.as_bytes()).unwrap();
-                send(pid, <span class="string">b&quot;\n&quot;</span>).unwrap(); <span class="comment">// BufReader::read_line waits for a \n
-            </span>}
+                send(pid, b&quot;\n&quot;).unwrap(); // BufReader::read_line waits for a \n
+            }
         }
 
-        <span class="string">&quot;/bin/task3&quot; </span>=&gt; {
-            rename(<span class="string">&quot;&lt;Find_Missing&gt;&quot;</span>).unwrap();
+        &quot;/bin/task3&quot; =&gt; {
+            rename(&quot;&lt;Find_Missing&gt;&quot;).unwrap();
 
-            <span class="kw">let </span><span class="kw-2">mut </span>line = String::new();
+            let mut line = String::new();
 
-            <span class="kw">loop </span>{
+            loop {
                 line.clear();
-                <span class="kw">let </span><span class="kw-2">mut </span>input_channel = BufReader::new(SimpleIpcInputChannel);
-                input_channel.read_line(<span class="kw-2">&amp;mut </span>line).unwrap();
+                let mut input_channel = BufReader::new(SimpleIpcInputChannel);
+                input_channel.read_line(&amp;mut line).unwrap();
 
-                <span class="macro">println!</span>(<span class="string">&quot;got &#39;{}&#39;&quot;</span>, line.trim());
+                println!(&quot;got &#39;{}&#39;&quot;, line.trim());
 
-                <span class="kw">let </span><span class="kw-2">mut </span>found = [<span class="bool-val">false</span>; <span class="number">26</span>];
-                <span class="kw">for </span>c <span class="kw">in </span>line.trim().chars() {
-                    found[((c <span class="kw">as </span>u8).to_ascii_lowercase() - <span class="string">b&#39;a&#39;</span>) <span class="kw">as </span>usize] = <span class="bool-val">true</span>;
+                let mut found = [false; 26];
+                for c in line.trim().chars() {
+                    found[((c as u8).to_ascii_lowercase() - b&#39;a&#39;) as usize] = true;
                 }
 
-                <span class="kw">let </span><span class="kw-2">mut </span>buf = String::new();
-                <span class="kw">for </span>missing <span class="kw">in </span>found
+                let mut buf = String::new();
+                for missing in found
                     .iter()
                     .enumerate()
-                    .filter(|(<span class="kw">_</span>, found)| !<span class="kw-2">*</span>found)
-                    .map(|(i, <span class="kw">_</span>)| i)
+                    .filter(|(_, found)| !*found)
+                    .map(|(i, _)| i)
                 {
-                    buf.push((missing <span class="kw">as </span>u8 + <span class="string">b&#39;a&#39;</span>) <span class="kw">as </span>char);
+                    buf.push((missing as u8 + b&#39;a&#39;) as char);
                 }
-                <span class="macro">println!</span>(<span class="string">&quot;&lt;Find_Missing&gt;: &#39;{buf}&#39;&quot;</span>);
+                println!(&quot;&lt;Find_Missing&gt;: &#39;{buf}&#39;&quot;);
 
-                <span class="comment">// PID 1 is known to be kshell, for now
+                // PID 1 is known to be kshell, for now
                 // send(1, buf.as_bytes());
-            </span>}
+            }
         }
 
-        tool =&gt; <span class="macro">panic!</span>(<span class="string">&quot;unknown tool {tool}&quot;</span>),
-    }
-}
+        tool =&gt; panic!(&quot;unknown tool {tool}&quot;),
+    } */
+</span>}
 
 <span class="comment">//
 

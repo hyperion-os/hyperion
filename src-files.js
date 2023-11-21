@@ -72,9 +72,9 @@ var srcIndex = JSON.parse('{\
 "hyperion_num_postfix":["",[],["lib.rs"]],\
 "hyperion_random":["",[],["lib.rs"]],\
 "hyperion_sample_elf":["",[],["io.rs","main.rs"]],\
-"hyperion_scheduler":["",[],["cleanup.rs","futex.rs","ipc.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]],\
+"hyperion_scheduler":["",[["ipc",[],["mod.rs","pipe.rs"]]],["cleanup.rs","futex.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]],\
 "hyperion_static_str":["",[],["lib.rs"]],\
-"hyperion_sync":["",[],["lib.rs","spinlock.rs"]],\
+"hyperion_sync":["",[],["lib.rs"]],\
 "hyperion_syscall":["",[],["err.rs","fs.rs","lib.rs","net.rs"]],\
 "hyperion_timer":["",[],["lib.rs"]],\
 "hyperion_vfs":["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]],\
@@ -97,6 +97,7 @@ var srcIndex = JSON.parse('{\
 "rand_chacha":["",[],["chacha.rs","guts.rs","lib.rs"]],\
 "rand_core":["",[],["block.rs","error.rs","impls.rs","le.rs","lib.rs"]],\
 "raw_cpuid":["",[],["extended.rs","lib.rs"]],\
+"ringbuf":["",[["ring_buffer",[],["base.rs","cache.rs","init.rs","local.rs","mod.rs","rb.rs","shared.rs","storage.rs"]]],["alias.rs","consumer.rs","lib.rs","producer.rs","transfer.rs","utils.rs"]],\
 "rustc_demangle":["",[],["legacy.rs","lib.rs","v0.rs"]],\
 "rustversion":["",[],["attr.rs","bound.rs","constfn.rs","date.rs","error.rs","expand.rs","expr.rs","iter.rs","lib.rs","release.rs","time.rs","token.rs","version.rs"]],\
 "scopeguard":["",[],["lib.rs"]],\

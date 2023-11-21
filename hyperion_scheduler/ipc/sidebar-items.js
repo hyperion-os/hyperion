@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["recv","recv_to","send","start_waiting"],"struct":["SimpleIpc"]};
+window.SIDEBAR_ITEMS = {"mod":["pipe"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["TaskState"],"fn":["processes","switch_because"],"static":["PROCESSES","TASKS_DROPPING","TASKS_READY","TASKS_RUNNING","TASKS_SLEEPING"],"struct":["PageAllocs","Pid","Process","Task","TaskInner"],"trait":["ProcessExt"]};
+window.SIDEBAR_ITEMS = {"enum":["TaskState"],"fn":["processes","switch_because"],"static":["PROCESSES","TASKS_DROPPING","TASKS_READY","TASKS_RUNNING","TASKS_SLEEPING"],"struct":["PageAllocs","Pid","Process","Task","TaskInner","Tid"],"trait":["ProcessExt"]};
