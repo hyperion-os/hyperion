@@ -26,7 +26,7 @@ use hyperion_mem::{pmm, vmm::PageMapImpl};
 use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
-use crate::{after, cleanup::Cleanup, ipc::SimpleIpc, stop, swap_current, task, TLS};
+use crate::{after, cleanup::Cleanup, ipc::pipe::Pipe, stop, swap_current, task, TLS};
 
 //
 
@@ -207,7 +207,7 @@ pub struct Process {
     pub heap_bottom: AtomicUsize,
 
     /// naïve PID based IPC
-    pub simple_ipc: SimpleIpc,
+    pub simple_ipc: Pipe,
 
     /// a store for all allocated (and mapped) physical pages
     pub allocs: PageAllocs,
@@ -316,7 +316,7 @@ impl Task {
             nanos: AtomicU64::new(0),
             address_space: AddressSpace::new(PageMap::new()),
             heap_bottom: AtomicUsize::new(0x1000),
-            simple_ipc: SimpleIpc::new(),
+            simple_ipc: Pipe::new(),
             allocs: PageAllocs::default(),
             ext: Once::new(),
             should_terminate: AtomicBool::new(false),
@@ -401,7 +401,7 @@ impl Task {
             nanos: AtomicU64::new(0),
             address_space: AddressSpace::new(PageMap::current()),
             heap_bottom: AtomicUsize::new(0x1000),
-            simple_ipc: SimpleIpc::new(),
+            simple_ipc: Pipe::new(),
             allocs: PageAllocs::default(),
             ext: Once::new(),
             should_terminate: AtomicBool::new(true),

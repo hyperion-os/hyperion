@@ -8,16 +8,15 @@ use crate::{futex, lock::Mutex, process, task::Pid};
 //
 
 /// simple P2P 2-copy IPC channel
-pub struct SimpleIpc {
+pub struct Pipe {
     /// the actual data channel
     pub send: Mutex<ringbuf::HeapProducer<u8>>,
     pub recv: Mutex<ringbuf::HeapConsumer<u8>>,
 
     pub items: AtomicUsize,
-    pub race_sync: Mutex<()>,
 }
 
-impl SimpleIpc {
+impl Pipe {
     pub fn new() -> Self {
         // TODO: custom allocator
         let (send, recv) = ringbuf::HeapRb::new(0x1000).split();
@@ -27,14 +26,12 @@ impl SimpleIpc {
             send,
             recv,
 
-            // state: Mutex::new(State::IsEmpty),
             items: AtomicUsize::new(0),
-            race_sync: Mutex::new(()),
         }
     }
 }
 
-impl Default for SimpleIpc {
+impl Default for Pipe {
     fn default() -> Self {
         Self::new()
     }

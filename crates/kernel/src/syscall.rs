@@ -21,6 +21,7 @@ use hyperion_scheduler::{
 use hyperion_syscall::{
     err::{Error, Result},
     fs::FileOpenFlags,
+    net::{Protocol, SocketDomain, SocketType},
 };
 use hyperion_vfs::{error::IoError, tree::FileRef};
 use time::Duration;
@@ -417,14 +418,24 @@ pub fn write(args: &mut SyscallRegs) -> Result<usize> {
 
 /// create a socket
 ///
-/// # raw syscall form:
-///
-/// `fn syscall_3(SYSCALL_SOCKET, domain: usize, type: usize, protocol: usize) -> usize`
-///
-/// # wrapper
-///
 /// [`hyperion_syscall::socket`]
-fn socket(_args: &mut SyscallRegs) -> Result<usize> {
+fn socket(args: &mut SyscallRegs) -> Result<usize> {
+    let domain = SocketDomain(args.arg0 as _);
+    let ty = SocketType(args.arg1 as _);
+    let proto = Protocol(args.arg2 as _);
+
+    if domain != SocketDomain::LOCAL {
+        return Err(Error::INVALID_DOMAIN);
+    }
+
+    if ty != SocketType::STREAM {
+        return Err(Error::INVALID_TYPE);
+    }
+
+    if proto != Protocol::LOCAL {
+        return Err(Error::UNKNOWN_PROTOCOL);
+    }
+
     let this = process();
     let ext = process_ext_with(&this);
 
@@ -448,6 +459,13 @@ fn socket(_args: &mut SyscallRegs) -> Result<usize> {
     }
 
     return Ok(fd);
+}
+
+/// bind a socket
+///
+/// [`hyperion_syscall::bind`]
+fn bind(_args: &mut SyscallRegs) -> Result<usize> {
+    Err(Error::INVALID_ADDRESS)
 }
 
 struct ProcessExtra {

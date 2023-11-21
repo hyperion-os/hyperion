@@ -48,6 +48,10 @@ impl_error! {
 
     pub const INVALID_FLAGS: "invalid flags" = 17;
 
+    pub const INVALID_DOMAIN: "invalid socket domain" = 18;
+    pub const INVALID_TYPE: "invalid socket type" = 19;
+    pub const UNKNOWN_PROTOCOL: "unknown protocol" = 20;
+
     pub const _: "unknown error" = _;
 }
 

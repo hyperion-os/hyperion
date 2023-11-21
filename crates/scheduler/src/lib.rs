@@ -136,11 +136,11 @@ pub fn init(task: impl Into<Task>) -> ! {
 }
 
 pub fn send(target_pid: Pid, data: &[u8]) -> Result<(), &'static str> {
-    ipc::send(target_pid, data)
+    ipc::pipe::send(target_pid, data)
 }
 
 pub fn recv(buf: &mut [u8]) -> usize {
-    ipc::recv(buf)
+    ipc::pipe::recv(buf)
 }
 
 /// switch to another thread
