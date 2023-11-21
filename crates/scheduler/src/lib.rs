@@ -135,16 +135,12 @@ pub fn init(task: impl Into<Task>) -> ! {
     unreachable!("a destroyed thread cannot continue executing");
 }
 
-pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
+pub fn send(target_pid: Pid, data: &[u8]) -> Result<(), &'static str> {
     ipc::send(target_pid, data)
 }
 
-pub fn recv() -> Cow<'static, [u8]> {
-    ipc::recv()
-}
-
-pub fn recv_to(buf: &mut [u8]) -> usize {
-    ipc::recv_to(buf)
+pub fn recv(buf: &mut [u8]) -> usize {
+    ipc::recv(buf)
 }
 
 /// switch to another thread

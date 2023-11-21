@@ -561,8 +561,7 @@ impl Shell {
                 let str = unicode.encode_utf8(&mut str);
 
                 // TODO: buffering
-                if let Err(err) = hyperion_scheduler::send(task_pid, str.as_bytes().to_vec().into())
-                {
+                if let Err(err) = hyperion_scheduler::send(task_pid, str.as_bytes()) {
                     return Err(Error::Other {
                         msg: err.to_string(),
                     });
@@ -716,10 +715,9 @@ impl Shell {
 
         let data = data.replace("\\n", "\n");
 
-        if let Err(err) = hyperion_scheduler::send(
-            hyperion_scheduler::task::Pid::new(pid),
-            data.as_bytes().to_vec().into(),
-        ) {
+        if let Err(err) =
+            hyperion_scheduler::send(hyperion_scheduler::task::Pid::new(pid), data.as_bytes())
+        {
             return Err(Error::Other {
                 msg: format!("failed send data: {err}"),
             });

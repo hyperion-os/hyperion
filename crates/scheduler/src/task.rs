@@ -275,14 +275,12 @@ impl Deref for TaskInner {
 unsafe impl Sync for TaskInner {}
 
 impl Drop for TaskInner {
-    #[track_caller]
     fn drop(&mut self) {
         assert_eq!(
             self.state.load(),
             TaskState::Dropping,
-            "{} {}",
+            "{}",
             self.name.read().clone(),
-            core::panic::Location::caller(),
         );
         TASKS_DROPPING.fetch_sub(1, Ordering::Relaxed);
 
@@ -459,9 +457,9 @@ impl Task {
         old
     }
 
-    pub fn ptr_eq(&self, other: &Task) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
+    // pub fn ptr_eq(&self, other: &Task) -> bool {
+    //     Arc::ptr_eq(&self.0, &other.0)
+    // }
 }
 
 impl Deref for Task {

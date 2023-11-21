@@ -837,6 +837,7 @@ dependencies = [
  "hyperion-sync",
  "hyperion-timer",
  "lock_api",
+ "ringbuf",
  "spin",
  "time",
  "x86_64",
@@ -1168,6 +1169,15 @@ name = "regex-syntax"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
+
+[[package]]
+name = "ringbuf"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79abed428d1fd2a128201cec72c5f6938e2da607c6f3745f769fabea399d950a"
+dependencies = [
+ "crossbeam-utils",
+]
 
 [[package]]
 name = "rustc-demangle"

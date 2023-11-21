@@ -243,7 +243,7 @@ pub fn send(args: &mut SyscallRegs) -> Result<usize> {
 
     let pid = hyperion_scheduler::task::Pid::new(target_pid as usize);
 
-    if hyperion_scheduler::send(pid, data.to_vec().into()).is_err() {
+    if hyperion_scheduler::send(pid, data).is_err() {
         return Err(Error::NO_SUCH_PROCESS);
     }
 
@@ -260,7 +260,7 @@ pub fn send(args: &mut SyscallRegs) -> Result<usize> {
 ///  - `arg1`       : data len (bytes)
 pub fn recv(args: &mut SyscallRegs) -> Result<usize> {
     let buf = read_untrusted_bytes_mut(args.arg0, args.arg1)?;
-    return Ok(hyperion_scheduler::recv_to(buf));
+    return Ok(hyperion_scheduler::recv(buf));
 }
 
 /// rename the current process

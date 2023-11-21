@@ -1,35 +1,35 @@
-use alloc::borrow::Cow;
-
-use crossbeam_queue::{ArrayQueue, SegQueue};
-
-use crate::{
-    cleanup::Cleanup,
-    process,
-    task::{switch_because, Pid, Process, Task, TaskState},
-    wait_next_task, READY,
+use core::{
+    ptr::NonNull,
+    sync::atomic::{AtomicUsize, Ordering},
 };
+
+use crate::{futex, lock::Mutex, process, task::Pid};
 
 //
 
 /// simple P2P 2-copy IPC channel
-#[derive(Debug)]
 pub struct SimpleIpc {
-    /// the latest half consumed chunk of data
-    pub tail: ArrayQueue<Cow<'static, [u8]>>,
-
     /// the actual data channel
-    pub channel: SegQueue<Cow<'static, [u8]>>,
+    pub send: Mutex<ringbuf::HeapProducer<u8>>,
+    pub recv: Mutex<ringbuf::HeapConsumer<u8>>,
 
-    /// task waiting list when the channel is empty and processes are reading from it
-    pub waiting: SegQueue<Task>,
+    pub items: AtomicUsize,
+    pub race_sync: Mutex<()>,
 }
 
 impl SimpleIpc {
     pub fn new() -> Self {
+        // TODO: custom allocator
+        let (send, recv) = ringbuf::HeapRb::new(0x1000).split();
+        let (send, recv) = (Mutex::new(send), Mutex::new(recv));
+
         Self {
-            tail: ArrayQueue::new(1),
-            channel: SegQueue::new(),
-            waiting: SegQueue::new(),
+            send,
+            recv,
+
+            // state: Mutex::new(State::IsEmpty),
+            items: AtomicUsize::new(0),
+            race_sync: Mutex::new(()),
         }
     }
 }
@@ -42,78 +42,57 @@ impl Default for SimpleIpc {
 
 //
 
-pub fn start_waiting(task: Task) {
-    let proc = task.process.clone();
-
-    if !proc.simple_ipc.channel.is_empty() {
-        READY.push(task);
-    } else {
-        proc.simple_ipc.waiting.push(task);
+pub fn send(target_pid: Pid, data: &[u8]) -> Result<(), &'static str> {
+    if data.is_empty() {
+        return Ok(());
     }
-}
 
-pub fn send(target_pid: Pid, data: Cow<'static, [u8]>) -> Result<(), &'static str> {
     let proc = target_pid.find().ok_or("no such process")?;
+    let pipe = &proc.simple_ipc;
 
-    proc.simple_ipc.channel.push(data);
-    let recv_task = proc.simple_ipc.waiting.pop();
-
-    if let Some(recv_task) = recv_task {
-        // READY.push(recv_task);
-        switch_because(recv_task, TaskState::Ready, Cleanup::Ready);
-    }
-
-    Ok(())
-}
-
-pub fn recv() -> Cow<'static, [u8]> {
-    recv_with(&process())
-}
-
-pub fn recv_to(buf: &mut [u8]) -> usize {
-    let proc = process();
-
-    let data = recv_with(&proc);
-
-    // limit buf to be at most the length of available data
-    let limit = buf.len().min(data.len());
-    let buf = &mut buf[..limit];
-
-    // fill the buf and send the rest to tail
-    let (buf_data, left) = data.split_at(buf.len());
-
-    // FIXME: multiple calls to read_to in the same process might cause data race problems
-    if !left.is_empty() {
-        proc.simple_ipc
-            .tail
-            .push(left.to_vec().into())
-            .expect("FIXME: multi read_to data race");
-    }
-
-    buf.copy_from_slice(buf_data);
-
-    limit
-}
-
-fn recv_with(proc: &Process) -> Cow<'static, [u8]> {
+    let mut stream = pipe.send.lock();
+    let mut data = data;
     loop {
-        if let Some(data) = try_recv_with(proc) {
-            return data;
+        if data.is_empty() {
+            return Ok(());
         }
 
-        let next = match wait_next_task(|| try_recv_with(proc)) {
-            Ok(task) => task,
-            Err(data) => return data,
-        };
+        let sent = stream.push_slice(data);
+        data = &data[sent..];
 
-        // start waiting for events on the channel
-        switch_because(next, TaskState::Sleeping, Cleanup::SimpleIpcWait);
+        pipe.items.fetch_add(sent, Ordering::Release);
+
+        // wake up a reader
+        futex::wake(NonNull::from(&pipe.items), 1);
+
+        // sleep with the send stream lock
+        futex::wait(NonNull::from(&pipe.items), 0x1000);
     }
 }
 
-fn try_recv_with(proc: &Process) -> Option<Cow<'static, [u8]>> {
-    proc.simple_ipc
-        .tail
-        .pop()
-        .or_else(|| proc.simple_ipc.channel.pop())
+pub fn recv(buf: &mut [u8]) -> usize {
+    if buf.is_empty() {
+        return 0;
+    }
+
+    let proc = process();
+    let pipe = &proc.simple_ipc;
+
+    let mut stream = pipe.recv.lock();
+    loop {
+        let count = stream.pop_slice(buf);
+
+        // can race and wrap from -1, but it doesn't matter
+        pipe.items.fetch_sub(count, Ordering::Release);
+
+        // wake up a sender
+        futex::wake(NonNull::from(&pipe.items), 1);
+
+        if count != 0 {
+            return count;
+        }
+
+        // sleep with the recv stream lock
+        futex::wait(NonNull::from(&pipe.items), 0);
+    }
 }
