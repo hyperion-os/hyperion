@@ -46,7 +46,9 @@ pub fn wake(addr: NonNull<AtomicUsize>, num: usize) {
 
     if let Some(waiting_on_addr) = waiting.get_mut(&(addr.as_ptr() as usize)) {
         // if drain on VecDeque front is optimized:
-        waiting_on_addr.drain(..num.min(waiting_on_addr.len()));
+        for task in waiting_on_addr.drain(..num.min(waiting_on_addr.len())) {
+            READY.push(task);
+        }
 
         // for _ in 0..num {
         //     if waiting_on_addr.pop_front().is_none() {
