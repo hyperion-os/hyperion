@@ -52,6 +52,8 @@ impl_error! {
     pub const INVALID_TYPE: "invalid socket type" = 19;
     pub const UNKNOWN_PROTOCOL: "unknown protocol" = 20;
 
+    pub const CONNECTION_REFUSED: "connection refused" = 21;
+
     pub const _: "unknown error" = _;
 }
 

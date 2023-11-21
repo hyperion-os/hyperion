@@ -29,3 +29,8 @@ impl Protocol {
     pub const UNIX: Self = Self::LOCAL;
     pub const LOCAL: Self = Self(0);
 }
+
+//
+
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+// pub struct SocketStream(pub usize);

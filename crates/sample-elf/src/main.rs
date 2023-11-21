@@ -6,21 +6,17 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, format, string::String, sync::Arc};
+use alloc::boxed::Box;
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
     ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use hyperion_syscall::{
-    fs::{File, OpenOptions},
     net::{Protocol, SocketDomain, SocketType},
     *,
 };
-
-use crate::io::{BufReader, SimpleIpcInputChannel};
 
 //
 
@@ -28,9 +24,9 @@ mod io; // partial std::io
 
 //
 
-pub fn main(args: CliArgs) {
-    println!("sample app main");
-    println!("args: {args:?}");
+pub fn main(_args: CliArgs) {
+    // println!("sample app main");
+    // println!("args: {args:?}");
 
     // for i in 1..13 {
     //     if i == 2 || i == 8 {
@@ -39,12 +35,33 @@ pub fn main(args: CliArgs) {
     //     println!("{:?}", unsafe { syscall_0(i) });
     // }
 
-    let sock =
-        hyperion_syscall::socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
+    spawn(|| {
+        let server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
 
-    hyperion_syscall::bind(sock, "/dev/server.sock").unwrap();
+        bind(server, "/dev/server.sock").unwrap();
 
-    match args.iter().next().expect("arg0 to be present") {
+        let _conn = accept(server).unwrap();
+
+        println!("connected");
+
+        // TODO: send(conn, b"Hello").unwrap();
+    });
+
+    // wait for the server to be up
+    nanosleep(50_000_000);
+
+    let client = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
+
+    connect(client, "/dev/server.sock").unwrap();
+
+    println!("connected");
+
+    // TODO:
+    // let mut buf = [0u8; 64];
+    // let len = recv(client, &mut buf).unwrap();
+    // assert_eq!(&buf[..len], b"Hello");
+
+    /* match args.iter().next().expect("arg0 to be present") {
         // busybox style single binary 'coreutils'
         "/bin/run" => {
             let inc = Arc::new(AtomicUsize::new(0));
@@ -167,7 +184,7 @@ pub fn main(args: CliArgs) {
         }
 
         tool => panic!("unknown tool {tool}"),
-    }
+    } */
 }
 
 //

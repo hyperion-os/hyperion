@@ -116,6 +116,10 @@ impl Rtc {
 pub struct RtcDevice;
 
 impl FileDevice for RtcDevice {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
     fn len(&self) -> usize {
         mem::size_of::<i64>()
     }

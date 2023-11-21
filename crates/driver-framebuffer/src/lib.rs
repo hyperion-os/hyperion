@@ -12,6 +12,10 @@ pub struct FboDevice;
 //
 
 impl FileDevice for FboDevice {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
     fn len(&self) -> usize {
         Self::with(|fbo| fbo.len())
     }

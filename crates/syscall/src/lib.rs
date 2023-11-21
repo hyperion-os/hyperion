@@ -37,6 +37,9 @@ pub mod id {
 
     pub const SOCKET: usize = 2000;
     pub const BIND: usize = 2100;
+    pub const LISTEN: usize = 2200;
+    pub const ACCEPT: usize = 2300;
+    pub const CONNECT: usize = 2400;
 }
 
 //
@@ -225,4 +228,22 @@ pub fn socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -> Resul
 #[inline(always)]
 pub fn bind(socket: SocketDesc, addr: &str) -> Result<()> {
     unsafe { syscall_3(id::BIND, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
+}
+
+/// start listening for connections on a socket
+#[inline(always)]
+pub fn listen(socket: SocketDesc) -> Result<()> {
+    unsafe { syscall_1(id::LISTEN, socket.0) }.map(|_| {})
+}
+
+/// accept a connection on a socket
+#[inline(always)]
+pub fn accept(socket: SocketDesc) -> Result<SocketDesc> {
+    unsafe { syscall_1(id::ACCEPT, socket.0) }.map(SocketDesc)
+}
+
+/// connect to a socket
+#[inline(always)]
+pub fn connect(socket: SocketDesc, addr: &str) -> Result<()> {
+    unsafe { syscall_3(id::CONNECT, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
 }

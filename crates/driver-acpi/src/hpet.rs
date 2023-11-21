@@ -423,6 +423,10 @@ pub struct HpetDevice;
 //
 
 impl FileDevice for HpetDevice {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
     fn len(&self) -> usize {
         core::mem::size_of::<i64>()
     }

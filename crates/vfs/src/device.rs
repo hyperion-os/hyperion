@@ -1,4 +1,5 @@
 use alloc::sync::Arc;
+use core::any::Any;
 
 use lock_api::RawMutex;
 
@@ -10,6 +11,8 @@ use crate::{
 //
 
 pub trait FileDevice: Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+
     fn len(&self) -> usize;
 
     fn is_empty(&self) -> bool {
@@ -68,6 +71,10 @@ pub trait DirectoryDevice<Mut: RawMutex>: Send + Sync {
 //
 
 impl FileDevice for [u8] {
+    fn as_any(&self) -> &dyn Any {
+        panic!()
+    }
+
     fn len(&self) -> usize {
         <[u8]>::len(self)
     }

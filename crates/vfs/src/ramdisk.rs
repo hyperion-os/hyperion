@@ -30,6 +30,10 @@ pub struct Directory<Mut: AnyMutex> {
 //
 
 impl FileDevice for File {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
     fn len(&self) -> usize {
         self.bytes.len()
     }

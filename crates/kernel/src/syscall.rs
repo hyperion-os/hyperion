@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, collections::VecDeque, string::ToString, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, string::ToString, sync::Arc, vec::Vec};
 use core::{
     any::{type_name_of_val, Any},
     sync::atomic::Ordering,
@@ -14,7 +14,7 @@ use hyperion_mem::{
     vmm::PageMapImpl,
 };
 use hyperion_scheduler::{
-    ipc::pipe::Pipe,
+    ipc::pipe::{Channel, Pipe},
     lock::{Futex, Mutex},
     process,
     task::{Process, ProcessExt},
@@ -23,7 +23,7 @@ use hyperion_syscall::{
     err::{Error, Result},
     fs::FileOpenFlags,
     id,
-    net::{Protocol, SocketDomain, SocketType},
+    net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
 use hyperion_vfs::{
     device::FileDevice,
@@ -59,6 +59,9 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         id::SOCKET => call_id(socket, args),
         id::BIND => call_id(bind, args),
+        id::LISTEN => call_id(listen, args),
+        id::ACCEPT => call_id(accept, args),
+        id::CONNECT => call_id(connect, args),
 
         _ => {
             debug!("invalid syscall");
@@ -432,6 +435,10 @@ fn socket(args: &mut SyscallRegs) -> Result<usize> {
     let ty = SocketType(args.arg1 as _);
     let proto = Protocol(args.arg2 as _);
 
+    _socket(domain, ty, proto).map(|fd| fd.0)
+}
+
+fn _socket(domain: SocketDomain, ty: SocketType, proto: Protocol) -> Result<SocketDesc> {
     if domain != SocketDomain::LOCAL {
         return Err(Error::INVALID_DOMAIN);
     }
@@ -444,11 +451,21 @@ fn socket(args: &mut SyscallRegs) -> Result<usize> {
         return Err(Error::UNKNOWN_PROTOCOL);
     }
 
+    Ok(_socket_from(SocketFile {
+        domain,
+        ty,
+        proto,
+        conn: None,
+        pipe: None,
+    }))
+}
+
+fn _socket_from(socket: SocketFile) -> SocketDesc {
     let this = process();
     let ext = process_ext_with(&this);
 
     let socket = Some(Socket {
-        socket_ref: Arc::new(Mutex::new(SocketFile {})),
+        socket_ref: Arc::new(Mutex::new(socket)),
     });
 
     let mut sockets = ext.sockets.lock();
@@ -466,17 +483,22 @@ fn socket(args: &mut SyscallRegs) -> Result<usize> {
         sockets.push(socket);
     }
 
-    return Ok(fd);
+    return SocketDesc(fd);
 }
 
 /// bind a socket
 ///
 /// [`hyperion_syscall::bind`]
 fn bind(args: &mut SyscallRegs) -> Result<usize> {
-    let socket = args.arg0 as usize;
-    let path = read_untrusted_str(args.arg1, args.arg2)?;
+    let socket = SocketDesc(args.arg0 as _);
+    let addr = read_untrusted_str(args.arg1, args.arg2)?;
 
-    let path = Path::from_str(path);
+    _bind(socket, addr).map(|_| 0)
+}
+
+fn _bind(socket: SocketDesc, addr: &str) -> Result<()> {
+    // TODO: this is only for LOCAL domain sockets atm
+    let path = Path::from_str(addr);
     let Some((dir, sock_file)) = path.split() else {
         return Err(Error::NOT_FOUND);
     };
@@ -486,11 +508,12 @@ fn bind(args: &mut SyscallRegs) -> Result<usize> {
 
     let sockets = ext.sockets.lock();
     let socket_file = sockets
-        .get(socket)
+        .get(socket.0)
         .and_then(|s| s.as_ref())
         .ok_or(Error::BAD_FILE_DESCRIPTOR)?
         .socket_ref
         .clone();
+    drop(sockets);
 
     let dir = VFS_ROOT
         .find_dir(dir, false)
@@ -500,8 +523,133 @@ fn bind(args: &mut SyscallRegs) -> Result<usize> {
         .create_node(sock_file, Node::File(socket_file))
         .map_err(map_vfs_err_to_syscall_err)?;
 
-    Ok(0)
+    return Ok(());
 }
+
+/// start listening to connections on a socket
+///
+/// [`hyperion_syscall::listen`]
+fn listen(args: &mut SyscallRegs) -> Result<usize> {
+    let socket = SocketDesc(args.arg0 as _);
+    _listen(socket).map(|_| 0)
+}
+
+fn _listen(socket: SocketDesc) -> Result<()> {
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    ext.sockets
+        .lock()
+        .get(socket.0)
+        .and_then(|s| s.as_ref())
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
+        .socket_ref
+        .lock()
+        .conn = Some(Arc::new(Channel::new()));
+
+    Ok(())
+}
+
+/// accept a connection on a socket
+///
+/// [`hyperion_syscall::accept`]
+fn accept(args: &mut SyscallRegs) -> Result<usize> {
+    let socket = SocketDesc(args.arg0 as _);
+
+    _accept(socket).map(|fd| fd.0)
+}
+
+fn _accept(socket: SocketDesc) -> Result<SocketDesc> {
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let sockets = ext.sockets.lock();
+    let socket = sockets
+        .get(socket.0)
+        .and_then(|s| s.as_ref())
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
+        .socket_ref
+        .clone();
+    drop(sockets);
+
+    let mut socket = socket.lock();
+
+    let domain = socket.domain;
+    let ty = socket.ty;
+    let proto = socket.proto;
+
+    // `listen` syscall is not required
+    let conn = socket
+        .conn
+        .get_or_insert_with(|| Arc::new(Channel::new()))
+        .clone();
+
+    drop(socket);
+
+    // blocks here
+    let pipe = conn.recv();
+
+    Ok(_socket_from(SocketFile {
+        domain,
+        ty,
+        proto,
+        conn: None,
+        pipe: Some(pipe),
+    }))
+}
+
+/// connect to a socket
+///
+/// [`hyperion_syscall::connect`]
+fn connect(args: &mut SyscallRegs) -> Result<usize> {
+    let socket = SocketDesc(args.arg0 as _);
+    let addr = read_untrusted_str(args.arg1, args.arg2)?;
+
+    _connect(socket, addr).map(|_| 0)
+}
+
+fn _connect(socket: SocketDesc, addr: &str) -> Result<()> {
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let sockets = ext.sockets.lock();
+    let client = sockets
+        .get(socket.0)
+        .and_then(|s| s.as_ref())
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
+        .socket_ref
+        .clone();
+    drop(sockets);
+
+    let server = VFS_ROOT
+        .find_file(addr, false, false)
+        .map_err(map_vfs_err_to_syscall_err)?;
+    let server = server.lock();
+
+    // TODO: inode
+    let conn = server
+        .as_any()
+        .downcast_ref::<SocketFile>()
+        .ok_or(Error::CONNECTION_REFUSED)?
+        .conn
+        .as_ref()
+        .cloned(); // not a socket file
+
+    let Some(conn) = conn else {
+        return Err(Error::CONNECTION_REFUSED);
+    };
+
+    drop(server);
+
+    let pipe = Arc::new(Pipe::new());
+    conn.send(pipe.clone());
+
+    client.lock().pipe = Some(pipe);
+
+    Ok(())
+}
+
+//
 
 struct ProcessExtra {
     files: Mutex<Vec<Option<File>>>,
@@ -519,19 +667,39 @@ struct Socket {
 
 type SocketRef = Arc<Mutex<SocketFile>>;
 
-struct SocketFile {}
+struct SocketFile {
+    domain: SocketDomain,
+    ty: SocketType,
+    proto: Protocol,
+
+    conn: Option<Arc<Channel<16, Arc<Pipe>>>>,
+    pipe: Option<Arc<Pipe>>,
+}
 
 impl FileDevice for SocketFile {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn len(&self) -> usize {
-        0
+        if let Some(pipe) = self.pipe.as_ref() {
+            let recv = pipe.n_recv.load(Ordering::SeqCst);
+            let send = pipe.n_send.load(Ordering::SeqCst);
+            send - recv
+        } else {
+            0
+        }
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
+    fn read(&self, _offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        let pipe = self.pipe.as_ref().ok_or(IoError::PermissionDenied)?;
+        Ok(pipe.recv_slice(buf))
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
+    fn write(&mut self, _offset: usize, buf: &[u8]) -> IoResult<usize> {
+        let pipe = self.pipe.as_ref().ok_or(IoError::PermissionDenied)?;
+        pipe.send_slice(buf);
+        Ok(buf.len())
     }
 }
 
