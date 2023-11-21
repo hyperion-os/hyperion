@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, collections::VecDeque, string::ToString, vec::Vec};
+use alloc::{boxed::Box, collections::VecDeque, string::ToString, sync::Arc, vec::Vec};
 use core::{
     any::{type_name_of_val, Any},
     sync::atomic::Ordering,
@@ -14,6 +14,7 @@ use hyperion_mem::{
     vmm::PageMapImpl,
 };
 use hyperion_scheduler::{
+    ipc::pipe::Pipe,
     lock::{Futex, Mutex},
     process,
     task::{Process, ProcessExt},
@@ -21,9 +22,15 @@ use hyperion_scheduler::{
 use hyperion_syscall::{
     err::{Error, Result},
     fs::FileOpenFlags,
+    id,
     net::{Protocol, SocketDomain, SocketType},
 };
-use hyperion_vfs::{error::IoError, tree::FileRef};
+use hyperion_vfs::{
+    device::FileDevice,
+    error::{IoError, IoResult},
+    path::Path,
+    tree::{FileRef, Node},
+};
 use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -31,26 +38,27 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 pub fn syscall(args: &mut SyscallRegs) {
     let id = args.syscall_id;
-    let (result, name) = match id {
-        1 => call_id(log, args),
-        2 | 420 => call_id(exit, args),
-        3 => call_id(yield_now, args),
-        4 => call_id(timestamp, args),
-        5 => call_id(nanosleep, args),
-        6 => call_id(nanosleep_until, args),
-        8 => call_id(pthread_spawn, args),
-        9 => call_id(palloc, args),
-        10 => call_id(pfree, args),
-        11 => call_id(send, args),
-        12 => call_id(recv, args),
-        13 => call_id(rename, args),
+    let (result, name) = match id as usize {
+        id::LOG => call_id(log, args),
+        id::EXIT => call_id(exit, args),
+        id::YIELD_NOW => call_id(yield_now, args),
+        id::TIMESTAMP => call_id(timestamp, args),
+        id::NANOSLEEP => call_id(nanosleep, args),
+        id::NANOSLEEP_UNTIL => call_id(nanosleep_until, args),
+        id::PTHREAD_SPAWN => call_id(pthread_spawn, args),
+        id::PALLOC => call_id(palloc, args),
+        id::PFREE => call_id(pfree, args),
+        id::SEND => call_id(send, args),
+        id::RECV => call_id(recv, args),
+        id::RENAME => call_id(rename, args),
 
-        1000 => call_id(open, args),
-        1100 => call_id(close, args),
-        1200 => call_id(read, args),
-        1300 => call_id(write, args),
+        id::OPEN => call_id(open, args),
+        id::CLOSE => call_id(close, args),
+        id::READ => call_id(read, args),
+        id::WRITE => call_id(write, args),
 
-        2000 => call_id(socket, args),
+        id::SOCKET => call_id(socket, args),
+        id::BIND => call_id(bind, args),
 
         _ => {
             debug!("invalid syscall");
@@ -71,7 +79,7 @@ fn call_id(
     let name = type_name_of_val(&f);
 
     // debug!(
-    //     "syscall-{name}-{}({}, {}, {}, {}, {})",
+    //     "{name}<{}>({}, {}, {}, {}, {})",
     //     args.syscall_id, args.arg0, args.arg1, args.arg2, args.arg3, args.arg4,
     // );
 
@@ -440,7 +448,7 @@ fn socket(args: &mut SyscallRegs) -> Result<usize> {
     let ext = process_ext_with(&this);
 
     let socket = Some(Socket {
-        socket: Mutex::new(VecDeque::new()),
+        socket_ref: Arc::new(Mutex::new(SocketFile {})),
     });
 
     let mut sockets = ext.sockets.lock();
@@ -464,8 +472,35 @@ fn socket(args: &mut SyscallRegs) -> Result<usize> {
 /// bind a socket
 ///
 /// [`hyperion_syscall::bind`]
-fn bind(_args: &mut SyscallRegs) -> Result<usize> {
-    Err(Error::INVALID_ADDRESS)
+fn bind(args: &mut SyscallRegs) -> Result<usize> {
+    let socket = args.arg0 as usize;
+    let path = read_untrusted_str(args.arg1, args.arg2)?;
+
+    let path = Path::from_str(path);
+    let Some((dir, sock_file)) = path.split() else {
+        return Err(Error::NOT_FOUND);
+    };
+
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let sockets = ext.sockets.lock();
+    let socket_file = sockets
+        .get(socket)
+        .and_then(|s| s.as_ref())
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
+        .socket_ref
+        .clone();
+
+    let dir = VFS_ROOT
+        .find_dir(dir, false)
+        .map_err(map_vfs_err_to_syscall_err)?;
+
+    dir.lock()
+        .create_node(sock_file, Node::File(socket_file))
+        .map_err(map_vfs_err_to_syscall_err)?;
+
+    Ok(0)
 }
 
 struct ProcessExtra {
@@ -479,7 +514,25 @@ struct File {
 }
 
 struct Socket {
-    socket: Mutex<VecDeque<u8>>,
+    socket_ref: SocketRef,
+}
+
+type SocketRef = Arc<Mutex<SocketFile>>;
+
+struct SocketFile {}
+
+impl FileDevice for SocketFile {
+    fn len(&self) -> usize {
+        0
+    }
+
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
+    }
+
+    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
+    }
 }
 
 impl ProcessExt for ProcessExtra {

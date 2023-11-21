@@ -39,8 +39,10 @@ pub fn main(args: CliArgs) {
     //     println!("{:?}", unsafe { syscall_0(i) });
     // }
 
-    let _sock =
+    let sock =
         hyperion_syscall::socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
+
+    hyperion_syscall::bind(sock, "/dev/server.sock").unwrap();
 
     match args.iter().next().expect("arg0 to be present") {
         // busybox style single binary 'coreutils'

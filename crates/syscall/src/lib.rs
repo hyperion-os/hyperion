@@ -17,7 +17,7 @@ pub mod net;
 
 pub mod id {
     pub const LOG: usize = 1;
-    pub const EXIT: usize = 2;
+    pub const EXIT: usize = 420;
     pub const YIELD_NOW: usize = 3;
     pub const TIMESTAMP: usize = 4;
     pub const NANOSLEEP: usize = 5;
@@ -36,6 +36,7 @@ pub mod id {
     pub const WRITE: usize = 1300;
 
     pub const SOCKET: usize = 2000;
+    pub const BIND: usize = 2100;
 }
 
 //
@@ -218,4 +219,10 @@ pub fn write(file: FileDesc, buf: &[u8]) -> Result<usize> {
 #[inline(always)]
 pub fn socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -> Result<SocketDesc> {
     unsafe { syscall_3(id::SOCKET, domain.0, ty.0, protocol.0) }.map(SocketDesc)
+}
+
+/// bind a name to a socket
+#[inline(always)]
+pub fn bind(socket: SocketDesc, addr: &str) -> Result<()> {
+    unsafe { syscall_3(id::BIND, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
 }
