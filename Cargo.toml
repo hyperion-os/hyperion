@@ -29,7 +29,7 @@ pc-keyboard = { git = "https://github.com/rust-embedded-community/pc-keyboard", 
 paste = "1.0"       # macro ident concat
 bit_field = "0.10"
 bytemuck = { version = "1.13", features = ["derive"] }
-lock_api = "0.4"
+lock_api = { version = "0.4", features = ["arc_lock"] }
 ringbuf = { version = "0.3", default-features = false, features = ["alloc"] }
 # rpds = { version = "1.1", default-features = false }
 # image = "0.24"

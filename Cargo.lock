@@ -664,6 +664,7 @@ dependencies = [
  "hyperion-sync",
  "hyperion-syscall",
  "hyperion-vfs",
+ "lock_api",
  "spin",
  "time",
  "x86_64",

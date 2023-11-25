@@ -1,4 +1,4 @@
-use alloc::{format, string::String, vec::Vec};
+use alloc::{string::String, vec::Vec};
 use core::slice::memchr;
 
 //
@@ -11,7 +11,9 @@ pub struct SimpleIpcInputChannel;
 
 impl Read for SimpleIpcInputChannel {
     fn recv(&mut self, buf: &mut [u8]) -> Result<usize, String> {
-        hyperion_syscall::recv(buf).map_err(|err| format!("failed to recv: {err}"))
+        _ = buf;
+        todo!()
+        // hyperion_syscall::recv(buf).map_err(|err| format!("failed to recv: {err}"))
     }
 }
 

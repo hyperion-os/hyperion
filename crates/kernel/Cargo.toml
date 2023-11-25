@@ -19,6 +19,7 @@ x86_64.workspace = true
 time.workspace = true
 futures-util.workspace = true
 crossbeam.workspace = true
+lock_api.workspace = true
 
 hyperion-arch.path = "../arch"
 hyperion-backtrace.path = "../backtrace"

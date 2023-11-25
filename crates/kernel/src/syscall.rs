@@ -31,6 +31,7 @@ use hyperion_vfs::{
     path::Path,
     tree::{FileRef, Node},
 };
+use lock_api::ArcMutexGuard;
 use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -240,39 +241,6 @@ pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
         .unmap(alloc_bottom..alloc_bottom + pages * 0x1000);
 
     return Ok(0);
-}
-
-/// send data to an input channel of a process
-///
-/// # arguments
-///  - `syscall_id` : 11
-///  - `arg0`       : target PID
-///  - `arg1`       : data ptr
-///  - `arg2`       : data len (bytes)
-pub fn send(args: &mut SyscallRegs) -> Result<usize> {
-    let target_pid = args.arg0;
-    let data = read_untrusted_bytes(args.arg1, args.arg2)?;
-
-    let pid = hyperion_scheduler::task::Pid::new(target_pid as usize);
-
-    if hyperion_scheduler::send(pid, data).is_err() {
-        return Err(Error::NO_SUCH_PROCESS);
-    }
-
-    return Ok(0);
-}
-
-/// recv data from this process input channel
-///
-/// returns the number of bytes read
-///
-/// # arguments
-///  - `syscall_id` : 12
-///  - `arg0`       : data ptr
-///  - `arg1`       : data len (bytes)
-pub fn recv(args: &mut SyscallRegs) -> Result<usize> {
-    let buf = read_untrusted_bytes_mut(args.arg0, args.arg1)?;
-    return Ok(hyperion_scheduler::recv(buf));
 }
 
 /// rename the current process
@@ -503,24 +471,16 @@ fn _bind(socket: SocketDesc, addr: &str) -> Result<()> {
         return Err(Error::NOT_FOUND);
     };
 
-    let this = process();
-    let ext = process_ext_with(&this);
+    let socket = get_socket(socket)?;
 
-    let sockets = ext.sockets.lock();
-    let socket_file = sockets
-        .get(socket.0)
-        .and_then(|s| s.as_ref())
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
-        .socket_ref
-        .clone();
-    drop(sockets);
-
-    let dir = VFS_ROOT
+    VFS_ROOT
+        // find the directory node
         .find_dir(dir, false)
-        .map_err(map_vfs_err_to_syscall_err)?;
-
-    dir.lock()
-        .create_node(sock_file, Node::File(socket_file))
+        .map_err(map_vfs_err_to_syscall_err)?
+        // lock the directory
+        .lock_arc()
+        // create the socket file in that directory
+        .create_node(sock_file, Node::File(socket))
         .map_err(map_vfs_err_to_syscall_err)?;
 
     return Ok(());
@@ -535,17 +495,9 @@ fn listen(args: &mut SyscallRegs) -> Result<usize> {
 }
 
 fn _listen(socket: SocketDesc) -> Result<()> {
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    ext.sockets
-        .lock()
-        .get(socket.0)
-        .and_then(|s| s.as_ref())
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
-        .socket_ref
-        .lock()
-        .conn = Some(Arc::new(Channel::new()));
+    get_socket_locked(socket)?
+        .conn
+        .get_or_insert_with(|| Arc::new(Channel::new()));
 
     Ok(())
 }
@@ -560,19 +512,7 @@ fn accept(args: &mut SyscallRegs) -> Result<usize> {
 }
 
 fn _accept(socket: SocketDesc) -> Result<SocketDesc> {
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    let sockets = ext.sockets.lock();
-    let socket = sockets
-        .get(socket.0)
-        .and_then(|s| s.as_ref())
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
-        .socket_ref
-        .clone();
-    drop(sockets);
-
-    let mut socket = socket.lock();
+    let mut socket = get_socket_locked(socket)?;
 
     let domain = socket.domain;
     let ty = socket.ty;
@@ -609,22 +549,13 @@ fn connect(args: &mut SyscallRegs) -> Result<usize> {
 }
 
 fn _connect(socket: SocketDesc, addr: &str) -> Result<()> {
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    let sockets = ext.sockets.lock();
-    let client = sockets
-        .get(socket.0)
-        .and_then(|s| s.as_ref())
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
-        .socket_ref
-        .clone();
-    drop(sockets);
+    // get the client socket early to test for errors, but lock it late
+    let client = get_socket(socket)?;
 
     let server = VFS_ROOT
         .find_file(addr, false, false)
-        .map_err(map_vfs_err_to_syscall_err)?;
-    let server = server.lock();
+        .map_err(map_vfs_err_to_syscall_err)?
+        .lock_arc();
 
     // TODO: inode
     let conn = server
@@ -642,11 +573,60 @@ fn _connect(socket: SocketDesc, addr: &str) -> Result<()> {
     drop(server);
 
     let pipe = Arc::new(Pipe::new());
-    conn.send(pipe.clone());
-
-    client.lock().pipe = Some(pipe);
+    client.lock().pipe = Some(pipe.clone());
+    conn.send(pipe);
 
     Ok(())
+}
+
+/// send data to a socket
+///
+/// [`hyperion_syscall::send`]
+pub fn send(args: &mut SyscallRegs) -> Result<usize> {
+    let socket = SocketDesc(args.arg0 as _);
+    let data = read_untrusted_bytes(args.arg1, args.arg2)?;
+    let flags = args.arg3 as _;
+
+    _send(socket, data, flags).map(|_| 0)
+}
+
+fn _send(socket: SocketDesc, data: &[u8], _flags: usize) -> Result<()> {
+    let socket = get_socket_locked(socket)?;
+
+    let Some(pipe) = socket.pipe.as_ref().cloned() else {
+        return Err(Error::BAD_FILE_DESCRIPTOR);
+    };
+
+    drop(socket);
+
+    pipe.send_slice(data);
+
+    return Ok(());
+}
+
+/// recv data from a socket
+///
+/// [`hyperion_syscall::recv`]
+pub fn recv(args: &mut SyscallRegs) -> Result<usize> {
+    let socket = SocketDesc(args.arg0 as _);
+    let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
+    let flags = args.arg3 as _;
+
+    _recv(socket, buf, flags)
+}
+
+fn _recv(socket: SocketDesc, buf: &mut [u8], _flags: usize) -> Result<usize> {
+    let socket = get_socket_locked(socket)?;
+
+    let Some(pipe) = socket.pipe.as_ref().cloned() else {
+        return Err(Error::BAD_FILE_DESCRIPTOR);
+    };
+
+    drop(socket);
+
+    let bytes = pipe.recv_slice(buf);
+
+    return Ok(bytes);
 }
 
 //
@@ -710,6 +690,26 @@ impl ProcessExt for ProcessExtra {
 }
 
 //
+
+fn get_socket_locked(socket: SocketDesc) -> Result<ArcMutexGuard<Futex, SocketFile>> {
+    get_socket(socket).map(|v| v.lock_arc())
+}
+
+fn get_socket(socket: SocketDesc) -> Result<Arc<Mutex<SocketFile>>> {
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let socket = ext
+        .sockets
+        .lock()
+        .get(socket.0)
+        .and_then(|s| s.as_ref())
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
+        .socket_ref
+        .clone();
+
+    Ok(socket)
+}
 
 fn process_ext_with(proc: &Process) -> &ProcessExtra {
     proc.ext

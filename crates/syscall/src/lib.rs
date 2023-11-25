@@ -30,16 +30,16 @@ pub mod id {
     pub const RECV: usize = 12;
     pub const RENAME: usize = 13;
 
-    pub const OPEN: usize = 1000;
-    pub const CLOSE: usize = 1100;
-    pub const READ: usize = 1200;
-    pub const WRITE: usize = 1300;
+    pub const OPEN: usize = 14;
+    pub const CLOSE: usize = 15;
+    pub const READ: usize = 16;
+    pub const WRITE: usize = 17;
 
-    pub const SOCKET: usize = 2000;
-    pub const BIND: usize = 2100;
-    pub const LISTEN: usize = 2200;
-    pub const ACCEPT: usize = 2300;
-    pub const CONNECT: usize = 2400;
+    pub const SOCKET: usize = 18;
+    pub const BIND: usize = 19;
+    pub const LISTEN: usize = 20;
+    pub const ACCEPT: usize = 21;
+    pub const CONNECT: usize = 22;
 }
 
 //
@@ -168,17 +168,6 @@ pub fn pfree(ptr: NonNull<u8>, pages: usize) -> Result<()> {
     unsafe { syscall_2(id::PFREE, ptr.as_ptr() as usize, pages) }.map(|_| {})
 }
 
-/// send data to a PID based single naïve IPC channel
-#[inline(always)]
-pub fn send(target: usize, data: &[u8]) -> Result<()> {
-    unsafe { syscall_3(id::SEND, target, data.as_ptr() as usize, data.len()) }.map(|_| {})
-}
-
-/// read data from a PID based single naïve IPC channel
-pub fn recv(buf: &mut [u8]) -> Result<usize> {
-    unsafe { syscall_2(id::RECV, buf.as_mut_ptr() as usize, buf.len()) }
-}
-
 /// rename the current process
 #[inline(always)]
 pub fn rename(new_name: &str) -> Result<()> {
@@ -246,4 +235,17 @@ pub fn accept(socket: SocketDesc) -> Result<SocketDesc> {
 #[inline(always)]
 pub fn connect(socket: SocketDesc, addr: &str) -> Result<()> {
     unsafe { syscall_3(id::CONNECT, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
+}
+
+/// send data to a socket
+#[inline(always)]
+pub fn send(socket: SocketDesc, data: &[u8], flags: usize) -> Result<()> {
+    let (data, data_len) = (data.as_ptr() as usize, data.len());
+    unsafe { syscall_4(id::SEND, socket.0, data, data_len, flags) }.map(|_| {})
+}
+
+/// read data from a socket
+pub fn recv(socket: SocketDesc, buf: &mut [u8], flags: usize) -> Result<usize> {
+    let (buf, buf_len) = (buf.as_ptr() as usize, buf.len());
+    unsafe { syscall_4(id::RECV, socket.0, buf, buf_len, flags) }
 }

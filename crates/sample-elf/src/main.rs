@@ -40,11 +40,11 @@ pub fn main(_args: CliArgs) {
 
         bind(server, "/dev/server.sock").unwrap();
 
-        let _conn = accept(server).unwrap();
+        let conn = accept(server).unwrap();
 
         println!("connected");
 
-        // TODO: send(conn, b"Hello").unwrap();
+        send(conn, b"Hello", 0).unwrap();
     });
 
     // wait for the server to be up
@@ -56,10 +56,11 @@ pub fn main(_args: CliArgs) {
 
     println!("connected");
 
-    // TODO:
-    // let mut buf = [0u8; 64];
-    // let len = recv(client, &mut buf).unwrap();
-    // assert_eq!(&buf[..len], b"Hello");
+    let mut buf = [0u8; 64];
+    let len = recv(client, &mut buf, 0).unwrap();
+    assert_eq!(&buf[..len], b"Hello");
+
+    println!("got `{:?}`", core::str::from_utf8(&buf[..len]));
 
     /* match args.iter().next().expect("arg0 to be present") {
         // busybox style single binary 'coreutils'
