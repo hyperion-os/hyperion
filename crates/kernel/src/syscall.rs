@@ -297,25 +297,11 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
     let file_ref = VFS_ROOT
         .find_file(path, mkdirs, create)
         .map_err(map_vfs_err_to_syscall_err)?;
-    let file = Some(File {
+
+    let fd = ext.files.lock().push(File {
         file_ref,
         position: 0,
     });
-
-    let mut files = ext.files.lock();
-
-    let fd;
-    if let Some((_fd, spot)) = files
-        .iter_mut()
-        .enumerate()
-        .find(|(_, file)| file.is_none())
-    {
-        fd = _fd;
-        *spot = file;
-    } else {
-        fd = files.len();
-        files.push(file);
-    }
 
     return Ok(fd);
 }
@@ -329,10 +315,9 @@ pub fn close(args: &mut SyscallRegs) -> Result<usize> {
     let this = process();
     let ext = process_ext_with(&this);
 
-    *ext.files
-        .lock()
-        .get_mut(args.arg0 as usize)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)? = None;
+    if ext.files.lock().remove(args.arg0 as _).is_none() {
+        return Err(Error::BAD_FILE_DESCRIPTOR);
+    }
 
     return Ok(0);
 }
@@ -357,8 +342,7 @@ pub fn read(args: &mut SyscallRegs) -> Result<usize> {
     let mut files = ext.files.lock();
 
     let file = files
-        .get_mut(args.arg0 as usize)
-        .and_then(|v| v.as_mut())
+        .get_mut(args.arg0 as _)
         .ok_or(Error::BAD_FILE_DESCRIPTOR)?;
 
     let read = file
@@ -390,8 +374,7 @@ pub fn write(args: &mut SyscallRegs) -> Result<usize> {
     let mut files = ext.files.lock();
 
     let file = files
-        .get_mut(args.arg0 as usize)
-        .and_then(|v| v.as_mut())
+        .get_mut(args.arg0 as _)
         .ok_or(Error::BAD_FILE_DESCRIPTOR)?;
 
     let written = file
@@ -441,24 +424,11 @@ fn _socket_from(socket: SocketFile) -> SocketDesc {
     let this = process();
     let ext = process_ext_with(&this);
 
-    let socket = Some(Socket {
+    let socket = Socket {
         socket_ref: Arc::new(Mutex::new(socket)),
-    });
+    };
 
-    let mut sockets = ext.sockets.lock();
-
-    let fd;
-    if let Some((_fd, spot)) = sockets
-        .iter_mut()
-        .enumerate()
-        .find(|(_, socket)| socket.is_none())
-    {
-        fd = _fd;
-        *spot = socket;
-    } else {
-        fd = sockets.len();
-        sockets.push(socket);
-    }
+    let fd = ext.sockets.lock().push(socket);
 
     return SocketDesc(fd);
 }
@@ -630,9 +600,49 @@ fn _recv(socket: SocketDesc, buf: &mut [u8], _flags: usize) -> Result<usize> {
 
 //
 
+struct SparseVec<T> {
+    inner: Vec<Option<T>>,
+}
+
+impl<T> SparseVec<T> {
+    pub const fn new() -> Self {
+        Self { inner: Vec::new() }
+    }
+
+    pub fn get(&self, index: usize) -> Option<&T> {
+        self.inner.get(index).map(Option::as_ref).flatten()
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.inner.get_mut(index).map(Option::as_mut).flatten()
+    }
+
+    pub fn push(&mut self, v: T) -> usize {
+        let index;
+        if let Some((_index, spot)) = self
+            .inner
+            .iter_mut()
+            .enumerate()
+            .find(|(_, spot)| spot.is_none())
+        {
+            index = _index;
+            *spot = Some(v);
+        } else {
+            index = self.inner.len();
+            self.inner.push(Some(v));
+        }
+
+        index
+    }
+
+    pub fn remove(&mut self, index: usize) -> Option<T> {
+        self.inner.get_mut(index).and_then(Option::take)
+    }
+}
+
 struct ProcessExtra {
-    files: Mutex<Vec<Option<File>>>,
-    sockets: Mutex<Vec<Option<Socket>>>,
+    files: Mutex<SparseVec<File>>,
+    sockets: Mutex<SparseVec<Socket>>,
 }
 
 struct File {
@@ -734,7 +744,6 @@ fn get_socket(socket: SocketDesc) -> Result<Arc<Mutex<SocketFile>>> {
         .sockets
         .lock()
         .get(socket.0)
-        .and_then(|s| s.as_ref())
         .ok_or(Error::BAD_FILE_DESCRIPTOR)?
         .socket_ref
         .clone();
@@ -746,8 +755,8 @@ fn process_ext_with(proc: &Process) -> &ProcessExtra {
     proc.ext
         .call_once(|| {
             Box::new(ProcessExtra {
-                files: Mutex::new(Vec::new()),
-                sockets: Mutex::new(Vec::new()),
+                files: Mutex::new(SparseVec::new()),
+                sockets: Mutex::new(SparseVec::new()),
             })
         })
         .as_any()
