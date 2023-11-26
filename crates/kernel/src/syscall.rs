@@ -14,7 +14,7 @@ use hyperion_mem::{
     vmm::PageMapImpl,
 };
 use hyperion_scheduler::{
-    ipc::pipe::{Channel, Pipe},
+    ipc::pipe::{Channel, Pipe, Receiver, Sender},
     lock::{Futex, Mutex},
     process,
     task::{Process, ProcessExt},
@@ -504,9 +504,7 @@ fn listen(args: &mut SyscallRegs) -> Result<usize> {
 }
 
 fn _listen(socket: SocketDesc) -> Result<()> {
-    get_socket_locked(socket)?
-        .incoming
-        .get_or_insert_with(|| Arc::new(Channel::new()));
+    get_socket_locked(socket)?.incoming();
 
     Ok(())
 }
@@ -528,22 +526,19 @@ fn _accept(socket: SocketDesc) -> Result<SocketDesc> {
     let proto = socket.proto;
 
     // `listen` syscall is not required
-    let conn = socket
-        .incoming
-        .get_or_insert_with(|| Arc::new(Channel::new()))
-        .clone();
+    let conn = socket.incoming();
 
     drop(socket);
 
     // blocks here
-    let pipe = conn.recv();
+    let conn = conn.recv();
 
     Ok(_socket_from(SocketFile {
         domain,
         ty,
         proto,
         incoming: None,
-        connection: Some(pipe),
+        connection: Some(conn),
     }))
 }
 
@@ -571,18 +566,12 @@ fn _connect(socket: SocketDesc, addr: &str) -> Result<()> {
         .as_any()
         .downcast_ref::<SocketFile>()
         .ok_or(Error::CONNECTION_REFUSED)?
-        .incoming
-        .as_ref()
-        .cloned(); // not a socket file
-
-    let Some(incoming) = incoming else {
-        return Err(Error::CONNECTION_REFUSED);
-    };
+        .try_incoming()
+        .ok_or(Error::CONNECTION_REFUSED)?;
 
     drop(server);
 
-    let conn_client = LocalSocketConn::new();
-    let conn_server = conn_client.connect();
+    let (conn_client, conn_server) = LocalSocketConn::new();
     client.lock().connection = Some(conn_client);
     incoming.send(conn_server);
 
@@ -603,13 +592,13 @@ pub fn send(args: &mut SyscallRegs) -> Result<usize> {
 fn _send(socket: SocketDesc, data: &[u8], _flags: usize) -> Result<()> {
     let socket = get_socket_locked(socket)?;
 
-    let Some(conn) = socket.connection.as_ref().cloned() else {
+    let Some(conn) = socket.try_connection() else {
         return Err(Error::BAD_FILE_DESCRIPTOR);
     };
 
     drop(socket);
 
-    conn.remote.send_slice(data);
+    conn.send.send_slice(data);
 
     return Ok(());
 }
@@ -628,13 +617,13 @@ pub fn recv(args: &mut SyscallRegs) -> Result<usize> {
 fn _recv(socket: SocketDesc, buf: &mut [u8], _flags: usize) -> Result<usize> {
     let socket = get_socket_locked(socket)?;
 
-    let Some(conn) = socket.connection.as_ref().cloned() else {
+    let Some(conn) = socket.try_connection() else {
         return Err(Error::BAD_FILE_DESCRIPTOR);
     };
 
     drop(socket);
 
-    let n_bytes = conn.local.recv_slice(buf);
+    let n_bytes = conn.recv.recv_slice(buf);
 
     return Ok(n_bytes);
 }
@@ -662,31 +651,48 @@ struct SocketFile {
     ty: SocketType,
     proto: Protocol,
 
-    incoming: Option<Arc<Channel<16, LocalSocketConn>>>,
+    incoming: Option<Arc<Channel<LocalSocketConn>>>,
     connection: Option<LocalSocketConn>,
+}
+
+impl SocketFile {
+    pub fn incoming(&mut self) -> Arc<Channel<LocalSocketConn>> {
+        self.incoming
+            .get_or_insert_with(|| Arc::new(Channel::new(16)))
+            .clone()
+    }
+
+    pub fn try_incoming(&self) -> Option<Arc<Channel<LocalSocketConn>>> {
+        self.incoming.as_ref().cloned()
+    }
+
+    pub fn try_connection(&self) -> Option<LocalSocketConn> {
+        self.connection.as_ref().cloned()
+    }
 }
 
 #[derive(Clone)]
 struct LocalSocketConn {
-    local: Arc<Pipe>,
-    remote: Arc<Pipe>,
+    send: Sender<u8>,
+    recv: Receiver<u8>,
 }
 
 impl LocalSocketConn {
-    pub fn new() -> Self {
-        Self {
-            local: Arc::new(Pipe::new()),
-            remote: Arc::new(Pipe::new()),
-        }
-    }
-
-    pub fn connect(&self) -> Self {
-        Self {
-            // switch the pipes, because one pipes are one way
-            // and is for client -> server and one is for server -> client
-            local: self.remote.clone(),
-            remote: self.local.clone(),
-        }
+    pub fn new() -> (Self, Self) {
+        let pipe_0 = Pipe::new(0x1000);
+        let pipe_1 = Pipe::new(0x1000);
+        let (send_0, recv_1) = pipe_0.split();
+        let (send_1, recv_0) = pipe_1.split();
+        (
+            Self {
+                send: send_0,
+                recv: recv_0,
+            },
+            Self {
+                send: send_1,
+                recv: recv_1,
+            },
+        )
     }
 }
 
@@ -696,24 +702,15 @@ impl FileDevice for SocketFile {
     }
 
     fn len(&self) -> usize {
-        if let Some(pipe) = self.connection.as_ref() {
-            let recv = pipe.local.n_recv.load(Ordering::SeqCst);
-            let send = pipe.local.n_send.load(Ordering::SeqCst);
-            send - recv
-        } else {
-            0
-        }
+        0
     }
 
-    fn read(&self, _offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        let conn = self.connection.as_ref().ok_or(IoError::PermissionDenied)?;
-        Ok(conn.local.recv_slice(buf))
+    fn read(&self, _offset: usize, _buf: &mut [u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
     }
 
-    fn write(&mut self, _offset: usize, buf: &[u8]) -> IoResult<usize> {
-        let conn = self.connection.as_ref().ok_or(IoError::PermissionDenied)?;
-        conn.remote.send_slice(buf);
-        Ok(buf.len())
+    fn write(&mut self, _offset: usize, _buf: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
     }
 }
 

@@ -1,3 +1,4 @@
+use alloc::sync::Arc;
 use core::{
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
@@ -7,10 +8,62 @@ use crate::{futex, lock::Mutex, process, task::Pid};
 
 //
 
-pub type Pipe = Channel<0x1000, u8>;
+#[derive(Clone)]
+pub struct Sender<T> {
+    inner: Arc<Channel<T>>,
+}
+
+impl<T> Sender<T> {
+    pub fn send(&self, item: T) {
+        self.inner.send(item)
+    }
+}
+
+impl<T: Copy> Sender<T> {
+    pub fn send_slice(&self, data: &[T]) {
+        self.inner.send_slice(data)
+    }
+}
+
+//
+
+#[derive(Clone)]
+pub struct Receiver<T> {
+    inner: Arc<Channel<T>>,
+}
+
+impl<T> Receiver<T> {
+    pub fn recv(&self) -> T {
+        self.inner.recv()
+    }
+}
+
+impl<T: Copy> Receiver<T> {
+    pub fn recv_slice(&self, buf: &mut [T]) -> usize {
+        self.inner.recv_slice(buf)
+    }
+}
+
+//
+
+pub type Pipe = Channel<u8>;
+
+impl Pipe {
+    pub fn new_pipe() -> Self {
+        Self::new(0x1000)
+    }
+}
+
+impl Default for Pipe {
+    fn default() -> Self {
+        Self::new_pipe()
+    }
+}
+
+//
 
 /// simple P2P 2-copy IPC channel
-pub struct Channel<const MAX: usize, T> {
+pub struct Channel<T> {
     /// the actual data channel
     pub send: Mutex<ringbuf::HeapProducer<T>>,
     pub recv: Mutex<ringbuf::HeapConsumer<T>>,
@@ -19,10 +72,10 @@ pub struct Channel<const MAX: usize, T> {
     pub n_recv: AtomicUsize,
 }
 
-impl<const MAX: usize, T> Channel<MAX, T> {
-    pub fn new() -> Self {
+impl<T> Channel<T> {
+    pub fn new(capacity: usize) -> Self {
         // TODO: custom allocator
-        let (send, recv) = ringbuf::HeapRb::new(MAX).split();
+        let (send, recv) = ringbuf::HeapRb::new(capacity).split();
         let (send, recv) = (Mutex::new(send), Mutex::new(recv));
 
         Self {
@@ -32,6 +85,11 @@ impl<const MAX: usize, T> Channel<MAX, T> {
             n_send: AtomicUsize::new(0),
             n_recv: AtomicUsize::new(0),
         }
+    }
+
+    pub fn split(self) -> (Sender<T>, Receiver<T>) {
+        let ch = Arc::new(self);
+        (Sender { inner: ch.clone() }, Receiver { inner: ch })
     }
 
     pub fn send(&self, mut item: T) {
@@ -80,7 +138,7 @@ impl<const MAX: usize, T> Channel<MAX, T> {
     }
 }
 
-impl<const MAX: usize, T> Channel<MAX, T>
+impl<T> Channel<T>
 where
     T: Copy,
 {
@@ -133,12 +191,6 @@ where
             // sleep with the recv stream lock
             futex::wait(NonNull::from(&self.n_send), n_send);
         }
-    }
-}
-
-impl<const MAX: usize, T> Default for Channel<MAX, T> {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
