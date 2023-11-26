@@ -94,10 +94,7 @@ fn call_id(
 
 /// print a string to logs
 ///
-/// # arguments
-///  - `syscall_id` : 1
-///  - `arg0` : _utf8 string address_
-///  - `arg1` : _utf8 string length_
+/// [`hyperion_syscall::log`]
 pub fn log(args: &mut SyscallRegs) -> Result<usize> {
     let str = read_untrusted_str(args.arg0, args.arg1)?;
     hyperion_log::print!("{str}");
@@ -106,9 +103,7 @@ pub fn log(args: &mut SyscallRegs) -> Result<usize> {
 
 /// exit and kill the current process
 ///
-/// # arguments
-///  - `syscall_id` : 2
-///  - `arg0` : _exit code_
+/// [`hyperion_syscall::exit`]
 pub fn exit(_args: &mut SyscallRegs) -> Result<usize> {
     // TODO: exit code
     hyperion_scheduler::stop();
@@ -116,8 +111,7 @@ pub fn exit(_args: &mut SyscallRegs) -> Result<usize> {
 
 /// give the processor back to the kernel temporarily
 ///
-/// # arguments
-///  - `syscall_id` : 3
+/// [`hyperion_syscall::yield_now`]
 pub fn yield_now(_args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::yield_now();
     return Ok(0);
@@ -125,9 +119,7 @@ pub fn yield_now(_args: &mut SyscallRegs) -> Result<usize> {
 
 /// get the number of nanoseconds after boot
 ///
-/// # arguments
-///  - `syscall_id` : 4
-///  - `arg0` : address of a 128 bit variable where to store the timestamp
+/// [`hyperion_syscall::timestamp`]
 pub fn timestamp(args: &mut SyscallRegs) -> Result<usize> {
     let nanos = HPET.nanos();
 
@@ -139,9 +131,7 @@ pub fn timestamp(args: &mut SyscallRegs) -> Result<usize> {
 
 /// sleep at least arg0 nanoseconds
 ///
-/// # arguments
-///  - `syscall_id` : 5
-///  - `arg0` : lower 64 bits of the 128 bit duration TODO: address to a 128 bit variable
+/// [`hyperion_syscall::nanosleep`]
 pub fn nanosleep(args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::sleep(Duration::nanoseconds((args.arg0 as i64).max(0)));
     return Ok(0);
@@ -149,9 +139,7 @@ pub fn nanosleep(args: &mut SyscallRegs) -> Result<usize> {
 
 /// sleep at least until the nanosecond arg0 happens
 ///
-/// # arguments
-///  - `syscall_id` : 6
-///  - `arg0` : lower 64 bits of the 128 bit timestamp TODO: address to a 128 bit variable
+/// [`hyperion_syscall::nanosleep_until`]
 pub fn nanosleep_until(args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::sleep_until(Instant::new(args.arg0 as u128));
     return Ok(0);
@@ -161,10 +149,7 @@ pub fn nanosleep_until(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// thread entry signature: `extern "C" fn thread_entry(stack_ptr: usize, arg1: usize) -> !`
 ///
-/// # arguments
-///  - `syscall_id` : 8
-///  - `arg0` : the thread function pointer
-///  - `arg1` : the thread function argument
+/// [`hyperion_syscall::pthread_spawn`]
 pub fn pthread_spawn(args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::spawn_userspace(args.arg0, args.arg1);
     return Ok(0);
@@ -174,9 +159,7 @@ pub fn pthread_spawn(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// returns the virtual address pointer
 ///
-/// # arguments
-///  - `syscall_id` : 9
-///  - `arg0` : page count
+/// [`hyperion_syscall::palloc`]
 pub fn palloc(args: &mut SyscallRegs) -> Result<usize> {
     let pages = args.arg0 as usize;
     let alloc = pages * 0x1000;
@@ -216,10 +199,7 @@ pub fn palloc(args: &mut SyscallRegs) -> Result<usize> {
 
 /// free allocated physical pages
 ///
-/// # arguments
-///  - `syscall_id` : 10
-///  - `arg0` : page
-///  - `arg1` : page count
+/// [`hyperion_syscall::pfree`]
 pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
     let Ok(alloc_bottom) = VirtAddr::try_new(args.arg0) else {
         return Err(Error::INVALID_ADDRESS);
@@ -254,10 +234,7 @@ pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
 
 /// rename the current process
 ///
-/// # arguments
-///  - `syscall_id` : 13
-///  - `arg0` : filename : _utf8 string address_
-///  - `arg1` : filename : _utf8 string length_
+/// [`hyperion_syscall::rename`]
 pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
     let new_name = read_untrusted_str(args.arg0, args.arg1)?;
     hyperion_scheduler::rename(new_name.to_string().into());
@@ -266,12 +243,7 @@ pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
 
 /// open a file
 ///
-/// # arguments
-///  - `syscall_id` : 1000
-///  - `arg0` : filename : _utf8 string address_
-///  - `arg1` : filename : _utf8 string length_
-///  - `arg2` : flags
-///  - `arg3` : mode
+/// [`hyperion_syscall::open`]
 pub fn open(args: &mut SyscallRegs) -> Result<usize> {
     let path = read_untrusted_str(args.arg0, args.arg1)?;
 
@@ -308,9 +280,7 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 
 /// close a file
 ///
-/// # arguments
-///  - `syscall_id` : 1100
-///  - `arg0` : file descriptor
+/// [`hyperion_syscall::close`]
 pub fn close(args: &mut SyscallRegs) -> Result<usize> {
     let this = process();
     let ext = process_ext_with(&this);
@@ -324,15 +294,7 @@ pub fn close(args: &mut SyscallRegs) -> Result<usize> {
 
 /// read bytes from a file
 ///
-/// # arguments
-///  - `syscall_id` : 1200
-///  - `arg0` : file descriptor
-///  - `arg1` : data ptr
-///  - `arg2` : data len (bytes)
-///
-/// # return values (syscall_id)
-///  - `0`   : EOF
-///  - `1..` : number of bytes read
+/// [`hyperion_syscall::read`]
 pub fn read(args: &mut SyscallRegs) -> Result<usize> {
     let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
 
@@ -357,14 +319,7 @@ pub fn read(args: &mut SyscallRegs) -> Result<usize> {
 
 /// write bytes into a file
 ///
-/// # arguments
-///  - `syscall_id` : 1300
-///  - `arg0` : file descriptor
-///  - `arg1` : data ptr
-///  - `arg2` : data len (bytes)
-///
-/// # return values (syscall_id)
-///  - `0..` : number of bytes written
+/// [`hyperion_syscall::write`]
 pub fn write(args: &mut SyscallRegs) -> Result<usize> {
     let buf = read_untrusted_bytes(args.arg1, args.arg2)?;
 
@@ -750,6 +705,15 @@ fn get_socket(socket: SocketDesc) -> Result<Arc<Mutex<SocketFile>>> {
 
     Ok(socket)
 }
+
+// fn get_file(file: FileDesc) -> Result {
+//     let this = process();
+//     let ext = process_ext_with(&this);
+
+//     let mut files = ext.files.lock();
+
+//     let file = files.get_mut(file.0).ok_or(Error::BAD_FILE_DESCRIPTOR)?;
+// }
 
 fn process_ext_with(proc: &Process) -> &ProcessExtra {
     proc.ext
