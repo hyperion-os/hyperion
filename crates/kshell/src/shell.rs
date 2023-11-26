@@ -594,9 +594,9 @@ impl Shell {
                 .collect();
             let args = &args[..];
 
-            hyperion_log::debug!("spawning \"{name}\" with args {args:?}");
+            hyperion_log::trace!("spawning \"{name}\" with args {args:?}");
 
-            hyperion_log::debug!(
+            hyperion_log::trace!(
                 "ELF file from: {}",
                 env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF")
             );
@@ -609,7 +609,7 @@ impl Shell {
                 hyperion_log::debug!("entry point missing");
             }
         });
-        hyperion_log::debug!("spawning {name} done (PID:{pid})");
+        hyperion_log::trace!("spawning {name} done (PID:{pid})");
         pid
     }
 

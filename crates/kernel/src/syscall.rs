@@ -191,15 +191,24 @@ pub fn palloc(args: &mut SyscallRegs) -> Result<usize> {
     }
 
     let frames = pmm::PFA.alloc(pages);
+
+    // debug!(
+    //     "mapping [{:?}..{:?}] to {:?}",
+    //     VirtAddr::new(alloc_bottom as _),
+    //     VirtAddr::new(alloc_top as _),
+    //     frames.physical_addr(),
+    // );
     active.address_space.page_map.map(
         VirtAddr::new(alloc_bottom as _)..VirtAddr::new(alloc_top as _),
         frames.physical_addr(),
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
     );
 
-    let page_bottom = alloc_bottom / 0x1000;
+    let page_bottom = frames.physical_addr().as_u64() as usize / 0x1000;
     for page in page_bottom..page_bottom + pages {
-        allocs.set(page, true).unwrap();
+        if allocs.set(page, true).is_none() {
+            panic!("alloc set page:{page} len:{}", allocs.len());
+        }
     }
 
     return Ok(alloc_bottom);
@@ -220,7 +229,11 @@ pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
     let active = hyperion_scheduler::process();
     let mut allocs = active.allocs.bitmap();
 
-    let page_bottom = alloc_bottom.as_u64() as usize / 0x1000;
+    let Some(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) else {
+        return Err(Error::INVALID_ADDRESS);
+    };
+
+    let page_bottom = palloc.as_u64() as usize / 0x1000;
     for page in page_bottom..page_bottom + pages {
         if !allocs.get(page).unwrap() {
             return Err(Error::INVALID_ALLOC);
@@ -228,10 +241,6 @@ pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
 
         allocs.set(page, false).unwrap();
     }
-
-    let Some(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) else {
-        return Err(Error::INVALID_ADDRESS);
-    };
 
     let frames = unsafe { PageFrame::new(palloc, pages) };
     pmm::PFA.free(frames);

@@ -3,6 +3,7 @@ use alloc::{
     boxed::Box,
     collections::BTreeMap,
     sync::{Arc, Weak},
+    vec,
     vec::Vec,
 };
 use core::{
@@ -122,9 +123,8 @@ impl PageAllocs {
     pub fn bitmap(&self) -> MutexGuard<Bitmap<'static>> {
         self.bitmap
             .call_once(|| {
-                let bitmap_alloc: Vec<u8> = (0..pmm::PFA.bitmap_len() / 8).map(|_| 0u8).collect();
-                let bitmap_alloc = Vec::leak(bitmap_alloc); // TODO: free
-                Mutex::new(Bitmap::new(bitmap_alloc))
+                let bitmap_alloc = vec![0u8; pmm::PFA.bitmap_len() / 8];
+                Mutex::new(Bitmap::new(Vec::leak(bitmap_alloc)))
             })
             .lock()
     }

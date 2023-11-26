@@ -569,6 +569,7 @@ pub enum TryMapSizedError<T: PageSize> {
     Overflow,
     NotAligned,
     MapToError(MapToError<T>),
+    WrongSize,
 }
 
 fn try_map_sized<T>(
@@ -647,10 +648,8 @@ where
             // hyperion_log::debug!("already not mapped");
             Ok(())
         }
-        Err(_err) => {
-            // hyperion_log::error!("{err:?}");
-            panic!("{_err:?}");
-        }
+        Err(UnmapError::ParentEntryHugePage) => Err(TryMapSizedError::WrongSize),
+        Err(_err) => panic!("{_err:?}"),
     }
 }
 

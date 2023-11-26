@@ -6,7 +6,7 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, format};
 use core::{
     alloc::GlobalAlloc,
     fmt::{self, Write},
@@ -14,6 +14,7 @@ use core::{
 };
 
 use hyperion_syscall::{
+    err::Result,
     net::{Protocol, SocketDomain, SocketType},
     *,
 };
@@ -24,43 +25,54 @@ mod io; // partial std::io
 
 //
 
-pub fn main(_args: CliArgs) {
-    // println!("sample app main");
-    // println!("args: {args:?}");
+fn run_server() -> Result<()> {
+    let server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
+    bind(server, "/dev/server.sock")?;
 
-    // for i in 1..13 {
-    //     if i == 2 || i == 8 {
-    //         continue;
-    //     }
-    //     println!("{:?}", unsafe { syscall_0(i) });
-    // }
+    rename("local server")?;
 
-    spawn(|| {
-        let server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
-
-        bind(server, "/dev/server.sock").unwrap();
-
-        let conn = accept(server).unwrap();
-
+    loop {
+        let conn = accept(server)?;
         println!("connected");
 
-        send(conn, b"Hello", 0).unwrap();
-    });
+        let mut i = 0usize;
+        spawn(move || loop {
+            let msg = format!("Hello {i}");
+            i += 1;
+            send(conn, msg.as_bytes(), 0).unwrap();
+        });
+    }
+}
 
-    // wait for the server to be up
-    nanosleep(50_000_000);
+fn run_client() -> Result<()> {
+    let client = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
+    connect(client, "/dev/server.sock")?;
 
-    let client = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL).unwrap();
-
-    connect(client, "/dev/server.sock").unwrap();
+    rename("local client")?;
 
     println!("connected");
 
-    let mut buf = [0u8; 64];
-    let len = recv(client, &mut buf, 0).unwrap();
-    assert_eq!(&buf[..len], b"Hello");
+    loop {
+        let mut buf = [0u8; 64];
+        let len = recv(client, &mut buf, 0)?;
 
-    println!("got `{:?}`", core::str::from_utf8(&buf[..len]));
+        println!("got `{:?}`", core::str::from_utf8(&buf[..len]));
+    }
+
+    Ok(())
+}
+
+pub fn main(_args: CliArgs) {
+    let mut i = 0usize;
+    loop {
+        let msg = format!("Hello {i}");
+        i += 1;
+        println!("{msg}");
+    }
+
+    if run_server().is_err() {
+        run_client().unwrap();
+    }
 
     /* match args.iter().next().expect("arg0 to be present") {
         // busybox style single binary 'coreutils'
