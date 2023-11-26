@@ -58,18 +58,9 @@ fn run_client() -> Result<()> {
 
         println!("got `{:?}`", core::str::from_utf8(&buf[..len]));
     }
-
-    Ok(())
 }
 
 pub fn main(_args: CliArgs) {
-    let mut i = 0usize;
-    loop {
-        let msg = format!("Hello {i}");
-        i += 1;
-        println!("{msg}");
-    }
-
     if run_server().is_err() {
         run_client().unwrap();
     }
