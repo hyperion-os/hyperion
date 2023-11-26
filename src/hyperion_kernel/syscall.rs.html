@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (3a85a5cfe 2023-11-20)" data-channel="nightly" data-search-js="search-d23a059ec093b287.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (f5dc2653f 2023-11-25)" data-channel="nightly" data-search-js="search-56a624991a76cfad.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -787,6 +787,15 @@
 <a href="#787" id="787">787</a>
 <a href="#788" id="788">788</a>
 <a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{boxed::Box, string::ToString, sync::Arc, vec::Vec};
 <span class="kw">use </span>core::{
     any::{type_name_of_val, Any},
@@ -820,6 +829,7 @@
     path::Path,
     tree::{FileRef, Node},
 };
+<span class="kw">use </span>lock_api::ArcMutexGuard;
 <span class="kw">use </span>time::Duration;
 <span class="kw">use </span>x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -979,15 +989,24 @@
     }
 
     <span class="kw">let </span>frames = pmm::PFA.alloc(pages);
-    active.address_space.page_map.map(
+
+    <span class="comment">// debug!(
+    //     &quot;mapping [{:?}..{:?}] to {:?}&quot;,
+    //     VirtAddr::new(alloc_bottom as _),
+    //     VirtAddr::new(alloc_top as _),
+    //     frames.physical_addr(),
+    // );
+    </span>active.address_space.page_map.map(
         VirtAddr::new(alloc_bottom <span class="kw">as _</span>)..VirtAddr::new(alloc_top <span class="kw">as _</span>),
         frames.physical_addr(),
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
     );
 
-    <span class="kw">let </span>page_bottom = alloc_bottom / <span class="number">0x1000</span>;
+    <span class="kw">let </span>page_bottom = frames.physical_addr().as_u64() <span class="kw">as </span>usize / <span class="number">0x1000</span>;
     <span class="kw">for </span>page <span class="kw">in </span>page_bottom..page_bottom + pages {
-        allocs.set(page, <span class="bool-val">true</span>).unwrap();
+        <span class="kw">if </span>allocs.set(page, <span class="bool-val">true</span>).is_none() {
+            <span class="macro">panic!</span>(<span class="string">&quot;alloc set page:{page} len:{}&quot;</span>, allocs.len());
+        }
     }
 
     <span class="kw">return </span><span class="prelude-val">Ok</span>(alloc_bottom);
@@ -1008,7 +1027,11 @@
     <span class="kw">let </span>active = hyperion_scheduler::process();
     <span class="kw">let </span><span class="kw-2">mut </span>allocs = active.allocs.bitmap();
 
-    <span class="kw">let </span>page_bottom = alloc_bottom.as_u64() <span class="kw">as </span>usize / <span class="number">0x1000</span>;
+    <span class="kw">let </span><span class="prelude-val">Some</span>(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
+    };
+
+    <span class="kw">let </span>page_bottom = palloc.as_u64() <span class="kw">as </span>usize / <span class="number">0x1000</span>;
     <span class="kw">for </span>page <span class="kw">in </span>page_bottom..page_bottom + pages {
         <span class="kw">if </span>!allocs.get(page).unwrap() {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ALLOC);
@@ -1016,10 +1039,6 @@
 
         allocs.set(page, <span class="bool-val">false</span>).unwrap();
     }
-
-    <span class="kw">let </span><span class="prelude-val">Some</span>(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
-    };
 
     <span class="kw">let </span>frames = <span class="kw">unsafe </span>{ PageFrame::new(palloc, pages) };
     pmm::PFA.free(frames);
@@ -1029,39 +1048,6 @@
         .unmap(alloc_bottom..alloc_bottom + pages * <span class="number">0x1000</span>);
 
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
-}
-
-<span class="doccomment">/// send data to an input channel of a process
-///
-/// # arguments
-///  - `syscall_id` : 11
-///  - `arg0`       : target PID
-///  - `arg1`       : data ptr
-///  - `arg2`       : data len (bytes)
-</span><span class="kw">pub fn </span>send(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>target_pid = args.arg0;
-    <span class="kw">let </span>data = read_untrusted_bytes(args.arg1, args.arg2)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>pid = hyperion_scheduler::task::Pid::new(target_pid <span class="kw">as </span>usize);
-
-    <span class="kw">if </span>hyperion_scheduler::send(pid, data).is_err() {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::NO_SUCH_PROCESS);
-    }
-
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
-}
-
-<span class="doccomment">/// recv data from this process input channel
-///
-/// returns the number of bytes read
-///
-/// # arguments
-///  - `syscall_id` : 12
-///  - `arg0`       : data ptr
-///  - `arg1`       : data len (bytes)
-</span><span class="kw">pub fn </span>recv(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>buf = read_untrusted_bytes_mut(args.arg0, args.arg1)<span class="question-mark">?</span>;
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(hyperion_scheduler::recv(buf));
 }
 
 <span class="doccomment">/// rename the current process
@@ -1292,24 +1278,16 @@
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::NOT_FOUND);
     };
 
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
+    <span class="kw">let </span>socket = get_socket(socket)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>sockets = ext.sockets.lock();
-    <span class="kw">let </span>socket_file = sockets
-        .get(socket.<span class="number">0</span>)
-        .and_then(|s| s.as_ref())
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
-        </span>.socket_ref
-        .clone();
-    drop(sockets);
-
-    <span class="kw">let </span>dir = VFS_ROOT
-        .find_dir(dir, <span class="bool-val">false</span>)
-        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
-
-    dir.lock()
-        .create_node(sock_file, Node::File(socket_file))
+    VFS_ROOT
+        <span class="comment">// find the directory node
+        </span>.find_dir(dir, <span class="bool-val">false</span>)
+        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?
+        </span><span class="comment">// lock the directory
+        </span>.lock_arc()
+        <span class="comment">// create the socket file in that directory
+        </span>.create_node(sock_file, Node::File(socket))
         .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
 
     <span class="kw">return </span><span class="prelude-val">Ok</span>(());
@@ -1324,17 +1302,9 @@
 }
 
 <span class="kw">fn </span>_listen(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
-
-    ext.sockets
-        .lock()
-        .get(socket.<span class="number">0</span>)
-        .and_then(|s| s.as_ref())
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
-        </span>.socket_ref
-        .lock()
-        .conn = <span class="prelude-val">Some</span>(Arc::new(Channel::new()));
+    get_socket_locked(socket)<span class="question-mark">?
+        </span>.conn
+        .get_or_insert_with(|| Arc::new(Channel::new()));
 
     <span class="prelude-val">Ok</span>(())
 }
@@ -1349,19 +1319,7 @@
 }
 
 <span class="kw">fn </span>_accept(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;SocketDesc&gt; {
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
-
-    <span class="kw">let </span>sockets = ext.sockets.lock();
-    <span class="kw">let </span>socket = sockets
-        .get(socket.<span class="number">0</span>)
-        .and_then(|s| s.as_ref())
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
-        </span>.socket_ref
-        .clone();
-    drop(sockets);
-
-    <span class="kw">let </span><span class="kw-2">mut </span>socket = socket.lock();
+    <span class="kw">let </span><span class="kw-2">mut </span>socket = get_socket_locked(socket)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>domain = socket.domain;
     <span class="kw">let </span>ty = socket.ty;
@@ -1398,22 +1356,13 @@
 }
 
 <span class="kw">fn </span>_connect(socket: SocketDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
-
-    <span class="kw">let </span>sockets = ext.sockets.lock();
-    <span class="kw">let </span>client = sockets
-        .get(socket.<span class="number">0</span>)
-        .and_then(|s| s.as_ref())
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
-        </span>.socket_ref
-        .clone();
-    drop(sockets);
+    <span class="comment">// get the client socket early to test for errors, but lock it late
+    </span><span class="kw">let </span>client = get_socket(socket)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>server = VFS_ROOT
         .find_file(addr, <span class="bool-val">false</span>, <span class="bool-val">false</span>)
-        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
-    <span class="kw">let </span>server = server.lock();
+        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?
+        </span>.lock_arc();
 
     <span class="comment">// TODO: inode
     </span><span class="kw">let </span>conn = server
@@ -1431,11 +1380,60 @@
     drop(server);
 
     <span class="kw">let </span>pipe = Arc::new(Pipe::new());
-    conn.send(pipe.clone());
-
-    client.lock().pipe = <span class="prelude-val">Some</span>(pipe);
+    client.lock().pipe = <span class="prelude-val">Some</span>(pipe.clone());
+    conn.send(pipe);
 
     <span class="prelude-val">Ok</span>(())
+}
+
+<span class="doccomment">/// send data to a socket
+///
+/// [`hyperion_syscall::send`]
+</span><span class="kw">pub fn </span>send(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>socket = SocketDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>data = read_untrusted_bytes(args.arg1, args.arg2)<span class="question-mark">?</span>;
+    <span class="kw">let </span>flags = args.arg3 <span class="kw">as _</span>;
+
+    _send(socket, data, flags).map(|<span class="kw">_</span>| <span class="number">0</span>)
+}
+
+<span class="kw">fn </span>_send(socket: SocketDesc, data: <span class="kw-2">&amp;</span>[u8], _flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">let </span>socket = get_socket_locked(socket)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span><span class="prelude-val">Some</span>(pipe) = socket.pipe.as_ref().cloned() <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::BAD_FILE_DESCRIPTOR);
+    };
+
+    drop(socket);
+
+    pipe.send_slice(data);
+
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+}
+
+<span class="doccomment">/// recv data from a socket
+///
+/// [`hyperion_syscall::recv`]
+</span><span class="kw">pub fn </span>recv(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>socket = SocketDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>buf = read_untrusted_bytes_mut(args.arg1, args.arg2)<span class="question-mark">?</span>;
+    <span class="kw">let </span>flags = args.arg3 <span class="kw">as _</span>;
+
+    _recv(socket, buf, flags)
+}
+
+<span class="kw">fn </span>_recv(socket: SocketDesc, buf: <span class="kw-2">&amp;mut </span>[u8], _flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>socket = get_socket_locked(socket)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span><span class="prelude-val">Some</span>(pipe) = socket.pipe.as_ref().cloned() <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::BAD_FILE_DESCRIPTOR);
+    };
+
+    drop(socket);
+
+    <span class="kw">let </span>bytes = pipe.recv_slice(buf);
+
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(bytes);
 }
 
 <span class="comment">//
@@ -1500,7 +1498,27 @@
 
 <span class="comment">//
 
-</span><span class="kw">fn </span>process_ext_with(proc: <span class="kw-2">&amp;</span>Process) -&gt; <span class="kw-2">&amp;</span>ProcessExtra {
+</span><span class="kw">fn </span>get_socket_locked(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;ArcMutexGuard&lt;Futex, SocketFile&gt;&gt; {
+    get_socket(socket).map(|v| v.lock_arc())
+}
+
+<span class="kw">fn </span>get_socket(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Mutex&lt;SocketFile&gt;&gt;&gt; {
+    <span class="kw">let </span>this = process();
+    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
+
+    <span class="kw">let </span>socket = ext
+        .sockets
+        .lock()
+        .get(socket.<span class="number">0</span>)
+        .and_then(|s| s.as_ref())
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
+        </span>.socket_ref
+        .clone();
+
+    <span class="prelude-val">Ok</span>(socket)
+}
+
+<span class="kw">fn </span>process_ext_with(proc: <span class="kw-2">&amp;</span>Process) -&gt; <span class="kw-2">&amp;</span>ProcessExtra {
     proc.ext
         .call_once(|| {
             Box::new(ProcessExtra {
