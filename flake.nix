@@ -30,6 +30,7 @@
               targets = [ "x86_64-unknown-none" ];
             })
             rust-analyzer
+            rustup
             lldb
             cargo-udeps
             cargo-nextest

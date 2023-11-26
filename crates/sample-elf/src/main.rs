@@ -31,15 +31,22 @@ fn run_server() -> Result<()> {
 
     rename("local server")?;
 
+    let mut i = 0usize;
     loop {
         let conn = accept(server)?;
         println!("connected");
 
-        let mut i = 0usize;
-        spawn(move || loop {
-            let msg = format!("Hello {i}");
-            i += 1;
+        let msg = format!("Hello {i}");
+        i += 1;
+
+        spawn(move || {
             send(conn, msg.as_bytes(), 0).unwrap();
+
+            let mut buf = [0u8; 64];
+            let len = recv(conn, &mut buf, 0).unwrap();
+            assert_eq!(&buf[..len], b"ack");
+
+            println!("server done");
         });
     }
 }
@@ -57,6 +64,12 @@ fn run_client() -> Result<()> {
         let len = recv(client, &mut buf, 0)?;
 
         println!("got `{:?}`", core::str::from_utf8(&buf[..len]));
+
+        if buf[..len].ends_with(b"2") {
+            panic!()
+        }
+
+        send(client, b"ack", 0)?;
     }
 }
 
