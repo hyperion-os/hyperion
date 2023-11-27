@@ -96,8 +96,8 @@ impl OpenOptions {
         self
     }
 
-    pub fn open(&self, path: &str) -> Result<File> {
-        let fd = open(path, self.flags, 0)?;
+    pub fn open(&self, path: impl AsRef<str>) -> Result<File> {
+        let fd = open(path.as_ref(), self.flags, 0)?;
         Ok(unsafe { File::new(fd) })
     }
 }

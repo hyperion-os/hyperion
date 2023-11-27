@@ -4,8 +4,11 @@
 
 //
 
+use core::{hint::spin_loop, str::from_utf8};
+
 use libstd::{
     alloc::format,
+    fs::OpenOptions,
     println,
     sys::{
         err::Result,
@@ -43,6 +46,18 @@ fn run_server() -> Result<()> {
             let len = recv(conn, &mut buf, 0).unwrap();
             assert_eq!(&buf[..len], b"ack");
 
+            let file = OpenOptions::new()
+                .read(true)
+                .create(false)
+                .open(format!("/tmp/{msg}"))
+                .unwrap();
+
+            let mut buf = [0u8; 64];
+            let len = file.read(&mut buf).unwrap();
+            assert_eq!(&buf[..len], b"testing data");
+
+            drop(file); // drop = flush + close
+
             println!("server done");
         });
     }
@@ -60,10 +75,25 @@ fn run_client() -> Result<()> {
         let mut buf = [0u8; 64];
         let len = recv(client, &mut buf, 0)?;
 
-        println!("got `{:?}`", core::str::from_utf8(&buf[..len]));
+        let utf8 = &buf[..len];
+        let msg = from_utf8(utf8).unwrap();
+        println!("got `{msg:?}`");
+
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(format!("/tmp/{msg}"))
+            .unwrap();
+
+        file.write(b"testing data").unwrap();
+
+        drop(file); // drop = flush + close
 
         if buf[..len].ends_with(b"2") {
-            panic!()
+            println!("infinite loop");
+            loop {
+                spin_loop();
+            }
         }
 
         send(client, b"ack", 0)?;
