@@ -1,6 +1,9 @@
 #![no_std]
+#![feature(atomic_from_mut, const_mut_refs)]
 
 //
+
+use core::sync::atomic::{AtomicU8, Ordering};
 
 #[derive(Debug, Default)]
 pub struct Bitmap<'a> {
@@ -10,17 +13,18 @@ pub struct Bitmap<'a> {
 //
 
 impl<'a> Bitmap<'a> {
-    pub fn new(data: &'a mut [u8]) -> Self {
+    #[must_use]
+    pub const fn new(data: &'a mut [u8]) -> Self {
         Self { data }
     }
 
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.data.len() * 8
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
@@ -35,7 +39,7 @@ impl<'a> Bitmap<'a> {
 
     #[must_use]
     pub fn get(&self, n: usize) -> Option<bool> {
-        let (byte, _, mask) = self.bp(n);
+        let (byte, _, mask) = bp(n);
         let byte = *self.data.get(byte)?;
 
         Some(byte & mask != 0)
@@ -43,7 +47,7 @@ impl<'a> Bitmap<'a> {
 
     #[must_use]
     pub fn set(&mut self, n: usize, val: bool) -> Option<()> {
-        let (byte, bit, mask) = self.bp(n);
+        let (byte, bit, mask) = bp(n);
         let byte = self.data.get_mut(byte)?;
 
         // reset the bit
@@ -89,19 +93,108 @@ impl<'a> Bitmap<'a> {
     pub fn iter_bytes(&self) -> impl Iterator<Item = u8> + '_ {
         self.data.iter().copied()
     }
+}
+
+//
+
+pub struct AtomicBitmap<'a> {
+    data: &'a [AtomicU8],
+}
+
+impl<'a> AtomicBitmap<'a> {
+    #[must_use]
+    pub const fn new(data: &'a [AtomicU8]) -> Self {
+        Self { data }
+    }
 
     #[must_use]
-    fn bp(&self, n: usize) -> (usize, usize, u8) {
-        let bit = n % 8;
-        (n / 8, bit, 1 << bit)
+    pub fn from_mut(data: &'a mut [u8]) -> Self {
+        Self::new(AtomicU8::from_mut_slice(data))
     }
+
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.data.len() * 8
+    }
+
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn fill(&mut self, val: bool, order: Ordering) {
+        let val = if val { 0xFF } else { 0x0 };
+        for b in self.data {
+            b.store(val, order);
+        }
+    }
+
+    #[must_use]
+    pub fn load(&self, n: usize, order: Ordering) -> Option<bool> {
+        let (byte, _, mask) = bp(n);
+        let byte = self.data.get(byte)?;
+
+        Some(byte.load(order) & mask != 0)
+    }
+
+    #[must_use]
+    pub fn store(&self, n: usize, val: bool, order: Ordering) -> Option<()> {
+        let (byte, _, mask) = bp(n);
+        let byte = self.data.get(byte)?;
+
+        if val {
+            byte.fetch_or(mask, order);
+        } else {
+            byte.fetch_and(!mask, order);
+        }
+
+        Some(())
+    }
+
+    #[must_use]
+    pub fn swap(&self, n: usize, val: bool, order: Ordering) -> Option<bool> {
+        let (byte, _, mask) = bp(n);
+        let byte = self.data.get(byte)?;
+
+        let old = if val {
+            byte.fetch_or(mask, order)
+        } else {
+            byte.fetch_and(!mask, order)
+        };
+
+        Some(old & mask != 0)
+    }
+}
+
+impl<'a> From<&'a mut [u8]> for AtomicBitmap<'a> {
+    fn from(value: &'a mut [u8]) -> Self {
+        Self::from_mut(value)
+    }
+}
+
+impl<'a, const N: usize> From<&'a mut [u8; N]> for AtomicBitmap<'a> {
+    fn from(value: &'a mut [u8; N]) -> Self {
+        Self::from_mut(value)
+    }
+}
+
+//
+
+/// byte index, bit index, bitmask
+#[must_use]
+fn bp(n: usize) -> (usize, usize, u8) {
+    let bit = n % 8;
+    (n / 8, bit, 1 << bit)
 }
 
 //
 
 #[cfg(test)]
 mod tests {
+    use core::sync::atomic::Ordering;
+
     use super::Bitmap;
+    use crate::AtomicBitmap;
 
     #[test]
     fn test_bitmap_iter_true() {
@@ -142,5 +235,28 @@ mod tests {
         assert_eq!(iter.next(), Some(53));
         assert_eq!(iter.next(), Some(79));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_atomic_bitmap() {
+        let mut bitmap = [0xFF; 10];
+        let bitmap = AtomicBitmap::from(&mut bitmap);
+
+        assert_eq!(bitmap.load(5, Ordering::SeqCst), Some(true));
+        assert_eq!(bitmap.swap(5, false, Ordering::SeqCst), Some(true));
+        assert_eq!(bitmap.swap(5, false, Ordering::SeqCst), Some(false));
+        assert_eq!(bitmap.load(5, Ordering::SeqCst), Some(false));
+
+        assert_eq!(bitmap.load(7, Ordering::SeqCst), Some(true));
+        assert_eq!(bitmap.swap(7, false, Ordering::SeqCst), Some(true));
+        assert_eq!(bitmap.swap(7, false, Ordering::SeqCst), Some(false));
+        assert_eq!(bitmap.load(7, Ordering::SeqCst), Some(false));
+
+        assert_eq!(bitmap.load(9, Ordering::SeqCst), Some(true));
+        assert_eq!(bitmap.swap(9, false, Ordering::SeqCst), Some(true));
+        assert_eq!(bitmap.swap(9, false, Ordering::SeqCst), Some(false));
+        assert_eq!(bitmap.load(9, Ordering::SeqCst), Some(false));
+
+        assert_eq!(bitmap.swap(89, false, Ordering::SeqCst), None);
     }
 }
