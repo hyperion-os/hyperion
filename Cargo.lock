@@ -786,6 +786,7 @@ dependencies = [
  "hyperion-boot-interface",
  "hyperion-log",
  "hyperion-num-postfix",
+ "hyperion-slab-alloc",
  "hyperion-sync",
  "spin",
  "volatile 0.5.1",
@@ -842,6 +843,14 @@ dependencies = [
  "spin",
  "time",
  "x86_64",
+]
+
+[[package]]
+name = "hyperion-slab-alloc"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "spin",
 ]
 
 [[package]]

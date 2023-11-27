@@ -25,7 +25,7 @@ use super::{from_higher_half, to_higher_half};
 
 pub static PFA: Lazy<PageFrameAllocator> = Lazy::new(PageFrameAllocator::init);
 
-const PAGE_SIZE: usize = 2usize.pow(12); // 4KiB pages
+const PAGE_SIZE: usize = 0x1000; // 4KiB pages
 
 //
 
