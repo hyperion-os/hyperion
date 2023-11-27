@@ -565,11 +565,11 @@ impl<T> SparseVec<T> {
     }
 
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.inner.get(index).map(Option::as_ref).flatten()
+        self.inner.get(index).and_then(Option::as_ref)
     }
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.inner.get_mut(index).map(Option::as_mut).flatten()
+        self.inner.get_mut(index).and_then(Option::as_mut)
     }
 
     pub fn push(&mut self, v: T) -> usize {
