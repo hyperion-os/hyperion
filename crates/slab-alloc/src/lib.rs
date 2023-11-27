@@ -13,7 +13,7 @@
 //! pushed back into it.
 
 #![no_std]
-#![feature(pointer_is_aligned)]
+#![feature(pointer_is_aligned, const_pointer_is_aligned)]
 
 //
 
@@ -48,7 +48,10 @@ pub struct PageFrames {
 }
 
 impl PageFrames {
+    /// # Safety
+    /// `first` must point to a valid page allocation of `len * 0x1000` bytes
     pub const unsafe fn new(first: *mut u8, len: usize) -> Self {
+        debug_assert!(first.is_aligned_to(0x1000));
         Self { first, len }
     }
 
