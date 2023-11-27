@@ -5,14 +5,8 @@
 
 extern crate alloc;
 
-use core::{
-    alloc::{GlobalAlloc, Layout},
-    ptr::NonNull,
-};
-
 use hyperion_boot::hhdm_offset;
 use hyperion_slab_alloc::{PageFrameAllocator, PageFrames, SlabAllocator};
-use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::pmm::{PageFrame, PFA};
@@ -23,17 +17,6 @@ pub mod pmm;
 pub mod vmm;
 
 //
-
-#[cfg(feature = "set-allocator")]
-pub fn force_init_allocator() {
-    Lazy::force(&ALLOCATOR.slab);
-}
-
-//
-
-struct KAlloc {
-    slab: Lazy<SlabAllocator<Pfa>>,
-}
 
 struct Pfa;
 
@@ -58,23 +41,9 @@ impl PageFrameAllocator for Pfa {
 
 #[cfg(feature = "set-allocator")]
 #[global_allocator]
-static ALLOCATOR: KAlloc = KAlloc {
-    slab: Lazy::new(SlabAllocator::new),
-};
+static ALLOCATOR: SlabAllocator<Pfa> = SlabAllocator::new();
 
 //
-
-unsafe impl GlobalAlloc for KAlloc {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        self.slab.alloc(layout.size())
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
-        if let Some(ptr) = NonNull::new(ptr) {
-            self.slab.free(ptr)
-        }
-    }
-}
 
 #[macro_export]
 #[allow(unused)]

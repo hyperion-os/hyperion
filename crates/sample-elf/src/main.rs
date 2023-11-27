@@ -4,17 +4,15 @@
 
 //
 
-extern crate alloc;
-
-use alloc::format;
-
 use libstd::{
-    println, spawn,
+    alloc::{format, string::String},
+    println,
     sys::{
         err::Result,
         net::{Protocol, SocketDomain, SocketType},
         *,
     },
+    thread::spawn,
     CliArgs,
 };
 
@@ -74,6 +72,10 @@ fn run_client() -> Result<()> {
 
 #[no_mangle]
 pub fn main(_args: CliArgs) {
+    loop {
+        String::leak("test".into());
+    }
+
     if run_server().is_err() {
         run_client().unwrap();
     }

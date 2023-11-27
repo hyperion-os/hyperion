@@ -1,5 +1,4 @@
-use alloc::boxed::Box;
-
+use core_alloc::boxed::Box;
 use hyperion_syscall::{exit, pthread_spawn};
 
 //

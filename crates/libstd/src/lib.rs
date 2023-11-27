@@ -3,15 +3,11 @@
 
 //
 
-extern crate alloc;
+extern crate alloc as core_alloc;
 
-use core::{
-    alloc::GlobalAlloc,
-    fmt::{self, Write},
-    ptr::NonNull,
-};
+use core::fmt::{self, Write};
 
-use hyperion_syscall::{exit, palloc, pfree};
+use hyperion_syscall::exit;
 
 //
 
@@ -22,6 +18,8 @@ pub mod sys {
 pub mod fs;
 
 pub mod thread;
+
+pub mod alloc;
 
 //
 
@@ -106,23 +104,3 @@ impl fmt::Debug for CliArgs {
         f.debug_list().entries(self.iter()).finish()
     }
 }
-
-pub struct PageAlloc;
-
-unsafe impl GlobalAlloc for PageAlloc {
-    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        let pages = layout.size().div_ceil(0x1000);
-
-        let res = palloc(pages);
-        // println!("alloc syscall res: {res:?}");
-        res.expect("page alloc").expect("null alloc").as_ptr()
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
-        let pages = layout.size().div_ceil(0x1000);
-        assert!(pfree(NonNull::new(ptr).unwrap(), pages).is_ok());
-    }
-}
-
-#[global_allocator]
-static GLOBAL_ALLOC: PageAlloc = PageAlloc;

@@ -1,5 +1,6 @@
-use alloc::{string::String, vec::Vec};
 use core::slice::memchr;
+
+use libstd::alloc::{string::String, vec::Vec};
 
 //
 

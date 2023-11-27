@@ -18,6 +18,7 @@
 //
 
 use core::{
+    alloc::{GlobalAlloc, Layout},
     marker::PhantomData,
     ptr::{null_mut, NonNull},
     slice,
@@ -108,6 +109,21 @@ unsafe impl<P> Sync for Slab<P> {}
 unsafe impl<P> Send for Slab<P> {}
 
 //
+
+unsafe impl<P> GlobalAlloc for SlabAllocator<P>
+where
+    P: PageFrameAllocator,
+{
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        self.alloc(layout.size())
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        if let Some(ptr) = NonNull::new(ptr) {
+            self.free(ptr)
+        }
+    }
+}
 
 impl<P> SlabAllocator<P> {
     pub const fn new() -> Self {
