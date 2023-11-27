@@ -6,17 +6,16 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, format};
-use core::{
-    alloc::GlobalAlloc,
-    fmt::{self, Write},
-    ptr::NonNull,
-};
+use alloc::format;
 
-use hyperion_syscall::{
-    err::Result,
-    net::{Protocol, SocketDomain, SocketType},
-    *,
+use libstd::{
+    println, spawn,
+    sys::{
+        err::Result,
+        net::{Protocol, SocketDomain, SocketType},
+        *,
+    },
+    CliArgs,
 };
 
 //
@@ -73,6 +72,7 @@ fn run_client() -> Result<()> {
     }
 }
 
+#[no_mangle]
 pub fn main(_args: CliArgs) {
     if run_server().is_err() {
         run_client().unwrap();
@@ -202,124 +202,4 @@ pub fn main(_args: CliArgs) {
 
         tool => panic!("unknown tool {tool}"),
     } */
-}
-
-//
-
-#[macro_export]
-macro_rules! println {
-    ($($v:tt)*) => {
-        _print(format_args_nl!($($v)*))
-    };
-}
-
-//
-
-#[derive(Clone, Copy)]
-pub struct CliArgs {
-    hyperion_cli_args_ptr: usize,
-}
-
-impl CliArgs {
-    pub fn iter(self) -> impl Iterator<Item = &'static str> + Clone + DoubleEndedIterator {
-        let mut ptr = self.hyperion_cli_args_ptr;
-
-        let argc: usize = Self::pop(&mut ptr);
-        let mut arg_lengths = ptr;
-        let mut arg_strings = ptr + argc * core::mem::size_of::<usize>();
-
-        (0..argc).map(move |_| {
-            let len: usize = Self::pop(&mut arg_lengths);
-            let str: &[u8] = unsafe { core::slice::from_raw_parts(arg_strings as _, len as _) };
-            arg_strings += len;
-
-            unsafe { core::str::from_utf8_unchecked(str) }
-        })
-    }
-
-    fn pop<T: Sized>(top: &mut usize) -> T {
-        let v = unsafe { ((*top) as *const T).read() };
-        *top += core::mem::size_of::<T>();
-        v
-    }
-}
-
-impl fmt::Debug for CliArgs {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_list().entries(self.iter()).finish()
-    }
-}
-
-pub struct PageAlloc;
-
-unsafe impl GlobalAlloc for PageAlloc {
-    unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
-        let pages = layout.size().div_ceil(0x1000);
-
-        let res = palloc(pages);
-        // println!("alloc syscall res: {res:?}");
-        res.expect("page alloc").expect("null alloc").as_ptr()
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: core::alloc::Layout) {
-        let pages = layout.size().div_ceil(0x1000);
-        assert!(pfree(NonNull::new(ptr).unwrap(), pages).is_ok());
-    }
-}
-
-#[global_allocator]
-static GLOBAL_ALLOC: PageAlloc = PageAlloc;
-
-//
-
-#[allow(unused)]
-fn spawn(f: impl FnOnce() + Send + 'static) {
-    let f_fatptr: Box<dyn FnOnce() + Send + 'static> = Box::new(f);
-    let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = Box::into_raw(Box::new(f_fatptr));
-
-    pthread_spawn(_thread_entry, f_fatptr_box as _);
-}
-
-fn _print(args: fmt::Arguments) {
-    struct SyscallLog;
-
-    //
-
-    impl Write for SyscallLog {
-        fn write_str(&mut self, s: &str) -> fmt::Result {
-            hyperion_syscall::log(s).map_err(|_| fmt::Error)
-        }
-    }
-
-    _ = SyscallLog.write_fmt(args);
-}
-
-//
-
-#[no_mangle]
-extern "C" fn _start(a0: usize) -> ! {
-    main(CliArgs {
-        hyperion_cli_args_ptr: a0,
-    });
-    exit(0);
-}
-
-extern "C" fn _thread_entry(_stack_ptr: usize, arg: usize) -> ! {
-    // println!("_thread_entry");
-    // println!("_thread_entry {_stack_ptr} {arg}");
-    let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = arg as _;
-    let f_fatptr: Box<dyn FnOnce() + Send + 'static> = *unsafe { Box::from_raw(f_fatptr_box) };
-
-    // println!("addr {:0x}", (&*f_fatptr) as *const _ as *const () as usize);
-
-    f_fatptr();
-    // println!("_thread_entry f call");
-
-    exit(0);
-}
-
-#[panic_handler]
-fn panic_handler(info: &core::panic::PanicInfo) -> ! {
-    println!("sample-elf: {info}");
-    exit(-1);
 }
