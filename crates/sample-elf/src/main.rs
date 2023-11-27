@@ -72,10 +72,6 @@ fn run_client() -> Result<()> {
 
 #[no_mangle]
 pub fn main(_args: CliArgs) {
-    loop {
-        String::leak("test".into());
-    }
-
     if run_server().is_err() {
         run_client().unwrap();
     }
