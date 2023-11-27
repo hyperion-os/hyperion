@@ -82,10 +82,9 @@ fn run_client() -> Result<()> {
         let file = OpenOptions::new()
             .write(true)
             .create(true)
-            .open(format!("/tmp/{msg}"))
-            .unwrap();
+            .open(format!("/tmp/{msg}"))?;
 
-        file.write(b"testing data").unwrap();
+        file.write(b"testing data")?;
 
         drop(file); // drop = flush + close
 
