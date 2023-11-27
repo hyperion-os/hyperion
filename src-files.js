@@ -68,11 +68,12 @@ var srcIndex = JSON.parse('{\
 "hyperion_log":["",[],["lib.rs"]],\
 "hyperion_log_multi":["",[],["lib.rs"]],\
 "hyperion_macros":["",[],["lib.rs"]],\
-"hyperion_mem":["",[],["lib.rs","pmm.rs","slab.rs","vmm.rs"]],\
+"hyperion_mem":["",[],["lib.rs","pmm.rs","vmm.rs"]],\
 "hyperion_num_postfix":["",[],["lib.rs"]],\
 "hyperion_random":["",[],["lib.rs"]],\
-"hyperion_sample_elf":["",[],["io.rs","main.rs"]],\
+"hyperion_sample_elf":["",[],["main.rs"]],\
 "hyperion_scheduler":["",[["ipc",[],["mod.rs","pipe.rs"]]],["cleanup.rs","futex.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]],\
+"hyperion_slab_alloc":["",[],["lib.rs"]],\
 "hyperion_static_str":["",[],["lib.rs"]],\
 "hyperion_sync":["",[],["lib.rs"]],\
 "hyperion_syscall":["",[],["err.rs","fs.rs","lib.rs","net.rs"]],\
@@ -81,6 +82,7 @@ var srcIndex = JSON.parse('{\
 "iana_time_zone":["",[],["ffi_utils.rs","lib.rs","tz_linux.rs"]],\
 "itertools":["",[["adaptors",[],["coalesce.rs","map.rs","mod.rs"]]],["concat_impl.rs","cons_tuples_impl.rs","diff.rs","either_or_both.rs","exactly_one_err.rs","flatten_ok.rs","format.rs","free.rs","impl_macros.rs","intersperse.rs","lib.rs","merge_join.rs","minmax.rs","pad_tail.rs","peeking_take_while.rs","process_results_impl.rs","repeatn.rs","size_hint.rs","sources.rs","take_while_inclusive.rs","tuple_impl.rs","unziptuple.rs","with_position.rs","zip_eq_impl.rs","zip_longest.rs","ziptuple.rs"]],\
 "libm":["",[["math",[],["acos.rs","acosf.rs","acosh.rs","acoshf.rs","asin.rs","asinf.rs","asinh.rs","asinhf.rs","atan.rs","atan2.rs","atan2f.rs","atanf.rs","atanh.rs","atanhf.rs","cbrt.rs","cbrtf.rs","ceil.rs","ceilf.rs","copysign.rs","copysignf.rs","cos.rs","cosf.rs","cosh.rs","coshf.rs","erf.rs","erff.rs","exp.rs","exp10.rs","exp10f.rs","exp2.rs","exp2f.rs","expf.rs","expm1.rs","expm1f.rs","expo2.rs","fabs.rs","fabsf.rs","fdim.rs","fdimf.rs","fenv.rs","floor.rs","floorf.rs","fma.rs","fmaf.rs","fmax.rs","fmaxf.rs","fmin.rs","fminf.rs","fmod.rs","fmodf.rs","frexp.rs","frexpf.rs","hypot.rs","hypotf.rs","ilogb.rs","ilogbf.rs","j0.rs","j0f.rs","j1.rs","j1f.rs","jn.rs","jnf.rs","k_cos.rs","k_cosf.rs","k_expo2.rs","k_expo2f.rs","k_sin.rs","k_sinf.rs","k_tan.rs","k_tanf.rs","ldexp.rs","ldexpf.rs","lgamma.rs","lgamma_r.rs","lgammaf.rs","lgammaf_r.rs","log.rs","log10.rs","log10f.rs","log1p.rs","log1pf.rs","log2.rs","log2f.rs","logf.rs","mod.rs","modf.rs","modff.rs","nextafter.rs","nextafterf.rs","pow.rs","powf.rs","rem_pio2.rs","rem_pio2_large.rs","rem_pio2f.rs","remainder.rs","remainderf.rs","remquo.rs","remquof.rs","rint.rs","rintf.rs","round.rs","roundf.rs","scalbn.rs","scalbnf.rs","sin.rs","sincos.rs","sincosf.rs","sinf.rs","sinh.rs","sinhf.rs","sqrt.rs","sqrtf.rs","tan.rs","tanf.rs","tanh.rs","tanhf.rs","tgamma.rs","tgammaf.rs","trunc.rs","truncf.rs"]]],["lib.rs","libm_helper.rs"]],\
+"libstd":["",[],["alloc.rs","fs.rs","io.rs","lib.rs","thread.rs"]],\
 "limine":["",[],["lib.rs"]],\
 "lock_api":["",[],["lib.rs","mutex.rs","remutex.rs","rwlock.rs"]],\
 "memoffset":["",[],["lib.rs","offset_of.rs","raw_field.rs","span_of.rs"]],\

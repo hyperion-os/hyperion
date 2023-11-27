@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/mem/src/pmm.rs`."><title>pmm.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_mem" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (f5dc2653f 2023-11-25)" data-channel="nightly" data-search-js="search-56a624991a76cfad.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-f06f02fd918e3bb3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/mem/src/pmm.rs`."><title>pmm.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_mem" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (6cf088810 2023-11-26)" data-channel="nightly" data-search-js="search-56a624991a76cfad.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-e1c03aa593074e71.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -409,54 +409,11 @@
 <a href="#409" id="409">409</a>
 <a href="#410" id="410">410</a>
 <a href="#411" id="411">411</a>
-<a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a>
-<a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a>
-<a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a>
-<a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a>
-<a href="#439" id="439">439</a>
-<a href="#440" id="440">440</a>
-<a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a>
-<a href="#443" id="443">443</a>
-<a href="#444" id="444">444</a>
-<a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a>
-<a href="#447" id="447">447</a>
-<a href="#448" id="448">448</a>
-<a href="#449" id="449">449</a>
-<a href="#450" id="450">450</a>
-<a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Physical memory management
 //!
 //! Page frame allocating
 
-</span><span class="kw">use </span>alloc::vec::Vec;
-<span class="kw">use </span>core::{
+</span><span class="kw">use </span>core::{
     alloc::{AllocError, Allocator, Layout},
     fmt,
     mem::{transmute, MaybeUninit},
@@ -465,13 +422,13 @@
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-<span class="kw">use </span>hyperion_bitmap::Bitmap;
+<span class="kw">use </span>hyperion_bitmap::AtomicBitmap;
 <span class="kw">use </span>hyperion_boot::memmap;
 <span class="kw">use </span>hyperion_boot_interface::Memmap;
 <span class="kw">use </span>hyperion_log::debug;
 <span class="kw">use </span>hyperion_num_postfix::NumberPostfix;
-<span class="kw">use </span>spin::{Lazy, Mutex};
-<span class="kw">use </span>x86_64::{align_up, structures::paging::PhysFrame, PhysAddr, VirtAddr};
+<span class="kw">use </span>spin::Lazy;
+<span class="kw">use </span>x86_64::{align_up, PhysAddr, VirtAddr};
 
 <span class="kw">use super</span>::{from_higher_half, to_higher_half};
 
@@ -479,13 +436,13 @@
 
 </span><span class="kw">pub static </span>PFA: Lazy&lt;PageFrameAllocator&gt; = Lazy::new(PageFrameAllocator::init);
 
-<span class="kw">const </span>PAGE_SIZE: usize = <span class="number">2usize</span>.pow(<span class="number">12</span>); <span class="comment">// 4KiB pages
+<span class="kw">const </span>PAGE_SIZE: usize = <span class="number">0x1000</span>; <span class="comment">// 4KiB pages
 
 //
 
 </span><span class="kw">pub struct </span>PageFrameAllocator {
     <span class="comment">// 1 bits are used pages
-    </span>bitmap: Mutex&lt;Bitmap&lt;<span class="lifetime">&#39;static</span>&gt;&gt;,
+    </span>bitmap: AtomicBitmap&lt;<span class="lifetime">&#39;static</span>&gt;,
     usable: AtomicUsize,
     used: AtomicUsize,
     total: AtomicUsize,
@@ -528,7 +485,7 @@
     }
 
     <span class="kw">pub fn </span>bitmap_len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="self">self</span>.bitmap.lock().len()
+        <span class="self">self</span>.bitmap.len()
     }
 
     <span class="doccomment">/// Free up pages
@@ -537,20 +494,17 @@
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>bitmap = <span class="self">self</span>.bitmap.lock();
         <span class="kw">let </span>page = frame.first.as_u64() <span class="kw">as </span>usize / PAGE_SIZE;
         <span class="kw">for </span>page <span class="kw">in </span>page..page + frame.count {
-            <span class="macro">assert!</span>(
-                bitmap.get(page).unwrap(),
+            <span class="macro">assert_eq!</span>(
+                <span class="self">self</span>.bitmap.swap(page, <span class="bool-val">false</span>, Ordering::Release),
+                <span class="prelude-val">Some</span>(<span class="bool-val">true</span>),
                 <span class="string">&quot;trying to free pages that were already free&quot;
             </span>);
         }
         <span class="comment">// trace!(&quot;freeing pages first={page} count={}&quot;, frame.count);
-        </span><span class="kw">for </span>page <span class="kw">in </span>page..page + frame.count {
-            bitmap.set(page, <span class="bool-val">false</span>).unwrap();
-        }
 
-        frame.as_bytes_mut().fill(<span class="number">0</span>);
+        </span>frame.as_bytes_mut().fill(<span class="number">0</span>);
 
         <span class="self">self</span>.used
             .fetch_sub(frame.count * PAGE_SIZE, Ordering::SeqCst);
@@ -574,26 +528,15 @@
         ); */
 
         // TODO: lock-less page alloc
-
-        </span><span class="attr">#[inline(never)]
-        </span><span class="kw">fn </span>force_stack_grow() {
-            <span class="kw">let </span><span class="kw-2">mut </span>v = [<span class="number">0u64</span>; <span class="number">0x200</span>];
-            <span class="kw">let </span>v = core::hint::black_box(<span class="kw-2">&amp;mut </span>v);
-            v.fill(<span class="number">5</span>);
-            core::hint::black_box(v);
-        }
-
-        force_stack_grow();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>bitmap = <span class="self">self</span>.bitmap.lock();
-        <span class="kw">let </span>first_page = <span class="self">self</span>.alloc_at(<span class="kw-2">&amp;mut </span>bitmap, count).unwrap_or_else(|| {
+        </span><span class="kw">let </span>from = <span class="self">self</span>.last_alloc_index.load(Ordering::SeqCst);
+        <span class="kw">let </span>first_page = <span class="self">self</span>.alloc_at(from, count).unwrap_or_else(|| {
             <span class="comment">// TODO: handle OOM a bit better
-            </span><span class="self">self</span>.alloc_from(<span class="number">0</span>);
-            <span class="self">self</span>.alloc_at(<span class="kw-2">&amp;mut </span>bitmap, count).expect(<span class="string">&quot;OOM&quot;</span>)
+            </span><span class="self">self</span>.last_alloc_index.store(<span class="number">0</span>, Ordering::SeqCst);
+            <span class="self">self</span>.alloc_at(<span class="number">0</span>, count).expect(<span class="string">&quot;OOM&quot;</span>)
         });
-        drop(bitmap);
 
-        <span class="self">self</span>.alloc_from(first_page + count);
+        <span class="self">self</span>.last_alloc_index
+            .store(first_page + count, Ordering::SeqCst);
 
         <span class="kw">let </span>addr = PhysAddr::new((first_page * PAGE_SIZE) <span class="kw">as </span>u64);
         <span class="kw">let </span>page_ptr: <span class="kw-2">*mut </span>MaybeUninit&lt;u8&gt; = to_higher_half(addr).as_mut_ptr();
@@ -613,64 +556,36 @@
         PageFrame { first: addr, count }
     }
 
-    <span class="kw">pub fn </span>allocations(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = PhysFrame&gt; {
-        <span class="kw">let </span>bitmap = <span class="self">self</span>.bitmap.lock();
-        <span class="kw">let </span>bits = bitmap.len();
-        drop(bitmap);
-
-        <span class="kw">let </span><span class="kw-2">mut </span>data = Vec::with_capacity(bits / <span class="number">8</span>);
-
-        <span class="kw">let </span>bitmap = <span class="self">self</span>.bitmap.lock();
-        data.extend(bitmap.iter_bytes());
-
-        data.into_iter()
-            .enumerate()
-            .filter(|(<span class="kw">_</span>, byte)| <span class="kw-2">*</span>byte != <span class="number">0</span>)
-            .flat_map(|(i, byte)| {
-                (<span class="number">0</span>..<span class="number">8</span>)
-                    .enumerate()
-                    .filter(<span class="kw">move </span>|(<span class="kw">_</span>, bit)| byte &amp; (<span class="number">1 </span>&lt;&lt; <span class="kw-2">*</span>bit) != <span class="number">0</span>)
-                    .map(<span class="kw">move </span>|(j, <span class="kw">_</span>)| i * <span class="number">8 </span>+ j)
-            })
-            .map(|i| PhysFrame::containing_address(PhysAddr::new(i <span class="kw">as </span>u64 * <span class="number">0x1000</span>)))
-    }
-
-    <span class="kw">fn </span>alloc_from(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) {
-        <span class="self">self</span>.last_alloc_index.store(index, Ordering::SeqCst)
-    }
-
     <span class="comment">// returns the page index, not the page address
-    </span><span class="kw">fn </span>alloc_at(<span class="kw-2">&amp;</span><span class="self">self</span>, bitmap: <span class="kw-2">&amp;mut </span>Bitmap, count: usize) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>first_page = <span class="self">self</span>.last_alloc_index.load(Ordering::SeqCst);
+    </span><span class="kw">fn </span>alloc_at(<span class="kw-2">&amp;</span><span class="self">self</span>, from: usize, count: usize) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+        <span class="comment">// let mut first_page = self.last_alloc_index.load(Ordering::SeqCst);
+
+        </span><span class="kw">let </span><span class="kw-2">mut </span>first_page = from;
+        <span class="kw">let </span>bitmap_len = <span class="self">self</span>.bitmap.len();
+
         <span class="lifetime">&#39;main</span>: <span class="kw">loop </span>{
-            <span class="kw">if </span>first_page + count &gt; bitmap.len() {
+            <span class="kw">if </span>first_page + count &gt; bitmap_len {
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             }
 
-            <span class="comment">/* if test_log_level(LogLevel::Trace) {
-                trace!(
-                    &quot;Trying to allocate {count} pages from {:?}&quot;,
-                    to_higher_half(PhysAddr::new(first_page as u64 * PAGE_SIZE))
-                );
-            } */
+            <span class="comment">// TODO: lock the pages in reverse as a small optimization
+            </span><span class="kw">for </span>offs <span class="kw">in </span><span class="number">0</span>..count {
+                <span class="kw">let </span>page = first_page + offs;
 
-            // go reversed so that skips would be more efficient
-            </span><span class="kw">for </span>offs <span class="kw">in </span>(<span class="number">0</span>..count).rev() {
-                <span class="comment">/* // SAFETY: `first_page + offs` &lt; `first_page + count` &lt;= `bitmap.len()`
-                // =&gt; bitmap has to contain `first_page + offs`
-                let pages_free = unsafe { bitmap.get(first_page + offs).unwrap_unchecked() }; */
-                </span><span class="kw">let </span>pages_free = bitmap.get(first_page + offs).unwrap();
-                <span class="kw">if </span>pages_free {
-                    <span class="comment">// skip all page windows which have this locked page
-                    </span>first_page = first_page + offs + <span class="number">1</span>;
+                <span class="comment">// lock the window
+                </span><span class="kw">if </span><span class="self">self</span>.bitmap.swap(page, <span class="bool-val">true</span>, Ordering::Acquire).unwrap() {
+                    <span class="comment">// 0..offs, means that the last page that we couldn&#39;t acquire, won&#39;t be freed
+                    </span><span class="kw">for </span>offs <span class="kw">in </span><span class="number">0</span>..offs {
+                        <span class="kw">let </span>page = first_page + offs;
+                        <span class="comment">// the first swap already acquired exclusive access to these pages
+                        // so they are safe to free
+                        // TODO: unsafe fn
+                        </span><span class="self">self</span>.bitmap.swap(page, <span class="bool-val">false</span>, Ordering::Release).unwrap();
+                    }
+
+                    first_page = first_page + offs + <span class="number">1</span>;
                     <span class="kw">continue </span><span class="lifetime">&#39;main</span>;
                 }
-            }
-
-            <span class="comment">// found a window of free pages
-            </span><span class="kw">for </span>offs <span class="kw">in </span><span class="number">0</span>..count {
-                <span class="comment">// lock them
-                </span><span class="kw">_ </span>= bitmap.set(first_page + offs, <span class="bool-val">true</span>);
             }
 
             <span class="kw">return </span><span class="prelude-val">Some</span>(first_page);
@@ -708,9 +623,10 @@
         // the memory region also gets protected from allocations
         </span><span class="kw">let </span>bitmap: <span class="kw-2">&amp;mut </span>[MaybeUninit&lt;u8&gt;] =
             <span class="kw">unsafe </span>{ slice::from_raw_parts_mut(bitmap_ptr, bitmap_size <span class="kw">as _</span>) };
-        <span class="kw">let </span>bitmap = fill_maybeuninit_slice(bitmap, <span class="number">0</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>bitmap = Bitmap::new(bitmap);
-        bitmap.fill(<span class="bool-val">true</span>); <span class="comment">// initialized here
+        <span class="kw">let </span>bitmap = fill_maybeuninit_slice(bitmap, <span class="number">0xFF</span>);
+        <span class="kw">let </span>bitmap = AtomicBitmap::from_mut(bitmap);
+        bitmap.fill(<span class="bool-val">true</span>, Ordering::SeqCst);
+        <span class="comment">// bitmap.fill(true, Ordering::SeqCst); // initialized here
 
         // free up some pages
         </span><span class="kw">for </span>Memmap {
@@ -738,12 +654,12 @@
             top /= PAGE_SIZE;
 
             <span class="kw">for </span>page <span class="kw">in </span>bottom..top {
-                bitmap.set(page <span class="kw">as _</span>, <span class="bool-val">false</span>).unwrap();
+                bitmap.store(page, <span class="bool-val">false</span>, Ordering::Release).unwrap();
             }
         }
 
         <span class="kw">let </span>pfa = <span class="self">Self </span>{
-            bitmap: bitmap.into(),
+            bitmap,
             usable: usable.into(),
             used: bitmap_size.into(),
             total: total.into(),

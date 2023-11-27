@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["append_to_string","read_until"],"struct":["BufReader","Guard","SimpleIpcInputChannel"],"trait":["Read"]};

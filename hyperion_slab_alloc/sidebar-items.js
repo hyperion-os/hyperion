@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["PageFrames","Slab","SlabAllocator","SlabAllocatorStats"],"trait":["PageFrameAllocator"]};

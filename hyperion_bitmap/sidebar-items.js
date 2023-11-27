@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Bitmap"]};
+window.SIDEBAR_ITEMS = {"struct":["AtomicBitmap","Bitmap"]};

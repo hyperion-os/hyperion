@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["_print","_start","_thread_entry","main","panic_handler","run_client","run_server","spawn"],"macro":["println"],"mod":["io"],"static":["GLOBAL_ALLOC"],"struct":["CliArgs","PageAlloc"]};
+window.SIDEBAR_ITEMS = {"fn":["handle_client","main","run_client","run_server"]};
