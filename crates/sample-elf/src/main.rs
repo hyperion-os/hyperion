@@ -21,10 +21,6 @@ use libstd::{
 
 //
 
-mod io; // partial std::io
-
-//
-
 fn run_server() -> Result<()> {
     let server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
     bind(server, "/dev/server.sock")?;

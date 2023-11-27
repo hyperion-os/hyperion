@@ -1,6 +1,6 @@
 use core::slice::memchr;
 
-use libstd::alloc::{string::String, vec::Vec};
+use core_alloc::{string::String, vec::Vec};
 
 //
 
@@ -18,7 +18,6 @@ impl Read for SimpleIpcInputChannel {
     }
 }
 
-#[allow(dead_code)]
 pub struct BufReader<T> {
     buf: [u8; 64],
     end: u8,
@@ -26,7 +25,6 @@ pub struct BufReader<T> {
 }
 
 impl<T: Read> BufReader<T> {
-    #[allow(dead_code)]
     pub fn new(read: T) -> Self {
         Self {
             buf: [0; 64],
@@ -35,12 +33,10 @@ impl<T: Read> BufReader<T> {
         }
     }
 
-    #[allow(dead_code)]
     pub fn read_line(&mut self, buf: &mut String) -> Result<usize, String> {
         unsafe { append_to_string(buf, |b| read_until(self, b'\n', b)) }
     }
 
-    #[allow(dead_code)]
     fn fill_buf(&mut self) -> Result<&[u8], String> {
         let bytes_read = self.inner.recv(&mut self.buf[self.end as usize..])?;
         self.end += bytes_read as u8;
@@ -49,14 +45,12 @@ impl<T: Read> BufReader<T> {
         Ok(&self.buf[..self.end as usize])
     }
 
-    #[allow(dead_code)]
     fn consume(&mut self, used: usize) {
         self.buf.rotate_left(used);
         self.end -= used as u8;
     }
 }
 
-#[allow(dead_code)]
 fn read_until<T: Read>(
     r: &mut BufReader<T>,
     delim: u8,

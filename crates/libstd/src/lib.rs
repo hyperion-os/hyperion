@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(format_args_nl)]
+#![feature(format_args_nl, slice_internals)]
 
 //
 
@@ -15,11 +15,10 @@ pub mod sys {
     pub use hyperion_syscall::*;
 }
 
-pub mod fs;
-
-pub mod thread;
-
 pub mod alloc;
+pub mod fs;
+pub mod io;
+pub mod thread;
 
 //
 
