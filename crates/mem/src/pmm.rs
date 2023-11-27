@@ -12,12 +12,12 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use hyperion_bitmap::Bitmap;
+use hyperion_bitmap::{AtomicBitmap, Bitmap};
 use hyperion_boot::memmap;
 use hyperion_boot_interface::Memmap;
 use hyperion_log::debug;
 use hyperion_num_postfix::NumberPostfix;
-use spin::{Lazy, Mutex};
+use spin::Lazy;
 use x86_64::{align_up, structures::paging::PhysFrame, PhysAddr, VirtAddr};
 
 use super::{from_higher_half, to_higher_half};
@@ -32,7 +32,7 @@ const PAGE_SIZE: usize = 2usize.pow(12); // 4KiB pages
 
 pub struct PageFrameAllocator {
     // 1 bits are used pages
-    bitmap: Mutex<Bitmap<'static>>,
+    bitmap: AtomicBitmap<'static>,
     usable: AtomicUsize,
     used: AtomicUsize,
     total: AtomicUsize,
@@ -75,7 +75,7 @@ impl PageFrameAllocator {
     }
 
     pub fn bitmap_len(&self) -> usize {
-        self.bitmap.lock().len()
+        self.bitmap.len()
     }
 
     /// Free up pages
@@ -84,18 +84,15 @@ impl PageFrameAllocator {
             return;
         }
 
-        let mut bitmap = self.bitmap.lock();
         let page = frame.first.as_u64() as usize / PAGE_SIZE;
         for page in page..page + frame.count {
-            assert!(
-                bitmap.get(page).unwrap(),
+            assert_eq!(
+                self.bitmap.swap(page, false, Ordering::Release),
+                Some(true),
                 "trying to free pages that were already free"
             );
         }
         // trace!("freeing pages first={page} count={}", frame.count);
-        for page in page..page + frame.count {
-            bitmap.set(page, false).unwrap();
-        }
 
         frame.as_bytes_mut().fill(0);
 
@@ -121,26 +118,15 @@ impl PageFrameAllocator {
         ); */
 
         // TODO: lock-less page alloc
-
-        #[inline(never)]
-        fn force_stack_grow() {
-            let mut v = [0u64; 0x200];
-            let v = core::hint::black_box(&mut v);
-            v.fill(5);
-            core::hint::black_box(v);
-        }
-
-        force_stack_grow();
-
-        let mut bitmap = self.bitmap.lock();
-        let first_page = self.alloc_at(&mut bitmap, count).unwrap_or_else(|| {
+        let from = self.last_alloc_index.load(Ordering::SeqCst);
+        let first_page = self.alloc_at(from, count).unwrap_or_else(|| {
             // TODO: handle OOM a bit better
-            self.alloc_from(0);
-            self.alloc_at(&mut bitmap, count).expect("OOM")
+            self.last_alloc_index.store(0, Ordering::SeqCst);
+            self.alloc_at(0, count).expect("OOM")
         });
-        drop(bitmap);
 
-        self.alloc_from(first_page + count);
+        self.last_alloc_index
+            .store(first_page + count, Ordering::SeqCst);
 
         let addr = PhysAddr::new((first_page * PAGE_SIZE) as u64);
         let page_ptr: *mut MaybeUninit<u8> = to_higher_half(addr).as_mut_ptr();
@@ -160,64 +146,36 @@ impl PageFrameAllocator {
         PageFrame { first: addr, count }
     }
 
-    pub fn allocations(&self) -> impl Iterator<Item = PhysFrame> {
-        let bitmap = self.bitmap.lock();
-        let bits = bitmap.len();
-        drop(bitmap);
-
-        let mut data = Vec::with_capacity(bits / 8);
-
-        let bitmap = self.bitmap.lock();
-        data.extend(bitmap.iter_bytes());
-
-        data.into_iter()
-            .enumerate()
-            .filter(|(_, byte)| *byte != 0)
-            .flat_map(|(i, byte)| {
-                (0..8)
-                    .enumerate()
-                    .filter(move |(_, bit)| byte & (1 << *bit) != 0)
-                    .map(move |(j, _)| i * 8 + j)
-            })
-            .map(|i| PhysFrame::containing_address(PhysAddr::new(i as u64 * 0x1000)))
-    }
-
-    fn alloc_from(&self, index: usize) {
-        self.last_alloc_index.store(index, Ordering::SeqCst)
-    }
-
     // returns the page index, not the page address
-    fn alloc_at(&self, bitmap: &mut Bitmap, count: usize) -> Option<usize> {
-        let mut first_page = self.last_alloc_index.load(Ordering::SeqCst);
+    fn alloc_at(&self, from: usize, count: usize) -> Option<usize> {
+        // let mut first_page = self.last_alloc_index.load(Ordering::SeqCst);
+
+        let mut first_page = from;
+        let bitmap_len = self.bitmap.len();
+
         'main: loop {
-            if first_page + count > bitmap.len() {
+            if first_page + count > bitmap_len {
                 return None;
             }
 
-            /* if test_log_level(LogLevel::Trace) {
-                trace!(
-                    "Trying to allocate {count} pages from {:?}",
-                    to_higher_half(PhysAddr::new(first_page as u64 * PAGE_SIZE))
-                );
-            } */
+            // TODO: lock the pages in reverse as a small optimization
+            for offs in 0..count {
+                let page = first_page + offs;
 
-            // go reversed so that skips would be more efficient
-            for offs in (0..count).rev() {
-                /* // SAFETY: `first_page + offs` < `first_page + count` <= `bitmap.len()`
-                // => bitmap has to contain `first_page + offs`
-                let pages_free = unsafe { bitmap.get(first_page + offs).unwrap_unchecked() }; */
-                let pages_free = bitmap.get(first_page + offs).unwrap();
-                if pages_free {
-                    // skip all page windows which have this locked page
+                // lock the window
+                if self.bitmap.swap(page, true, Ordering::Acquire).unwrap() {
+                    // 0..offs, means that the last page that we couldn't acquire, won't be freed
+                    for offs in 0..offs {
+                        let page = first_page + offs;
+                        // the first swap already acquired exclusive access to these pages
+                        // so they are safe to free
+                        // TODO: unsafe fn
+                        self.bitmap.swap(page, false, Ordering::Release).unwrap();
+                    }
+
                     first_page = first_page + offs + 1;
                     continue 'main;
                 }
-            }
-
-            // found a window of free pages
-            for offs in 0..count {
-                // lock them
-                _ = bitmap.set(first_page + offs, true);
             }
 
             return Some(first_page);
@@ -255,9 +213,10 @@ impl PageFrameAllocator {
         // the memory region also gets protected from allocations
         let bitmap: &mut [MaybeUninit<u8>] =
             unsafe { slice::from_raw_parts_mut(bitmap_ptr, bitmap_size as _) };
-        let bitmap = fill_maybeuninit_slice(bitmap, 0);
-        let mut bitmap = Bitmap::new(bitmap);
-        bitmap.fill(true); // initialized here
+        let bitmap = fill_maybeuninit_slice(bitmap, 0xFF);
+        let bitmap = AtomicBitmap::from_mut(bitmap);
+        bitmap.fill(true, Ordering::SeqCst);
+        // bitmap.fill(true, Ordering::SeqCst); // initialized here
 
         // free up some pages
         for Memmap {
@@ -285,12 +244,12 @@ impl PageFrameAllocator {
             top /= PAGE_SIZE;
 
             for page in bottom..top {
-                bitmap.set(page as _, false).unwrap();
+                bitmap.store(page, false, Ordering::Release).unwrap();
             }
         }
 
         let pfa = Self {
-            bitmap: bitmap.into(),
+            bitmap,
             usable: usable.into(),
             used: bitmap_size.into(),
             total: total.into(),

@@ -122,7 +122,7 @@ impl<'a> AtomicBitmap<'a> {
         self.len() == 0
     }
 
-    pub fn fill(&mut self, val: bool, order: Ordering) {
+    pub fn fill(&self, val: bool, order: Ordering) {
         let val = if val { 0xFF } else { 0x0 };
         for b in self.data {
             b.store(val, order);
