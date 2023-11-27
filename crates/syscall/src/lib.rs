@@ -40,6 +40,9 @@ pub mod id {
     pub const LISTEN: usize = 20;
     pub const ACCEPT: usize = 21;
     pub const CONNECT: usize = 22;
+
+    pub const GET_PID: usize = 23;
+    pub const GET_TID: usize = 24;
 }
 
 //
@@ -248,4 +251,16 @@ pub fn send(socket: SocketDesc, data: &[u8], flags: usize) -> Result<()> {
 pub fn recv(socket: SocketDesc, buf: &mut [u8], flags: usize) -> Result<usize> {
     let (buf, buf_len) = (buf.as_ptr() as usize, buf.len());
     unsafe { syscall_4(id::RECV, socket.0, buf, buf_len, flags) }
+}
+
+/// get the current process id
+#[inline(always)]
+pub fn get_pid() -> usize {
+    unsafe { syscall_0(id::GET_PID) }.unwrap()
+}
+
+/// get the current thread id
+#[inline(always)]
+pub fn get_tid() -> usize {
+    unsafe { syscall_0(id::GET_TID) }.unwrap()
 }

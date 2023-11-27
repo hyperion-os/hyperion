@@ -53,6 +53,7 @@ impl_error! {
     pub const UNKNOWN_PROTOCOL: "unknown protocol" = 20;
 
     pub const CONNECTION_REFUSED: "connection refused" = 21;
+    pub const CLOSED: "stream closed" = 22;
 
     pub const _: "unknown error" = _;
 }

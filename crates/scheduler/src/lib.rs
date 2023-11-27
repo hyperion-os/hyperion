@@ -139,7 +139,7 @@ pub fn send(target_pid: Pid, data: &[u8]) -> Result<(), &'static str> {
     ipc::pipe::send(target_pid, data)
 }
 
-pub fn recv(buf: &mut [u8]) -> usize {
+pub fn recv(buf: &mut [u8]) -> Result<usize, &'static str> {
     ipc::pipe::recv(buf)
 }
 

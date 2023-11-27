@@ -12,7 +12,7 @@ use libstd::{
     println,
     sys::{
         err::Result,
-        net::{Protocol, SocketDomain, SocketType},
+        net::{Protocol, SocketDesc, SocketDomain, SocketType},
         *,
     },
     thread::spawn,
@@ -34,33 +34,31 @@ fn run_server() -> Result<()> {
     let mut i = 0usize;
     loop {
         let conn = accept(server)?;
-        println!("connected");
-
-        let msg = format!("Hello {i}");
         i += 1;
 
-        spawn(move || {
-            send(conn, msg.as_bytes(), 0).unwrap();
-
-            let mut buf = [0u8; 64];
-            let len = recv(conn, &mut buf, 0).unwrap();
-            assert_eq!(&buf[..len], b"ack");
-
-            let file = OpenOptions::new()
-                .read(true)
-                .create(false)
-                .open(format!("/tmp/{msg}"))
-                .unwrap();
-
-            let mut buf = [0u8; 64];
-            let len = file.read(&mut buf).unwrap();
-            assert_eq!(&buf[..len], b"testing data");
-
-            drop(file); // drop = flush + close
-
-            println!("server done");
-        });
+        spawn(move || _ = handle_client(i, conn));
     }
+}
+
+fn handle_client(i: usize, conn: SocketDesc) -> Result<()> {
+    let msg = format!("Hello {i}");
+
+    send(conn, msg.as_bytes(), 0)?;
+
+    let mut buf = [0u8; 64];
+    let len = recv(conn, &mut buf, 0)?;
+    assert_eq!(&buf[..len], b"ack");
+
+    let file = OpenOptions::new()
+        .read(true)
+        .create(false)
+        .open(format!("/tmp/{msg}"))?;
+
+    let mut buf = [0u8; 64];
+    let len = file.read(&mut buf)?;
+    assert_eq!(&buf[..len], b"testing data");
+
+    Ok(())
 }
 
 fn run_client() -> Result<()> {
@@ -101,7 +99,11 @@ fn run_client() -> Result<()> {
 
 #[no_mangle]
 pub fn main(_args: CliArgs) {
+    println!("PID:{} TID:{}", get_pid(), get_tid());
+
     if run_server().is_err() {
-        run_client().unwrap();
+        if let Err(err) = run_client() {
+            println!("error: {err}")
+        };
     }
 }

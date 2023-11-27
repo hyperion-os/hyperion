@@ -16,7 +16,7 @@ use hyperion_mem::{
 use hyperion_scheduler::{
     ipc::pipe::{Channel, Pipe, Receiver, Sender},
     lock::{Futex, Mutex},
-    process,
+    process, task,
     task::{Process, ProcessExt},
 };
 use hyperion_syscall::{
@@ -63,6 +63,9 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::LISTEN => call_id(listen, args),
         id::ACCEPT => call_id(accept, args),
         id::CONNECT => call_id(connect, args),
+
+        id::GET_PID => call_id(get_pid, args),
+        id::GET_TID => call_id(get_tid, args),
 
         _ => {
             debug!("invalid syscall");
@@ -456,7 +459,7 @@ fn _accept(socket: SocketDesc) -> Result<SocketDesc> {
     drop(socket);
 
     // blocks here
-    let conn = conn.recv();
+    let conn = conn.recv().unwrap();
 
     Ok(_socket_from(SocketFile {
         domain,
@@ -498,7 +501,9 @@ fn _connect(socket: SocketDesc, addr: &str) -> Result<()> {
 
     let (conn_client, conn_server) = LocalSocketConn::new();
     client.lock().connection = Some(conn_client);
-    incoming.send(conn_server);
+    incoming
+        .send(conn_server)
+        .map_err(|_| Error::CONNECTION_REFUSED)?;
 
     Ok(())
 }
@@ -523,7 +528,7 @@ fn _send(socket: SocketDesc, data: &[u8], _flags: usize) -> Result<()> {
 
     drop(socket);
 
-    conn.send.send_slice(data);
+    conn.send.send_slice(data).map_err(|_| Error::CLOSED)?;
 
     return Ok(());
 }
@@ -548,9 +553,23 @@ fn _recv(socket: SocketDesc, buf: &mut [u8], _flags: usize) -> Result<usize> {
 
     drop(socket);
 
-    let n_bytes = conn.recv.recv_slice(buf);
+    let n_bytes = conn.recv.recv_slice(buf).map_err(|_| Error::CLOSED)?;
 
     return Ok(n_bytes);
+}
+
+/// pid of the current process
+///
+/// [`hyperion_syscall::get_pid`]
+pub fn get_pid(_args: &mut SyscallRegs) -> Result<usize> {
+    Ok(process().pid.num())
+}
+
+/// tid of the current thread
+///
+/// [`hyperion_syscall::get_tid`]
+pub fn get_tid(_args: &mut SyscallRegs) -> Result<usize> {
+    Ok(task().tid.num())
 }
 
 //
