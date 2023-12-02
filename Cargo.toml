@@ -20,6 +20,7 @@ lto = true
 strip = true
 
 [workspace.dependencies]
+arcstr = "1.1"
 spin = "0.9"
 volatile = "0.5"
 x86_64 = "0.14"

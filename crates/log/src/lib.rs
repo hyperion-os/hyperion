@@ -4,9 +4,9 @@
 
 extern crate alloc;
 
-use alloc::borrow::Cow;
 use core::fmt::{Arguments, Display};
 
+use arcstr::{literal, ArcStr};
 use hyperion_escape::encode::EscapeEncoder;
 use spin::RwLock;
 
@@ -123,7 +123,7 @@ impl Default for LogLevel {
 pub trait Logger: Send + Sync {
     fn is_enabled(&self, level: LogLevel) -> bool;
 
-    fn proc_name(&self) -> Option<Cow<'static, str>>;
+    fn proc_name(&self) -> Option<ArcStr>;
 
     fn print(&self, level: LogLevel, args: Arguments);
 }
@@ -140,7 +140,7 @@ pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args:
 
     let task = logger
         .proc_name()
-        .unwrap_or(Cow::Borrowed("pre-scheduler"))
+        .unwrap_or(literal!("pre-scheduler"))
         .true_lightgrey()
         .with_reset(false);
 
@@ -194,7 +194,7 @@ impl Logger for NopLogger {
         false
     }
 
-    fn proc_name(&self) -> Option<Cow<'static, str>> {
+    fn proc_name(&self) -> Option<ArcStr> {
         None
     }
 

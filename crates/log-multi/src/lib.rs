@@ -4,9 +4,9 @@
 
 extern crate alloc;
 
-use alloc::borrow::Cow;
 use core::fmt::Arguments;
 
+use arcstr::{literal, ArcStr};
 use crossbeam::atomic::AtomicCell;
 use hyperion_boot::args;
 use hyperion_log::{set_logger, LogLevel, Logger};
@@ -51,7 +51,7 @@ impl Logger for MultiLogger {
         self.qemu.load() >= level
     }
 
-    fn proc_name(&self) -> Option<Cow<'static, str>> {
+    fn proc_name(&self) -> Option<ArcStr> {
         if !hyperion_scheduler::running() {
             return None;
         }
@@ -59,7 +59,7 @@ impl Logger for MultiLogger {
         let active = hyperion_scheduler::process();
 
         let Some(name) = active.name.try_read() else {
-            return Some(Cow::Borrowed("<name-locked>"));
+            return Some(literal!("<name-locked>"));
         };
 
         Some(name.clone())

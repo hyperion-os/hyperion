@@ -98,7 +98,7 @@ extern "C" fn _start() -> ! {
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
     scheduler::init(move || {
-        scheduler::rename("<kernel async>".into());
+        scheduler::rename("<kernel async>");
 
         let first = from_higher_half(boot_stack.start);
         let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;
@@ -115,12 +115,27 @@ extern "C" fn _start() -> ! {
 
 #[cfg(test)]
 mod tests {
+    use alloc::sync::Arc;
+
     use hyperion_scheduler as scheduler;
-    use scheduler::yield_now;
+    use scheduler::{ipc::pipe::Pipe, lock::Mutex, spawn, yield_now};
+
+    #[test_case]
+    fn scheduler_pipe() {
+        let (pipe_tx, pipe_rx) = Pipe::new_pipe().split();
+
+        spawn(move || {
+            pipe_tx.send_slice(b"some random bytes").unwrap();
+        });
+
+        let mut buf = [0u8; 64];
+        let len = pipe_rx.recv_slice(&mut buf).unwrap();
+        assert_eq!(&buf[..len], b"some random bytes")
+    }
 
     #[test_case]
     fn scheduler_mutex_trivial() {
-        let mutex = scheduler::lock::Mutex::new(5);
+        let mutex = Mutex::new(5);
 
         assert_eq!(*mutex.lock(), 5);
 
@@ -131,7 +146,7 @@ mod tests {
 
     #[test_case]
     fn scheduler_mutex_multithread() {
-        let mutex = alloc::sync::Arc::new(scheduler::lock::Mutex::new(5));
+        let mutex = Arc::new(Mutex::new(5));
 
         for _ in 0..3 {
             let mutex = mutex.clone();

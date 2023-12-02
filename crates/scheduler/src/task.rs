@@ -1,5 +1,4 @@
 use alloc::{
-    borrow::Cow,
     boxed::Box,
     collections::BTreeMap,
     sync::{Arc, Weak},
@@ -15,6 +14,7 @@ use core::{
     sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 
+use arcstr::ArcStr;
 use crossbeam::atomic::AtomicCell;
 use hyperion_arch::{
     context::{switch as ctx_switch, Context},
@@ -195,7 +195,7 @@ pub struct Process {
     pub next_tid: AtomicUsize,
 
     /// process name
-    pub name: RwLock<Cow<'static, str>>,
+    pub name: RwLock<ArcStr>,
 
     /// cpu time this process (all tasks) has used in nanoseconds
     pub nanos: AtomicU64,
@@ -306,7 +306,7 @@ impl Task {
         Self::new_any(Box::new(f) as _, name.into())
     }
 
-    pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: Cow<'static, str>) -> Task {
+    pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: ArcStr) -> Task {
         trace!("initializing task {name}");
 
         let process = Arc::new(Process {

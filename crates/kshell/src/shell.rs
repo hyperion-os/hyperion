@@ -586,7 +586,7 @@ impl Shell {
         let args = args.map(String::from);
 
         let pid = schedule(move || {
-            hyperion_scheduler::rename(name.into());
+            hyperion_scheduler::rename(name);
 
             let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
                 .into_iter()

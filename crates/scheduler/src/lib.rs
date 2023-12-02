@@ -4,7 +4,7 @@
 
 //
 
-use alloc::{borrow::Cow, sync::Arc};
+use alloc::sync::Arc;
 use core::{
     convert::Infallible,
     mem::{offset_of, swap},
@@ -12,6 +12,7 @@ use core::{
     sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering},
 };
 
+use arcstr::ArcStr;
 use crossbeam_queue::SegQueue;
 use hyperion_arch::{cpu::ints, int};
 use hyperion_cpu_id::Tls;
@@ -81,8 +82,8 @@ pub fn idle() -> impl Iterator<Item = Duration> {
     })
 }
 
-pub fn rename(new_name: Cow<'static, str>) {
-    *process().name.write() = new_name;
+pub fn rename(new_name: impl Into<ArcStr>) {
+    *process().name.write() = new_name.into();
 }
 
 /// init this processors scheduling and

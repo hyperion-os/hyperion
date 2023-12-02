@@ -240,7 +240,7 @@ pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::rename`]
 pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
     let new_name = read_untrusted_str(args.arg0, args.arg1)?;
-    hyperion_scheduler::rename(new_name.to_string().into());
+    hyperion_scheduler::rename(new_name.to_string());
     return Ok(0);
 }
 
