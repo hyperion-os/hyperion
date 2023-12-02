@@ -8,7 +8,7 @@ use alloc::{
 use core::{
     any::{type_name_of_val, Any},
     cell::UnsafeCell,
-    fmt,
+    fmt, mem,
     ops::Deref,
     ptr,
     sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
@@ -208,7 +208,6 @@ pub struct Process {
     /// cpu time this process (all tasks) has used in nanoseconds
     pub nanos: AtomicU64,
 
-    // TODO: AddressSpace memory leaks page tables
     /// process address space
     pub address_space: AddressSpace,
 
@@ -426,16 +425,15 @@ impl Drop for TaskInner {
             "{}",
             self.name.read().clone(),
         );
+
+        self.threads.fetch_sub(1, Ordering::Relaxed);
+
+        let ks = mem::take(&mut self.kernel_stack).into_inner();
+        self.address_space.kernel_stacks.free(ks);
+        let ks = mem::take(&mut self.user_stack).into_inner();
+        self.address_space.user_stacks.free(ks);
+
         TASKS_DROPPING.fetch_sub(1, Ordering::Relaxed);
-
-        // TODO: drop pages
-
-        // SAFETY: self.memory is not used anymore
-        // let memory = unsafe { ManuallyDrop::take(&mut self.memory) };
-
-        // if Arc::into_inner(memory).is_some() {
-        //     TASK_MEM.lock().remove(&self.info.pid);
-        // }
     }
 }
 
@@ -600,12 +598,6 @@ where
 {
     fn from(value: F) -> Self {
         Self::new(value)
-    }
-}
-
-impl Drop for Task {
-    fn drop(&mut self) {
-        self.threads.fetch_sub(1, Ordering::Relaxed);
     }
 }
 

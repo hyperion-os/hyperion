@@ -207,6 +207,39 @@ pub struct Stack<StackType> {
     _p: PhantomData<StackType>,
 }
 
+impl<T> Stack<T> {
+    pub const fn empty() -> Self {
+        Self {
+            extent_4k_pages: 0,
+            limit_4k_pages: 0,
+            top: VirtAddr::new_truncate(0),
+            base_alloc: PhysAddr::new(0),
+            extra_alloc: Vec::new(),
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<T> Default for Stack<T> {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+impl<T> Drop for Stack<T> {
+    fn drop(&mut self) {
+        if !self.base_alloc.is_null() {
+            let page = unsafe { PageFrame::new(self.base_alloc, 1) };
+            pmm::PFA.free(page);
+        }
+
+        for alloc in self.extra_alloc.iter().copied() {
+            let page = unsafe { PageFrame::new(alloc, 1) };
+            pmm::PFA.free(page);
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct StackLimitHit;
 

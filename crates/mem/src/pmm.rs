@@ -184,12 +184,15 @@ impl PageFrameAllocator {
     fn init() -> Self {
         // usable system memory
         let mut usable: usize = memmap()
-            .filter(|m| m.is_usable() | m.is_bootloader_reclaimable() | m.is_kernel_and_modules())
+            .filter(|m| m.is_usable() | m.is_bootloader_reclaimable())
             .map(|Memmap { len, .. }| len)
             .sum();
 
         // total system memory
-        let total: usize = memmap().map(|Memmap { len, .. }| len).sum();
+        let total: usize = memmap()
+            .filter(|m| !m.is_framebuffer())
+            .map(|Memmap { len, .. }| len)
+            .sum();
 
         // the end of the usable physical memory address space
         let top = memmap()
@@ -247,6 +250,7 @@ impl PageFrameAllocator {
             bottom /= PAGE_SIZE;
             top /= PAGE_SIZE;
 
+            // TODO: reverse, mark used memory instead of unused memory
             for page in bottom..top {
                 bitmap.store(page, false, Ordering::Release).unwrap();
             }
