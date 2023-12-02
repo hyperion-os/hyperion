@@ -51,7 +51,7 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: Run Rustdoc
-      run: cargo doc && ls ./target/doc
+      run: cargo doc --no-deps && ls ./target/doc
 
     - name: Deploy
       uses: peaceiris/actions-gh-pages@v3
