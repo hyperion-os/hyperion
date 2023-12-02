@@ -198,6 +198,11 @@ impl PageFrameAllocator {
             .max()
             .expect("No memory");
 
+        let used: usize = memmap()
+            .filter(|m| m.is_bootloader_reclaimable() | m.is_kernel_and_modules())
+            .map(|Memmap { len, .. }| len)
+            .sum();
+
         // size in bytes
         let bitmap_size: usize = align_up((top / PAGE_SIZE / 8) as _, PAGE_SIZE as _) as _;
         let bitmap_data: usize = memmap()
@@ -250,7 +255,7 @@ impl PageFrameAllocator {
         let pfa = Self {
             bitmap,
             usable: usable.into(),
-            used: bitmap_size.into(),
+            used: (used + bitmap_size).into(),
             total: total.into(),
 
             last_alloc_index: 0.into(),
