@@ -330,6 +330,18 @@ impl Process {
 impl Drop for Process {
     fn drop(&mut self) {
         PROCESSES.lock().remove(&self.pid);
+
+        let Some(bitmap) = self.allocs.bitmap.get_mut() else {
+            return;
+        };
+        let bitmap = bitmap.get_mut();
+
+        for page in bitmap.iter_true() {
+            let phys_page = unsafe { PageFrame::new(PhysAddr::new(page as u64 * 0x1000), 1) };
+            pmm::PFA.free(phys_page);
+        }
+
+        // the page map is dropped, so unmapping pages isn't needed
     }
 }
 
