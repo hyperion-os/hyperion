@@ -44,12 +44,25 @@ impl<T, Lock: RawMutex> TakeOnce<T, Lock> {
 
 //
 
+/// CPUs race and only the first one returns true
 #[macro_export]
 macro_rules! once {
     () => {{
         use core::sync::atomic::{AtomicBool, Ordering};
         static ONCE: AtomicBool = AtomicBool::new(true);
         ONCE.swap(false, Ordering::SeqCst)
+    }};
+}
+
+/// CPUs race and only the last one returns true
+#[macro_export]
+macro_rules! last {
+    () => {{
+        use core::sync::atomic::{AtomicUsize, Ordering};
+
+        use hyperion_boot::cpu_count;
+        static ONCE: AtomicUsize = AtomicUsize::new(1);
+        ONCE.fetch_add(1, Ordering::SeqCst) == cpu_count()
     }};
 }
 

@@ -24,7 +24,7 @@
 use alloc::collections::BTreeMap;
 use core::{cmp::Ordering, ops::Range};
 
-use hyperion_log::println;
+use hyperion_log::{debug, println};
 use hyperion_mem::{
     from_higher_half, pmm, to_higher_half,
     vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
@@ -79,6 +79,7 @@ pub static KERNEL_EXECUTABLE_MAPS: Lazy<((PhysAddr, PageTableFlags), (PhysAddr, 
 
 pub struct PageMap {
     offs: RwLock<OffsetPageTable<'static>>,
+    owned: bool,
 }
 
 //
@@ -143,7 +144,7 @@ impl PageMapImpl for PageMap {
             unsafe { OffsetPageTable::new(table, VirtAddr::new(hyperion_boot::hhdm_offset())) };
         let offs = RwLock::new(offs);
 
-        Self { offs }
+        Self { offs, owned: false }
     }
 
     fn new() -> Self {
@@ -174,7 +175,7 @@ impl PageMapImpl for PageMap {
         // TODO: Copy on write maps
 
         let offs = RwLock::new(offs);
-        let page_map = Self { offs };
+        let page_map = Self { offs, owned: true };
 
         // hyperion_log::debug!("higher half direct map");
         // TODO: pmm::PFA.allocations();
@@ -398,6 +399,13 @@ impl PageMapImpl for PageMap {
 }
 
 impl PageMap {
+    /// # Safety
+    /// Unsafe if the page map was obtained with `PageMap::current`,
+    /// the page table should have been owned by the bootloader if so.
+    pub unsafe fn mark_owned(&mut self) {
+        self.owned = true;
+    }
+
     pub fn is_active(&self) -> bool {
         Cr3::read().0 == self.cr3()
     }
@@ -503,6 +511,54 @@ impl PageMap {
         println!("BEGIN HIGHER HALF PAGE TABLE SEGMENTS");
         print_output(output_hh);
         println!("END PAGE TABLE SEGMENTS");
+    }
+}
+
+impl Drop for PageMap {
+    fn drop(&mut self) {
+        fn travel_level(l: WalkTableIterResult) {
+            match l {
+                WalkTableIterResult::Size1GiB(_p_addr) => {}
+                WalkTableIterResult::Size2MiB(_p_addr) => {}
+                WalkTableIterResult::Size4KiB(_p_addr) => {}
+                WalkTableIterResult::Level3(l3) => {
+                    for (_, _, entry) in l3.iter() {
+                        travel_level(entry);
+                    }
+
+                    let table = from_higher_half(VirtAddr::new(l3.0 as *const _ as u64));
+                    Pfa.deallocate_frame(PhysFrame::containing_address(table));
+                }
+                WalkTableIterResult::Level2(l2) => {
+                    for (_, _, entry) in l2.iter() {
+                        travel_level(entry);
+                    }
+
+                    let table = from_higher_half(VirtAddr::new(l2.0 as *const _ as u64));
+                    Pfa.deallocate_frame(PhysFrame::containing_address(table));
+                }
+                WalkTableIterResult::Level1(l1) => {
+                    let table = from_higher_half(VirtAddr::new(l1.0 as *const _ as u64));
+                    Pfa.deallocate_frame(PhysFrame::containing_address(table));
+                }
+            }
+        }
+
+        if !self.owned {
+            return;
+        }
+
+        assert!(!self.is_active());
+
+        let offs = self.offs.get_mut();
+
+        let l4 = Level4::from_pml4(offs.level_4_table());
+        for (_, _, entry) in l4.iter() {
+            travel_level(entry);
+
+            let table = from_higher_half(VirtAddr::new(l4.0 as *const _ as u64));
+            Pfa.deallocate_frame(PhysFrame::containing_address(table));
+        }
     }
 }
 

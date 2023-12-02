@@ -24,6 +24,7 @@
 
 extern crate alloc;
 
+use arch::vmm::PageMap;
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
@@ -33,10 +34,11 @@ use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
-use hyperion_mem::{from_higher_half, KernelSlabAlloc};
+use hyperion_mem::{from_higher_half, vmm::PageMapImpl, KernelSlabAlloc};
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
+use sync::last;
 
 //
 
@@ -100,6 +102,12 @@ extern "C" fn _start() -> ! {
     //     arch::done();
     // }
 
+    let mut boot_vmm = PageMap::current();
+    debug!(
+        "bootloader page table: {:#x}",
+        boot_vmm.cr3().start_address()
+    );
+
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
     scheduler::init(move || {
@@ -108,10 +116,23 @@ extern "C" fn _start() -> ! {
         let first = from_higher_half(boot_stack.start);
         let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;
 
+        // Bootloader provided stack can be freed after switching away from
+        // the bootloader task.
         let frames = unsafe { hyperion_mem::pmm::PageFrame::new(first, count) };
         trace!("deallocating bootloader provided stack {boot_stack:?}");
         hyperion_mem::pmm::PFA.free(frames);
 
+        // The bootloader provided vmm is shared between CPUs
+        // so this makes sure that only the last processor still using it,
+        // is the only one that can delete it.
+        if last!() {
+            unsafe {
+                boot_vmm.mark_owned();
+            };
+            drop(boot_vmm);
+        }
+
+        // start doing kernel things
         futures::executor::run_tasks();
     });
 }
