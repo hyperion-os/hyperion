@@ -239,6 +239,25 @@ pub enum FreeErr {
 }
 
 impl Process {
+    pub fn new(pid: Pid, name: ArcStr, address_space: AddressSpace) -> Arc<Self> {
+        let this = Arc::new(Self {
+            pid,
+            next_tid: AtomicUsize::new(0),
+            name: RwLock::new(name),
+            nanos: AtomicU64::new(0),
+            address_space,
+            heap_bottom: AtomicUsize::new(0x1000),
+            simple_ipc: Pipe::new_pipe(),
+            allocs: PageAllocs::default(),
+            ext: Once::new(),
+            should_terminate: AtomicBool::new(false),
+        });
+
+        PROCESSES.lock().insert(this.pid, Arc::downgrade(&this));
+
+        this
+    }
+
     pub fn alloc(
         &self,
         n_pages: usize,
@@ -430,21 +449,7 @@ impl Task {
     pub fn new_any(f: Box<dyn FnOnce() + Send + 'static>, name: ArcStr) -> Task {
         trace!("initializing task {name}");
 
-        let process = Arc::new(Process {
-            pid: Pid::next(),
-            next_tid: AtomicUsize::new(0),
-            name: RwLock::new(name),
-            nanos: AtomicU64::new(0),
-            address_space: AddressSpace::new(PageMap::new()),
-            heap_bottom: AtomicUsize::new(0x1000),
-            simple_ipc: Pipe::new_pipe(),
-            allocs: PageAllocs::default(),
-            ext: Once::new(),
-            should_terminate: AtomicBool::new(false),
-        });
-        PROCESSES
-            .lock()
-            .insert(process.pid, Arc::downgrade(&process));
+        let process = Process::new(Pid::next(), name, AddressSpace::new(PageMap::new()));
 
         let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
@@ -474,17 +479,15 @@ impl Task {
         }))
     }
 
-    pub fn thread(this: Task, f: impl FnOnce() + Send + 'static) -> Task {
-        Self::thread_any(this, Box::new(f))
+    pub fn thread(process: Arc<Process>, f: impl FnOnce() + Send + 'static) -> Task {
+        Self::thread_any(process, Box::new(f))
     }
 
-    pub fn thread_any(this: Task, f: Box<dyn FnOnce() + Send + 'static>) -> Task {
+    pub fn thread_any(process: Arc<Process>, f: Box<dyn FnOnce() + Send + 'static>) -> Task {
         trace!(
             "initializing secondary thread for process {}",
-            this.name.read().clone()
+            process.name.read().clone()
         );
-
-        let process = this.process.clone();
 
         let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;
@@ -498,7 +501,7 @@ impl Task {
 
         TASKS_READY.fetch_add(1, Ordering::Relaxed);
         Self(Arc::new(TaskInner {
-            tid: Tid::next(&this.process),
+            tid: Tid::next(&process),
             process,
             state: AtomicCell::new(TaskState::Ready),
             user_stack: Mutex::new(user_stack),
@@ -515,18 +518,12 @@ impl Task {
 
         trace!("initializing bootloader task");
 
-        let process = Arc::new(Process {
-            pid: Pid(0),
-            next_tid: AtomicUsize::new(0),
-            name: RwLock::new("bootloader".into()),
-            nanos: AtomicU64::new(0),
-            address_space: AddressSpace::new(PageMap::current()),
-            heap_bottom: AtomicUsize::new(0x1000),
-            simple_ipc: Pipe::new_pipe(),
-            allocs: PageAllocs::default(),
-            ext: Once::new(),
-            should_terminate: AtomicBool::new(true),
-        });
+        let process = Process::new(
+            Pid(0),
+            "bootloader".into(),
+            AddressSpace::new(PageMap::current()),
+        );
+        process.should_terminate.store(true, Ordering::Release);
 
         let mut kernel_stack = process
             .address_space

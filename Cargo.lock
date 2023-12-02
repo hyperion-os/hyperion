@@ -570,6 +570,7 @@ dependencies = [
  "hyperion-driver-ps2",
  "hyperion-driver-rtc",
  "hyperion-keyboard",
+ "hyperion-sync",
  "hyperion-vfs",
 ]
 

@@ -2,7 +2,7 @@
 
 //
 
-use core::{fmt, mem::ManuallyDrop, ops::DivAssign};
+use core::{fmt, ops::DivAssign};
 
 //
 

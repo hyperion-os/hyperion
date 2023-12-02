@@ -6,6 +6,7 @@
 
 use alloc::sync::Arc;
 use core::{
+    any::type_name_of_val,
     cell::SyncUnsafeCell,
     convert::Infallible,
     mem::{offset_of, swap},
@@ -16,11 +17,12 @@ use core::{
 
 use arcstr::ArcStr;
 use crossbeam_queue::SegQueue;
-use hyperion_arch::{cpu::ints, int};
+use hyperion_arch::{cpu::ints, int, stack::AddressSpace, vmm::PageMap};
 use hyperion_cpu_id::Tls;
 use hyperion_driver_acpi::{apic, hpet::HPET};
 use hyperion_instant::Instant;
 use hyperion_log::*;
+use hyperion_mem::vmm::PageMapImpl;
 use hyperion_timer as timer;
 use spin::{Mutex, Once};
 use time::Duration;
@@ -91,7 +93,24 @@ pub fn rename(new_name: impl Into<ArcStr>) {
 
 /// init this processors scheduling and
 /// immediately switch to the provided task
-pub fn init(task: impl Into<Task>) -> ! {
+pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
+    static INIT: Once<Arc<Process>> = Once::new();
+    let init = INIT
+        .call_once(|| {
+            Process::new(
+                Pid::next(),
+                type_name_of_val(&thread).into(),
+                AddressSpace::new(PageMap::new()),
+            )
+        })
+        .clone();
+
+    // Lazy::new(|| {
+    //
+    // });
+
+    let task = Task::thread(init, thread);
+
     hyperion_arch::int::disable();
 
     // init the TLS struct before the apic timer handler tries to
@@ -224,8 +243,9 @@ pub fn schedule(new: impl Into<Task>) -> Pid {
     pid
 }
 
+/// spawn a new thread on the same process
 pub fn spawn(new: impl FnOnce() + Send + 'static) {
-    READY.push(Task::thread(task(), new));
+    READY.push(Task::thread(process(), new));
 }
 
 fn swap_current(mut new: Task) -> Task {

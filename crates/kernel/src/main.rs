@@ -24,6 +24,8 @@
 
 extern crate alloc;
 
+use core::ops::Range;
+
 use arch::vmm::PageMap;
 use hyperion_arch as arch;
 use hyperion_boot as boot;
@@ -38,7 +40,7 @@ use hyperion_mem::{from_higher_half, vmm::PageMapImpl, KernelSlabAlloc};
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
-use sync::last;
+use x86_64::VirtAddr;
 
 //
 
@@ -77,64 +79,56 @@ extern "C" fn _start() -> ! {
     // wake up all cpus
     arch::wake_cpus();
 
-    if sync::once!() {
-        // init task once
-        scheduler::schedule(move || {
-            // random hw specifics
-            random::provide_entropy(&arch::rng_seed().to_ne_bytes());
-            drivers::lazy_install_early(VFS_ROOT.clone());
-            drivers::lazy_install_late();
-
-            // os unit tests
-            #[cfg(test)]
-            test_main();
-            // kshell (kernel-space shell) UI task(s)
-            #[cfg(not(test))]
-            futures::executor::spawn(hyperion_kshell::kshell());
-        });
-    }
-
-    // #[cfg(test)]
-    // if sync::once!() {
-    //     debug!("init CPU-{}", cpu_id());
-    //     scheduler::init(move || {});
-    // } else {
-    //     arch::done();
-    // }
-
-    let mut boot_vmm = PageMap::current();
+    let boot_vmm = PageMap::current();
 
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
-    scheduler::init(move || {
-        scheduler::rename("<kernel async>");
+    scheduler::init(move || init(boot_stack, boot_vmm));
+}
 
-        let first = from_higher_half(boot_stack.start);
-        let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;
+fn init(boot_stack: Range<VirtAddr>, mut boot_vmm: PageMap) {
+    scheduler::rename("<kernel async>");
 
-        // Bootloader provided stack can be freed after switching away from
-        // the bootloader task.
-        let frames = unsafe { hyperion_mem::pmm::PageFrame::new(first, count) };
-        trace!("deallocating bootloader provided stack {boot_stack:?}");
-        hyperion_mem::pmm::PFA.free(frames);
+    // init task once
+    if sync::once!() {
+        // random hw specifics
+        random::provide_entropy(&arch::rng_seed().to_ne_bytes());
+        drivers::lazy_install_early(VFS_ROOT.clone());
+        drivers::lazy_install_late();
 
-        // The bootloader provided vmm is shared between CPUs
-        // so this makes sure that only the last processor still using it,
-        // is the only one that can delete it.
-        if last!() {
-            debug!(
-                "freeing bootloader page table: {:#x}",
-                boot_vmm.cr3().start_address()
-            );
-            unsafe {
-                boot_vmm.mark_owned();
-            };
-            drop(boot_vmm);
-        }
+        // os unit tests
+        #[cfg(test)]
+        test_main();
+        // kshell (kernel-space shell) UI task(s)
+        #[cfg(not(test))]
+        futures::executor::spawn(hyperion_kshell::kshell());
+    }
 
-        // start doing kernel things
-        futures::executor::run_tasks();
-    });
+    // The bootloader provided vmm is shared between CPUs
+    // so this makes sure that only the last processor still using it,
+    // is the only one that can delete it.
+    if sync::last!() {
+        debug!(
+            "freeing bootloader page table: {:#x}",
+            boot_vmm.cr3().start_address()
+        );
+        unsafe {
+            boot_vmm.mark_owned();
+        };
+        drop(boot_vmm);
+    }
+
+    let first = from_higher_half(boot_stack.start);
+    let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;
+
+    // Bootloader provided stack can be freed after switching away from
+    // the bootloader task.
+    let frames = unsafe { hyperion_mem::pmm::PageFrame::new(first, count) };
+    trace!("deallocating bootloader provided stack {boot_stack:?}");
+    hyperion_mem::pmm::PFA.free(frames);
+
+    // start doing kernel things
+    futures::executor::run_tasks();
 }
 
 //
