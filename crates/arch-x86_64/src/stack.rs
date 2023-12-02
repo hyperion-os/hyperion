@@ -185,9 +185,6 @@ impl AddressSpace {
 
 /// stacks have a guard page to trigger the page fault
 ///
-/// kernel stacks are at `..0xFFFF_FFFF_FFFF_FFFF` ([`KERNEL_STACK_BASE`])
-///   user stacks are at `..0x0000_7FFF_FFFF_FFFF` ([`USER_STACK_BASE`])
-///
 /// multiple stacks
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Stack<StackType> {

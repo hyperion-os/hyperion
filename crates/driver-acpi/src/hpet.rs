@@ -1,6 +1,6 @@
 //! High Precision Event Timer
 //!
-//! https://wiki.osdev.org/HPET
+//! <https://wiki.osdev.org/HPET>
 
 use alloc::collections::BinaryHeap;
 use core::{
@@ -566,7 +566,7 @@ bitfield! {
         /// front side bus interrupt mapping enabled
         fsb_enable: 14..15,
 
-        /// I/O APIC routing [`int_route_cap`]
+        /// I/O APIC routing `int_route_cap`
         int_route: 9..14,
 
         /// write to periodic timer's accumulator

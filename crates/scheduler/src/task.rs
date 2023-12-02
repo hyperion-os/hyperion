@@ -27,7 +27,7 @@ use hyperion_mem::{pmm, vmm::PageMapImpl};
 use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
 
-use crate::{after, cleanup::Cleanup, ipc::pipe::Pipe, stop, swap_current, task, TLS};
+use crate::{after, cleanup::Cleanup, ipc::pipe::Pipe, stop, swap_current, task, tls};
 
 //
 
@@ -69,7 +69,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     // tell the page fault handler that the actual current task is still this one
     let task = task();
     let task_inner: &TaskInner = &task;
-    TLS.switch_last_active.store(
+    tls().switch_last_active.store(
         task_inner as *const TaskInner as *mut TaskInner,
         Ordering::SeqCst,
     );
@@ -86,7 +86,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 
     // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
     // the box keeps the pointer pinned in memory
-    debug_assert!(TLS.initialized.load(Ordering::SeqCst));
+    debug_assert!(tls().initialized.load(Ordering::SeqCst));
     unsafe { ctx_switch(prev_ctx, next_ctx) };
 
     // the ctx_switch can continue either in `thread_entry` or here:
@@ -96,7 +96,8 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
 
 fn post_ctx_switch() {
     // invalidate the page fault handler's old task store
-    TLS.switch_last_active
+    tls()
+        .switch_last_active
         .store(ptr::null_mut(), Ordering::SeqCst);
 
     crate::cleanup();

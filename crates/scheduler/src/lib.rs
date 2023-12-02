@@ -6,8 +6,10 @@
 
 use alloc::sync::Arc;
 use core::{
+    cell::SyncUnsafeCell,
     convert::Infallible,
     mem::{offset_of, swap},
+    ops::Deref,
     ptr,
     sync::atomic::{AtomicBool, AtomicPtr, AtomicU64, Ordering},
 };
@@ -19,7 +21,7 @@ use hyperion_cpu_id::Tls;
 use hyperion_driver_acpi::{apic, hpet::HPET};
 use hyperion_instant::Instant;
 use hyperion_timer as timer;
-use spin::{Lazy, Mutex, Once};
+use spin::{Mutex, Once};
 use time::Duration;
 use x86_64::VirtAddr;
 
@@ -66,7 +68,7 @@ pub static RUNNING: AtomicBool = AtomicBool::new(false);
 //
 
 pub fn idle() -> impl Iterator<Item = Duration> {
-    Tls::inner(&TLS).iter().map(|tls| {
+    tls_iter().map(|tls| {
         fn _assert_sync<T: Sync>(_: T) {}
         fn _assert(tls: SchedulerTls) {
             _assert_sync(tls.idle_time);
@@ -91,6 +93,9 @@ pub fn rename(new_name: impl Into<ArcStr>) {
 pub fn init(task: impl Into<Task>) -> ! {
     hyperion_arch::int::disable();
 
+    // init the TLS struct before the apic timer handler tries to
+    _ = tls();
+
     // init scheduler's custom page fault handler
     ints::PAGE_FAULT_HANDLER.store(page_fault::page_fault_handler);
 
@@ -108,7 +113,7 @@ pub fn init(task: impl Into<Task>) -> ! {
     apic::APIC_TIMER_HANDLER.store(|| {
         sleep::wake_up_completed(None);
 
-        if !TLS.initialized.load(Ordering::SeqCst) {
+        if !tls().initialized.load(Ordering::SeqCst) {
             return;
         }
 
@@ -126,7 +131,7 @@ pub fn init(task: impl Into<Task>) -> ! {
     let task = task.into();
 
     // mark scheduler as initialized and running
-    if TLS.initialized.swap(true, Ordering::SeqCst) {
+    if tls().initialized.swap(true, Ordering::SeqCst) {
         panic!("should be called only once before any tasks are assigned to this processor")
     }
     RUNNING.store(true, Ordering::SeqCst);
@@ -272,9 +277,9 @@ fn next_task() -> Option<Task> {
 
 fn wait() {
     reset_cpu_timer();
-    TLS.idle.store(true, Ordering::SeqCst);
+    tls().idle.store(true, Ordering::SeqCst);
     int::wait();
-    TLS.idle.store(false, Ordering::SeqCst);
+    tls().idle.store(false, Ordering::SeqCst);
     update_cpu_idle();
 }
 
@@ -297,18 +302,30 @@ struct SchedulerTls {
     switch_last_active: AtomicPtr<TaskInner>,
 }
 
-static TLS: Lazy<Tls<SchedulerTls>> = Lazy::new(|| {
-    Tls::new(|| SchedulerTls {
-        active: Once::new(),
-        after: SegQueue::new(),
-        last_time: AtomicU64::new(0),
-        idle_time: AtomicU64::new(0),
-        initialized: AtomicBool::new(false),
-        idle: AtomicBool::new(false),
+static TLS: Once<Tls<SchedulerTls>> = Once::new();
 
-        switch_last_active: AtomicPtr::new(ptr::null_mut()),
+fn tls() -> &'static Tls<SchedulerTls> {
+    TLS.call_once(|| {
+        Tls::new(|| SchedulerTls {
+            active: Once::new(),
+            after: SegQueue::new(),
+            last_time: AtomicU64::new(0),
+            idle_time: AtomicU64::new(0),
+            initialized: AtomicBool::new(false),
+            idle: AtomicBool::new(false),
+
+            switch_last_active: AtomicPtr::new(ptr::null_mut()),
+        })
     })
-});
+}
+
+fn tls_iter() -> impl Iterator<Item = &'static SyncUnsafeCell<SchedulerTls>> {
+    Tls::inner(tls()).iter()
+}
+
+fn tls_try() -> Option<&'static SchedulerTls> {
+    TLS.get().map(|s| s.deref())
+}
 
 pub fn task() -> Task {
     (*get_task().lock()).clone()
@@ -320,21 +337,24 @@ pub fn process() -> Arc<Process> {
 
 pub fn running() -> bool {
     // short circuits and doesnt init TLS unless it has to
-    RUNNING.load(Ordering::SeqCst) && TLS.initialized.load(Ordering::SeqCst)
+    RUNNING.load(Ordering::SeqCst)
+        && tls_try()
+            .map(|v| v.initialized.load(Ordering::SeqCst))
+            .unwrap_or(false)
 }
 
 fn get_task() -> &'static Mutex<Task> {
-    TLS.active.call_once(|| Mutex::new(Task::bootloader()))
+    tls().active.call_once(|| Mutex::new(Task::bootloader()))
 }
 
 fn after() -> &'static SegQueue<CleanupTask> {
-    &TLS.after
+    &tls().after
 }
 
 fn last_time() -> &'static AtomicU64 {
-    &TLS.last_time
+    &tls().last_time
 }
 
 fn idle_time() -> &'static AtomicU64 {
-    &TLS.idle_time
+    &tls().idle_time
 }

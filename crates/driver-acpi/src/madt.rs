@@ -1,6 +1,6 @@
 //! Multiple APIC Descriptor Table
 //!
-//! https://wiki.osdev.org/MADT
+//! <https://wiki.osdev.org/MADT>
 
 use alloc::{vec, vec::Vec};
 use core::mem;

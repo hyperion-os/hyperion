@@ -8,3 +8,4 @@ edition.workspace = true
 [dependencies]
 bytemuck.workspace = true
 spin.workspace = true
+lock_api.workspace = true

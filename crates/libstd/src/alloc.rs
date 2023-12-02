@@ -36,7 +36,7 @@ impl PageFrameAllocator for PageAlloc {
 
 //
 
-pub type SlabAlloc = SlabAllocator<PageAlloc>;
+pub type SlabAlloc = SlabAllocator<PageAlloc, spin::Mutex<()>>;
 
 #[global_allocator]
 static GLOBAL_ALLOC: SlabAlloc = SlabAlloc::new();

@@ -13,6 +13,7 @@ set-allocator = []
 bytemuck.workspace = true
 spin.workspace = true
 volatile.workspace = true
+lock_api.workspace = true
 x86_64.workspace = true
 
 hyperion-boot.path = "../boot"

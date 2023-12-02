@@ -1,6 +1,6 @@
 //! Root/eXtended System Descriptor Table
 //!
-//! https://wiki.osdev.org/RSDT
+//! <https://wiki.osdev.org/RSDT>
 
 use core::{
     str::Utf8Error,

@@ -10,14 +10,14 @@ use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use spin::Mutex;
 use x86_64::VirtAddr;
 
-use crate::{stop, task, task::TaskInner, TLS};
+use crate::{stop, task, task::TaskInner, tls};
 
 //
 
 pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
     trace!("scheduler page fault (from {user:?}) (cpu: {})", cpu_id());
 
-    let actual_current = TLS.switch_last_active.load(Ordering::SeqCst);
+    let actual_current = tls().switch_last_active.load(Ordering::SeqCst);
     if !actual_current.is_null() {
         let current: &TaskInner = unsafe { &*actual_current };
 

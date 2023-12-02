@@ -18,7 +18,11 @@ pub mod vmm;
 
 //
 
-struct Pfa;
+pub type KernelSlabAlloc<Lock> = SlabAllocator<Pfa, Lock>;
+
+//
+
+pub struct Pfa;
 
 impl PageFrameAllocator for Pfa {
     fn alloc(pages: usize) -> PageFrames {
@@ -38,10 +42,6 @@ impl PageFrameAllocator for Pfa {
         PFA.free(pages);
     }
 }
-
-#[cfg(feature = "set-allocator")]
-#[global_allocator]
-static ALLOCATOR: SlabAllocator<Pfa> = SlabAllocator::new();
 
 //
 

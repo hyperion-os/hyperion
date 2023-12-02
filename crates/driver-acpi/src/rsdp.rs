@@ -1,6 +1,6 @@
 //! Root System Description Pointer
 //!
-//! https://wiki.osdev.org/RSDP
+//! <https://wiki.osdev.org/RSDP>
 //!
 //! This module finds the pointer to the Root/eXtended System Descriptor Table [`super::rsdt`]
 

@@ -308,7 +308,7 @@ type Skip<const N: usize> = Reserved<[u32; N]>;
 
 /// Table 10-1 Local APIC Register Address Map
 ///
-/// https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf
+/// <https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-3a-part-1-manual.pdf>
 ///
 /// 10-6 Vol. 3A
 #[derive(Debug)]
