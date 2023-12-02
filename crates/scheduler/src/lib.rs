@@ -20,6 +20,7 @@ use hyperion_arch::{cpu::ints, int};
 use hyperion_cpu_id::Tls;
 use hyperion_driver_acpi::{apic, hpet::HPET};
 use hyperion_instant::Instant;
+use hyperion_log::*;
 use hyperion_timer as timer;
 use spin::{Mutex, Once};
 use time::Duration;
@@ -102,7 +103,7 @@ pub fn init(task: impl Into<Task>) -> ! {
     // init scheduler's custom general protection fault handler
     ints::GP_FAULT_HANDLER.store(|| {
         process().should_terminate.store(true, Ordering::Relaxed);
-        hyperion_log::debug!("GPF self term");
+        debug!("GPF self term");
         stop();
     });
 
@@ -117,7 +118,8 @@ pub fn init(task: impl Into<Task>) -> ! {
             return;
         }
 
-        if process().should_terminate.load(Ordering::Relaxed) {
+        if process().should_terminate.swap(false, Ordering::Relaxed) {
+            debug!("should_terminate stop");
             stop();
         }
 
