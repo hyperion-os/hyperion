@@ -29,7 +29,7 @@ use hyperion_mem::{
 };
 use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 use crate::{after, cleanup::Cleanup, ipc::pipe::Pipe, stop, swap_current, task, tls};
 
@@ -215,6 +215,7 @@ pub struct Process {
     /// naïve PID based IPC
     pub simple_ipc: Pipe,
 
+    // TODO: the AddressSpace already knows these
     /// a store for all allocated (and mapped) physical pages
     pub allocs: PageAllocs,
 
@@ -238,25 +239,35 @@ pub enum FreeErr {
 }
 
 impl Process {
-    pub fn alloc(&self, n_pages: usize, flags: PageTableFlags) -> Result<*mut u8, AllocErr> {
+    pub fn alloc(
+        &self,
+        n_pages: usize,
+        flags: PageTableFlags,
+    ) -> Result<(VirtAddr, PhysAddr), AllocErr> {
         let n_bytes = n_pages * 0x1000;
 
-        let at = self.heap_bottom.fetch_add(n_bytes, Ordering::SeqCst);
+        let Ok(at) = VirtAddr::try_new(self.heap_bottom.fetch_add(n_bytes, Ordering::SeqCst) as _)
+        else {
+            return Err(AllocErr::OutOfVirtMem);
+        };
 
-        if (at + n_bytes) as u64 >= USER_HEAP_TOP {
+        if (at + n_bytes).as_u64() >= USER_HEAP_TOP {
             return Err(AllocErr::OutOfVirtMem);
         }
 
-        self.alloc_at_keep_heap_bottom(n_pages, at, flags)
+        let phys = self.alloc_at_keep_heap_bottom(n_pages, at, flags)?;
+
+        Ok((at, phys))
     }
 
     pub fn alloc_at(
         &self,
         n_pages: usize,
-        at: usize,
+        at: VirtAddr,
         flags: PageTableFlags,
-    ) -> Result<*mut u8, AllocErr> {
-        let at = self.heap_bottom.fetch_max(at, Ordering::SeqCst);
+    ) -> Result<PhysAddr, AllocErr> {
+        self.heap_bottom
+            .fetch_max(at.as_u64() as usize + n_pages * 0x1000, Ordering::SeqCst);
         self.alloc_at_keep_heap_bottom(n_pages, at, flags)
     }
 
@@ -288,19 +299,19 @@ impl Process {
     fn alloc_at_keep_heap_bottom(
         &self,
         n_pages: usize,
-        at: usize,
+        at: VirtAddr,
         flags: PageTableFlags,
-    ) -> Result<*mut u8, AllocErr> {
+    ) -> Result<PhysAddr, AllocErr> {
         let n_bytes = n_pages * 0x1000;
 
         let alloc_bottom = at;
         let alloc_top = at + n_bytes;
 
         // TODO: split into 1 page chunks
-        let physical_pages = pmm::PFA.alloc(1);
+        let physical_pages = pmm::PFA.alloc(n_pages);
 
         self.address_space.page_map.map(
-            VirtAddr::new(alloc_bottom as _)..VirtAddr::new(alloc_top as _),
+            alloc_bottom..alloc_top,
             physical_pages.physical_addr(),
             flags,
         );
@@ -312,7 +323,7 @@ impl Process {
             bitmap.set(page, true).unwrap();
         }
 
-        Ok(alloc_bottom as *mut u8)
+        Ok(physical_pages.physical_addr())
     }
 }
 

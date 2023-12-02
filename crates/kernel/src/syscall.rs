@@ -163,7 +163,7 @@ pub fn palloc(args: &mut SyscallRegs) -> Result<usize> {
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
 
     match process().alloc(n_pages, flags) {
-        Ok(ptr) => Ok(ptr as _),
+        Ok((ptr, _)) => Ok(ptr.as_u64() as _),
         Err(AllocErr::OutOfVirtMem) => Err(Error::OUT_OF_VIRTUAL_MEMORY),
     }
 }

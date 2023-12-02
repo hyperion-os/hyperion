@@ -5,8 +5,7 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
-use core::{mem::MaybeUninit, sync::atomic::Ordering};
+use core::{mem::MaybeUninit, slice};
 
 use elf::{
     abi::{PF_R, PF_W, PF_X, PT_LOAD},
@@ -16,7 +15,8 @@ use elf::{
 };
 use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_log::*;
-use hyperion_mem::{from_higher_half, vmm::PageMapImpl};
+use hyperion_mem::{is_higher_half, to_higher_half, vmm::PageMapImpl};
+use hyperion_scheduler::process;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
@@ -58,27 +58,36 @@ impl<'a> Loader<'a> {
             .align_down(0x1000u64);
         let align_down_offs = segment.p_vaddr - v_addr.as_u64();
         let v_end = (v_addr + segment.p_memsz + align_down_offs).align_up(0x1000u64);
-        let v_range = v_addr..v_end;
         let v_size = v_end - v_addr;
 
-        if v_end > VirtAddr::new(0x400000000000) {
+        if is_higher_half(v_end.as_u64()) {
             error!("ELF segments cannot be mapped to higher half");
-            panic!("TODO:")
+            hyperion_scheduler::stop();
         }
 
-        hyperion_scheduler::process()
-            .heap_bottom
-            .fetch_max(v_end.as_u64() as _, Ordering::SeqCst);
+        let flags = Self::flags(segment.p_flags);
 
-        debug!("segment alloc: {v_size:#x} at {v_addr:#x}");
+        // debug!("segment alloc: {v_size:#x} at {v_addr:#x}");
 
-        // TODO: max v_size
+        let process = process();
+
+        let phys = process
+            .alloc_at(v_size as usize / 0x1000, v_addr, flags)
+            .unwrap_or_else(|_| {
+                error!("could not load ELF: out of VMEM, killing process");
+                hyperion_scheduler::stop();
+            });
+
+        // using the HHDM address allows writing to a page that the ELF requested to be read only
+        let alloc = to_higher_half(phys);
+
+        // debug!("segment phys alloc: {phys:#x} mapped to {alloc:#x}");
 
         let segment_data = self.parser.segment_data(&segment).expect("TODO:");
-
         let segment_alloc: &mut [MaybeUninit<u8>] =
-            Box::leak(Box::new_uninit_slice(v_size as usize));
+            unsafe { slice::from_raw_parts_mut(alloc.as_mut_ptr(), v_size as usize) };
 
+        // fill segment_alloc with segment_data and pad the end with null bytes
         let (segment_alloc_align_pad, segment_alloc_virtual) =
             segment_alloc.split_at_mut(align_down_offs as usize);
         let (segment_alloc_data, segment_alloc_zeros) =
@@ -87,30 +96,22 @@ impl<'a> Loader<'a> {
         segment_alloc_align_pad.fill(MaybeUninit::zeroed());
         MaybeUninit::write_slice(segment_alloc_data, segment_data);
         segment_alloc_zeros.fill(MaybeUninit::zeroed());
+    }
 
-        // SAFETY: segment_alloc was filled with data and zeros
-        let segment_alloc = unsafe { MaybeUninit::slice_assume_init_mut(segment_alloc) };
-
-        let segment_alloc_phys =
-            from_higher_half(VirtAddr::new(segment_alloc.as_ptr() as usize as u64));
-
+    fn flags(p_flags: u32) -> PageTableFlags {
         let mut flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
-        if segment.p_flags & PF_X == 0 {
+        if p_flags & PF_X == 0 {
             flags.insert(PageTableFlags::NO_EXECUTE);
         }
-        if segment.p_flags & PF_W != 0 {
+        if p_flags & PF_W != 0 {
             flags.insert(PageTableFlags::WRITABLE);
         }
-        if segment.p_flags & PF_R != 0 {
+        if p_flags & PF_R != 0 {
             // READ is always enabled
             // TODO: read-only
         }
 
-        /* debug!(
-                    "Mapping segment [ 0x{v_addr:016x}..0x{v_end:016x} -> 0x{segment_alloc_phys:016x} ] ({:03b} = {flags:?}) (0x{:016x})", segment.p_flags,
-        segment.p_vaddr
-                ); */
-        self.page_map.map(v_range, segment_alloc_phys, flags);
+        flags
     }
 
     pub fn debug(&self) {
