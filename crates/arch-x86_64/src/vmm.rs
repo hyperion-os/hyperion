@@ -24,7 +24,7 @@
 use alloc::collections::BTreeMap;
 use core::{cmp::Ordering, ops::Range};
 
-use hyperion_log::{debug, println};
+use hyperion_log::println;
 use hyperion_mem::{
     from_higher_half, pmm, to_higher_half,
     vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
@@ -60,17 +60,21 @@ pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_F
 /// - `0xFFFF_C000_0000..`
 pub static KERNEL_EXECUTABLE_MAPS: Lazy<((PhysAddr, PageTableFlags), (PhysAddr, PageTableFlags))> =
     Lazy::new(|| {
-        let (l4, _) = Cr3::read();
-        let l4 = unsafe { read_table(l4.start_address()) };
+        let (cr3, _) = Cr3::read();
+        let l4 = unsafe { read_table_mut(cr3.start_address()) };
 
         let l3 = &l4[511];
         assert!(!l3.is_unused());
-        let l3 = unsafe { read_table(l3.addr()) };
+        let l3 = unsafe { read_table_mut(l3.addr()) };
 
-        let l2 = &l3[510];
+        let l2 = &mut l3[510];
+        l2.set_flags(l2.flags() | PageTableFlags::BIT_9); // bit 9 marks it as shared, TODO: a better method
         let l3_510 = (l2.addr(), l2.flags());
-        let l2 = &l3[511];
+        let l2 = &mut l3[511];
+        l2.set_flags(l2.flags() | PageTableFlags::BIT_9);
         let l3_511 = (l2.addr(), l2.flags());
+
+        // no flushing needed, the cpu doesn't care about the bit 9
 
         (l3_510, l3_511)
     });
@@ -84,11 +88,11 @@ pub struct PageMap {
 
 //
 
-unsafe fn read_table(addr: PhysAddr) -> &'static PageTable {
-    let table = to_higher_half(addr);
-    let table: *const PageTable = table.as_ptr();
-    unsafe { &*table }
-}
+// unsafe fn read_table(addr: PhysAddr) -> &'static PageTable {
+//     let table = to_higher_half(addr);
+//     let table: *const PageTable = table.as_ptr();
+//     unsafe { &*table }
+// }
 
 unsafe fn read_table_mut(addr: PhysAddr) -> &'static mut PageTable {
     let table = to_higher_half(addr);
@@ -522,22 +526,32 @@ impl Drop for PageMap {
                 WalkTableIterResult::Size2MiB(_p_addr) => {}
                 WalkTableIterResult::Size4KiB(_p_addr) => {}
                 WalkTableIterResult::Level3(l3) => {
-                    for (_, _, entry) in l3.iter() {
-                        travel_level(entry);
+                    for (_, flags, entry) in l3.iter() {
+                        if !flags.contains(PageTableFlags::BIT_9) {
+                            travel_level(entry);
+                        }
                     }
 
                     let table = from_higher_half(VirtAddr::new(l3.0 as *const _ as u64));
                     Pfa.deallocate_frame(PhysFrame::containing_address(table));
                 }
                 WalkTableIterResult::Level2(l2) => {
-                    for (_, _, entry) in l2.iter() {
-                        travel_level(entry);
+                    for (_, flags, entry) in l2.iter() {
+                        if !flags.contains(PageTableFlags::BIT_9) {
+                            travel_level(entry);
+                        }
                     }
 
                     let table = from_higher_half(VirtAddr::new(l2.0 as *const _ as u64));
                     Pfa.deallocate_frame(PhysFrame::containing_address(table));
                 }
                 WalkTableIterResult::Level1(l1) => {
+                    for (_, flags, entry) in l1.iter() {
+                        if !flags.contains(PageTableFlags::BIT_9) {
+                            travel_level(entry);
+                        }
+                    }
+
                     let table = from_higher_half(VirtAddr::new(l1.0 as *const _ as u64));
                     Pfa.deallocate_frame(PhysFrame::containing_address(table));
                 }
@@ -553,12 +567,16 @@ impl Drop for PageMap {
         let offs = self.offs.get_mut();
 
         let l4 = Level4::from_pml4(offs.level_4_table());
-        for (_, _, entry) in l4.iter() {
-            travel_level(entry);
-
-            let table = from_higher_half(VirtAddr::new(l4.0 as *const _ as u64));
-            Pfa.deallocate_frame(PhysFrame::containing_address(table));
+        for (_, flags, entry) in l4.iter() {
+            if !flags.contains(PageTableFlags::BIT_9) {
+                travel_level(entry);
+            } else {
+                hyperion_log::debug!("skip bit 9");
+            }
         }
+
+        let table = from_higher_half(VirtAddr::new(offs.level_4_table() as *const _ as u64));
+        Pfa.deallocate_frame(PhysFrame::containing_address(table));
     }
 }
 

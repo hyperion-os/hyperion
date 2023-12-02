@@ -103,10 +103,6 @@ extern "C" fn _start() -> ! {
     // }
 
     let mut boot_vmm = PageMap::current();
-    debug!(
-        "bootloader page table: {:#x}",
-        boot_vmm.cr3().start_address()
-    );
 
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
@@ -126,6 +122,10 @@ extern "C" fn _start() -> ! {
         // so this makes sure that only the last processor still using it,
         // is the only one that can delete it.
         if last!() {
+            debug!(
+                "freeing bootloader page table: {:#x}",
+                boot_vmm.cr3().start_address()
+            );
             unsafe {
                 boot_vmm.mark_owned();
             };

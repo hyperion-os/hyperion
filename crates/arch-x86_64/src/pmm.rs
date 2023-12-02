@@ -9,7 +9,6 @@ pub struct Pfa;
 
 impl Pfa {
     pub fn deallocate_frame(&mut self, frame: PhysFrame<Size4KiB>) {
-        hyperion_log::debug!("dealloc 1kib");
         let frame = unsafe { PageFrame::new(frame.start_address(), 1) };
         pmm::PFA.free(frame);
     }

@@ -29,6 +29,10 @@ struct Args {
     #[arg(short, long, value_name = "enabled", default_value = "false")]
     uefi: Option<bool>,
 
+    /// QEMU debug level
+    #[arg(short, long, value_name = "enabled", default_value = "0")]
+    debug: Option<u8>,
+
     /// build the kernel with optimizations
     #[arg(long)]
     release: bool,
@@ -51,6 +55,10 @@ fn main() {
 
     if let Some(mem) = args.mem {
         cmd.arg(format!("MEMORY={mem}"));
+    }
+
+    if let Some(debug) = args.debug {
+        cmd.arg(format!("DEBUG={debug}"));
     }
 
     cmd.arg(format!("KVM={}", args.kvm.unwrap_or(true)));
