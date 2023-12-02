@@ -276,14 +276,15 @@ impl Shell {
     }
 
     fn mem_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        let used = pmm::PFA.used_mem();
-        let usable = pmm::PFA.usable_mem();
+        let used = pmm::PFA.used_mem().postfix_binary();
+        let usable = pmm::PFA.usable_mem().postfix_binary();
+        let total = pmm::PFA.total_mem().postfix_binary();
+
+        let p = used.into_inner() as f64 / usable.into_inner() as f64 * 100.0;
+
         _ = writeln!(
             self.term,
-            "Mem:\n - total: {}B\n - used: {}B ({:3.1}%)",
-            usable.postfix_binary(),
-            used.postfix_binary(),
-            used as f64 / usable as f64 * 100.0
+            "Mem:\n - total: {total}B\n - usable: {usable}B\n - used: {used}B ({p:3.1}%)",
         );
 
         Ok(())

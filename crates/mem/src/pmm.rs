@@ -183,8 +183,8 @@ impl PageFrameAllocator {
 
     fn init() -> Self {
         // usable system memory
-        let usable: usize = memmap()
-            .filter(Memmap::is_usable)
+        let mut usable: usize = memmap()
+            .filter(|m| m.is_usable() | m.is_bootloader_reclaimable() | m.is_kernel_and_modules())
             .map(|Memmap { len, .. }| len)
             .sum();
 
@@ -199,7 +199,7 @@ impl PageFrameAllocator {
             .expect("No memory");
 
         let used: usize = memmap()
-            .filter(|m| m.is_bootloader_reclaimable() | m.is_kernel_and_modules())
+            .filter(|m| m.is_bootloader_reclaimable())
             .map(|Memmap { len, .. }| len)
             .sum();
 
@@ -252,10 +252,12 @@ impl PageFrameAllocator {
             }
         }
 
+        usable -= bitmap_size;
+
         let pfa = Self {
             bitmap,
             usable: usable.into(),
-            used: (used + bitmap_size).into(),
+            used: used.into(),
             total: total.into(),
 
             last_alloc_index: 0.into(),

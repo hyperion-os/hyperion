@@ -2,7 +2,7 @@
 
 //
 
-use core::{fmt, ops::DivAssign};
+use core::{fmt, mem::ManuallyDrop, ops::DivAssign};
 
 //
 
@@ -41,10 +41,16 @@ pub trait NumberPostfix: Sized + Copy + DivAssign + PartialOrd {
 
 //
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct NumberPostfixed<T> {
     n: T,
     scale: &'static str,
+}
+
+impl<T> NumberPostfixed<T> {
+    pub fn into_inner(self) -> T {
+        self.n
+    }
 }
 
 //
