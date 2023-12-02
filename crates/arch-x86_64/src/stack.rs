@@ -7,6 +7,7 @@ use core::{
 };
 
 use crossbeam::queue::SegQueue;
+use hyperion_log::*;
 use hyperion_mem::{
     pmm::{self, PageFrame},
     vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl},
@@ -238,17 +239,16 @@ impl<T: StackType + Debug> Stack<T> {
     /// won't allocate the stack,
     /// this only makes sure the guard page is there
     pub fn init(&self, page_map: &PageMap) {
-        hyperion_log::trace!("init a stack {:?}", T::PAGE_FLAGS);
+        trace!("init a stack {:?}", T::PAGE_FLAGS);
 
         // page_map.activate();
         page_map.unmap(Self::page_range(self.guard_page()));
     }
 
     pub fn grow(&mut self, page_map: &PageMap, grow_by_pages: u64) -> Result<(), StackLimitHit> {
-        hyperion_log::trace!("growing a stack {:?}", T::PAGE_FLAGS);
+        trace!("growing a stack {:?}", T::PAGE_FLAGS);
 
         if self.extent_4k_pages + grow_by_pages > self.limit_4k_pages {
-            hyperion_log::trace!("stack limit hit");
             // stack cannot grow anymore
             return Err(StackLimitHit);
         }
@@ -282,22 +282,22 @@ impl<T: StackType + Debug> Stack<T> {
         // page_map.activate();
         assert!(page_map.is_active());
 
-        hyperion_log::trace!("stack page fault test ({})", T::TY);
+        trace!("stack page fault test ({})", T::TY);
 
         let guard_page = self.guard_page();
 
         if !(guard_page..=guard_page + 0xFFFu64).contains(&addr) {
-            hyperion_log::trace!("guard page not hit (0x{guard_page:016x})");
+            trace!("guard page not hit (0x{guard_page:016x})");
             // guard page not hit, so its not a stack overflow
             return Ok(NotHandled);
         }
 
         // TODO: configurable grow_by_rate
         if let Err(StackLimitHit) = self.grow(page_map, 1) {
-            return Ok(NotHandled);
+            panic!("stack overflow");
         }
 
-        hyperion_log::trace!(
+        trace!(
             "now {addr:018x} maps to {:018x?}",
             page_map.virt_to_phys(addr)
         );

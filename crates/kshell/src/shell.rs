@@ -162,6 +162,7 @@ impl Shell {
             "nproc" => self.nproc_cmd(args)?,
             "top" => self.top_cmd(args)?,
             "send" => self.send_cmd(args)?,
+            "kill" => self.kill_cmd(args)?,
             "exit" => return Ok(None),
             "clear" => {
                 self.term.clear();
@@ -426,7 +427,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, cpu_id, ps, nproc, top, send, exit, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear");
 
         Ok(())
     }
@@ -723,6 +724,30 @@ impl Shell {
                 msg: format!("failed send data: {err}"),
             });
         };
+
+        Ok(())
+    }
+
+    fn kill_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        let Some(arg) = args else {
+            return Err(Error::Other {
+                msg: "missing arg pid".to_string(),
+            });
+        };
+
+        let Ok(pid) = arg.parse::<usize>() else {
+            return Err(Error::Other {
+                msg: "invalid arg pid".to_string(),
+            });
+        };
+
+        let Some(proc) = Pid::new(pid).find() else {
+            return Err(Error::Other {
+                msg: "couldn't find the process".to_string(),
+            });
+        };
+
+        proc.should_terminate.store(true, Ordering::SeqCst);
 
         Ok(())
     }
