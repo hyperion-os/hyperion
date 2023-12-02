@@ -199,6 +199,9 @@ pub struct Process {
     /// next thread id
     pub next_tid: AtomicUsize,
 
+    /// number of threads in this process
+    pub threads: AtomicUsize,
+
     /// process name
     pub name: RwLock<ArcStr>,
 
@@ -243,6 +246,7 @@ impl Process {
         let this = Arc::new(Self {
             pid,
             next_tid: AtomicUsize::new(0),
+            threads: AtomicUsize::new(1),
             name: RwLock::new(name),
             nanos: AtomicU64::new(0),
             address_space,
@@ -488,6 +492,8 @@ impl Task {
             "initializing secondary thread for process {}",
             process.name.read().clone()
         );
+
+        process.threads.fetch_add(1, Ordering::Relaxed);
 
         let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;

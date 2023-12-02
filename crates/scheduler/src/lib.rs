@@ -97,11 +97,13 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
     static INIT: Once<Arc<Process>> = Once::new();
     let init = INIT
         .call_once(|| {
-            Process::new(
+            let process = Process::new(
                 Pid::next(),
                 type_name_of_val(&thread).into(),
                 AddressSpace::new(PageMap::new()),
-            )
+            );
+            process.threads.store(0, Ordering::Relaxed);
+            process
         })
         .clone();
 

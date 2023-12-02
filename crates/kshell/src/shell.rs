@@ -628,9 +628,14 @@ impl Shell {
     fn ps_cmd(&mut self, _args: Option<&str>) -> Result<()> {
         let processes = processes();
 
-        _ = writeln!(self.term, "\n{: >6} {: >9} CMD", "PID", "TIME");
+        _ = writeln!(
+            self.term,
+            "\n{: >6} {: >7} {: >9} CMD",
+            "PID", "THREADS", "TIME"
+        );
         for proc in processes {
             let pid = proc.pid;
+            let threads = proc.threads.load(Ordering::Relaxed);
             let time = time::Duration::nanoseconds(proc.nanos.load(Ordering::Relaxed) as _);
             // let time_h = time.whole_hours();
             let time_m = time.whole_minutes() % 60;
@@ -640,7 +645,7 @@ impl Shell {
 
             _ = writeln!(
                 self.term,
-                "{pid: >6} {time_m: >2}:{time_s:02}.{time_ms:03} {name}"
+                "{pid: >6} {threads: >7} {time_m: >2}:{time_s:02}.{time_ms:03} {name}"
             );
         }
 
