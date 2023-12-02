@@ -18,14 +18,18 @@ use arcstr::ArcStr;
 use crossbeam::atomic::AtomicCell;
 use hyperion_arch::{
     context::{switch as ctx_switch, Context},
-    stack::{AddressSpace, KernelStack, Stack, UserStack},
+    stack::{AddressSpace, KernelStack, Stack, UserStack, USER_HEAP_TOP},
     vmm::PageMap,
 };
 use hyperion_bitmap::Bitmap;
 use hyperion_log::*;
-use hyperion_mem::{pmm, vmm::PageMapImpl};
+use hyperion_mem::{
+    pmm::{self, PageFrame},
+    vmm::PageMapImpl,
+};
 use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 use crate::{after, cleanup::Cleanup, ipc::pipe::Pipe, stop, swap_current, task, tls};
 
@@ -201,6 +205,7 @@ pub struct Process {
     /// cpu time this process (all tasks) has used in nanoseconds
     pub nanos: AtomicU64,
 
+    // TODO: AddressSpace memory leaks page tables
     /// process address space
     pub address_space: AddressSpace,
 
@@ -217,6 +222,98 @@ pub struct Process {
     pub ext: Once<Box<dyn ProcessExt + 'static>>,
 
     pub should_terminate: AtomicBool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AllocErr {
+    OutOfVirtMem,
+    // TODO:
+    // OutOfMem,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FreeErr {
+    InvalidAddr,
+    InvalidAlloc,
+}
+
+impl Process {
+    pub fn alloc(&self, n_pages: usize, flags: PageTableFlags) -> Result<*mut u8, AllocErr> {
+        let n_bytes = n_pages * 0x1000;
+
+        let at = self.heap_bottom.fetch_add(n_bytes, Ordering::SeqCst);
+
+        if (at + n_bytes) as u64 >= USER_HEAP_TOP {
+            return Err(AllocErr::OutOfVirtMem);
+        }
+
+        self.alloc_at_keep_heap_bottom(n_pages, at, flags)
+    }
+
+    pub fn alloc_at(
+        &self,
+        n_pages: usize,
+        at: usize,
+        flags: PageTableFlags,
+    ) -> Result<*mut u8, AllocErr> {
+        let at = self.heap_bottom.fetch_max(at, Ordering::SeqCst);
+        self.alloc_at_keep_heap_bottom(n_pages, at, flags)
+    }
+
+    pub fn free(&self, n_pages: usize, ptr: VirtAddr) -> Result<(), FreeErr> {
+        let mut bitmap = self.allocs.bitmap();
+
+        let Some(palloc) = self.address_space.page_map.virt_to_phys(ptr) else {
+            return Err(FreeErr::InvalidAddr);
+        };
+
+        let page_bottom = palloc.as_u64() as usize / 0x1000;
+        for page in page_bottom..page_bottom + n_pages {
+            if !bitmap.get(page).unwrap() {
+                return Err(FreeErr::InvalidAlloc);
+            }
+
+            bitmap.set(page, false).unwrap();
+        }
+
+        let frames = unsafe { PageFrame::new(palloc, n_pages) };
+        pmm::PFA.free(frames);
+        self.address_space
+            .page_map
+            .unmap(ptr..ptr + n_pages * 0x1000);
+
+        Ok(())
+    }
+
+    fn alloc_at_keep_heap_bottom(
+        &self,
+        n_pages: usize,
+        at: usize,
+        flags: PageTableFlags,
+    ) -> Result<*mut u8, AllocErr> {
+        let n_bytes = n_pages * 0x1000;
+
+        let alloc_bottom = at;
+        let alloc_top = at + n_bytes;
+
+        // TODO: split into 1 page chunks
+        let physical_pages = pmm::PFA.alloc(1);
+
+        self.address_space.page_map.map(
+            VirtAddr::new(alloc_bottom as _)..VirtAddr::new(alloc_top as _),
+            physical_pages.physical_addr(),
+            flags,
+        );
+
+        let page_bottom = physical_pages.physical_addr().as_u64() as usize / 0x1000;
+
+        let mut bitmap = self.allocs.bitmap();
+        for page in page_bottom..page_bottom + n_pages {
+            bitmap.set(page, true).unwrap();
+        }
+
+        Ok(alloc_bottom as *mut u8)
+    }
 }
 
 impl Drop for Process {

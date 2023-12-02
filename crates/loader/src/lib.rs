@@ -70,6 +70,8 @@ impl<'a> Loader<'a> {
             .heap_bottom
             .fetch_max(v_end.as_u64() as _, Ordering::SeqCst);
 
+        debug!("segment alloc: {v_size:#x} at {v_addr:#x}");
+
         // TODO: max v_size
 
         let segment_data = self.parser.segment_data(&segment).expect("TODO:");

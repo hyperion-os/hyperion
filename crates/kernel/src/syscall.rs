@@ -1,23 +1,17 @@
 use alloc::{boxed::Box, string::ToString, sync::Arc, vec::Vec};
-use core::{
-    any::{type_name_of_val, Any},
-    sync::atomic::Ordering,
-};
+use core::any::{type_name_of_val, Any};
 
-use hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
+use hyperion_arch::{syscall::SyscallRegs, vmm::PageMap};
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_log::*;
-use hyperion_mem::{
-    pmm::{self, PageFrame},
-    vmm::PageMapImpl,
-};
+use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
     ipc::pipe::{Channel, Pipe, Receiver, Sender},
     lock::{Futex, Mutex},
     process, task,
-    task::{Process, ProcessExt},
+    task::{AllocErr, FreeErr, Process, ProcessExt},
 };
 use hyperion_syscall::{
     err::{Error, Result},
@@ -164,75 +158,30 @@ pub fn pthread_spawn(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::palloc`]
 pub fn palloc(args: &mut SyscallRegs) -> Result<usize> {
-    let pages = args.arg0 as usize;
-    let alloc = pages * 0x1000;
+    let n_pages = args.arg0 as usize;
+    let flags =
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
 
-    let active = hyperion_scheduler::process();
-    let mut allocs = active.allocs.bitmap();
-    let alloc_bottom = active.heap_bottom.fetch_add(alloc, Ordering::SeqCst);
-    let alloc_top = alloc_bottom + alloc;
-
-    if alloc_top as u64 >= USER_HEAP_TOP {
-        return Err(Error::OUT_OF_VIRTUAL_MEMORY);
+    match process().alloc(n_pages, flags) {
+        Ok(ptr) => Ok(ptr as _),
+        Err(AllocErr::OutOfVirtMem) => Err(Error::OUT_OF_VIRTUAL_MEMORY),
     }
-
-    let frames = pmm::PFA.alloc(pages);
-
-    // debug!(
-    //     "mapping [{:?}..{:?}] to {:?}",
-    //     VirtAddr::new(alloc_bottom as _),
-    //     VirtAddr::new(alloc_top as _),
-    //     frames.physical_addr(),
-    // );
-    active.address_space.page_map.map(
-        VirtAddr::new(alloc_bottom as _)..VirtAddr::new(alloc_top as _),
-        frames.physical_addr(),
-        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
-    );
-
-    let page_bottom = frames.physical_addr().as_u64() as usize / 0x1000;
-    for page in page_bottom..page_bottom + pages {
-        if allocs.set(page, true).is_none() {
-            panic!("alloc set page:{page} len:{}", allocs.len());
-        }
-    }
-
-    return Ok(alloc_bottom);
 }
 
 /// free allocated physical pages
 ///
 /// [`hyperion_syscall::pfree`]
 pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
-    let Ok(alloc_bottom) = VirtAddr::try_new(args.arg0) else {
+    let Ok(ptr) = VirtAddr::try_new(args.arg0) else {
         return Err(Error::INVALID_ADDRESS);
     };
-    let pages = args.arg1 as usize;
+    let n_pages = args.arg1 as usize;
 
-    let active = hyperion_scheduler::process();
-    let mut allocs = active.allocs.bitmap();
-
-    let Some(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) else {
-        return Err(Error::INVALID_ADDRESS);
-    };
-
-    let page_bottom = palloc.as_u64() as usize / 0x1000;
-    for page in page_bottom..page_bottom + pages {
-        if !allocs.get(page).unwrap() {
-            return Err(Error::INVALID_ALLOC);
-        }
-
-        allocs.set(page, false).unwrap();
+    match process().free(n_pages, ptr) {
+        Ok(()) => Ok(0),
+        Err(FreeErr::InvalidAddr) => Err(Error::INVALID_ADDRESS),
+        Err(FreeErr::InvalidAlloc) => Err(Error::INVALID_ALLOC),
     }
-
-    let frames = unsafe { PageFrame::new(palloc, pages) };
-    pmm::PFA.free(frames);
-    active
-        .address_space
-        .page_map
-        .unmap(alloc_bottom..alloc_bottom + pages * 0x1000);
-
-    return Ok(0);
 }
 
 /// rename the current process
