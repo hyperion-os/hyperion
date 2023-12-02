@@ -603,6 +603,12 @@ where
     }
 }
 
+impl Drop for Task {
+    fn drop(&mut self) {
+        self.threads.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 //
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
