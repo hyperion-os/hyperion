@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::future::Future;
 
 use crossbeam_queue::SegQueue;
-use hyperion_scheduler::yield_now_wait;
+use hyperion_scheduler::{condvar::Condvar, lock::Mutex};
 
 use super::task::Task;
 
@@ -16,7 +16,11 @@ pub fn run_tasks() -> ! {
     loop {
         while run_once().is_some() {}
 
-        yield_now_wait();
+        let mut empty = EMPTY.0.lock();
+        *empty = TASK_QUEUE.is_empty();
+        while *empty {
+            empty = EMPTY.1.wait(empty);
+        }
     }
 }
 
@@ -26,7 +30,10 @@ pub fn run_once() -> Option<()> {
 }
 
 pub fn push_task(task: Arc<Task>) {
-    TASK_QUEUE.push(task)
+    TASK_QUEUE.push(task);
+
+    *EMPTY.0.lock() = false;
+    EMPTY.1.notify_one();
 }
 
 pub fn pop_task() -> Option<Arc<Task>> {
@@ -36,3 +43,4 @@ pub fn pop_task() -> Option<Arc<Task>> {
 //
 
 static TASK_QUEUE: SegQueue<Arc<Task>> = SegQueue::new();
+static EMPTY: (Mutex<bool>, Condvar) = (Mutex::new(true), Condvar::new());

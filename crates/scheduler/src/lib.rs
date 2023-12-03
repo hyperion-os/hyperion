@@ -41,6 +41,7 @@ extern crate alloc;
 pub mod cleanup;
 pub mod ipc;
 // pub mod mpmc;
+pub mod condvar;
 pub mod futex;
 pub mod lock;
 pub mod sleep;
