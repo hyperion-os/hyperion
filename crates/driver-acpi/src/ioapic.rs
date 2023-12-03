@@ -1,4 +1,5 @@
-use hyperion_atomic_map::AtomicMap;
+use alloc::vec::Vec;
+
 use hyperion_log::error;
 use hyperion_mem::to_higher_half;
 use spin::{Lazy, Mutex, MutexGuard};
@@ -8,12 +9,14 @@ use super::{apic::ApicId, madt::MADT, ReadWrite};
 
 //
 
-pub static IO_APICS: Lazy<AtomicMap<u8, Mutex<IoApic>>> = Lazy::new(|| {
-    let io_apics = AtomicMap::new();
+pub static IO_APICS: Lazy<&'static [Mutex<IoApic>]> = Lazy::new(|| {
+    let mut io_apics = Vec::new();
+
     for &info in MADT.io_apics.iter() {
-        io_apics.insert(info.id, Mutex::new(IoApic::init(info)));
+        io_apics.push(Mutex::new(IoApic::init(info)));
     }
-    io_apics
+
+    Vec::leak(io_apics)
 });
 
 //
@@ -44,11 +47,11 @@ pub struct IoApicInfo {
 
 impl IoApic {
     pub fn iter() -> impl Iterator<Item = MutexGuard<'static, IoApic>> {
-        IO_APICS.values().map(Mutex::lock)
+        IO_APICS.iter().map(Mutex::lock)
     }
 
     pub fn any() -> Option<MutexGuard<'static, IoApic>> {
-        IO_APICS.values().next().map(Mutex::lock)
+        IO_APICS.iter().next().map(Mutex::lock)
     }
 
     pub fn init(IoApicInfo { addr, .. }: IoApicInfo) -> Self {
