@@ -1,12 +1,15 @@
 use alloc::boxed::Box;
-use core::ops::Deref;
+use core::{
+    ops::Deref,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use crossbeam::atomic::AtomicCell;
-use hyperion_atomic_map::AtomicMap;
+use hyperion_cpu_id::Tls;
 use hyperion_interrupts::{end_of_interrupt, IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
 use hyperion_mem::to_higher_half;
-use spin::{Lazy, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use spin::{Lazy, Once, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::PhysAddr;
 
 use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
@@ -69,14 +72,18 @@ pub fn enable() {
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
     );
 
-    // SAFETY: TODO: atm. totally unsafe, because enable could be called twice with the same CPU
-    // but this should be the first time ever this CPU checks the apic regs
+    // enable apic only once per cpu
+    static ONCE: Lazy<Tls<AtomicBool>> = Lazy::new(|| Tls::new(|| AtomicBool::new(false)));
+    if ONCE.swap(true, Ordering::SeqCst) {
+        panic!("apic enable twice on the same cpu");
+    }
+
+    // SAFETY: the check above
     let regs: &mut ApicRegs = unsafe { get_apic_regs() };
     let apic_id = ApicId(regs.lapic_id.read());
 
     trace!("Initializing {apic_id:?}");
-    LAPICS.insert(apic_id, RwLock::new(Lapic { regs }));
-    let mut lapic = LAPICS.get(&apic_id).unwrap().write();
+    let mut lapic = LAPICS.call_once(|| RwLock::new(Lapic { regs })).write();
 
     const ENABLE_APIC_TASK_SWITCH: bool = true;
     if ENABLE_APIC_TASK_SWITCH {
@@ -147,7 +154,6 @@ impl ApicId {
     }
 
     pub fn iter() -> impl Iterator<Item = ApicId> {
-        // LAPICS.keys().copied()
         LAPIC_IDS.iter().copied()
     }
 
@@ -161,40 +167,17 @@ impl ApicId {
 
     /// apic id of this processor
     pub fn current() -> Self {
-        // FIXME: technically UB, because regs could be shared,
-        // even though only lapic_id is read, and lapic_id is never allowed
-        // to be written
-        //
-        // but rust wants all mutable refs (the whole &mut ApicRegs here)
-        // to be exclusive always
-        Self(unsafe { get_apic_regs() }.lapic_id.read())
-
-        // TODO: maybe go with the same solution as Theseus OS
-        /* Self(read_msr(IA32_TSC_AUX) as u32) */
-    }
-
-    pub fn lapic(&self) -> RwLockReadGuard<'static, Lapic> {
-        LAPICS
-            .get(self)
-            .expect("Invalid ApicID or LAPICS not setup")
-            .read()
-    }
-
-    pub fn lapic_mut(&self) -> RwLockWriteGuard<'static, Lapic> {
-        LAPICS
-            .get(self)
-            .expect("Invalid ApicID or LAPICS not setup")
-            .write()
+        Self(Lapic::current().regs.lapic_id.read())
     }
 }
 
 impl Lapic {
     pub fn current() -> RwLockReadGuard<'static, Lapic> {
-        ApicId::current().lapic()
+        LAPICS.get().expect("LAPICS not set up").read()
     }
 
     pub fn current_mut() -> RwLockWriteGuard<'static, Lapic> {
-        ApicId::current().lapic_mut()
+        LAPICS.get().expect("LAPICS not set up").write()
     }
 
     pub fn regs(&self) -> &ApicRegs {
@@ -212,7 +195,7 @@ impl Lapic {
 
 //
 
-static LAPICS: AtomicMap<ApicId, RwLock<Lapic>> = AtomicMap::new();
+static LAPICS: Lazy<Tls<Once<RwLock<Lapic>>>> = Lazy::new(|| Tls::new(Once::new));
 static LAPIC_IDS: Lazy<&'static [ApicId]> =
     Lazy::new(|| Box::leak(hyperion_boot::lapics().map(ApicId).collect::<Box<_>>()));
 

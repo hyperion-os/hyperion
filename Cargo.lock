@@ -485,6 +485,7 @@ dependencies = [
  "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-clock",
+ "hyperion-cpu-id",
  "hyperion-driver-pic",
  "hyperion-interrupts",
  "hyperion-log",
