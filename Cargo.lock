@@ -646,6 +646,7 @@ dependencies = [
 name = "hyperion-kernel"
 version = "0.1.0"
 dependencies = [
+ "arcstr",
  "crossbeam",
  "futures-util",
  "hyperion-arch",

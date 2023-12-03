@@ -2,9 +2,10 @@
 
 // extern crate test;
 
-use alloc::{borrow::Cow, format, string::String};
+use alloc::{format, string::String};
 use core::{any::type_name, panic::PanicInfo};
 
+use arcstr::ArcStr;
 use crossbeam::queue::SegQueue;
 use hyperion_log::{print, println, LogLevel};
 use hyperion_scheduler::yield_now;
@@ -62,7 +63,7 @@ pub fn test_runner(tests: &'static [&'static dyn TestCase]) {
         hyperion_scheduler::spawn(move || {
             let name = test.name();
             // println!("running {name}");
-            hyperion_scheduler::rename(name.into());
+            hyperion_scheduler::rename(name);
 
             test.run();
 
@@ -79,7 +80,7 @@ pub fn test_runner(tests: &'static [&'static dyn TestCase]) {
     }
 
     hyperion_scheduler::spawn(move || {
-        hyperion_scheduler::rename("testfw waiter".into());
+        hyperion_scheduler::rename("testfw waiter");
 
         let mut completed = 0;
 
@@ -126,7 +127,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
 
 //
 
-static RESULTS: SegQueue<(Cow<'static, str>, Option<String>)> = SegQueue::new();
+static RESULTS: SegQueue<(ArcStr, Option<String>)> = SegQueue::new();
 
 //
 

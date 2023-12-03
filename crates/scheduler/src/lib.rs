@@ -258,7 +258,7 @@ fn cpu_time_elapsed() -> u64 {
     let now = HPET.nanos() as u64;
     let last = last_time().swap(now, Ordering::SeqCst);
 
-    now - last
+    now.saturating_sub(last)
 }
 
 fn reset_cpu_timer() {
