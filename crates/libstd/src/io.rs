@@ -2,6 +2,8 @@ use core::slice::memchr;
 
 use core_alloc::{string::String, vec::Vec};
 
+use crate::fs::File;
+
 //
 
 pub trait Read {
@@ -15,6 +17,12 @@ impl Read for SimpleIpcInputChannel {
         _ = buf;
         todo!()
         // hyperion_syscall::recv(buf).map_err(|err| format!("failed to recv: {err}"))
+    }
+}
+
+impl Read for &File {
+    fn recv(&mut self, buf: &mut [u8]) -> Result<usize, String> {
+        self.read(buf).map_err(|e| e.as_str().into())
     }
 }
 

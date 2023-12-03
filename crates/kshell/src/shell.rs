@@ -13,7 +13,7 @@ use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
 use hyperion_futures::timer::{sleep, ticks};
 use hyperion_instant::Instant;
-use hyperion_kernel_impl::VFS_ROOT;
+use hyperion_kernel_impl::{PipeInput, PipeOutput, VFS_ROOT};
 use hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -22,7 +22,9 @@ use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::{
-    idle, schedule,
+    idle,
+    ipc::pipe::pipe,
+    schedule, spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
 use hyperion_vfs::{
@@ -73,7 +75,7 @@ impl Shell {
         let mut cmdbuf = cmdbuf.lock();
 
         if ev.state == ElementState::PressHold && ev.keycode == KeyCode::Home {
-            _ = self.run_cmd(None);
+            _ = self.run_cmd(None).await;
             return Some(());
         }
 
@@ -152,10 +154,7 @@ impl Shell {
             "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
             "modeltest" => self.modeltest_cmd(args).await?,
-            "run" => self.run_cmd(args)?,
-            "task1" => self.task1_cmd(args).await?,
-            "task2" => self.task2_cmd(args)?,
-            "task3" => self.task3_cmd(args)?,
+            "run" => self.run_cmd(args).await?,
             "lapic_id" => self.lapic_id_cmd(args)?,
             "cpu_id" => self.cpu_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
@@ -427,7 +426,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear");
+        _ = writeln!(self.term, "available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear");
 
         Ok(())
     }
@@ -527,68 +526,41 @@ impl Shell {
         Ok(())
     }
 
-    fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        Self::run_cmd_as("/bin/run", args);
-        Ok(())
-    }
-
-    async fn task1_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let task_pid = Self::run_cmd_as("/bin/task1", args);
-
-        let mut events = KeyboardEvents;
-
-        let mut l_ctrl_held = false;
-        while let Some(KeyboardEvent {
-            state,
-            keycode,
-            unicode,
-        }) = events.next().await
-        {
-            if state == ElementState::PressHold && keycode == KeyCode::LControl {
-                l_ctrl_held = true;
-            }
-            if state == ElementState::PressRelease && keycode == KeyCode::LControl {
-                l_ctrl_held = false;
-            }
-
-            if state != ElementState::PressRelease && keycode == KeyCode::C && l_ctrl_held {
-                break;
-            }
-
-            if let Some(unicode) = unicode {
-                _ = write!(self.term, "{unicode}");
-                self.term.flush();
-
-                let mut str = [0; 4];
-                let str = unicode.encode_utf8(&mut str);
-
-                // TODO: buffering
-                if let Err(err) = hyperion_scheduler::send(task_pid, str.as_bytes()) {
-                    return Err(Error::Other {
-                        msg: err.to_string(),
-                    });
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn task2_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        Self::run_cmd_as("/bin/task2", args);
-        Ok(())
-    }
-
-    fn task3_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        Self::run_cmd_as("/bin/task3", args);
-        Ok(())
-    }
-
-    fn run_cmd_as(name: &'static str, args: Option<&str>) -> Pid {
+    async fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
+        let name = "/bin/run";
         let args = args.map(String::from);
+
+        let (stdin_tx, stdin_rx) = pipe();
+        let (stdout_tx, stdout_rx) = pipe();
+        // let (stderr_tx, stderr_rx) = pipe();
+        let stderr_tx = stdout_tx.clone();
+
+        let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
+
+        spawn(move || loop {
+            let mut buf = [0; 128];
+            let len = stdout_rx.recv_slice(&mut buf).unwrap();
+            let str = core::str::from_utf8(&buf[..len]).unwrap();
+            o_tx.send(str.to_string());
+        });
 
         let pid = schedule(move || {
             hyperion_scheduler::rename(name);
+
+            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
+                file_ref: Arc::new(lock_api::Mutex::new(PipeOutput(stdin_rx))) as _,
+                position: 0,
+            });
+            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
+                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stdout_tx))) as _,
+                position: 0,
+            });
+            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
+                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stderr_tx))) as _,
+                position: 0,
+            });
+
+            // ;
 
             let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
                 .into_iter()
@@ -612,7 +584,55 @@ impl Shell {
             }
         });
         hyperion_log::trace!("spawning {name} done (PID:{pid})");
-        pid
+
+        let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
+
+        let mut l_ctrl_held = false;
+        loop {
+            match events.next().await {
+                Some(Ok(KeyboardEvent {
+                    state,
+                    keycode,
+                    unicode,
+                })) => {
+                    if state == ElementState::PressHold && keycode == KeyCode::LControl {
+                        l_ctrl_held = true;
+                    }
+                    if state == ElementState::PressRelease && keycode == KeyCode::LControl {
+                        l_ctrl_held = false;
+                    }
+
+                    if state != ElementState::PressRelease
+                        && (keycode == KeyCode::C || keycode == KeyCode::D)
+                        && l_ctrl_held
+                    {
+                        break;
+                    }
+
+                    if let Some(unicode) = unicode {
+                        _ = write!(self.term, "{unicode}");
+                        self.term.flush();
+
+                        let mut str = [0; 4];
+                        let str = unicode.encode_utf8(&mut str);
+
+                        // TODO: buffering
+                        if stdin_tx.send_slice(str.as_bytes()).is_err() {
+                            break;
+                        }
+                    }
+                }
+                Some(Err(s)) => {
+                    _ = write!(self.term, "{s}");
+                    self.term.flush();
+                }
+                None => break,
+            }
+        }
+
+        stdin_tx.close();
+
+        Ok(())
     }
 
     fn lapic_id_cmd(&mut self, _args: Option<&str>) -> Result<()> {

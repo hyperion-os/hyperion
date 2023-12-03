@@ -9,6 +9,12 @@ use hyperion_syscall::{
 
 //
 
+pub static STDIN: File = unsafe { File::new(FileDesc(0)) };
+pub static STDOUT: File = unsafe { File::new(FileDesc(1)) };
+pub static STDERR: File = unsafe { File::new(FileDesc(2)) };
+
+//
+
 pub struct File {
     desc: FileDesc,
 }

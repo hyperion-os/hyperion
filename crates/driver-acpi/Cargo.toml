@@ -14,7 +14,6 @@ time.workspace = true
 crossbeam.workspace = true
 x86_64.workspace = true
 
-hyperion-atomic-map.path = "../atomic-map"
 hyperion-boot.path = "../boot"
 hyperion-boot-interface.path = "../boot-interface"
 hyperion-clock.path = "../clock"

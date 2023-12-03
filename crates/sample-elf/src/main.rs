@@ -7,8 +7,9 @@
 use core::{hint::spin_loop, str::from_utf8};
 
 use libstd::{
-    alloc::format,
-    fs::OpenOptions,
+    alloc::{format, string::String},
+    fs::{OpenOptions, STDIN, STDOUT},
+    io::BufReader,
     println,
     sys::{
         err::Result,
@@ -95,6 +96,20 @@ fn run_client() -> Result<()> {
 
 #[no_mangle]
 pub fn main(_args: CliArgs) {
+    let mut reader = BufReader::new(&STDIN);
+    let mut buf = String::new();
+    loop {
+        buf.clear();
+        let len = reader.read_line(&mut buf).unwrap();
+
+        if len == 0 {
+            break;
+        }
+
+        let stdout = &STDOUT;
+        stdout.write(buf.as_bytes()).unwrap();
+    }
+
     println!("PID:{} TID:{}", get_pid(), get_tid());
 
     if run_server().is_err() {

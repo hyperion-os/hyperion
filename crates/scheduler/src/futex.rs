@@ -16,6 +16,8 @@ static WAITING: spin::Mutex<BTreeMap<usize, VecDeque<Task>>> = spin::Mutex::new(
 
 //
 
+// TODO: ref instead of NonNull
+// TODO: translate the virtual address to a physical address, because of the address space switch
 /// if the value at `addr` is eq `val`, go to sleep
 pub fn wait(addr: NonNull<AtomicUsize>, val: usize) {
     struct IsNeq;

@@ -36,6 +36,7 @@ hyperion-kernel-info.path = "../kernel-info"
 hyperion-kshell.path = "../kshell"
 hyperion-log-multi.path = "../log-multi"
 hyperion-log.path = "../log"
+hyperion-mem.path = "../mem"
 hyperion-num-postfix.path = "../num-postfix"
 hyperion-random.path = "../random"
 hyperion-scheduler.path = "../scheduler"
@@ -44,7 +45,3 @@ hyperion-vfs.path = "../vfs"
 hyperion-sync.path = "../sync"
 hyperion-cpu-id.path = "../cpu-id"
 hyperion-kernel-impl.path = "../kernel-impl"
-
-[dependencies.hyperion-mem]
-path = "../mem"
-features = ["set-allocator"]

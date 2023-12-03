@@ -8,6 +8,12 @@ use crate::{futex, lock::Mutex, process, task::Pid};
 
 //
 
+pub fn pipe() -> (Sender<u8>, Receiver<u8>) {
+    Pipe::new_pipe().split()
+}
+
+//
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Closed;
 
@@ -180,10 +186,12 @@ impl<T> Channel<T> {
 
     fn close_send(&self) {
         self.send_closed.store(true, Ordering::Release);
+        futex::wake(NonNull::from(&self.n_send), usize::MAX);
     }
 
     fn close_recv(&self) {
         self.recv_closed.store(true, Ordering::Release);
+        futex::wake(NonNull::from(&self.n_recv), usize::MAX);
     }
 }
 
