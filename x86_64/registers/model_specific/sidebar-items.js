@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["CetFlags","Efer","EferFlags","FsBase","GsBase","KernelGsBase","LStar","Msr","SCet","SFMask","Star","UCet"]};

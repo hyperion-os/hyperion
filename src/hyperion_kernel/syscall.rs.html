@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (6cf088810 2023-11-26)" data-channel="nightly" data-search-js="search-56a624991a76cfad.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-e1c03aa593074e71.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -759,77 +759,20 @@
 <a href="#759" id="759">759</a>
 <a href="#760" id="760">760</a>
 <a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a>
-<a href="#770" id="770">770</a>
-<a href="#771" id="771">771</a>
-<a href="#772" id="772">772</a>
-<a href="#773" id="773">773</a>
-<a href="#774" id="774">774</a>
-<a href="#775" id="775">775</a>
-<a href="#776" id="776">776</a>
-<a href="#777" id="777">777</a>
-<a href="#778" id="778">778</a>
-<a href="#779" id="779">779</a>
-<a href="#780" id="780">780</a>
-<a href="#781" id="781">781</a>
-<a href="#782" id="782">782</a>
-<a href="#783" id="783">783</a>
-<a href="#784" id="784">784</a>
-<a href="#785" id="785">785</a>
-<a href="#786" id="786">786</a>
-<a href="#787" id="787">787</a>
-<a href="#788" id="788">788</a>
-<a href="#789" id="789">789</a>
-<a href="#790" id="790">790</a>
-<a href="#791" id="791">791</a>
-<a href="#792" id="792">792</a>
-<a href="#793" id="793">793</a>
-<a href="#794" id="794">794</a>
-<a href="#795" id="795">795</a>
-<a href="#796" id="796">796</a>
-<a href="#797" id="797">797</a>
-<a href="#798" id="798">798</a>
-<a href="#799" id="799">799</a>
-<a href="#800" id="800">800</a>
-<a href="#801" id="801">801</a>
-<a href="#802" id="802">802</a>
-<a href="#803" id="803">803</a>
-<a href="#804" id="804">804</a>
-<a href="#805" id="805">805</a>
-<a href="#806" id="806">806</a>
-<a href="#807" id="807">807</a>
-<a href="#808" id="808">808</a>
-<a href="#809" id="809">809</a>
-<a href="#810" id="810">810</a>
-<a href="#811" id="811">811</a>
-<a href="#812" id="812">812</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{boxed::Box, string::ToString, sync::Arc, vec::Vec};
-<span class="kw">use </span>core::{
-    any::{type_name_of_val, Any},
-    sync::atomic::Ordering,
-};
+<span class="kw">use </span>core::any::{type_name_of_val, Any};
 
-<span class="kw">use </span>hyperion_arch::{stack::USER_HEAP_TOP, syscall::SyscallRegs, vmm::PageMap};
+<span class="kw">use </span>hyperion_arch::{syscall::SyscallRegs, vmm::PageMap};
 <span class="kw">use </span>hyperion_drivers::acpi::hpet::HPET;
 <span class="kw">use </span>hyperion_instant::Instant;
 <span class="kw">use </span>hyperion_kernel_impl::VFS_ROOT;
 <span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
-<span class="kw">use </span>hyperion_mem::{
-    pmm::{<span class="self">self</span>, PageFrame},
-    vmm::PageMapImpl,
-};
+<span class="kw">use </span>hyperion_mem::vmm::PageMapImpl;
 <span class="kw">use </span>hyperion_scheduler::{
     ipc::pipe::{Channel, Pipe, Receiver, Sender},
     lock::{Futex, Mutex},
     process, task,
-    task::{Process, ProcessExt},
+    task::{AllocErr, FreeErr, Process, ProcessExt},
 };
 <span class="kw">use </span>hyperion_syscall::{
     err::{Error, <span class="prelude-ty">Result</span>},
@@ -976,75 +919,30 @@
 ///
 /// [`hyperion_syscall::palloc`]
 </span><span class="kw">pub fn </span>palloc(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>pages = args.arg0 <span class="kw">as </span>usize;
-    <span class="kw">let </span>alloc = pages * <span class="number">0x1000</span>;
+    <span class="kw">let </span>n_pages = args.arg0 <span class="kw">as </span>usize;
+    <span class="kw">let </span>flags =
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
 
-    <span class="kw">let </span>active = hyperion_scheduler::process();
-    <span class="kw">let </span><span class="kw-2">mut </span>allocs = active.allocs.bitmap();
-    <span class="kw">let </span>alloc_bottom = active.heap_bottom.fetch_add(alloc, Ordering::SeqCst);
-    <span class="kw">let </span>alloc_top = alloc_bottom + alloc;
-
-    <span class="kw">if </span>alloc_top <span class="kw">as </span>u64 &gt;= USER_HEAP_TOP {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::OUT_OF_VIRTUAL_MEMORY);
+    <span class="kw">match </span>process().alloc(n_pages, flags) {
+        <span class="prelude-val">Ok</span>((ptr, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Ok</span>(ptr.as_u64() <span class="kw">as _</span>),
+        <span class="prelude-val">Err</span>(AllocErr::OutOfVirtMem) =&gt; <span class="prelude-val">Err</span>(Error::OUT_OF_VIRTUAL_MEMORY),
     }
-
-    <span class="kw">let </span>frames = pmm::PFA.alloc(pages);
-
-    <span class="comment">// debug!(
-    //     &quot;mapping [{:?}..{:?}] to {:?}&quot;,
-    //     VirtAddr::new(alloc_bottom as _),
-    //     VirtAddr::new(alloc_top as _),
-    //     frames.physical_addr(),
-    // );
-    </span>active.address_space.page_map.map(
-        VirtAddr::new(alloc_bottom <span class="kw">as _</span>)..VirtAddr::new(alloc_top <span class="kw">as _</span>),
-        frames.physical_addr(),
-        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
-    );
-
-    <span class="kw">let </span>page_bottom = frames.physical_addr().as_u64() <span class="kw">as </span>usize / <span class="number">0x1000</span>;
-    <span class="kw">for </span>page <span class="kw">in </span>page_bottom..page_bottom + pages {
-        <span class="kw">if </span>allocs.set(page, <span class="bool-val">true</span>).is_none() {
-            <span class="macro">panic!</span>(<span class="string">&quot;alloc set page:{page} len:{}&quot;</span>, allocs.len());
-        }
-    }
-
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(alloc_bottom);
 }
 
 <span class="doccomment">/// free allocated physical pages
 ///
 /// [`hyperion_syscall::pfree`]
 </span><span class="kw">pub fn </span>pfree(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span><span class="prelude-val">Ok</span>(alloc_bottom) = VirtAddr::try_new(args.arg0) <span class="kw">else </span>{
+    <span class="kw">let </span><span class="prelude-val">Ok</span>(ptr) = VirtAddr::try_new(args.arg0) <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
     };
-    <span class="kw">let </span>pages = args.arg1 <span class="kw">as </span>usize;
+    <span class="kw">let </span>n_pages = args.arg1 <span class="kw">as </span>usize;
 
-    <span class="kw">let </span>active = hyperion_scheduler::process();
-    <span class="kw">let </span><span class="kw-2">mut </span>allocs = active.allocs.bitmap();
-
-    <span class="kw">let </span><span class="prelude-val">Some</span>(palloc) = active.address_space.page_map.virt_to_phys(alloc_bottom) <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
-    };
-
-    <span class="kw">let </span>page_bottom = palloc.as_u64() <span class="kw">as </span>usize / <span class="number">0x1000</span>;
-    <span class="kw">for </span>page <span class="kw">in </span>page_bottom..page_bottom + pages {
-        <span class="kw">if </span>!allocs.get(page).unwrap() {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ALLOC);
-        }
-
-        allocs.set(page, <span class="bool-val">false</span>).unwrap();
+    <span class="kw">match </span>process().free(n_pages, ptr) {
+        <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(<span class="number">0</span>),
+        <span class="prelude-val">Err</span>(FreeErr::InvalidAddr) =&gt; <span class="prelude-val">Err</span>(Error::INVALID_ADDRESS),
+        <span class="prelude-val">Err</span>(FreeErr::InvalidAlloc) =&gt; <span class="prelude-val">Err</span>(Error::INVALID_ALLOC),
     }
-
-    <span class="kw">let </span>frames = <span class="kw">unsafe </span>{ PageFrame::new(palloc, pages) };
-    pmm::PFA.free(frames);
-    active
-        .address_space
-        .page_map
-        .unmap(alloc_bottom..alloc_bottom + pages * <span class="number">0x1000</span>);
-
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
 <span class="doccomment">/// rename the current process
@@ -1052,7 +950,7 @@
 /// [`hyperion_syscall::rename`]
 </span><span class="kw">pub fn </span>rename(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>new_name = read_untrusted_str(args.arg0, args.arg1)<span class="question-mark">?</span>;
-    hyperion_scheduler::rename(new_name.to_string().into());
+    hyperion_scheduler::rename(new_name.to_string());
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 

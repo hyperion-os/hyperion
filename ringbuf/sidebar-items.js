@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["transfer"],"mod":["consumer","producer","ring_buffer"],"type":["HeapConsumer","HeapProducer","HeapRb","StaticConsumer","StaticProducer","StaticRb"]};

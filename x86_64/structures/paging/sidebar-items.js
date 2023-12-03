@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["frame","mapper","page","page_table"],"trait":["FrameAllocator","FrameDeallocator"]};

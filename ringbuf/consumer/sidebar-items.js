@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Consumer","PopIterator"],"type":["PostponedConsumer"]};

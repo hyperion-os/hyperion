@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["DescriptorTable","ExceptionVector"],"struct":["Entry","EntryOptions","InterruptDescriptorTable","InterruptStackFrame","InterruptStackFrameValue","PageFaultErrorCode","SelectorErrorCode"],"type":["DivergingHandlerFunc","DivergingHandlerFuncWithErrCode","GeneralHandlerFunc","HandlerFunc","HandlerFuncWithErrCode","PageFaultHandlerFunc"]};

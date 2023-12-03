@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["once"],"struct":["TakeOnce"]};
+window.SIDEBAR_ITEMS = {"macro":["last","once"],"struct":["TakeOnce"]};

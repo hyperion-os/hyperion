@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["Elf32_Rel","Elf32_Rela","Elf64_Rel","Elf64_Rela","Rel","Rela"],"type":["RelIterator","RelaIterator"]};

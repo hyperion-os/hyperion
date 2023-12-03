@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["VmFail"],"mod":["vmcs"],"type":["Result"]};

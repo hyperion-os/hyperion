@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["bochs_breakpoint","hlt","nop","read_rip"],"mod":["interrupts","port","random","segmentation","tables","tlb"]};

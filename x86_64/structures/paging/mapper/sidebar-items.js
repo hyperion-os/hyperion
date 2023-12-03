@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["FlagUpdateError","InvalidPageTable","MapToError","MappedFrame","TranslateError","TranslateResult","UnmapError"],"struct":["MappedPageTable","MapperFlush","MapperFlushAll","OffsetPageTable","RecursivePageTable"],"trait":["CleanUp","Mapper","MapperAllSizes","PageTableFrameMapping","Translate"]};

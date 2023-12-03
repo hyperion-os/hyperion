@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["idle","init","process","recv","rename","running","schedule","send","sleep","sleep_until","spawn","spawn_userspace","stop","task","yield_now","yield_now_wait"],"mod":["cleanup","futex","ipc","lock","sleep","task"],"static":["READY","RUNNING"]};
+window.SIDEBAR_ITEMS = {"fn":["idle","init","process","recv","rename","running","schedule","send","sleep","sleep_until","spawn","spawn_userspace","stop","task","yield_now","yield_now_wait"],"mod":["cleanup","condvar","futex","ipc","lock","sleep","task"],"static":["READY","RUNNING"]};

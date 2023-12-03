@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/loader/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_loader" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (6cf088810 2023-11-26)" data-channel="nightly" data-search-js="search-56a624991a76cfad.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-e1c03aa593074e71.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/loader/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_loader" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -174,6 +174,9 @@
 <a href="#174" id="174">174</a>
 <a href="#175" id="175">175</a>
 <a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![feature(new_uninit, maybe_uninit_slice, maybe_uninit_write_slice)]
 
@@ -181,8 +184,7 @@
 
 </span><span class="kw">extern crate </span>alloc;
 
-<span class="kw">use </span>alloc::boxed::Box;
-<span class="kw">use </span>core::{mem::MaybeUninit, sync::atomic::Ordering};
+<span class="kw">use </span>core::{mem::MaybeUninit, slice};
 
 <span class="kw">use </span>elf::{
     abi::{PF_R, PF_W, PF_X, PT_LOAD},
@@ -192,7 +194,8 @@
 };
 <span class="kw">use </span>hyperion_arch::{syscall, vmm::PageMap};
 <span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
-<span class="kw">use </span>hyperion_mem::{from_higher_half, vmm::PageMapImpl};
+<span class="kw">use </span>hyperion_mem::{is_higher_half, to_higher_half, vmm::PageMapImpl};
+<span class="kw">use </span>hyperion_scheduler::process;
 <span class="kw">use </span>x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 <span class="comment">//
@@ -234,26 +237,37 @@
             .align_down(<span class="number">0x1000u64</span>);
         <span class="kw">let </span>align_down_offs = segment.p_vaddr - v_addr.as_u64();
         <span class="kw">let </span>v_end = (v_addr + segment.p_memsz + align_down_offs).align_up(<span class="number">0x1000u64</span>);
-        <span class="kw">let </span>v_range = v_addr..v_end;
         <span class="kw">let </span>v_size = v_end - v_addr;
 
-        <span class="kw">if </span>v_end &gt; VirtAddr::new(<span class="number">0x400000000000</span>) {
+        <span class="kw">if </span>is_higher_half(v_end.as_u64()) {
             <span class="macro">error!</span>(<span class="string">&quot;ELF segments cannot be mapped to higher half&quot;</span>);
-            <span class="macro">panic!</span>(<span class="string">&quot;TODO:&quot;</span>)
+            hyperion_scheduler::stop();
         }
 
-        hyperion_scheduler::process()
-            .heap_bottom
-            .fetch_max(v_end.as_u64() <span class="kw">as _</span>, Ordering::SeqCst);
+        <span class="kw">let </span>flags = <span class="self">Self</span>::flags(segment.p_flags);
 
-        <span class="comment">// TODO: max v_size
+        <span class="comment">// debug!(&quot;segment alloc: {v_size:#x} at {v_addr:#x}&quot;);
+
+        </span><span class="kw">let </span>process = process();
+
+        <span class="kw">let </span>phys = process
+            .alloc_at(v_size <span class="kw">as </span>usize / <span class="number">0x1000</span>, v_addr, flags)
+            .unwrap_or_else(|<span class="kw">_</span>| {
+                <span class="macro">error!</span>(<span class="string">&quot;could not load ELF: out of VMEM, killing process&quot;</span>);
+                hyperion_scheduler::stop();
+            });
+
+        <span class="comment">// using the HHDM address allows writing to a page that the ELF requested to be read only
+        </span><span class="kw">let </span>alloc = to_higher_half(phys);
+
+        <span class="comment">// debug!(&quot;segment phys alloc: {phys:#x} mapped to {alloc:#x}&quot;);
 
         </span><span class="kw">let </span>segment_data = <span class="self">self</span>.parser.segment_data(<span class="kw-2">&amp;</span>segment).expect(<span class="string">&quot;TODO:&quot;</span>);
-
         <span class="kw">let </span>segment_alloc: <span class="kw-2">&amp;mut </span>[MaybeUninit&lt;u8&gt;] =
-            Box::leak(Box::new_uninit_slice(v_size <span class="kw">as </span>usize));
+            <span class="kw">unsafe </span>{ slice::from_raw_parts_mut(alloc.as_mut_ptr(), v_size <span class="kw">as </span>usize) };
 
-        <span class="kw">let </span>(segment_alloc_align_pad, segment_alloc_virtual) =
+        <span class="comment">// fill segment_alloc with segment_data and pad the end with null bytes
+        </span><span class="kw">let </span>(segment_alloc_align_pad, segment_alloc_virtual) =
             segment_alloc.split_at_mut(align_down_offs <span class="kw">as </span>usize);
         <span class="kw">let </span>(segment_alloc_data, segment_alloc_zeros) =
             segment_alloc_virtual.split_at_mut(segment_alloc_virtual.len().min(segment_data.len()));
@@ -261,30 +275,22 @@
         segment_alloc_align_pad.fill(MaybeUninit::zeroed());
         MaybeUninit::write_slice(segment_alloc_data, segment_data);
         segment_alloc_zeros.fill(MaybeUninit::zeroed());
+    }
 
-        <span class="comment">// SAFETY: segment_alloc was filled with data and zeros
-        </span><span class="kw">let </span>segment_alloc = <span class="kw">unsafe </span>{ MaybeUninit::slice_assume_init_mut(segment_alloc) };
-
-        <span class="kw">let </span>segment_alloc_phys =
-            from_higher_half(VirtAddr::new(segment_alloc.as_ptr() <span class="kw">as </span>usize <span class="kw">as </span>u64));
-
+    <span class="kw">fn </span>flags(p_flags: u32) -&gt; PageTableFlags {
         <span class="kw">let </span><span class="kw-2">mut </span>flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
-        <span class="kw">if </span>segment.p_flags &amp; PF_X == <span class="number">0 </span>{
+        <span class="kw">if </span>p_flags &amp; PF_X == <span class="number">0 </span>{
             flags.insert(PageTableFlags::NO_EXECUTE);
         }
-        <span class="kw">if </span>segment.p_flags &amp; PF_W != <span class="number">0 </span>{
+        <span class="kw">if </span>p_flags &amp; PF_W != <span class="number">0 </span>{
             flags.insert(PageTableFlags::WRITABLE);
         }
-        <span class="kw">if </span>segment.p_flags &amp; PF_R != <span class="number">0 </span>{
+        <span class="kw">if </span>p_flags &amp; PF_R != <span class="number">0 </span>{
             <span class="comment">// READ is always enabled
             // TODO: read-only
         </span>}
 
-        <span class="comment">/* debug!(
-                    &quot;Mapping segment [ 0x{v_addr:016x}..0x{v_end:016x} -&gt; 0x{segment_alloc_phys:016x} ] ({:03b} = {flags:?}) (0x{:016x})&quot;, segment.p_flags,
-        segment.p_vaddr
-                ); */
-        </span><span class="self">self</span>.page_map.map(v_range, segment_alloc_phys, flags);
+        flags
     }
 
     <span class="kw">pub fn </span>debug(<span class="kw-2">&amp;</span><span class="self">self</span>) {

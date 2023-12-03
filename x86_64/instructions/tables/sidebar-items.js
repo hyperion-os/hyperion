@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["lgdt","lidt","load_tss","sgdt","sidt"]};

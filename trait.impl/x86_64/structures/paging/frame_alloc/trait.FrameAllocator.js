@@ -1,3 +1,3 @@
 (function() {var implementors = {
-"hyperion_arch_x86_64":[["impl <a class=\"trait\" href=\"x86_64/structures/paging/frame_alloc/trait.FrameAllocator.html\" title=\"trait x86_64::structures::paging::frame_alloc::FrameAllocator\">FrameAllocator</a>&lt;<a class=\"enum\" href=\"x86_64/structures/paging/page/enum.Size4KiB.html\" title=\"enum x86_64::structures::paging::page::Size4KiB\">Size4KiB</a>&gt; for <a class=\"struct\" href=\"hyperion_arch_x86_64/pmm/struct.Pfa.html\" title=\"struct hyperion_arch_x86_64::pmm::Pfa\">Pfa</a>"]]
+"hyperion_arch_x86_64":[["impl FrameAllocator&lt;Size4KiB&gt; for <a class=\"struct\" href=\"hyperion_arch_x86_64/pmm/struct.Pfa.html\" title=\"struct hyperion_arch_x86_64::pmm::Pfa\">Pfa</a>"]]
 };if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

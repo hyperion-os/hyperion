@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["from_higher_half","is_higher_half","to_higher_half"],"macro":["debug_phys_addr"],"mod":["pmm","vmm"]};
+window.SIDEBAR_ITEMS = {"fn":["from_higher_half","is_higher_half","to_higher_half"],"macro":["debug_phys_addr"],"mod":["pmm","vmm"],"struct":["Pfa"],"type":["KernelSlabAlloc"]};

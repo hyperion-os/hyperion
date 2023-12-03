@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["are_enabled","disable","enable","enable_and_hlt","int3","without_interrupts"]};

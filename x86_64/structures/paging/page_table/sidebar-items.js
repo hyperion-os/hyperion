@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["FrameError","PageTableLevel"],"struct":["PageOffset","PageTable","PageTableEntry","PageTableFlags","PageTableIndex"]};

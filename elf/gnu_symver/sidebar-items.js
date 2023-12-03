@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["SymbolDefinition","SymbolNamesIterator","SymbolRequirement","SymbolVersionTable","VerDef","VerDefAux","VerDefAuxIterator","VerDefIterator","VerNeed","VerNeedAux","VerNeedAuxIterator","VerNeedIterator","VersionIndex"],"type":["VersionIndexTable"]};

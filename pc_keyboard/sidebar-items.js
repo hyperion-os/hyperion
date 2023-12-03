@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["DecodedKey","Error","HandleControl","KeyCode","KeyState"],"mod":["layouts"],"struct":["EventDecoder","KeyEvent","Keyboard","Modifiers","Ps2Decoder","ScancodeSet1","ScancodeSet2"],"trait":["KeyboardLayout","ScancodeSet"]};
