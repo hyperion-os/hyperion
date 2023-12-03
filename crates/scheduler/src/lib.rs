@@ -95,25 +95,6 @@ pub fn rename(new_name: impl Into<ArcStr>) {
 /// init this processors scheduling and
 /// immediately switch to the provided task
 pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
-    static INIT: Once<Arc<Process>> = Once::new();
-    let init = INIT
-        .call_once(|| {
-            let process = Process::new(
-                Pid::next(),
-                type_name_of_val(&thread).into(),
-                AddressSpace::new(PageMap::new()),
-            );
-            process.threads.store(0, Ordering::Relaxed);
-            process
-        })
-        .clone();
-
-    // Lazy::new(|| {
-    //
-    // });
-
-    let task = Task::thread(init, thread);
-
     hyperion_arch::int::disable();
 
     // init the TLS struct before the apic timer handler tries to
@@ -145,14 +126,30 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
             stop();
         }
 
-        yield_now();
+        if !tls().idle.load(Ordering::SeqCst) {
+            yield_now();
+        }
     });
 
     // hyperion_sync::init_futex(futex::wait, futex::wake);
 
     // init `Once` in TLS
     _ = crate::task();
-    let task = task.into();
+
+    static INIT: Once<Arc<Process>> = Once::new();
+    let init = INIT
+        .call_once(|| {
+            let process = Process::new(
+                Pid::next(),
+                type_name_of_val(&thread).into(),
+                AddressSpace::new(PageMap::new()),
+            );
+            process.threads.store(0, Ordering::Relaxed);
+            process
+        })
+        .clone();
+
+    let task = Task::thread(init, thread);
 
     // mark scheduler as initialized and running
     if tls().initialized.swap(true, Ordering::SeqCst) {
@@ -282,6 +279,8 @@ fn update_cpu_idle() {
 }
 
 fn wait_next_task<E>(mut should_abort: impl FnMut() -> Option<E>) -> Result<Task, E> {
+    update_cpu_usage();
+
     loop {
         if let Some(task) = next_task() {
             return Ok(task);
