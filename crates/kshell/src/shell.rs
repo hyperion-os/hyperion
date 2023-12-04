@@ -138,7 +138,6 @@ impl Shell {
             "pwd" => self.pwd_cmd(args)?,
             "cd" => self.cd_cmd(args)?,
             "ls" => self.ls_cmd(args)?,
-            // "cat" => self.cat_cmd(args)?,
             "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
             "sleep" => self.sleep_cmd(args).await?,
@@ -149,7 +148,6 @@ impl Shell {
             "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
             "modeltest" => self.modeltest_cmd(args).await?,
-            // "run" => self.run_cmd(args).await?,
             "lapic_id" => self.lapic_id_cmd(args)?,
             "cpu_id" => self.cpu_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
@@ -164,33 +162,35 @@ impl Shell {
             "" => self.term.write_byte(b'\n'),
             other => {
                 let path = format!("/bin/{other}");
-                let Ok(bin) = VFS_ROOT.find_file(path.as_str(), false, false) else {
-                    _ = writeln!(self.term, "unknown command {other}");
-                    self.help_cmd(None)?;
-                    return Ok(Some(()));
-                };
+                let elf = self.load_elf(&path)?;
 
-                let bin = bin.lock();
-
-                let mut elf = Vec::new();
-
-                loop {
-                    let mut buf = [0; 64];
-                    let len = bin.read(elf.len(), &mut buf).unwrap();
-                    elf.extend_from_slice(&buf[..len]);
-                    if len == 0 {
-                        break;
-                    }
-                }
-
-                drop(bin);
-
-                self.run_cmd_from(path.into(), Cow::Owned(elf), args)
-                    .await?;
+                self.run_cmd_from(path.into(), elf.into(), args).await?;
             }
         }
 
         Ok(Some(()))
+    }
+
+    fn load_elf(&self, path: &str) -> Result<Vec<u8>> {
+        let mut elf = Vec::new();
+        let Ok(bin) = VFS_ROOT.find_file(path, false, false) else {
+            return Err(Error::Other {
+                msg: "unknown command {path}".into(),
+            });
+        };
+
+        let bin = bin.lock_arc();
+
+        loop {
+            let mut buf = [0; 64];
+            let len = bin.read(elf.len(), &mut buf).unwrap();
+            elf.extend_from_slice(&buf[..len]);
+            if len == 0 {
+                break;
+            }
+        }
+
+        Ok(elf)
     }
 
     fn splash_cmd(&mut self, _: Option<&str>) -> Result<()> {
@@ -239,35 +239,6 @@ impl Shell {
                     _ = writeln!(self.term, "{entry}");
                 }
             }
-        }
-
-        Ok(())
-    }
-
-    fn cat_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let resource = Path::from_str(args.unwrap_or(".")).to_absolute(&self.current_dir);
-        let resource = resource.as_ref();
-
-        let file = VFS_ROOT
-            .find_file(resource, false, false)
-            .context(IoSnafu { resource })?;
-        let file = file.lock();
-
-        let mut at = 0usize;
-        let mut buf = [0u8; 16];
-        loop {
-            let _addr = (&*file) as *const _ as *const () as u64;
-            let read = file.read(at, &mut buf).context(IoSnafu { resource })?;
-
-            if read == 0 {
-                break;
-            }
-            at += read;
-
-            for byte in &buf[..read] {
-                self.term.write_byte(*byte);
-            }
-            self.term.write_byte(b'\n');
         }
 
         Ok(())
@@ -579,7 +550,7 @@ impl Shell {
             o_tx.send(None);
         });
 
-        let pid = schedule(move || {
+        schedule(move || {
             let name = name.as_ref();
             hyperion_scheduler::rename(name);
 

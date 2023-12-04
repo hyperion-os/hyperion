@@ -4,26 +4,16 @@
 
 //
 
-use core::{
-    fmt::{self, Display},
-    str::from_utf8,
-};
+use core::fmt::{self, Display};
 
-use libstd::{
-    eprintln,
-    fs::{File, STDOUT},
-    io::Write,
-    print, println,
-    sys::exit,
-    CliArgs,
-};
+use libstd::{eprintln, fs::File, print, println, sys::exit, CliArgs};
 
 //
 
 #[no_mangle]
 fn main(args: CliArgs) {
     let mut args = args.iter();
-    let a0 = args.next().expect("arg 0 should always be there");
+    let _ = args.next().expect("arg 0 should always be there");
 
     let Some(a1) = args.next() else {
         eprintln!("expected at least one argument");
@@ -38,7 +28,7 @@ fn main(args: CliArgs) {
         }
     };
 
-    let mut buf = [0u8; 2];
+    let mut buf = [0u8; 512];
     loop {
         let len = match file.read(&mut buf) {
             Ok(l) => l,
@@ -64,7 +54,9 @@ struct Bytes<'a>(&'a [u8]);
 impl<'a> Display for Bytes<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for byte in self.0 {
-            write!(f, "{}", *byte as char)?;
+            if byte.is_ascii() {
+                write!(f, "{}", *byte as char)?;
+            }
             // write!(f, "{byte:x} ")?;
         }
         Ok(())

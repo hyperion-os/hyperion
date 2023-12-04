@@ -4,7 +4,7 @@
 
 //
 
-use core::{hint::spin_loop, str::from_utf8};
+use core::str::from_utf8;
 
 use libstd::{
     alloc::format,

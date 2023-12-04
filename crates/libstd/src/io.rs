@@ -61,12 +61,15 @@ impl fmt::Write for File {
 impl<T: Write> fmt::Write for BufWriter<T> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write(s.as_bytes()).map_err(|_| fmt::Error)?;
+        if s.contains('\n') {
+            self.flush().map_err(|_| fmt::Error)?;
+        }
         Ok(())
     }
 
     fn write_fmt(mut self: &mut Self, args: fmt::Arguments) -> fmt::Result {
         fmt::write(&mut self, args)?;
-        self.flush().map_err(|_| fmt::Error)?;
+        // self.flush().map_err(|_| fmt::Error)?;
         Ok(())
     }
 }

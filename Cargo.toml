@@ -9,8 +9,8 @@ resolver = "2"
 members = ["crates/*", "userspace/cat"]
 
 [profile.release]
-debug = true
-strip = false
+debug = false
+strip = true
 
 [profile.release-lto]
 inherits = "release"

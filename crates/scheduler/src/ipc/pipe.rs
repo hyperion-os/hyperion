@@ -1,10 +1,6 @@
 use alloc::sync::Arc;
-use core::{
-    ptr::NonNull,
-    sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
-};
 
-use crate::{condvar::Condvar, futex, lock::Mutex, process, task::Pid};
+use crate::{condvar::Condvar, lock::Mutex, process, task::Pid};
 
 //
 
