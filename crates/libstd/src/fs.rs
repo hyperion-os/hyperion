@@ -36,6 +36,17 @@ impl File {
         ManuallyDrop::new(self).desc
     }
 
+    /// # Safety
+    ///
+    /// file i/o won't be automatically synchronized
+    pub const unsafe fn clone(&self) -> Self {
+        Self { desc: self.desc }
+    }
+
+    pub const fn as_desc(&self) -> FileDesc {
+        self.desc
+    }
+
     pub fn open(path: &str) -> Result<Self> {
         OpenOptions::new().read(true).write(true).open(path)
     }

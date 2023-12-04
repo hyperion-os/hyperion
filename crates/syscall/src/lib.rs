@@ -43,6 +43,8 @@ pub mod id {
 
     pub const GET_PID: usize = 23;
     pub const GET_TID: usize = 24;
+
+    pub const DUP: usize = 25;
 }
 
 //
@@ -263,4 +265,10 @@ pub fn get_pid() -> usize {
 #[inline(always)]
 pub fn get_tid() -> usize {
     unsafe { syscall_0(id::GET_TID) }.unwrap()
+}
+
+/// duplicate a file descriptor
+#[inline(always)]
+pub fn dup(old: FileDesc, new: FileDesc) -> Result<FileDesc> {
+    unsafe { syscall_2(id::DUP, old.0, new.0) }.map(FileDesc)
 }

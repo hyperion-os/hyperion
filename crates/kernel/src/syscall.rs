@@ -17,7 +17,7 @@ use hyperion_scheduler::{
 };
 use hyperion_syscall::{
     err::{Error, Result},
-    fs::FileOpenFlags,
+    fs::{FileDesc, FileOpenFlags},
     id,
     net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
@@ -56,6 +56,8 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         id::GET_PID => call_id(get_pid, args),
         id::GET_TID => call_id(get_tid, args),
+
+        id::DUP => call_id(dup, args),
 
         _ => {
             debug!("invalid syscall");
@@ -504,4 +506,22 @@ pub fn get_pid(_args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::get_tid`]
 pub fn get_tid(_args: &mut SyscallRegs) -> Result<usize> {
     Ok(task().tid.num())
+}
+
+/// duplicate a file descriptor
+///
+/// [`hyperion_syscall::dup`]
+pub fn dup(args: &mut SyscallRegs) -> Result<usize> {
+    let old = FileDesc(args.arg0 as _);
+    let new = FileDesc(args.arg1 as _);
+
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let mut files = ext.files.lock();
+
+    let old = files.get(old.0).ok_or(Error::BAD_FILE_DESCRIPTOR)?.clone();
+    files.replace(new.0, old); // drop => close the old one
+
+    Ok(new.0 as _)
 }

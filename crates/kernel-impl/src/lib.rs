@@ -73,6 +73,21 @@ impl<T> SparseVec<T> {
     pub fn remove(&mut self, index: usize) -> Option<T> {
         self.inner.get_mut(index).and_then(Option::take)
     }
+
+    pub fn replace(&mut self, index: usize, v: T) -> Option<T> {
+        // TODO: max file descriptor,
+        // the user app can simply use a fd of 100000000000000 to crash the kernel
+        self.inner
+            .resize_with(self.inner.len().max(index + 1), || None);
+
+        hyperion_log::debug!("len:{} index:{}", self.inner.len(), index);
+
+        let slot = self.inner.get_mut(index).unwrap();
+
+        let old = slot.take();
+        *slot = Some(v);
+        old
+    }
 }
 
 //

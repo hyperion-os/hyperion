@@ -8,11 +8,12 @@ use core::{hint::spin_loop, str::from_utf8};
 
 use libstd::{
     alloc::{format, string::String},
-    fs::{OpenOptions, STDIN, STDOUT},
+    fs::{File, OpenOptions, STDIN, STDOUT},
     io::BufReader,
     println,
     sys::{
         err::Result,
+        fs::FileDesc,
         net::{Protocol, SocketDesc, SocketDomain, SocketType},
         *,
     },
@@ -94,9 +95,19 @@ fn run_client() -> Result<()> {
     }
 }
 
+fn _test_duplicate_stdin() -> File {
+    let dup = dup(STDIN.as_desc(), FileDesc(10)).unwrap();
+    let stdin_dupe = unsafe { File::new(dup) };
+    close(STDIN.as_desc()).unwrap();
+    stdin_dupe
+}
+
 #[no_mangle]
 pub fn main(_args: CliArgs) {
-    let mut reader = BufReader::new(&STDIN);
+    let stdin = _test_duplicate_stdin();
+
+    let mut reader = BufReader::new(&stdin);
+    // let mut reader = BufReader::new(&STDIN);
     let mut buf = String::new();
     loop {
         buf.clear();

@@ -11,9 +11,10 @@ lock_api.workspace = true
 x86_64.workspace = true
 
 hyperion-arch.path = "../arch"
-hyperion-vfs.path = "../vfs"
+hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"
+hyperion-scheduler.path = "../scheduler"
 hyperion-sync.path = "../sync"
 hyperion-syscall.path = "../syscall"
-hyperion-scheduler.path = "../scheduler"
+hyperion-vfs.path = "../vfs"
 
