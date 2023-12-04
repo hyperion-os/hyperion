@@ -1,6 +1,6 @@
-use core::slice::memchr;
+use core::{fmt, slice::memchr};
 
-use core_alloc::{string::String, vec::Vec};
+use core_alloc::{boxed::Box, string::String, vec::Vec};
 use hyperion_syscall::err::{Error, Result};
 
 use crate::fs::File;
@@ -26,13 +26,55 @@ impl<T: Read> Read for &mut T {
 //
 
 pub trait Write {
-    fn write(&mut self, buf: &mut [u8]) -> Result<usize>;
+    fn write(&mut self, buf: &[u8]) -> Result<usize>;
+
+    fn flush(&mut self) -> Result<()>;
+}
+
+impl Write for File {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        File::write(self, buf)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<T: Write> Write for &mut T {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        (**self).write(buf)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        (**self).flush()
+    }
+}
+
+impl fmt::Write for File {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write(s.as_bytes()).map_err(|_| fmt::Error)?;
+        Ok(())
+    }
+}
+
+impl<T: Write> fmt::Write for BufWriter<T> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write(s.as_bytes()).map_err(|_| fmt::Error)?;
+        Ok(())
+    }
+
+    fn write_fmt(mut self: &mut Self, args: fmt::Arguments) -> fmt::Result {
+        fmt::write(&mut self, args)?;
+        self.flush().map_err(|_| fmt::Error)?;
+        Ok(())
+    }
 }
 
 //
 
 pub struct BufReader<T> {
-    buf: [u8; 64],
+    buf: Box<[u8]>,
     end: u8,
     inner: T,
 }
@@ -40,7 +82,7 @@ pub struct BufReader<T> {
 impl<T: Read> BufReader<T> {
     pub fn new(read: T) -> Self {
         Self {
-            buf: [0; 64],
+            buf: unsafe { Box::new_zeroed_slice(512).assume_init() },
             end: 0,
             inner: read,
         }
@@ -63,6 +105,56 @@ impl<T: Read> BufReader<T> {
         self.end -= used as u8;
     }
 }
+
+//
+
+pub struct BufWriter<T> {
+    buf: Vec<u8>,
+    broken: bool,
+    inner: T,
+}
+
+impl<T> BufWriter<T> {
+    pub const fn new(write: T) -> Self {
+        Self {
+            buf: Vec::new(),
+            broken: false,
+            inner: write,
+        }
+    }
+}
+
+impl<T: Write> Write for BufWriter<T> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        if self.broken {
+            panic!("BufWriter broken");
+        }
+
+        self.buf.resize(self.buf.len() + buf.len(), 0);
+        self.buf.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        let mut consumed = 0usize;
+
+        while consumed < self.buf.len() {
+            match self.inner.write(&self.buf) {
+                Ok(b) => consumed += b,
+                Err(Error::INTERRUPTED) => {}
+                Err(err) => {
+                    self.broken = true;
+                    return Err(err);
+                }
+            }
+        }
+
+        self.buf.resize(0, 0);
+        Ok(())
+    }
+}
+
+//
 
 fn read_until<T: Read>(r: &mut BufReader<T>, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
     let mut read = 0;

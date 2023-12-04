@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(format_args_nl, slice_internals)]
+#![feature(format_args_nl, slice_internals, new_uninit)]
 
 //
 
@@ -8,6 +8,8 @@ extern crate alloc as core_alloc;
 use core::fmt::{self, Write};
 
 use hyperion_syscall::exit;
+
+use crate::{fs::STDOUT, io::BufWriter};
 
 //
 
@@ -31,17 +33,12 @@ macro_rules! println {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    struct SyscallLog;
+    // TODO: locking
+    let stdout = unsafe { STDOUT.clone() };
+    // TODO: cache the buf writer, its useless otherwise
+    let mut out = BufWriter::new(stdout);
 
-    //
-
-    impl Write for SyscallLog {
-        fn write_str(&mut self, s: &str) -> fmt::Result {
-            hyperion_syscall::log(s).map_err(|_| fmt::Error)
-        }
-    }
-
-    _ = SyscallLog.write_fmt(args);
+    _ = out.write_fmt(args);
 }
 
 //
