@@ -133,7 +133,7 @@ impl<T> Channel<T> {
         let mut stream = self.send.lock();
         loop {
             let n_recv = self.n_recv.load(Ordering::Acquire);
-            let closed = self.send_closed.load(Ordering::Acquire);
+            let closed = self.recv_closed.load(Ordering::Acquire);
             if let Err(overflow) = stream.push(item) {
                 if closed {
                     return Err(Closed);
