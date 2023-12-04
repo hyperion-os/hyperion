@@ -185,11 +185,13 @@ impl<T> Channel<T> {
     }
 
     fn close_send(&self) {
+        self.n_send.fetch_add(1, Ordering::Release);
         self.send_closed.store(true, Ordering::Release);
         futex::wake(NonNull::from(&self.n_send), usize::MAX);
     }
 
     fn close_recv(&self) {
+        self.n_recv.fetch_add(1, Ordering::Release);
         self.recv_closed.store(true, Ordering::Release);
         futex::wake(NonNull::from(&self.n_recv), usize::MAX);
     }
@@ -217,12 +219,12 @@ where
             // wake up a reader
             futex::wake(NonNull::from(&self.n_send), 1);
 
-            if data.is_empty() {
-                return Ok(());
-            }
-
             if closed {
                 return Err(Closed);
+            }
+
+            if data.is_empty() {
+                return Ok(());
             }
 
             // sleep with the send stream lock
