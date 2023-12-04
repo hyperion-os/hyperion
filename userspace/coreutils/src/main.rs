@@ -5,6 +5,8 @@
 //
 
 mod cat;
+mod ls;
+mod touch;
 
 //
 
@@ -21,8 +23,10 @@ fn main(args: CliArgs) {
     let cmd = cmd.rsplit_once('/').map(|(_, rhs)| rhs).unwrap_or(cmd);
 
     let result = match cmd {
-        "cat" => cat::cat(args),
-        _ => coreutils(),
+        "cat" => cat::cmd(args),
+        "ls" => ls::cmd(args),
+        "touch" => touch::cmd(args),
+        _ => crate::cmd(),
     };
 
     if let Err(err) = result {
@@ -31,7 +35,7 @@ fn main(args: CliArgs) {
     }
 }
 
-pub fn coreutils() -> Result<()> {
+pub fn cmd() -> Result<()> {
     println!(
         "hyperion {} - {}",
         env!("CARGO_PKG_NAME"),

@@ -30,7 +30,6 @@ use hyperion_scheduler::{
 use hyperion_vfs::{
     self,
     path::{Path, PathBuf},
-    tree::Node,
 };
 use snafu::ResultExt;
 use spin::Mutex;
@@ -137,13 +136,11 @@ impl Shell {
             "splash" => self.splash_cmd(args)?,
             "pwd" => self.pwd_cmd(args)?,
             "cd" => self.cd_cmd(args)?,
-            "ls" => self.ls_cmd(args)?,
             "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
             "sleep" => self.sleep_cmd(args).await?,
             "draw" => self.draw_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
-            "touch" => self.touch_cmd(args)?,
             "rand" => self.rand_cmd(args)?,
             "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
@@ -211,35 +208,6 @@ impl Shell {
     fn cd_cmd(&mut self, args: Option<&str>) -> Result<()> {
         let resource = Path::from_str(args.unwrap_or("/")).to_absolute(&self.current_dir);
         self.current_dir = resource.into_owned();
-
-        Ok(())
-    }
-
-    fn ls_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let resource = args
-            .map(|p| Path::from_str(p).to_absolute(&self.current_dir))
-            .unwrap_or(Cow::Borrowed(&self.current_dir));
-        let resource = resource.as_ref();
-
-        let dir = VFS_ROOT
-            .find(resource, false)
-            .context(IoSnafu { resource })?;
-
-        match dir {
-            Node::File(_) => {
-                if let Some(file_name) = resource.file_name() {
-                    _ = writeln!(self.term, "{file_name}");
-                } else {
-                    return Err(Error::NamelessFile);
-                }
-            }
-            Node::Directory(dir) => {
-                let mut dir = dir.lock();
-                for entry in dir.nodes().context(IoSnafu { resource })?.iter() {
-                    _ = writeln!(self.term, "{entry}");
-                }
-            }
-        }
 
         Ok(())
     }
@@ -382,22 +350,6 @@ impl Shell {
             _ = writeln!(self.term, "invalid layout `{name}`");
             _ = writeln!(self.term, "available layouts(s): `{:?}`", layouts());
         }
-
-        Ok(())
-    }
-
-    fn touch_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let Some(file) = args else {
-            _ = writeln!(self.term, "missing file arg");
-            return Ok(());
-        };
-
-        let resource = Path::from_str(file).to_absolute(&self.current_dir);
-        let resource = resource.as_ref();
-
-        VFS_ROOT
-            .find_file(file, true, true)
-            .context(IoSnafu { resource })?;
 
         Ok(())
     }

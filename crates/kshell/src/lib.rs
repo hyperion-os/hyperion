@@ -39,7 +39,8 @@ pub async fn kshell() {
 
     VFS_ROOT.install_dev_ref("/bin/coreutils", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/cat", bin.clone());
-    VFS_ROOT.install_dev_ref("/bin/ls", bin);
+    VFS_ROOT.install_dev_ref("/bin/ls", bin.clone());
+    VFS_ROOT.install_dev_ref("/bin/touch", bin);
 
     let term = Term::new();
     let mut shell = Shell::new(term);

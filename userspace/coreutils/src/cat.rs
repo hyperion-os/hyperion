@@ -5,7 +5,7 @@ use libstd::{fs::File, print, println};
 
 //
 
-pub fn cat<'a>(mut args: impl Iterator<Item = &'a str>) -> Result<()> {
+pub fn cmd<'a>(mut args: impl Iterator<Item = &'a str>) -> Result<()> {
     let a1 = args
         .next()
         .ok_or_else(|| anyhow!("expected at least one argument"))?;
