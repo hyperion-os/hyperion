@@ -7,13 +7,11 @@
 use core::{hint::spin_loop, str::from_utf8};
 
 use libstd::{
-    alloc::{format, string::String},
-    fs::{File, OpenOptions, STDIN, STDOUT},
-    io::BufReader,
+    alloc::format,
+    fs::OpenOptions,
     println,
     sys::{
         err::Result,
-        fs::FileDesc,
         net::{Protocol, SocketDesc, SocketDomain, SocketType},
         *,
     },
@@ -95,31 +93,31 @@ fn run_client() -> Result<()> {
     }
 }
 
-fn _test_duplicate_stdin() -> File {
-    let dup = dup(STDIN.as_desc(), FileDesc(10)).unwrap();
-    let stdin_dupe = unsafe { File::new(dup) };
-    close(STDIN.as_desc()).unwrap();
-    stdin_dupe
-}
+// fn _test_duplicate_stdin() -> File {
+//     let dup = dup(STDIN.as_desc(), FileDesc(10)).unwrap();
+//     let stdin_dupe = unsafe { File::new(dup) };
+//     close(STDIN.as_desc()).unwrap();
+//     stdin_dupe
+// }
 
 #[no_mangle]
 pub fn main(_args: CliArgs) {
-    let mut stdin = _test_duplicate_stdin();
+    // let mut stdin = _test_duplicate_stdin();
 
-    let mut reader = BufReader::new(&mut stdin);
-    // let mut reader = BufReader::new(&STDIN);
-    let mut buf = String::new();
-    loop {
-        buf.clear();
-        let len = reader.read_line(&mut buf).unwrap();
+    // let mut reader = BufReader::new(&mut stdin);
+    // // let mut reader = BufReader::new(&STDIN);
+    // let mut buf = String::new();
+    // loop {
+    //     buf.clear();
+    //     let len = reader.read_line(&mut buf).unwrap();
 
-        if len == 0 {
-            break;
-        }
+    //     if len == 0 {
+    //         break;
+    //     }
 
-        let stdout = &STDOUT;
-        stdout.write(buf.as_bytes()).unwrap();
-    }
+    //     let stdout = &STDOUT;
+    //     stdout.write(buf.as_bytes()).unwrap();
+    // }
 
     println!("PID:{} TID:{}", get_pid(), get_tid());
 

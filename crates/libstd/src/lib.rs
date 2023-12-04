@@ -1,5 +1,11 @@
 #![no_std]
-#![feature(format_args_nl, slice_internals, new_uninit)]
+#![feature(
+    format_args_nl,
+    slice_internals,
+    new_uninit,
+    const_slice_from_raw_parts_mut,
+    const_mut_refs
+)]
 
 //
 
@@ -9,7 +15,7 @@ use core::fmt::{self, Write};
 
 use hyperion_syscall::exit;
 
-use crate::{fs::STDOUT, io::BufWriter};
+use self::fs::STDOUT;
 
 //
 
@@ -33,12 +39,8 @@ macro_rules! println {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    // TODO: locking
-    let stdout = unsafe { STDOUT.clone() };
-    // TODO: cache the buf writer, its useless otherwise
-    let mut out = BufWriter::new(stdout);
-
-    _ = out.write_fmt(args);
+    let mut stdout = STDOUT.lock();
+    _ = stdout.write_fmt(args);
 }
 
 //

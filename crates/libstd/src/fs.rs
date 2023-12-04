@@ -6,12 +6,61 @@ use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags},
     open, read, write,
 };
+use spin::{Mutex, MutexGuard};
+
+use crate::io::{BufWriter, ConstBufReader};
 
 //
 
-pub static STDIN: File = unsafe { File::new(FileDesc(0)) };
-pub static STDOUT: File = unsafe { File::new(FileDesc(1)) };
-pub static STDERR: File = unsafe { File::new(FileDesc(2)) };
+// static STDIN: File = unsafe { File::new(FileDesc(0)) };
+// static STDOUT: File = unsafe { File::new(FileDesc(1)) };
+// static STDERR: File = unsafe { File::new(FileDesc(2)) };
+
+pub static STDIN: Stdin = {
+    static mut STDIN_BUF: [u8; 4096] = [0u8; 4096];
+    Stdin(Mutex::new(ConstBufReader::new(
+        unsafe { File::new(FileDesc(0)) },
+        unsafe { &mut STDIN_BUF },
+    )))
+};
+
+pub static STDOUT: Stdout = Stdout(Mutex::new(BufWriter::new(unsafe {
+    File::new(FileDesc(1))
+})));
+
+pub static STDERR: Stderr = Stderr(Mutex::new(BufWriter::new(unsafe {
+    File::new(FileDesc(2))
+})));
+
+//
+
+pub struct Stdin(Mutex<ConstBufReader<'static, File>>);
+
+impl Stdin {
+    pub fn lock(&self) -> MutexGuard<ConstBufReader<'static, File>> {
+        self.0.lock()
+    }
+}
+
+//
+
+pub struct Stdout(Mutex<BufWriter<File>>);
+
+impl Stdout {
+    pub fn lock(&self) -> MutexGuard<BufWriter<File>> {
+        self.0.lock()
+    }
+}
+
+//
+
+pub struct Stderr(Mutex<BufWriter<File>>);
+
+impl Stderr {
+    pub fn lock(&self) -> MutexGuard<BufWriter<File>> {
+        self.0.lock()
+    }
+}
 
 //
 

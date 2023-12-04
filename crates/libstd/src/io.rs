@@ -106,6 +106,39 @@ impl<T: Read> BufReader<T> {
     }
 }
 
+pub struct ConstBufReader<'a, T> {
+    buf: &'a mut [u8],
+    end: u8,
+    inner: T,
+}
+
+impl<'a, T: Read> ConstBufReader<'a, T> {
+    pub const fn new(read: T, buf: &'a mut [u8]) -> Self {
+        Self {
+            buf,
+            end: 0,
+            inner: read,
+        }
+    }
+
+    pub fn read_line(&mut self, buf: &mut String) -> Result<usize> {
+        unsafe { append_to_string(buf, |b| read_until_2(self, b'\n', b)) }
+    }
+
+    fn fill_buf(&mut self) -> Result<&[u8]> {
+        let bytes_read = self.inner.read(&mut self.buf[self.end as usize..])?;
+        self.end += bytes_read as u8;
+        assert!((self.end as usize) <= self.buf.len());
+
+        Ok(&self.buf[..self.end as usize])
+    }
+
+    fn consume(&mut self, used: usize) {
+        self.buf.rotate_left(used);
+        self.end -= used as u8;
+    }
+}
+
 //
 
 pub struct BufWriter<T> {
@@ -130,7 +163,6 @@ impl<T: Write> Write for BufWriter<T> {
             panic!("BufWriter broken");
         }
 
-        self.buf.resize(self.buf.len() + buf.len(), 0);
         self.buf.extend_from_slice(buf);
         Ok(buf.len())
     }
@@ -149,7 +181,7 @@ impl<T: Write> Write for BufWriter<T> {
             }
         }
 
-        self.buf.resize(0, 0);
+        self.buf.clear();
         Ok(())
     }
 }
@@ -157,6 +189,30 @@ impl<T: Write> Write for BufWriter<T> {
 //
 
 fn read_until<T: Read>(r: &mut BufReader<T>, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
+    let mut read = 0;
+    loop {
+        let (done, used) = {
+            let available = r.fill_buf()?;
+            match memchr::memchr(delim, available) {
+                Some(i) => {
+                    buf.extend_from_slice(&available[..=i]);
+                    (true, i + 1)
+                }
+                None => {
+                    buf.extend_from_slice(available);
+                    (false, available.len())
+                }
+            }
+        };
+        r.consume(used);
+        read += used;
+        if done || used == 0 {
+            return Ok(read);
+        }
+    }
+}
+
+fn read_until_2<T: Read>(r: &mut ConstBufReader<T>, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
     let mut read = 0;
     loop {
         let (done, used) = {
@@ -203,7 +259,7 @@ where
     };
     let ret = f(g.buf);
     if core::str::from_utf8(&g.buf[g.len..]).is_err() {
-        ret.and_then(|_| Err(Error::INVALID_UTF8))
+        ret.and(Err(Error::INVALID_UTF8))
     } else {
         g.len = g.buf.len();
         ret
