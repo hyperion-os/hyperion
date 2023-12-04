@@ -144,7 +144,10 @@ pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args:
         .true_lightgrey()
         .with_reset(false);
 
-    let module = module.true_grey().with_reset(false);
+    let module = module
+        .trim_start_matches("hyperion_")
+        .true_grey()
+        .with_reset(false);
 
     logger.print(
         level,

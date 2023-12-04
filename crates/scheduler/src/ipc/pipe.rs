@@ -1,6 +1,5 @@
 use alloc::sync::Arc;
 use core::{
-    any::type_name,
     ptr::NonNull,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
@@ -218,14 +217,20 @@ impl<T> Channel<T> {
     }
 
     fn close_send(&self) {
+        let _ = self.send.lock();
+        // hyperion_log::debug!("close send");
         self.send_closed.store(true, Ordering::SeqCst);
         self.n_send.fetch_add(1, Ordering::Acquire);
         futex::wake(NonNull::from(&self.n_send), usize::MAX);
+        futex::wake(NonNull::from(&self.n_recv), usize::MAX);
     }
 
     fn close_recv(&self) {
+        let _ = self.recv.lock();
+        // hyperion_log::debug!("close recv");
         self.recv_closed.store(true, Ordering::SeqCst);
         self.n_recv.fetch_add(1, Ordering::Acquire);
+        futex::wake(NonNull::from(&self.n_send), usize::MAX);
         futex::wake(NonNull::from(&self.n_recv), usize::MAX);
     }
 }
@@ -242,12 +247,13 @@ where
         let mut stream = self.send.lock();
         let mut data = data;
         loop {
-            let n_recv = self.n_recv.load(Ordering::Acquire);
             let closed = self.recv_closed.load(Ordering::Acquire);
 
             if self.send_closed.load(Ordering::Acquire) {
                 return Err(Closed);
             }
+
+            let n_recv = self.n_recv.load(Ordering::Acquire);
 
             let sent = stream.push_slice(data);
             data = &data[sent..];
@@ -277,12 +283,13 @@ where
 
         let mut stream = self.recv.lock();
         loop {
-            let n_send = self.n_send.load(Ordering::Acquire);
             let closed = self.send_closed.load(Ordering::Acquire);
 
             if self.recv_closed.load(Ordering::Acquire) {
                 return Err(Closed);
             }
+
+            let n_send = self.n_send.load(Ordering::Acquire);
 
             let count = stream.pop_slice(buf);
 
@@ -300,7 +307,13 @@ where
             }
 
             // sleep with the recv stream lock
+            // hyperion_log::debug!("sleep on: n_send={}", n_send);
             futex::wait(NonNull::from(&self.n_send), n_send);
+            // hyperion_log::debug!(
+            //     "sleep wake from: n_send={} (now: {})",
+            //     n_send,
+            //     self.n_send.load(Ordering::Acquire)
+            // );
         }
     }
 }

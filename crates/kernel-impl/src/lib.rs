@@ -10,7 +10,7 @@ use core::any::Any;
 use hyperion_arch::vmm::PageMap;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
-    ipc::pipe::{self, channel_with, pipe, pipe_with, Channel, Receiver, Sender},
+    ipc::pipe::{channel_with, Channel, Receiver, Sender},
     lock::{Futex, Mutex},
     process,
     task::{Process, ProcessExt},

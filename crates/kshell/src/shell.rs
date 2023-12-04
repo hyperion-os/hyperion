@@ -23,7 +23,7 @@ use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::{
     idle,
-    ipc::pipe::{channel, pipe},
+    ipc::pipe::channel,
     schedule, spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };

@@ -8,7 +8,7 @@ use core::{hint::spin_loop, str::from_utf8};
 
 use libstd::{
     alloc::format,
-    fs::{OpenOptions, Stdin, STDIN},
+    fs::{OpenOptions, Stdin},
     println,
     sys::{
         err::Result,
