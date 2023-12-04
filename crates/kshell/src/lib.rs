@@ -11,8 +11,9 @@ use futures_util::StreamExt;
 use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_futures::{keyboard::KeyboardEvents, timer::ticks};
+use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_random::Rng;
-use hyperion_vfs::{error::IoError, path::PathBuf};
+use hyperion_vfs::{error::IoError, path::PathBuf, ramdisk};
 use snafu::Snafu;
 use time::Duration;
 
@@ -28,6 +29,11 @@ pub mod term;
 
 pub async fn kshell() {
     hyperion_futures::executor::spawn(spinner());
+
+    let bin = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
+    VFS_ROOT.install_dev("/bin/run", ramdisk::File::new(bin.into()));
+    let bin = include_bytes!(env!("CARGO_BIN_FILE_CAT"));
+    VFS_ROOT.install_dev("/bin/cat", ramdisk::File::new(bin.into()));
 
     let term = Term::new();
     let mut shell = Shell::new(term);

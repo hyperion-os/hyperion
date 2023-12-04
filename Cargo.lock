@@ -154,6 +154,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cat"
+version = "0.1.0"
+dependencies = [
+ "libstd",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -689,6 +696,7 @@ name = "hyperion-kshell"
 version = "0.1.0"
 dependencies = [
  "arcstr",
+ "cat",
  "futures-util",
  "glam",
  "hyperion-arch",

@@ -37,3 +37,4 @@ hyperion-cpu-id.path = "../cpu-id"
 hyperion-kernel-impl.path = "../kernel-impl"
 
 hyperion-sample-elf = { path = "../sample-elf", artifact = "bin", target = "x86_64-unknown-none" }
+cat = { path = "../../userspace/cat", artifact = "bin", target = "x86_64-unknown-none" }

@@ -103,3 +103,21 @@ impl FileDevice for [u8] {
         Ok(len)
     }
 }
+
+impl<T: FileDevice> FileDevice for &'static T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn len(&self) -> usize {
+        (**self).len()
+    }
+
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        (**self).read(offset, buf)
+    }
+
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
+    }
+}

@@ -143,7 +143,7 @@ impl Shell {
             "pwd" => self.pwd_cmd(args)?,
             "cd" => self.cd_cmd(args)?,
             "ls" => self.ls_cmd(args)?,
-            "cat" => self.cat_cmd(args)?,
+            // "cat" => self.cat_cmd(args)?,
             "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
             "sleep" => self.sleep_cmd(args).await?,
@@ -154,7 +154,7 @@ impl Shell {
             "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
             "modeltest" => self.modeltest_cmd(args).await?,
-            "run" => self.run_cmd(args).await?,
+            // "run" => self.run_cmd(args).await?,
             "lapic_id" => self.lapic_id_cmd(args)?,
             "cpu_id" => self.cpu_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
@@ -168,8 +168,30 @@ impl Shell {
             }
             "" => self.term.write_byte(b'\n'),
             other => {
-                _ = writeln!(self.term, "unknown command {other}");
-                self.help_cmd(None)?;
+                let path = format!("/bin/{other}");
+                let Ok(bin) = VFS_ROOT.find_file(path.as_str(), false, false) else {
+                    _ = writeln!(self.term, "unknown command {other}");
+                    self.help_cmd(None)?;
+                    return Ok(Some(()));
+                };
+
+                let bin = bin.lock();
+
+                let mut elf = Vec::new();
+
+                loop {
+                    let mut buf = [0; 64];
+                    let len = bin.read(elf.len(), &mut buf).unwrap();
+                    elf.extend_from_slice(&buf[..len]);
+                    if len == 0 {
+                        break;
+                    }
+                }
+
+                drop(bin);
+
+                self.run_cmd_from(path.into(), Cow::Owned(elf), args)
+                    .await?;
             }
         }
 
@@ -527,7 +549,17 @@ impl Shell {
     }
 
     async fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let name = "/bin/run";
+        let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
+        self.run_cmd_from("/bin/run".into(), Cow::Borrowed(elf_bytes), args)
+            .await
+    }
+
+    async fn run_cmd_from(
+        &mut self,
+        name: Cow<'static, str>,
+        elf: Cow<'static, [u8]>,
+        args: Option<&str>,
+    ) -> Result<()> {
         let args = args.map(String::from);
 
         // let stdin_tx = pipe();
@@ -559,6 +591,7 @@ impl Shell {
         });
 
         let pid = schedule(move || {
+            let name = name.as_ref();
             hyperion_scheduler::rename(name);
 
             hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
@@ -588,8 +621,7 @@ impl Shell {
                 "ELF file from: {}",
                 env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF")
             );
-            let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
-            let loader = hyperion_loader::Loader::new(elf_bytes);
+            let loader = hyperion_loader::Loader::new(elf.as_ref());
 
             loader.load();
 
@@ -597,7 +629,6 @@ impl Shell {
                 hyperion_log::debug!("entry point missing");
             }
         });
-        hyperion_log::trace!("spawning {name} done (PID:{pid})");
 
         let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
 

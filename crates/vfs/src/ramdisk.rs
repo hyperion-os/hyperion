@@ -19,6 +19,12 @@ pub struct File {
     bytes: Vec<u8>,
 }
 
+impl File {
+    pub fn new(bytes: Vec<u8>) -> Self {
+        Self { bytes }
+    }
+}
+
 pub struct Directory<Mut: AnyMutex> {
     pub name: Arc<str>,
     pub children: BTreeMap<Arc<str>, Node<Mut>>,

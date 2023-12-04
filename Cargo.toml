@@ -6,7 +6,7 @@ edition = "2021"
 
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*", "userspace/cat"]
 
 [profile.release]
 debug = true
