@@ -104,9 +104,9 @@ fn _test_duplicate_stdin() -> File {
 
 #[no_mangle]
 pub fn main(_args: CliArgs) {
-    let stdin = _test_duplicate_stdin();
+    let mut stdin = _test_duplicate_stdin();
 
-    let mut reader = BufReader::new(&stdin);
+    let mut reader = BufReader::new(&mut stdin);
     // let mut reader = BufReader::new(&STDIN);
     let mut buf = String::new();
     loop {

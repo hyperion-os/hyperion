@@ -1,30 +1,35 @@
 use core::slice::memchr;
 
 use core_alloc::{string::String, vec::Vec};
+use hyperion_syscall::err::{Error, Result};
 
 use crate::fs::File;
 
 //
 
 pub trait Read {
-    fn recv(&mut self, buf: &mut [u8]) -> Result<usize, String>;
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
 }
 
-pub struct SimpleIpcInputChannel;
-
-impl Read for SimpleIpcInputChannel {
-    fn recv(&mut self, buf: &mut [u8]) -> Result<usize, String> {
-        _ = buf;
-        todo!()
-        // hyperion_syscall::recv(buf).map_err(|err| format!("failed to recv: {err}"))
+impl Read for File {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        File::read(self, buf)
     }
 }
 
-impl Read for &File {
-    fn recv(&mut self, buf: &mut [u8]) -> Result<usize, String> {
-        self.read(buf).map_err(|e| e.as_str().into())
+impl<T: Read> Read for &mut T {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        (**self).read(buf)
     }
 }
+
+//
+
+pub trait Write {
+    fn write(&mut self, buf: &mut [u8]) -> Result<usize>;
+}
+
+//
 
 pub struct BufReader<T> {
     buf: [u8; 64],
@@ -41,12 +46,12 @@ impl<T: Read> BufReader<T> {
         }
     }
 
-    pub fn read_line(&mut self, buf: &mut String) -> Result<usize, String> {
+    pub fn read_line(&mut self, buf: &mut String) -> Result<usize> {
         unsafe { append_to_string(buf, |b| read_until(self, b'\n', b)) }
     }
 
-    fn fill_buf(&mut self) -> Result<&[u8], String> {
-        let bytes_read = self.inner.recv(&mut self.buf[self.end as usize..])?;
+    fn fill_buf(&mut self) -> Result<&[u8]> {
+        let bytes_read = self.inner.read(&mut self.buf[self.end as usize..])?;
         self.end += bytes_read as u8;
         assert!((self.end as usize) <= self.buf.len());
 
@@ -59,11 +64,7 @@ impl<T: Read> BufReader<T> {
     }
 }
 
-fn read_until<T: Read>(
-    r: &mut BufReader<T>,
-    delim: u8,
-    buf: &mut Vec<u8>,
-) -> Result<usize, String> {
+fn read_until<T: Read>(r: &mut BufReader<T>, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
     let mut read = 0;
     loop {
         let (done, used) = {
@@ -100,9 +101,9 @@ impl Drop for Guard<'_> {
     }
 }
 
-unsafe fn append_to_string<F>(buf: &mut String, f: F) -> Result<usize, String>
+unsafe fn append_to_string<F>(buf: &mut String, f: F) -> Result<usize>
 where
-    F: FnOnce(&mut Vec<u8>) -> Result<usize, String>,
+    F: FnOnce(&mut Vec<u8>) -> Result<usize>,
 {
     let mut g = Guard {
         len: buf.len(),
@@ -110,7 +111,7 @@ where
     };
     let ret = f(g.buf);
     if core::str::from_utf8(&g.buf[g.len..]).is_err() {
-        ret.and_then(|_| Err("stream did not contain valid UTF-8".into()))
+        ret.and_then(|_| Err(Error::INVALID_UTF8))
     } else {
         g.len = g.buf.len();
         ret
