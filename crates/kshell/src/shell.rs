@@ -11,7 +11,7 @@ use futures_util::stream::select;
 use hyperion_color::Color;
 use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
-use hyperion_futures::timer::{sleep, ticks};
+use hyperion_futures::timer::ticks;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{PipeInput, PipeOutput, VFS_ROOT};
 use hyperion_keyboard::{
@@ -138,7 +138,6 @@ impl Shell {
             "cd" => self.cd_cmd(args)?,
             "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
-            "sleep" => self.sleep_cmd(args).await?,
             "draw" => self.draw_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
             "rand" => self.rand_cmd(args)?,
@@ -242,18 +241,6 @@ impl Shell {
             self.term,
             "Mem:\n - total: {total}B\n - usable: {usable}B\n - used: {used}B ({p:3.1}%)",
         );
-
-        Ok(())
-    }
-
-    async fn sleep_cmd(&mut self, seconds: Option<&str>) -> Result<()> {
-        let seconds: u64 = seconds
-            .map(|s| s.parse::<u8>())
-            .transpose()
-            .context(ParseSnafu {})?
-            .unwrap_or(1) as _;
-
-        sleep(time::Duration::seconds(seconds as _)).await;
 
         Ok(())
     }

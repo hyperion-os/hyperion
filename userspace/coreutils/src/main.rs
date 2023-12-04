@@ -8,6 +8,7 @@ extern crate alloc;
 
 mod cat;
 mod ls;
+mod sleep;
 mod touch;
 
 //
@@ -28,6 +29,7 @@ fn main(args: CliArgs) {
         "cat" => cat::cmd(args),
         "ls" => ls::cmd(args),
         "touch" => touch::cmd(args),
+        "sleep" => sleep::cmd(args),
         _ => crate::cmd(),
     };
 

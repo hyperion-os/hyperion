@@ -550,7 +550,7 @@ pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
 
         let (mode, size) = match node {
             Node::File(f) => ('f', f.lock().len()),
-            Node::Directory(d) => ('d', 0),
+            Node::Directory(_) => ('d', 0),
         };
 
         writeln!(&mut buf, "{mode} {size} {name}").unwrap();
