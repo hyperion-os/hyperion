@@ -1,10 +1,10 @@
 use alloc::sync::Arc;
 use core::{
     ptr::NonNull,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
 };
 
-use crate::{futex, lock::Mutex, process, task::Pid};
+use crate::{condvar::Condvar, futex, lock::Mutex, process, task::Pid};
 
 //
 
@@ -121,11 +121,13 @@ pub struct Channel<T> {
     pub send: Mutex<ringbuf::HeapProducer<T>>,
     pub recv: Mutex<ringbuf::HeapConsumer<T>>,
 
-    pub send_closed: AtomicBool,
-    pub recv_closed: AtomicBool,
+    pub send_wait: Condvar,
+    pub recv_wait: Condvar,
 
-    pub n_send: AtomicUsize,
-    pub n_recv: AtomicUsize,
+    pub send_closed: Mutex<bool>,
+    pub recv_closed: Mutex<bool>,
+    // pub n_send: AtomicUsize,
+    // pub n_recv: AtomicUsize,
 }
 
 impl<T> Channel<T> {
@@ -138,11 +140,13 @@ impl<T> Channel<T> {
             send,
             recv,
 
-            send_closed: AtomicBool::new(false),
-            recv_closed: AtomicBool::new(false),
+            send_wait: Condvar::new(),
+            recv_wait: Condvar::new(),
 
-            n_send: AtomicUsize::new(0),
-            n_recv: AtomicUsize::new(0),
+            send_closed: Mutex::new(false),
+            recv_closed: Mutex::new(false),
+            // n_send: AtomicUsize::new(0),
+            // n_recv: AtomicUsize::new(0),
         }
     }
 
@@ -153,33 +157,20 @@ impl<T> Channel<T> {
 
     pub fn send(&self, mut item: T) -> Result<(), Closed> {
         let mut stream = self.send.lock();
+        let mut r_closed = self.recv_closed.lock();
         loop {
-            let n_recv = self.n_recv.load(Ordering::Acquire);
-            let closed = self.recv_closed.load(Ordering::Acquire);
-
-            if self.send_closed.load(Ordering::Acquire) {
+            if *r_closed {
                 return Err(Closed);
             }
 
             if let Err(overflow) = stream.push(item) {
-                if closed {
-                    return Err(Closed);
-                }
-
-                // wake up a reader
-                futex::wake(NonNull::from(&self.n_send), 1);
-
-                // sleep with the send stream lock
-                futex::wait(NonNull::from(&self.n_recv), n_recv);
+                self.send_wait.notify_one();
+                r_closed = self.recv_wait.wait(r_closed);
 
                 // keep trying to send the item
                 item = overflow;
             } else {
-                self.n_send.fetch_add(1, Ordering::Release);
-
-                // wake up a reader
-                futex::wake(NonNull::from(&self.n_send), 1);
-
+                self.send_wait.notify_one();
                 return Ok(());
             };
         }
@@ -187,51 +178,32 @@ impl<T> Channel<T> {
 
     pub fn recv(&self) -> Result<T, Closed> {
         let mut stream = self.recv.lock();
+        let mut s_closed = self.send_closed.lock();
         loop {
-            let n_send = self.n_send.load(Ordering::Acquire);
-            let closed = self.send_closed.load(Ordering::Acquire);
-
-            if self.recv_closed.load(Ordering::Acquire) {
-                return Err(Closed);
-            }
-
             if let Some(item) = stream.pop() {
-                self.n_recv.fetch_add(1, Ordering::Release);
-
-                // wake up a sender
-                futex::wake(NonNull::from(&self.n_recv), 1);
-
+                self.recv_wait.notify_one();
                 return Ok(item);
             } else {
-                if closed {
+                if *s_closed {
                     return Err(Closed);
                 }
 
-                // wake up a sender
-                futex::wake(NonNull::from(&self.n_recv), 1);
-
-                // sleep with the recv stream lock
-                futex::wait(NonNull::from(&self.n_send), n_send);
+                self.recv_wait.notify_one();
+                s_closed = self.send_wait.wait(s_closed);
             }
         }
     }
 
     fn close_send(&self) {
-        let _ = self.send.lock();
-        // hyperion_log::debug!("close send");
-        self.send_closed.store(true, Ordering::SeqCst);
-        self.n_send.fetch_add(1, Ordering::Acquire);
-        futex::wake(NonNull::from(&self.n_send), usize::MAX);
-        futex::wake(NonNull::from(&self.n_recv), usize::MAX);
+        *self.send_closed.lock() = true;
+        self.send_wait.notify_one();
+        self.recv_wait.notify_one();
     }
 
     fn close_recv(&self) {
-        let _ = self.recv.lock();
-        // hyperion_log::debug!("close recv");
-        self.recv_closed.store(true, Ordering::SeqCst);
-        self.n_recv.fetch_add(1, Ordering::Acquire);
-        futex::wake(NonNull::from(&self.n_send), usize::MAX);
-        futex::wake(NonNull::from(&self.n_recv), usize::MAX);
+        *self.recv_closed.lock() = true;
+        self.send_wait.notify_one();
+        self.recv_wait.notify_one();
     }
 }
 
@@ -244,35 +216,25 @@ where
             return Ok(());
         }
 
-        let mut stream = self.send.lock();
         let mut data = data;
-        loop {
-            let closed = self.recv_closed.load(Ordering::Acquire);
 
-            if self.send_closed.load(Ordering::Acquire) {
+        let mut stream = self.send.lock();
+        let mut r_closed = self.recv_closed.lock();
+        loop {
+            if *r_closed {
                 return Err(Closed);
             }
-
-            let n_recv = self.n_recv.load(Ordering::Acquire);
 
             let sent = stream.push_slice(data);
             data = &data[sent..];
 
-            self.n_send.fetch_add(sent, Ordering::Release);
-
-            // wake up a reader
-            futex::wake(NonNull::from(&self.n_send), 1);
-
-            if closed {
-                return Err(Closed);
-            }
+            self.send_wait.notify_one();
 
             if data.is_empty() {
                 return Ok(());
             }
 
-            // sleep with the send stream lock
-            futex::wait(NonNull::from(&self.n_recv), n_recv);
+            r_closed = self.recv_wait.wait(r_closed);
         }
     }
 
@@ -282,38 +244,21 @@ where
         }
 
         let mut stream = self.recv.lock();
+        let mut s_closed = self.send_closed.lock();
         loop {
-            let closed = self.send_closed.load(Ordering::Acquire);
-
-            if self.recv_closed.load(Ordering::Acquire) {
-                return Err(Closed);
-            }
-
-            let n_send = self.n_send.load(Ordering::Acquire);
-
             let count = stream.pop_slice(buf);
 
-            self.n_recv.fetch_add(count, Ordering::Release);
-
-            // wake up a sender
-            futex::wake(NonNull::from(&self.n_recv), 1);
+            self.recv_wait.notify_one();
 
             if count != 0 {
                 return Ok(count);
             }
 
-            if closed {
+            if *s_closed {
                 return Err(Closed);
             }
 
-            // sleep with the recv stream lock
-            // hyperion_log::debug!("sleep on: n_send={}", n_send);
-            futex::wait(NonNull::from(&self.n_send), n_send);
-            // hyperion_log::debug!(
-            //     "sleep wake from: n_send={} (now: {})",
-            //     n_send,
-            //     self.n_send.load(Ordering::Acquire)
-            // );
+            s_closed = self.send_wait.wait(s_closed);
         }
     }
 }

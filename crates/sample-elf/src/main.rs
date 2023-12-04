@@ -84,12 +84,12 @@ fn run_client() -> Result<()> {
 
         drop(file); // drop = flush + close
 
-        if buf[..len].ends_with(b"2") {
-            println!("infinite loop");
-            loop {
-                spin_loop();
-            }
-        }
+        // if buf[..len].ends_with(b"2") {
+        //     println!("infinite loop");
+        //     loop {
+        //         spin_loop();
+        //     }
+        // }
 
         send(client, b"ack", 0)?;
     }
