@@ -45,7 +45,7 @@ pub async fn kshell() {
 }
 
 pub async fn spinner() {
-    let mut ticks = ticks(Duration::milliseconds(500));
+    let mut ticks = ticks(Duration::milliseconds(50));
     let mut rng = hyperion_random::next_fast_rng();
 
     while ticks.next().await.is_some() {
@@ -55,9 +55,9 @@ pub async fn spinner() {
         let mut fbo = fbo.lock();
 
         let (r, g, b) = rng.gen();
-        let x = fbo.width - 60;
-        let y = fbo.height - 60;
-        fbo.fill(x, y, 50, 50, Color::new(r, g, b));
+        let x = fbo.width - 20;
+        let y = fbo.height - 20;
+        fbo.fill(x, y, 10, 10, Color::new(r, g, b));
     }
 }
 
