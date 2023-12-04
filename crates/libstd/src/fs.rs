@@ -1,14 +1,15 @@
-use core::mem::ManuallyDrop;
+use core::{fmt, mem::ManuallyDrop, str::Split};
 
+use core_alloc::string::String;
 use hyperion_syscall::{
     close,
     err::Result,
     fs::{FileDesc, FileOpenFlags},
-    open, read, write,
+    open, open_dir, read, write,
 };
 use spin::{Mutex, MutexGuard};
 
-use crate::io::{BufWriter, ConstBufReader};
+use crate::io::{BufReader, BufWriter, ConstBufReader};
 
 //
 
@@ -62,6 +63,46 @@ impl Stderr {
     pub fn lock(&self) -> MutexGuard<BufWriter<File>> {
         self.0.lock()
     }
+}
+
+//
+
+pub struct Dir {
+    file: BufReader<File>,
+    cur: String,
+}
+
+impl Dir {
+    pub fn open(path: &str) -> Result<Self> {
+        Ok(Self {
+            file: BufReader::new(unsafe { File::new(open_dir(path)?) }),
+            cur: String::new(),
+        })
+    }
+
+    pub fn next_entry(&mut self) -> Option<DirEntry> {
+        self.cur.clear();
+        self.file.read_line(&mut self.cur).ok()?;
+
+        let mut iter = self.cur.trim().split(' ');
+        let is_dir = iter.next()?;
+        let size = iter.next()?;
+        let file_name = iter.remainder()?;
+
+        Some(DirEntry {
+            is_dir: is_dir == "d",
+            size: size.parse().unwrap(),
+            file_name,
+        })
+    }
+}
+
+//
+
+pub struct DirEntry<'a> {
+    pub is_dir: bool, // TODO: mode flags later
+    pub size: usize,
+    pub file_name: &'a str,
 }
 
 //

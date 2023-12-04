@@ -1,21 +1,34 @@
+use alloc::format;
+
 use anyhow::{anyhow, Result};
+use hyperion_num_postfix::NumberPostfix;
+use libstd::{fs::Dir, print, println};
 
 //
 
-pub fn cmd<'a>(_: impl Iterator<Item = &'a str>) -> Result<()> {
-    Err(anyhow!("TODO:"))
+pub fn cmd<'a>(mut args: impl Iterator<Item = &'a str>) -> Result<()> {
+    let a1 = args
+        .next()
+        .ok_or_else(|| anyhow!("expected at least one argument"))?;
 
-    // let a1 = args
-    //     .next()
-    //     .ok_or_else(|| anyhow!("expected at least one argument"))?;
+    let mut dir = Dir::open(a1).unwrap();
 
-    // let s: std::fs::ReadDir = std::fs::read_dir(a1).unwrap();
-    // s.into_iter();
+    println!("mode size name");
+    while let Some(entry) = dir.next_entry() {
+        let size = entry.size.postfix_binary();
+        let size_n = size.into_inner();
+        let size_scale = size.scale();
 
-    // let file = File::open(a1).map_err(|err| anyhow!("`{a1}`: {err}"))?;
-    // _ = file;
+        let size = format!("{size_n}{size_scale}B");
 
-    // println!();
+        if entry.is_dir {
+            print!("d       - ");
+        } else {
+            print!("f {size: >7} ");
+        }
 
-    // Ok(())
+        println!("{}", entry.file_name);
+    }
+
+    Ok(())
 }

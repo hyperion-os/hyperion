@@ -45,6 +45,7 @@ pub mod id {
     pub const GET_TID: usize = 24;
 
     pub const DUP: usize = 25;
+    pub const OPEN_DIR: usize = 26;
 }
 
 //
@@ -271,4 +272,10 @@ pub fn get_tid() -> usize {
 #[inline(always)]
 pub fn dup(old: FileDesc, new: FileDesc) -> Result<FileDesc> {
     unsafe { syscall_2(id::DUP, old.0, new.0) }.map(FileDesc)
+}
+
+/// open a directory
+#[inline(always)]
+pub fn open_dir(path: &str) -> Result<FileDesc> {
+    unsafe { syscall_2(id::OPEN_DIR, path.as_ptr() as _, path.len()) }.map(FileDesc)
 }

@@ -4,6 +4,8 @@
 
 //
 
+extern crate alloc;
+
 mod cat;
 mod ls;
 mod touch;

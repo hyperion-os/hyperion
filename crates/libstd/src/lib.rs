@@ -4,7 +4,8 @@
     slice_internals,
     new_uninit,
     const_slice_from_raw_parts_mut,
-    const_mut_refs
+    const_mut_refs,
+    str_split_remainder
 )]
 
 //

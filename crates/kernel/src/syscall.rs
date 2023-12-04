@@ -1,13 +1,17 @@
-use alloc::string::ToString;
-use core::any::type_name_of_val;
+use alloc::{
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
+use core::{any::type_name_of_val, fmt::Write};
 
 use hyperion_arch::syscall::SyscallRegs;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
-    get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with, push_socket,
-    read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_str, File, FileInner,
-    LocalSocketConn, SocketFile, VFS_ROOT,
+    get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with, push_file,
+    push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_str, File,
+    FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_scheduler::{
@@ -21,7 +25,7 @@ use hyperion_syscall::{
     id,
     net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
-use hyperion_vfs::{path::Path, tree::Node};
+use hyperion_vfs::{path::Path, ramdisk, tree::Node};
 use time::Duration;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -58,6 +62,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::GET_TID => call_id(get_tid, args),
 
         id::DUP => call_id(dup, args),
+        id::OPEN_DIR => call_id(open_dir, args),
 
         _ => {
             debug!("invalid syscall");
@@ -524,4 +529,37 @@ pub fn dup(args: &mut SyscallRegs) -> Result<usize> {
     files.replace(new.0, old); // drop => close the old one
 
     Ok(new.0 as _)
+}
+
+/// open a directory
+///
+/// [`hyperion_syscall::open_dir`]
+pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
+    let path = read_untrusted_str(args.arg0, args.arg1)?;
+
+    let mut dir = VFS_ROOT
+        .find_dir(path, false)
+        .map_err(map_vfs_err_to_syscall_err)?
+        .lock_arc();
+
+    let s = dir.nodes().map_err(map_vfs_err_to_syscall_err)?;
+
+    let mut buf = String::new(); // TODO: real readdir
+    for name in s.iter() {
+        let node = dir.get_node(name).map_err(map_vfs_err_to_syscall_err)?;
+
+        let (mode, size) = match node {
+            Node::File(f) => ('f', f.lock().len()),
+            Node::Directory(d) => ('d', 0),
+        };
+
+        writeln!(&mut buf, "{mode} {size} {name}").unwrap();
+    }
+
+    let fd = push_file(FileInner {
+        file_ref: Arc::new(Mutex::new(ramdisk::File::new(Vec::from(buf)))),
+        position: 0,
+    });
+
+    Ok(fd.0)
 }

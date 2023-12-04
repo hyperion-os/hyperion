@@ -51,6 +51,10 @@ impl<T> NumberPostfixed<T> {
     pub fn into_inner(self) -> T {
         self.n
     }
+
+    pub fn scale(self) -> &'static str {
+        self.scale
+    }
 }
 
 //
@@ -89,7 +93,7 @@ impl<T> fmt::Display for NumberPostfixed<T>
 where
     T: fmt::Display,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.n, self.scale)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}", self.n, self.scale)
     }
 }
