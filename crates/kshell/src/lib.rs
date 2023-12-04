@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use alloc::string::String;
+use alloc::{string::String, sync::Arc};
 use core::num::ParseIntError;
 
 use futures_util::StreamExt;
@@ -13,6 +13,7 @@ use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_futures::{keyboard::KeyboardEvents, timer::ticks};
 use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_random::Rng;
+use hyperion_scheduler::lock::Mutex;
 use hyperion_vfs::{error::IoError, path::PathBuf, ramdisk};
 use snafu::Snafu;
 use time::Duration;
@@ -33,8 +34,12 @@ pub async fn kshell() {
     // TODO: initrd
     let bin = include_bytes!(env!("CARGO_BIN_FILE_SAMPLE_ELF"));
     VFS_ROOT.install_dev("/bin/run", ramdisk::File::new(bin.into()));
-    let bin = include_bytes!(env!("CARGO_BIN_FILE_CAT"));
-    VFS_ROOT.install_dev("/bin/cat", ramdisk::File::new(bin.into()));
+    let bin = include_bytes!(env!("CARGO_BIN_FILE_COREUTILS"));
+    let bin = Arc::new(Mutex::new(ramdisk::File::new(bin.into())));
+
+    VFS_ROOT.install_dev_ref("/bin/coreutils", bin.clone());
+    VFS_ROOT.install_dev_ref("/bin/cat", bin.clone());
+    VFS_ROOT.install_dev_ref("/bin/ls", bin);
 
     let term = Term::new();
     let mut shell = Shell::new(term);
