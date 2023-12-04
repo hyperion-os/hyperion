@@ -8,7 +8,7 @@ use core::{hint::spin_loop, str::from_utf8};
 
 use libstd::{
     alloc::format,
-    fs::OpenOptions,
+    fs::{OpenOptions, Stdin, STDIN},
     println,
     sys::{
         err::Result,
@@ -24,6 +24,8 @@ use libstd::{
 fn run_server() -> Result<()> {
     let server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
     bind(server, "/dev/server.sock")?;
+
+    close(Stdin::FD).unwrap();
 
     rename("local server")?;
 

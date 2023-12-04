@@ -10,7 +10,7 @@ use core::any::Any;
 use hyperion_arch::vmm::PageMap;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
-    ipc::pipe::{Channel, Pipe, Receiver, Sender},
+    ipc::pipe::{self, channel_with, pipe, pipe_with, Channel, Receiver, Sender},
     lock::{Futex, Mutex},
     process,
     task::{Process, ProcessExt},
@@ -103,15 +103,19 @@ impl FileDevice for PipeInput {
         0
     }
 
-    fn read(&self, _: usize, _: &mut [u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
+    fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
+        if let Ok(n) = self.0.weak_recv_slice(buf) {
+            Ok(n)
+        } else {
+            Ok(0)
+        }
     }
 
-    fn write(&mut self, _: usize, buf: &[u8]) -> IoResult<usize> {
-        if self.0.send_slice(buf).is_err() {
+    fn write(&mut self, _: usize, data: &[u8]) -> IoResult<usize> {
+        if self.0.send_slice(data).is_err() {
             Ok(0)
         } else {
-            Ok(buf.len())
+            Ok(data.len())
         }
     }
 }
@@ -135,8 +139,12 @@ impl FileDevice for PipeOutput {
         }
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
+    fn write(&mut self, _: usize, data: &[u8]) -> IoResult<usize> {
+        if self.0.weak_send_slice(data).is_err() {
+            Ok(0)
+        } else {
+            Ok(data.len())
+        }
     }
 }
 
@@ -191,10 +199,8 @@ pub struct LocalSocketConn {
 
 impl LocalSocketConn {
     pub fn new() -> (Self, Self) {
-        let pipe_0 = Pipe::new(0x1000);
-        let pipe_1 = Pipe::new(0x1000);
-        let (send_0, recv_1) = pipe_0.split();
-        let (send_1, recv_0) = pipe_1.split();
+        let (send_0, recv_1) = channel_with(0x1000);
+        let (send_1, recv_0) = channel_with(0x1000);
         (
             Self {
                 send: send_0,

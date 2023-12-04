@@ -23,7 +23,7 @@ use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::{
     idle,
-    ipc::pipe::pipe,
+    ipc::pipe::{channel, pipe},
     schedule, spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
@@ -530,18 +530,32 @@ impl Shell {
         let name = "/bin/run";
         let args = args.map(String::from);
 
-        let (stdin_tx, stdin_rx) = pipe();
-        let (stdout_tx, stdout_rx) = pipe();
+        // let stdin_tx = pipe();
+        // let stdin_rx = stdin_tx.clone();
+        // let stdout_tx = pipe();
+        // let stderr_tx = stdout_tx.clone();
+        // let stdout_rx = stdout_tx.clone();
+
+        let (stdin_tx, stdin_rx) = channel();
+        let (stdout_tx, stdout_rx) = channel();
         // let (stderr_tx, stderr_rx) = pipe();
         let stderr_tx = stdout_tx.clone();
 
         let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
 
-        spawn(move || loop {
-            let mut buf = [0; 128];
-            let len = stdout_rx.recv_slice(&mut buf).unwrap();
-            let str = core::str::from_utf8(&buf[..len]).unwrap();
-            o_tx.send(str.to_string());
+        spawn(move || {
+            loop {
+                let mut buf = [0; 128];
+                let Ok(len) = stdout_rx.recv_slice(&mut buf) else {
+                    break;
+                };
+                let Ok(str) = core::str::from_utf8(&buf[..len]) else {
+                    break;
+                };
+                o_tx.send(Some(str.to_string()));
+            }
+
+            o_tx.send(None);
         });
 
         let pid = schedule(move || {
@@ -622,10 +636,11 @@ impl Shell {
                         }
                     }
                 }
-                Some(Err(s)) => {
+                Some(Err(Some(s))) => {
                     _ = write!(self.term, "{s}");
                     self.term.flush();
                 }
+                Some(Err(None)) => break,
                 None => break,
             }
         }

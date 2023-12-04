@@ -19,24 +19,22 @@ use crate::io::{BufWriter, ConstBufReader};
 pub static STDIN: Stdin = {
     static mut STDIN_BUF: [u8; 4096] = [0u8; 4096];
     Stdin(Mutex::new(ConstBufReader::new(
-        unsafe { File::new(FileDesc(0)) },
+        unsafe { File::new(Stdin::FD) },
         unsafe { &mut STDIN_BUF },
     )))
 };
 
-pub static STDOUT: Stdout = Stdout(Mutex::new(BufWriter::new(unsafe {
-    File::new(FileDesc(1))
-})));
+pub static STDOUT: Stdout = Stdout(Mutex::new(BufWriter::new(unsafe { File::new(Stdout::FD) })));
 
-pub static STDERR: Stderr = Stderr(Mutex::new(BufWriter::new(unsafe {
-    File::new(FileDesc(2))
-})));
+pub static STDERR: Stderr = Stderr(Mutex::new(BufWriter::new(unsafe { File::new(Stderr::FD) })));
 
 //
 
 pub struct Stdin(Mutex<ConstBufReader<'static, File>>);
 
 impl Stdin {
+    pub const FD: FileDesc = FileDesc(0);
+
     pub fn lock(&self) -> MutexGuard<ConstBufReader<'static, File>> {
         self.0.lock()
     }
@@ -47,6 +45,8 @@ impl Stdin {
 pub struct Stdout(Mutex<BufWriter<File>>);
 
 impl Stdout {
+    pub const FD: FileDesc = FileDesc(1);
+
     pub fn lock(&self) -> MutexGuard<BufWriter<File>> {
         self.0.lock()
     }
@@ -57,6 +57,8 @@ impl Stdout {
 pub struct Stderr(Mutex<BufWriter<File>>);
 
 impl Stderr {
+    pub const FD: FileDesc = FileDesc(2);
+
     pub fn lock(&self) -> MutexGuard<BufWriter<File>> {
         self.0.lock()
     }

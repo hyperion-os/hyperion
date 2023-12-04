@@ -1,5 +1,6 @@
 use alloc::sync::Arc;
 use core::{
+    any::type_name,
     ptr::NonNull,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
@@ -8,8 +9,20 @@ use crate::{futex, lock::Mutex, process, task::Pid};
 
 //
 
-pub fn pipe() -> (Sender<u8>, Receiver<u8>) {
+pub fn channel() -> (Sender<u8>, Receiver<u8>) {
     Pipe::new_pipe().split()
+}
+
+pub fn channel_with(capacity: usize) -> (Sender<u8>, Receiver<u8>) {
+    Pipe::new(capacity).split()
+}
+
+pub fn pipe() -> Arc<Channel<u8>> {
+    Arc::new(Pipe::new_pipe())
+}
+
+pub fn pipe_with(capacity: usize) -> Arc<Channel<u8>> {
+    Arc::new(Pipe::new(capacity))
 }
 
 //
@@ -35,6 +48,11 @@ impl<T> Sender<T> {
 }
 
 impl<T: Copy> Sender<T> {
+    /// Sender doesn't keep the recv side open
+    pub fn weak_recv_slice(&self, buf: &mut [T]) -> Result<usize, Closed> {
+        self.inner.recv_slice(buf)
+    }
+
     pub fn send_slice(&self, data: &[T]) -> Result<(), Closed> {
         self.inner.send_slice(data)
     }
@@ -64,6 +82,11 @@ impl<T> Receiver<T> {
 }
 
 impl<T: Copy> Receiver<T> {
+    /// Receiver doesn't keep the send side open
+    pub fn weak_send_slice(&self, data: &[T]) -> Result<(), Closed> {
+        self.inner.send_slice(data)
+    }
+
     pub fn recv_slice(&self, buf: &mut [T]) -> Result<usize, Closed> {
         self.inner.recv_slice(buf)
     }
@@ -134,6 +157,11 @@ impl<T> Channel<T> {
         loop {
             let n_recv = self.n_recv.load(Ordering::Acquire);
             let closed = self.recv_closed.load(Ordering::Acquire);
+
+            if self.send_closed.load(Ordering::Acquire) {
+                return Err(Closed);
+            }
+
             if let Err(overflow) = stream.push(item) {
                 if closed {
                     return Err(Closed);
@@ -163,6 +191,11 @@ impl<T> Channel<T> {
         loop {
             let n_send = self.n_send.load(Ordering::Acquire);
             let closed = self.send_closed.load(Ordering::Acquire);
+
+            if self.recv_closed.load(Ordering::Acquire) {
+                return Err(Closed);
+            }
+
             if let Some(item) = stream.pop() {
                 self.n_recv.fetch_add(1, Ordering::Release);
 
@@ -185,14 +218,14 @@ impl<T> Channel<T> {
     }
 
     fn close_send(&self) {
-        self.n_send.fetch_add(1, Ordering::Release);
-        self.send_closed.store(true, Ordering::Release);
+        self.send_closed.store(true, Ordering::SeqCst);
+        self.n_send.fetch_add(1, Ordering::Acquire);
         futex::wake(NonNull::from(&self.n_send), usize::MAX);
     }
 
     fn close_recv(&self) {
-        self.n_recv.fetch_add(1, Ordering::Release);
-        self.recv_closed.store(true, Ordering::Release);
+        self.recv_closed.store(true, Ordering::SeqCst);
+        self.n_recv.fetch_add(1, Ordering::Acquire);
         futex::wake(NonNull::from(&self.n_recv), usize::MAX);
     }
 }
@@ -211,6 +244,11 @@ where
         loop {
             let n_recv = self.n_recv.load(Ordering::Acquire);
             let closed = self.recv_closed.load(Ordering::Acquire);
+
+            if self.send_closed.load(Ordering::Acquire) {
+                return Err(Closed);
+            }
+
             let sent = stream.push_slice(data);
             data = &data[sent..];
 
@@ -241,6 +279,11 @@ where
         loop {
             let n_send = self.n_send.load(Ordering::Acquire);
             let closed = self.send_closed.load(Ordering::Acquire);
+
+            if self.recv_closed.load(Ordering::Acquire) {
+                return Err(Closed);
+            }
+
             let count = stream.pop_slice(buf);
 
             self.n_recv.fetch_add(count, Ordering::Release);
