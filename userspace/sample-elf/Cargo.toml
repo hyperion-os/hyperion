@@ -1,5 +1,5 @@
 [package]
-name = "hyperion-sample-elf"
+name = "sample-elf"
 version.workspace = true
 edition.workspace = true
 
@@ -8,4 +8,4 @@ edition.workspace = true
 [dependencies]
 x86_64.workspace = true    
 
-libstd.path = "../libstd"
+libstd.path = "../../crates/libstd"

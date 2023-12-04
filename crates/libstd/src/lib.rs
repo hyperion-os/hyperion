@@ -15,7 +15,7 @@ use core::fmt::{self, Write};
 
 use hyperion_syscall::exit;
 
-use self::fs::STDOUT;
+use self::fs::{STDERR, STDOUT};
 
 //
 
@@ -31,16 +31,49 @@ pub mod thread;
 //
 
 #[macro_export]
-macro_rules! println {
+macro_rules! print {
     ($($v:tt)*) => {
-        $crate::_print(format_args_nl!($($v)*))
+        $crate::_print(format_args!($($v)*))
+    };
+}
+
+#[macro_export]
+macro_rules! eprint {
+    ($($v:tt)*) => {
+        $crate::_eprint(format_args!($($v)*))
+    };
+}
+
+#[macro_export]
+macro_rules! println {
+    () => {
+        $crate::print!("\n");
+    };
+
+    ($($v:tt)+) => {
+        $crate::print!("{}\n", format_args!($($v)*))
+    };
+}
+
+#[macro_export]
+macro_rules! eprintln {
+    () => {
+        $crate::eprint!("\n");
+    };
+
+    ($($v:tt)*) => {
+        $crate::eprint!("{}\n", format_args!($($v)*))
     };
 }
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    let mut stdout = STDOUT.lock();
-    _ = stdout.write_fmt(args);
+    _ = STDOUT.lock().write_fmt(args);
+}
+
+#[doc(hidden)]
+pub fn _eprint(args: fmt::Arguments) {
+    _ = STDERR.lock().write_fmt(args);
 }
 
 //

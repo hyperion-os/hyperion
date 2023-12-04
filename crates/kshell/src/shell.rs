@@ -74,11 +74,6 @@ impl Shell {
         let cmdbuf = self.cmdbuf.clone();
         let mut cmdbuf = cmdbuf.lock();
 
-        if ev.state == ElementState::PressHold && ev.keycode == KeyCode::Home {
-            _ = self.run_cmd(None).await;
-            return Some(());
-        }
-
         let Some(ev) = ev.unicode else {
             return Some(());
         };
@@ -548,12 +543,6 @@ impl Shell {
         Ok(())
     }
 
-    async fn run_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let elf_bytes = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
-        self.run_cmd_from("/bin/run".into(), Cow::Borrowed(elf_bytes), args)
-            .await
-    }
-
     async fn run_cmd_from(
         &mut self,
         name: Cow<'static, str>,
@@ -617,10 +606,6 @@ impl Shell {
 
             hyperion_log::trace!("spawning \"{name}\" with args {args:?}");
 
-            hyperion_log::trace!(
-                "ELF file from: {}",
-                env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF")
-            );
             let loader = hyperion_loader::Loader::new(elf.as_ref());
 
             loader.load();

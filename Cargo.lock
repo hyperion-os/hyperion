@@ -716,12 +716,12 @@ dependencies = [
  "hyperion-mem",
  "hyperion-num-postfix",
  "hyperion-random",
- "hyperion-sample-elf",
  "hyperion-scheduler",
  "hyperion-vfs",
  "itertools",
  "libm",
  "lock_api",
+ "sample-elf",
  "snafu",
  "spin",
  "time",
@@ -804,14 +804,6 @@ dependencies = [
  "rand",
  "rand_chacha",
  "spin",
-]
-
-[[package]]
-name = "hyperion-sample-elf"
-version = "0.1.0"
-dependencies = [
- "libstd",
- "x86_64",
 ]
 
 [[package]]
@@ -1114,6 +1106,14 @@ name = "rustversion"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
+
+[[package]]
+name = "sample-elf"
+version = "0.1.0"
+dependencies = [
+ "libstd",
+ "x86_64",
+]
 
 [[package]]
 name = "scopeguard"

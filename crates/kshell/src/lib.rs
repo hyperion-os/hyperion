@@ -30,7 +30,8 @@ pub mod term;
 pub async fn kshell() {
     hyperion_futures::executor::spawn(spinner());
 
-    let bin = include_bytes!(env!("CARGO_BIN_FILE_HYPERION_SAMPLE_ELF"));
+    // TODO: initrd
+    let bin = include_bytes!(env!("CARGO_BIN_FILE_SAMPLE_ELF"));
     VFS_ROOT.install_dev("/bin/run", ramdisk::File::new(bin.into()));
     let bin = include_bytes!(env!("CARGO_BIN_FILE_CAT"));
     VFS_ROOT.install_dev("/bin/cat", ramdisk::File::new(bin.into()));
