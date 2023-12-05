@@ -99,10 +99,17 @@ pub struct SlabAllocatorStats {
 pub struct Slab<P, Lock> {
     pub size: usize,
 
+    // head: Mutex<Lock, Option<NonNull<Node>>>,
     next: Mutex<Lock, *mut u8>,
 
     _p: PhantomData<P>,
 }
+
+// DST, `size_of::<Self>() == Slab.size`
+// struct Node {
+//     next: Option<NonNull<Self>>,
+//     data: [u8; 0],
+// }
 
 unsafe impl<P, Lock: Sync> Sync for Slab<P, Lock> {}
 unsafe impl<P, Lock: Send> Send for Slab<P, Lock> {}
