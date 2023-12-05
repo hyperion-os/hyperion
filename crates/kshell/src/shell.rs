@@ -474,6 +474,7 @@ impl Shell {
 
         let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
 
+        let o_tx_2 = o_tx.clone();
         spawn(move || {
             loop {
                 let mut buf = [0; 128];
@@ -483,9 +484,14 @@ impl Shell {
                 let Ok(str) = core::str::from_utf8(&buf[..len]) else {
                     break;
                 };
-                o_tx.send(Some(str.to_string()));
+                o_tx_2.send(Some(str.to_string()));
             }
 
+            o_tx_2.send(None);
+        });
+        let stdin_closed = stdin_tx.clone();
+        spawn(move || {
+            stdin_closed.wait_closed();
             o_tx.send(None);
         });
 
@@ -554,6 +560,7 @@ impl Shell {
                         self.term.flush();
 
                         let mut str = [0; 4];
+
                         let str = unicode.encode_utf8(&mut str);
 
                         // TODO: buffering

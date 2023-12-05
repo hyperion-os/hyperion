@@ -37,6 +37,10 @@ impl<T> Sender<T> {
         self.inner.send(item)
     }
 
+    pub fn wait_closed(&self) {
+        self.inner.recv_closed();
+    }
+
     pub fn close(&self) {
         self.inner.close_send()
     }
@@ -69,6 +73,10 @@ pub struct Receiver<T> {
 impl<T> Receiver<T> {
     pub fn recv(&self) -> Result<T, Closed> {
         self.inner.recv()
+    }
+
+    pub fn wait_closed(&self) {
+        self.inner.send_closed();
     }
 
     pub fn close(&self) {
@@ -187,6 +195,30 @@ impl<T> Channel<T> {
                 self.recv_wait.notify_one();
                 s_closed = self.send_wait.wait(s_closed);
             }
+        }
+    }
+
+    /// wait for the sender to be closed
+    pub fn send_closed(&self) {
+        let mut s_closed = self.send_closed.lock();
+        loop {
+            if *s_closed {
+                return;
+            }
+
+            s_closed = self.send_wait.wait(s_closed);
+        }
+    }
+
+    /// wait for the receiver to be closed
+    pub fn recv_closed(&self) {
+        let mut r_closed = self.recv_closed.lock();
+        loop {
+            if *r_closed {
+                return;
+            }
+
+            r_closed = self.recv_wait.wait(r_closed);
         }
     }
 
