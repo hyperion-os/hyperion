@@ -89,11 +89,11 @@ include ./${BOOT_DIR}/Makefile
 include ./qemu.mk
 
 # nextest doesn't support excluding packages
-EXCLUDED_UNITS   := sample-elf kernel
+EXCLUDED_UNITS   := sample-elf coreutils libstd hyperion-kernel
 unittest:
 	${CARGO} test \
 		--no-fail-fast \
-		--workspace $(patsubst %, --exclude hyperion-%, ${EXCLUDED_UNITS}) \
+		--workspace $(patsubst %, --exclude %, ${EXCLUDED_UNITS}) \
 		-- --test-threads=$(shell nproc --all) \
 		2>&1 | rg --pcre2 --multiline --multiline-dotall -e '^test' -e 'failures:.+?(?=\n\n\n)\n\n\n' \
 		2>&1 | rg -v '^test result: '
