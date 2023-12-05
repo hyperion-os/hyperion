@@ -1,6 +1,5 @@
 use core::{
     hint::spin_loop,
-    ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -45,8 +44,7 @@ unsafe impl lock_api::RawMutex for Futex {
             .is_err()
         {
             // wait until the lock looks unlocked before retrying
-            let addr = NonNull::from(&self.lock);
-            futex::wait(addr, LOCKED);
+            futex::wait(&self.lock, LOCKED);
         }
     }
 
@@ -61,8 +59,7 @@ unsafe impl lock_api::RawMutex for Futex {
         self.lock.store(UNLOCKED, Ordering::Release);
 
         // and THEN wake up waiting threads
-        let addr = NonNull::from(&self.lock);
-        futex::wake(addr, 1);
+        futex::wake(&self.lock, 1);
     }
 }
 
@@ -98,8 +95,7 @@ unsafe impl lock_api::RawMutex for AutoFutex {
             }
 
             // wait until the lock looks unlocked before retrying
-            let addr = NonNull::from(&self.lock);
-            futex::wait(addr, LOCKED);
+            futex::wait(&self.lock, LOCKED);
         }
     }
 
@@ -118,7 +114,6 @@ unsafe impl lock_api::RawMutex for AutoFutex {
         }
 
         // and THEN wake up waiting threads
-        let addr = NonNull::from(&self.lock);
-        futex::wake(addr, 1);
+        futex::wake(&self.lock, 1);
     }
 }

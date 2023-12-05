@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use libstd::{println, sys::nanosleep};
+use libstd::sys::nanosleep;
 
 //
 

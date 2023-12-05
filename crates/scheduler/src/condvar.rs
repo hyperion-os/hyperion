@@ -1,5 +1,4 @@
 use core::{
-    ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
     time::Duration,
 };
@@ -32,12 +31,12 @@ impl Condvar {
 
     pub fn notify_one(&self) {
         self.futex.fetch_add(1, Ordering::Relaxed);
-        futex::wake(NonNull::from(&self.futex), 1)
+        futex::wake(&self.futex, 1)
     }
 
     pub fn notify_all(&self) {
         self.futex.fetch_add(1, Ordering::Relaxed);
-        futex::wake(NonNull::from(&self.futex), usize::MAX)
+        futex::wake(&self.futex, usize::MAX)
     }
 
     pub fn wait<'a, T>(&self, mutex: MutexGuard<'a, Futex, T>) -> MutexGuard<'a, Futex, T> {
@@ -66,7 +65,7 @@ impl Condvar {
         // Wait, but only if there hasn't been any
         // notification since we unlocked the mutex.
         // let r = ..
-        futex::wait(NonNull::from(&self.futex), futex_value); // TODO: timeout
+        futex::wait(&self.futex, futex_value); // TODO: timeout
 
         _ = timeout;
         let r = false;
