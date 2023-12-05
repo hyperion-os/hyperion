@@ -1,6 +1,6 @@
 #![no_std]
 
-use core::ptr::NonNull;
+use core::{ptr::NonNull, sync::atomic::AtomicUsize};
 
 use err::Result;
 
@@ -46,6 +46,8 @@ pub mod id {
 
     pub const DUP: usize = 25;
     pub const OPEN_DIR: usize = 26;
+    pub const FUTEX_WAIT: usize = 27;
+    pub const FUTEX_WAKE: usize = 28;
 }
 
 //
@@ -278,4 +280,22 @@ pub fn dup(old: FileDesc, new: FileDesc) -> Result<FileDesc> {
 #[inline(always)]
 pub fn open_dir(path: &str) -> Result<FileDesc> {
     unsafe { syscall_2(id::OPEN_DIR, path.as_ptr() as _, path.len()) }.map(FileDesc)
+}
+
+/// futex wait if value at `addr` is `val`
+///
+/// wakes up when some other thread calls `futex_wake` on the same `addr`
+///
+/// the addr is translated so futexes in inter-process shmem should still work
+#[inline(always)]
+pub fn futex_wait(addr: &AtomicUsize, val: usize) {
+    unsafe { syscall_2(id::FUTEX_WAIT, addr as *const _ as usize, val) }.unwrap();
+}
+
+/// wake `num` threads that are sleeping on this `addr`
+///
+/// see [`futex_wait`]
+#[inline(always)]
+pub fn futex_wake(addr: &AtomicUsize, num: usize) {
+    unsafe { syscall_2(id::FUTEX_WAKE, addr as *const _ as usize, num) }.unwrap();
 }

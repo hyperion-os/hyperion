@@ -8,10 +8,11 @@ use core::str::from_utf8;
 
 use libstd::{
     alloc::format,
-    fs::{OpenOptions, Stdin},
+    fs::{File, OpenOptions, Stdin},
     println,
     sys::{
         err::Result,
+        fs::FileDesc,
         net::{Protocol, SocketDesc, SocketDomain, SocketType},
         *,
     },
@@ -95,15 +96,37 @@ fn run_client() -> Result<()> {
     }
 }
 
-// fn _test_duplicate_stdin() -> File {
-//     let dup = dup(STDIN.as_desc(), FileDesc(10)).unwrap();
-//     let stdin_dupe = unsafe { File::new(dup) };
-//     close(STDIN.as_desc()).unwrap();
-//     stdin_dupe
-// }
+fn _test_duplicate_stdin() -> File {
+    let dup = dup(Stdin::FD, FileDesc(10)).unwrap();
+    let stdin_dupe = unsafe { File::new(dup) };
+    close(Stdin::FD).unwrap();
+    stdin_dupe
+}
+
+fn _test_userspace_mutex() {
+    let counter = libstd::alloc::sync::Arc::new(libstd::sync::Mutex::new(0usize));
+    for _ in 0..100 {
+        let counter = counter.clone();
+        spawn(move || {
+            *counter.lock() += 1;
+        });
+    }
+
+    loop {
+        if *counter.lock() == 100 {
+            break;
+        }
+
+        yield_now();
+    }
+
+    println!("complete");
+}
 
 #[no_mangle]
 pub fn main(_args: CliArgs) {
+    // _test_userspace_mutex();
+
     // let mut stdin = _test_duplicate_stdin();
 
     // let mut reader = BufReader::new(&mut stdin);

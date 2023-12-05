@@ -27,6 +27,7 @@ pub mod sys {
 pub mod alloc;
 pub mod fs;
 pub mod io;
+pub mod sync;
 pub mod thread;
 
 //

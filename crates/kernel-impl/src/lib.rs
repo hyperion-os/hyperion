@@ -1,11 +1,12 @@
 #![no_std]
+#![feature(pointer_is_aligned)]
 
 //
 
 extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use core::any::Any;
+use core::{any::Any, mem};
 
 use hyperion_arch::vmm::PageMap;
 use hyperion_mem::vmm::PageMapImpl;
@@ -336,6 +337,14 @@ pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
     }
 
     Ok((start, len as _))
+}
+
+pub fn read_untrusted_ref<'a, T>(ptr: u64) -> Result<&'a T> {
+    if !(ptr as *const T).is_aligned() {
+        return Err(Error::INVALID_ADDRESS);
+    }
+
+    read_slice_parts(ptr, mem::size_of::<T>() as _).map(|(start, _)| unsafe { &*start.as_ptr() })
 }
 
 pub fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {

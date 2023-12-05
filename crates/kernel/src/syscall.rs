@@ -3,18 +3,19 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
-use core::{any::type_name_of_val, fmt::Write};
+use core::{any::type_name_of_val, fmt::Write, sync::atomic::AtomicUsize};
 
 use hyperion_arch::syscall::SyscallRegs;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
     get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with, push_file,
-    push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_str, File,
-    FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
+    push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_ref,
+    read_untrusted_str, File, FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_scheduler::{
+    futex,
     lock::Mutex,
     process, task,
     task::{AllocErr, FreeErr},
@@ -63,6 +64,8 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         id::DUP => call_id(dup, args),
         id::OPEN_DIR => call_id(open_dir, args),
+        id::FUTEX_WAIT => call_id(futex_wait, args),
+        id::FUTEX_WAKE => call_id(futex_wake, args),
 
         _ => {
             debug!("invalid syscall");
@@ -562,4 +565,28 @@ pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
     });
 
     Ok(fd.0)
+}
+
+/// futex wait
+///
+/// [`hyperion_syscall::futex_wait`]
+pub fn futex_wait(args: &mut SyscallRegs) -> Result<usize> {
+    let addr = read_untrusted_ref::<AtomicUsize>(args.arg0)?;
+    let val = args.arg1 as usize;
+
+    futex::wait(addr, val);
+
+    return Ok(0);
+}
+
+/// futex wake
+///
+/// [`hyperion_syscall::futex_wake`]
+pub fn futex_wake(args: &mut SyscallRegs) -> Result<usize> {
+    let addr = read_untrusted_ref::<AtomicUsize>(args.arg0)?;
+    let num = args.arg1 as usize;
+
+    futex::wake(addr, num);
+
+    return Ok(0);
 }
