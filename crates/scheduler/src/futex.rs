@@ -5,15 +5,18 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
+use x86_64::{PhysAddr, VirtAddr};
+
 use crate::{
     cleanup::Cleanup,
+    process,
     task::{switch_because, Task, TaskState},
     wait_next_task, READY,
 };
 
 //
 
-// TODO: translate the virtual address to a physical address, because of the address space switch
 /// if the value at `addr` is eq `val`, go to sleep
 pub fn wait(addr: &AtomicUsize, val: usize) {
     if addr.load(Ordering::SeqCst) != val {
@@ -24,7 +27,14 @@ pub fn wait(addr: &AtomicUsize, val: usize) {
 
     match next {
         Ok(next) => {
-            let addr = addr.into();
+            let addr: NonNull<AtomicUsize> = addr.into();
+
+            let addr = process()
+                .address_space
+                .page_map
+                .virt_to_phys(VirtAddr::from_ptr(addr.as_ptr()))
+                .unwrap();
+
             switch_because(next, TaskState::Sleeping, Cleanup::Wait { addr, val })
         }
         Err(()) => return,
@@ -33,16 +43,20 @@ pub fn wait(addr: &AtomicUsize, val: usize) {
 
 /// wake up threads waiting for events on this `addr`
 pub fn wake(addr: &AtomicUsize, num: usize) {
-    let addr: NonNull<AtomicUsize> = addr.into();
+    let addr = process()
+        .address_space
+        .page_map
+        .virt_to_phys(VirtAddr::from_ptr(addr.as_ptr()))
+        .unwrap();
 
-    WAITING.pop(addr.as_ptr() as usize, num);
+    WAITING.pop(addr.as_u64() as usize, num);
 }
 
 /// post switch cleanup
-pub fn cleanup(addr: NonNull<AtomicUsize>, val: usize, task: Task) {
-    let cancel = WAITING.push(addr.as_ptr() as usize, task, || {
-        let var: &AtomicUsize = unsafe { &*addr.as_ptr() };
+pub fn cleanup(addr: PhysAddr, val: usize, task: Task) {
+    let var = unsafe { &*to_higher_half(addr).as_ptr::<AtomicUsize>() };
 
+    let cancel = WAITING.push(addr.as_u64() as usize, task, || {
         // cancel the wait if var == val
         should_cancel(var, val)
     });

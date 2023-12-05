@@ -1,6 +1,5 @@
-use core::{ptr::NonNull, sync::atomic::AtomicUsize};
-
 use hyperion_instant::Instant;
+use x86_64::PhysAddr;
 
 use crate::{futex, schedule, sleep, task::Task};
 
@@ -21,13 +20,8 @@ impl CleanupTask {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Cleanup {
-    Sleep {
-        deadline: Instant,
-    },
-    Wait {
-        addr: NonNull<AtomicUsize>,
-        val: usize,
-    },
+    Sleep { deadline: Instant },
+    Wait { addr: PhysAddr, val: usize },
     Drop,
     Ready,
 }
