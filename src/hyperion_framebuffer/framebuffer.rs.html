@@ -179,6 +179,10 @@
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>core::{
     fmt,
     ops::{Deref, DerefMut, Range},
@@ -245,6 +249,10 @@
             <span class="prelude-val">Some</span>(Mutex::new(fbo))
         })
         .as_ref()
+    }
+
+    <span class="kw">pub fn </span>buf(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
+        <span class="self">self</span>.buf
     }
 
     <span class="kw">pub fn </span>buf_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[u8] {

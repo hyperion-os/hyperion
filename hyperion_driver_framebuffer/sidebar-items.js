@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["FboDevice"]};
+window.SIDEBAR_ITEMS = {"struct":["FboDevice","FboInfoDevice"]};

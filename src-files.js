@@ -1,6 +1,7 @@
 var srcIndex = JSON.parse('{\
 "cargo_run":["",[],["main.rs"]],\
 "coreutils":["",[],["cat.rs","ls.rs","main.rs","sleep.rs","touch.rs"]],\
+"fbtest":["",[],["main.rs"]],\
 "hyperion_arch":["",[],["lib.rs"]],\
 "hyperion_arch_x86_64":["",[["cpu",[],["gdt.rs","idt.rs","ints.rs","mod.rs","tss.rs"]]],["context.rs","lib.rs","paging.rs","pmm.rs","stack.rs","syscall.rs","tls.rs","vmm.rs"]],\
 "hyperion_backtrace":["",[],["lib.rs"]],\

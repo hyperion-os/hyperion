@@ -590,22 +590,94 @@
 <a href="#590" id="590">590</a>
 <a href="#591" id="591">591</a>
 <a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
 };
-<span class="kw">use </span>core::{any::type_name_of_val, fmt::Write, sync::atomic::AtomicUsize};
+<span class="kw">use </span>core::{
+    any::type_name_of_val,
+    fmt::Write,
+    ptr::NonNull,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 <span class="kw">use </span>hyperion_arch::syscall::SyscallRegs;
 <span class="kw">use </span>hyperion_drivers::acpi::hpet::HPET;
 <span class="kw">use </span>hyperion_instant::Instant;
 <span class="kw">use </span>hyperion_kernel_impl::{
-    get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with, push_file,
-    push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_ref,
-    read_untrusted_str, File, FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
+    get_file, get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with,
+    push_file, push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut,
+    read_untrusted_ref, read_untrusted_str, File, FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
 };
 <span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
+<span class="kw">use </span>hyperion_mem::vmm::PageMapImpl;
 <span class="kw">use </span>hyperion_scheduler::{
     futex,
     lock::Mutex,
@@ -614,13 +686,13 @@
 };
 <span class="kw">use </span>hyperion_syscall::{
     err::{Error, <span class="prelude-ty">Result</span>},
-    fs::{FileDesc, FileOpenFlags},
+    fs::{FileDesc, FileOpenFlags, Metadata},
     id,
     net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
 <span class="kw">use </span>hyperion_vfs::{path::Path, ramdisk, tree::Node};
 <span class="kw">use </span>time::Duration;
-<span class="kw">use </span>x86_64::{structures::paging::PageTableFlags, VirtAddr};
+<span class="kw">use </span>x86_64::{align_down, align_up, structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 <span class="comment">//
 
@@ -658,6 +730,10 @@
         id::OPEN_DIR =&gt; call_id(open_dir, args),
         id::FUTEX_WAIT =&gt; call_id(futex_wait, args),
         id::FUTEX_WAKE =&gt; call_id(futex_wake, args),
+
+        id::MAP_FILE =&gt; call_id(map_file, args),
+        id::UNMAP_FILE =&gt; call_id(unmap_file, args),
+        id::METADATA =&gt; call_id(metadata, args),
 
         <span class="kw">_ </span>=&gt; {
             <span class="macro">debug!</span>(<span class="string">"invalid syscall"</span>);
@@ -848,15 +924,7 @@
 </span><span class="kw">pub fn </span>read(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>buf = read_untrusted_bytes_mut(args.arg1, args.arg2)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
-
-    <span class="kw">let </span><span class="kw-2">mut </span>files = ext.files.lock();
-
-    <span class="kw">let </span><span class="kw-2">mut </span>file = files
-        .get_mut(args.arg0 <span class="kw">as _</span>)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
-        </span>.lock_arc();
+    <span class="kw">let </span><span class="kw-2">mut </span>file = get_file(FileDesc(args.arg0 <span class="kw">as </span>usize))<span class="question-mark">?</span>.lock_arc();
 
     <span class="kw">let </span>read = file
         .file_ref
@@ -874,15 +942,7 @@
 </span><span class="kw">pub fn </span>write(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>buf = read_untrusted_bytes(args.arg1, args.arg2)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
-
-    <span class="kw">let </span><span class="kw-2">mut </span>files = ext.files.lock();
-
-    <span class="kw">let </span><span class="kw-2">mut </span>file = files
-        .get_mut(args.arg0 <span class="kw">as _</span>)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
-        </span>.lock_arc();
+    <span class="kw">let </span><span class="kw-2">mut </span>file = get_file(FileDesc(args.arg0 <span class="kw">as </span>usize))<span class="question-mark">?</span>.lock_arc();
 
     <span class="kw">let </span>written = file
         .file_ref
@@ -1181,5 +1241,77 @@
     futex::wake(addr, num);
 
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="doccomment">/// map file to memory
+///
+/// [`hyperion_syscall::map_file`]
+</span><span class="kw">pub fn </span>map_file(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>file = FileDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>at = NonNull::new(args.arg1 <span class="kw">as </span><span class="kw-2">*mut </span>());
+    <span class="kw">let </span>size = args.arg2 <span class="kw">as </span>usize;
+    <span class="kw">let </span>offset = args.arg3 <span class="kw">as </span>usize;
+
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(at) = at {
+        <span class="macro">error!</span>(<span class="string">"handle map_file at {at:?}"</span>);
+    }
+    <span class="kw">if </span>offset != <span class="number">0 </span>{
+        <span class="macro">error!</span>(<span class="string">"handle map_file offset {offset:?}"</span>);
+    }
+
+    <span class="kw">let </span><span class="kw-2">mut </span>file = get_file(file)<span class="question-mark">?</span>.lock().file_ref.lock_arc();
+
+    <span class="kw">let </span>phys = file.map_phys(size).map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>this = process();
+
+    <span class="kw">let </span>size = align_up(size <span class="kw">as _</span>, <span class="number">0x1000</span>);
+    <span class="kw">let </span>bottom = align_down(
+        this.heap_bottom.fetch_add(size <span class="kw">as </span>usize, Ordering::SeqCst) <span class="kw">as </span>u64,
+        <span class="number">0x1000</span>,
+    );
+
+    <span class="kw">let </span>bottom = VirtAddr::new(bottom);
+    this.address_space.page_map.map(
+        bottom..bottom + size,
+        PhysAddr::new(phys <span class="kw">as _</span>),
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
+    );
+
+    <span class="prelude-val">Ok</span>(bottom.as_u64() <span class="kw">as </span>usize)
+}
+
+<span class="doccomment">/// unmap file from memory
+///
+/// [`hyperion_syscall::unmap_file`]
+</span><span class="kw">pub fn </span>unmap_file(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>file = FileDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>at = NonNull::new(args.arg1 <span class="kw">as </span><span class="kw-2">*mut </span>());
+    <span class="kw">let </span>size = args.arg2 <span class="kw">as </span>usize;
+
+    <span class="macro">hyperion_log::debug!</span>(<span class="string">"unmap_file({file:?}, {at:?}, {size})"</span>);
+
+    <span class="kw">let </span>file = get_file(file)<span class="question-mark">?</span>.lock_arc();
+
+    file.file_ref
+        .lock()
+        .unmap_phys()
+        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
+
+    <span class="prelude-val">Ok</span>(<span class="number">0</span>)
+}
+
+<span class="doccomment">/// get file metadata
+///
+/// [`hyperion_syscall::metadata`]
+</span><span class="kw">pub fn </span>metadata(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="macro">hyperion_log::debug!</span>(<span class="string">"metadata: a0:{} a1:{:#x}"</span>, args.arg0, args.arg1);
+    <span class="kw">let </span>file = FileDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>meta: <span class="kw-2">&amp;mut </span>Metadata = read_untrusted_mut(args.arg1)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>file = get_file(file)<span class="question-mark">?</span>.lock().file_ref.lock_arc();
+    meta.len = file.len();
+
+    <span class="prelude-val">Ok</span>(<span class="number">0</span>)
 }
 </code></pre></div></section></main></body></html>

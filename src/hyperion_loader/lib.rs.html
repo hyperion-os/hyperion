@@ -311,7 +311,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>init_stack(args: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; VirtAddr {
+    <span class="kw">pub fn </span>init_stack(args: <span class="kw-2">&amp;</span>[<span class="kw-2">&amp;</span>str]) -&gt; (VirtAddr, VirtAddr) {
         <span class="kw">let </span><span class="kw-2">mut </span>stack_top = hyperion_scheduler::task().user_stack.lock().top;
 
         <span class="kw">for </span>arg <span class="kw">in </span>args.iter().rev() {
@@ -326,7 +326,7 @@
 
         push(<span class="kw-2">&amp;mut </span>stack_top, args.len() <span class="kw">as </span>u64);
 
-        stack_top
+        (stack_top.align_down(<span class="number">0x8u64</span>), stack_top)
     }
 
     <span class="comment">// TODO: impl args
@@ -342,10 +342,10 @@
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">let </span>stack_top = <span class="self">Self</span>::init_stack(args);
+        <span class="kw">let </span>(stack_top, arg) = <span class="self">Self</span>::init_stack(args);
 
         <span class="macro">trace!</span>(<span class="string">"Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}"</span>);
-        <span class="kw">unsafe </span>{ syscall::userland(VirtAddr::new(entrypoint), stack_top, stack_top.as_u64(), <span class="number">69</span>) };
+        <span class="kw">unsafe </span>{ syscall::userland(VirtAddr::new(entrypoint), stack_top, arg.as_u64(), <span class="number">69</span>) };
     }
 }
 

@@ -299,14 +299,57 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
-</span><span class="kw">use </span>core::{ptr::NonNull, sync::atomic::AtomicUsize};
+</span><span class="kw">use </span>core::{
+    ptr::{<span class="self">self</span>, NonNull},
+    sync::atomic::AtomicUsize,
+};
 
 <span class="kw">use </span>err::Result;
 
 <span class="kw">use </span><span class="self">self</span>::{
-    fs::{FileDesc, FileOpenFlags},
+    fs::{FileDesc, FileOpenFlags, Metadata},
     net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
 
@@ -349,6 +392,10 @@
     <span class="kw">pub const </span>OPEN_DIR: usize = <span class="number">26</span>;
     <span class="kw">pub const </span>FUTEX_WAIT: usize = <span class="number">27</span>;
     <span class="kw">pub const </span>FUTEX_WAKE: usize = <span class="number">28</span>;
+
+    <span class="kw">pub const </span>MAP_FILE: usize = <span class="number">29</span>;
+    <span class="kw">pub const </span>UNMAP_FILE: usize = <span class="number">30</span>;
+    <span class="kw">pub const </span>METADATA: usize = <span class="number">31</span>;
 }
 
 <span class="comment">//
@@ -599,5 +646,38 @@
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>futex_wake(addr: <span class="kw-2">&amp;</span>AtomicUsize, num: usize) {
     <span class="kw">unsafe </span>{ syscall_2(id::FUTEX_WAKE, addr <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize, num) }.unwrap();
+}
+
+<span class="doccomment">/// map file contents to memory (mmap)
+///
+/// maps pages from the file at `align_down(offset, 0x1000)..align_up(offset+size, 0x1000)`
+/// to the virtual address space at `align_down(at, 0x1000)`, or anywhere if `at` is None
+///
+/// `at` should point to unmapped memory that has room for the pages
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>map_file(
+    file: FileDesc,
+    at: <span class="prelude-ty">Option</span>&lt;NonNull&lt;()&gt;&gt;,
+    size: usize,
+    offset: usize,
+) -&gt; <span class="prelude-ty">Result</span>&lt;NonNull&lt;()&gt;&gt; {
+    <span class="kw">let </span>at = at.map(NonNull::as_ptr).unwrap_or(ptr::null_mut()) <span class="kw">as </span>usize;
+    <span class="kw">unsafe </span>{ syscall_4(id::MAP_FILE, file.<span class="number">0</span>, at, size, offset) }
+        .map(|ptr| NonNull::new(ptr <span class="kw">as _</span>).unwrap())
+}
+
+<span class="doccomment">/// unmap device/file mapped memory (munmap)
+///
+/// see [`unmap_file`]
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>unmap_file(file: FileDesc, at: NonNull&lt;()&gt;, size: usize) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">let </span>at = at.as_ptr() <span class="kw">as </span>usize;
+    <span class="kw">unsafe </span>{ syscall_3(id::UNMAP_FILE, file.<span class="number">0</span>, at, size) }.map(|<span class="kw">_</span>| {})
+}
+
+<span class="doccomment">/// file metadata (stat)
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>metadata(file: FileDesc, metadata: <span class="kw-2">&amp;mut </span>Metadata) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">unsafe </span>{ syscall_2(id::METADATA, file.<span class="number">0</span>, metadata <span class="kw">as </span><span class="kw-2">*mut </span><span class="kw">_ as </span>usize) }.map(|<span class="kw">_</span>| {})
 }
 </code></pre></div></section></main></body></html>

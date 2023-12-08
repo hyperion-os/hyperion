@@ -151,16 +151,23 @@
 <a href="#151" id="151">151</a>
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![no_main]
+#![feature(slice_as_chunks)]
 
 </span><span class="comment">//
 
 </span><span class="kw">use </span>core::str::from_utf8;
 
 <span class="kw">use </span>libstd::{
-    alloc::format,
-    fs::{File, OpenOptions, Stdin},
+    alloc::{format, string::String},
+    fs::{File, OpenOptions, Stdin, STDOUT},
+    io::{BufReader, Write},
     println,
     sys::{
         err::Result,
@@ -275,26 +282,29 @@
     <span class="macro">println!</span>(<span class="string">"complete"</span>);
 }
 
+<span class="kw">fn </span>_repeat_stdin_to_stdout() {
+    <span class="kw">let </span><span class="kw-2">mut </span>stdin = _test_duplicate_stdin();
+
+    <span class="kw">let </span><span class="kw-2">mut </span>reader = BufReader::new(<span class="kw-2">&amp;mut </span>stdin);
+    <span class="comment">// let mut reader = BufReader::new(&amp;STDIN);
+    </span><span class="kw">let </span><span class="kw-2">mut </span>buf = String::new();
+    <span class="kw">loop </span>{
+        buf.clear();
+        <span class="kw">let </span>len = reader.read_line(<span class="kw-2">&amp;mut </span>buf).unwrap();
+
+        <span class="kw">if </span>len == <span class="number">0 </span>{
+            <span class="kw">break</span>;
+        }
+
+        <span class="kw">let </span>stdout = <span class="kw-2">&amp;</span>STDOUT;
+        stdout.lock().write(buf.as_bytes()).unwrap();
+    }
+}
+
 <span class="attr">#[no_mangle]
 </span><span class="kw">pub fn </span>main(_args: CliArgs) {
     <span class="comment">// _test_userspace_mutex();
-
-    // let mut stdin = _test_duplicate_stdin();
-
-    // let mut reader = BufReader::new(&amp;mut stdin);
-    // // let mut reader = BufReader::new(&amp;STDIN);
-    // let mut buf = String::new();
-    // loop {
-    //     buf.clear();
-    //     let len = reader.read_line(&amp;mut buf).unwrap();
-
-    //     if len == 0 {
-    //         break;
-    //     }
-
-    //     let stdout = &amp;STDOUT;
-    //     stdout.write(buf.as_bytes()).unwrap();
-    // }
+    // _repeat_stdin_to_stdout();
 
     </span><span class="macro">println!</span>(<span class="string">"PID:{} TID:{}"</span>, get_pid(), get_tid());
 

@@ -375,6 +375,30 @@
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![feature(pointer_is_aligned)]
 
@@ -637,6 +661,20 @@
     <span class="prelude-val">Ok</span>(socket)
 }
 
+<span class="kw">pub fn </span>get_file(file: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Mutex&lt;FileInner&gt;&gt;&gt; {
+    <span class="kw">let </span>this = process();
+    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>files = ext.files.lock();
+
+    <span class="kw">let </span>file = files
+        .get_mut(file.<span class="number">0</span>)
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
+        </span>.clone();
+
+    <span class="prelude-val">Ok</span>(file)
+}
+
 <span class="kw">pub fn </span>push_file(file: FileInner) -&gt; FileDesc {
     <span class="kw">let </span>this = process();
     <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
@@ -722,6 +760,16 @@
     }
 
     read_slice_parts(ptr, mem::size_of::&lt;T&gt;() <span class="kw">as _</span>).map(|(start, <span class="kw">_</span>)| <span class="kw">unsafe </span>{ <span class="kw-2">&amp;*</span>start.as_ptr() })
+}
+
+<span class="kw">pub fn </span>read_untrusted_mut&lt;<span class="lifetime">'a</span>, T&gt;(ptr: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>T&gt; {
+    <span class="kw">if </span>!(ptr <span class="kw">as </span><span class="kw-2">*const </span>T).is_aligned() {
+        <span class="macro">hyperion_log::debug!</span>(<span class="string">"not aligned"</span>);
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
+    }
+
+    read_slice_parts(ptr, mem::size_of::&lt;T&gt;() <span class="kw">as _</span>)
+        .map(|(start, <span class="kw">_</span>)| <span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut *</span>start.as_mut_ptr() })
 }
 
 <span class="kw">pub fn </span>read_untrusted_bytes&lt;<span class="lifetime">'a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>[u8]&gt; {

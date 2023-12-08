@@ -56,16 +56,141 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
+#![feature(pointer_is_aligned)]
 
 </span><span class="comment">//
 
-</span><span class="kw">use </span>hyperion_framebuffer::framebuffer::Framebuffer;
-<span class="kw">use </span>hyperion_vfs::{device::FileDevice, error::IoResult};
+</span><span class="kw">extern crate </span>alloc;
+
+<span class="kw">use </span>alloc::{format, string::String};
+
+<span class="kw">use </span>hyperion_framebuffer::framebuffer::Framebuffer;
+<span class="kw">use </span>hyperion_log::error;
+<span class="kw">use </span>hyperion_mem::from_higher_half;
+<span class="kw">use </span>hyperion_vfs::{
+    device::FileDevice,
+    error::{IoError, IoResult},
+};
+<span class="kw">use </span>spin::{MutexGuard, Once};
+<span class="kw">use </span>x86_64::VirtAddr;
 
 <span class="comment">//
 
-</span><span class="kw">pub struct </span>FboDevice;
+</span><span class="kw">pub struct </span>FboDevice {
+    maps: usize,
+
+    lock: <span class="prelude-ty">Option</span>&lt;MutexGuard&lt;<span class="lifetime">'static</span>, Framebuffer&gt;&gt;,
+}
+
+<span class="kw">pub struct </span>FboInfoDevice {
+    info: Once&lt;String&gt;,
+}
 
 <span class="comment">//
 
@@ -75,7 +200,46 @@
     </span>}
 
     <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="self">Self</span>::with(|fbo| fbo.len())
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(fbo) = <span class="self">self</span>.lock.as_ref() {
+            fbo.buf().len()
+        } <span class="kw">else </span>{
+            <span class="self">Self</span>::with(|fbo| fbo.len())
+        }
+    }
+
+    <span class="kw">fn </span>map_phys(<span class="kw-2">&amp;mut </span><span class="self">self</span>, size_bytes: usize) -&gt; IoResult&lt;usize&gt; {
+        <span class="self">self</span>.maps = <span class="self">self</span>.maps.checked_add(<span class="number">1</span>).ok_or(IoError::FilesystemError)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>lock = <span class="self">self
+            </span>.lock
+            .get_or_insert_with(|| Framebuffer::get().unwrap().lock());
+
+        <span class="kw">let </span>buf = lock.buf_mut();
+
+        <span class="kw">let </span>start = buf.as_mut_ptr();
+        <span class="kw">let </span>size = buf.len();
+
+        <span class="kw">if </span>size_bytes &gt; size {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(IoError::UnexpectedEOF);
+        }
+        <span class="kw">if </span>!start.is_aligned_to(<span class="number">0x1000</span>) || size % <span class="number">0x1000 </span>!= <span class="number">0 </span>{
+            <span class="macro">error!</span>(<span class="string">"framebuffer isnt aligned to a page"</span>);
+            <span class="kw">return </span><span class="prelude-val">Err</span>(IoError::FilesystemError);
+        }
+
+        <span class="kw">let </span>start = from_higher_half(VirtAddr::new(start <span class="kw">as </span>u64));
+
+        <span class="prelude-val">Ok</span>(start.as_u64() <span class="kw">as _</span>)
+    }
+
+    <span class="kw">fn </span>unmap_phys(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IoResult&lt;()&gt; {
+        <span class="self">self</span>.maps = <span class="self">self</span>.maps.checked_sub(<span class="number">1</span>).ok_or(IoError::FilesystemError)<span class="question-mark">?</span>;
+
+        <span class="kw">if </span><span class="self">self</span>.maps == <span class="number">0 </span>{
+            <span class="self">self</span>.lock = <span class="prelude-val">None</span>;
+        }
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>, offset: usize, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; IoResult&lt;usize&gt; {
@@ -88,6 +252,13 @@
 }
 
 <span class="kw">impl </span>FboDevice {
+    <span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            maps: <span class="number">0</span>,
+            lock: <span class="prelude-val">None</span>,
+        }
+    }
+
     <span class="kw">pub fn </span>with&lt;T&gt;(f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;</span>[u8]) -&gt; T) -&gt; T {
         <span class="kw">let </span>fbo = Framebuffer::get();
         <span class="kw">let </span><span class="kw-2">mut </span>lock;
@@ -112,6 +283,45 @@
         };
 
         f(this)
+    }
+}
+
+<span class="kw">impl </span>FileDevice <span class="kw">for </span>FboInfoDevice {
+    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>core::any::Any {
+        <span class="self">self
+    </span>}
+
+    <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.get().len()
+    }
+
+    <span class="kw">fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>, offset: usize, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; IoResult&lt;usize&gt; {
+        <span class="self">self</span>.get().as_bytes().read(offset, buf)
+    }
+
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: usize, <span class="kw">_</span>: <span class="kw-2">&amp;</span>[u8]) -&gt; IoResult&lt;usize&gt; {
+        <span class="prelude-val">Err</span>(IoError::PermissionDenied)
+    }
+}
+
+<span class="kw">impl </span>FboInfoDevice {
+    <span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ info: Once::new() }
+    }
+
+    <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="self">self</span>.info
+            .try_call_once(|| {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(fbo) = Framebuffer::get() {
+                    <span class="kw">let </span>fbo = fbo.lock();
+                    <span class="kw">let </span>info = <span class="macro">format!</span>(<span class="string">"{}:{}:{}:{}"</span>, fbo.width, fbo.height, fbo.pitch, <span class="number">32</span>);
+                    <span class="prelude-val">Ok</span>(info)
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(())
+                }
+            })
+            .map(|s| s.as_str())
+            .unwrap_or(<span class="string">""</span>)
     }
 }
 </code></pre></div></section></main></body></html>
