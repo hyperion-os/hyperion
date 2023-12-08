@@ -3,11 +3,12 @@
 
 //
 
-use core::str::from_utf8;
+use core::{ptr::write_volatile, str::from_utf8};
 
 use libstd::{
-    alloc::format,
-    fs::{File, OpenOptions, Stdin},
+    alloc::{format, string::String},
+    fs::{File, OpenOptions, Stdin, STDOUT},
+    io::{BufReader, Write},
     println,
     sys::{
         err::Result,
@@ -122,26 +123,50 @@ fn _test_userspace_mutex() {
     println!("complete");
 }
 
+fn _repeat_stdin_to_stdout() {
+    let mut stdin = _test_duplicate_stdin();
+
+    let mut reader = BufReader::new(&mut stdin);
+    // let mut reader = BufReader::new(&STDIN);
+    let mut buf = String::new();
+    loop {
+        buf.clear();
+        let len = reader.read_line(&mut buf).unwrap();
+
+        if len == 0 {
+            break;
+        }
+
+        let stdout = &STDOUT;
+        stdout.lock().write(buf.as_bytes()).unwrap();
+    }
+}
+
+fn _framebuffer_ops() {
+    let fbo = OpenOptions::new().write(true).open("/dev/fbo").unwrap();
+    // let meta = fbo.metadata().unwrap();
+
+    let fbo_mapped = map_file(fbo.as_desc(), None, 0, 0).unwrap();
+
+    let mut cursor = fbo_mapped.as_ptr() as *mut _;
+    for _ in 0..200 {
+        for _ in 0..1000 {
+            unsafe { write_volatile(cursor, u64::MAX) };
+            cursor = unsafe { cursor.add(1) };
+        }
+
+        // fill the screen slowly
+        nanosleep(10_000_000);
+    }
+    unmap_file(fbo.as_desc(), fbo_mapped, 0).unwrap();
+}
+
 #[no_mangle]
 pub fn main(_args: CliArgs) {
     // _test_userspace_mutex();
+    // _repeat_stdin_to_stdout();
 
-    // let mut stdin = _test_duplicate_stdin();
-
-    // let mut reader = BufReader::new(&mut stdin);
-    // // let mut reader = BufReader::new(&STDIN);
-    // let mut buf = String::new();
-    // loop {
-    //     buf.clear();
-    //     let len = reader.read_line(&mut buf).unwrap();
-
-    //     if len == 0 {
-    //         break;
-    //     }
-
-    //     let stdout = &STDOUT;
-    //     stdout.write(buf.as_bytes()).unwrap();
-    // }
+    _framebuffer_ops();
 
     println!("PID:{} TID:{}", get_pid(), get_tid());
 

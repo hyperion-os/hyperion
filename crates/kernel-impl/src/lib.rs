@@ -260,6 +260,20 @@ pub fn get_socket(socket: SocketDesc) -> Result<Arc<Mutex<SocketFile>>> {
     Ok(socket)
 }
 
+pub fn get_file(file: FileDesc) -> Result<Arc<Mutex<FileInner>>> {
+    let this = process();
+    let ext = process_ext_with(&this);
+
+    let mut files = ext.files.lock();
+
+    let file = files
+        .get_mut(file.0)
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
+        .clone();
+
+    Ok(file)
+}
+
 pub fn push_file(file: FileInner) -> FileDesc {
     let this = process();
     let ext = process_ext_with(&this);

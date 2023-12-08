@@ -19,6 +19,20 @@ pub trait FileDevice: Send + Sync {
         self.len() == 0
     }
 
+    /// allocate physical pages + map the file to it OR get the device physical address
+    ///
+    /// allocated pages are managed by this FileDevice, each [`Self::map_phys`] is paired with
+    /// an [`Self::unmap_phys`] and only the last [`Self::unmap_phys`] deallocate the pages
+    fn map_phys(&mut self, size_bytes: usize) -> IoResult<usize> {
+        _ = size_bytes;
+        Err(IoError::PermissionDenied)
+    }
+
+    /// see [`Self::map_phys`]
+    fn unmap_phys(&mut self) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    }
+
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize>;
 
     fn read_exact(&self, mut offset: usize, mut buf: &mut [u8]) -> IoResult<()> {

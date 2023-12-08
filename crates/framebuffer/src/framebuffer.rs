@@ -66,6 +66,10 @@ impl Framebuffer {
         .as_ref()
     }
 
+    pub fn buf(&self) -> &[u8] {
+        self.buf
+    }
+
     pub fn buf_mut(&mut self) -> &mut [u8] {
         self.buf
     }

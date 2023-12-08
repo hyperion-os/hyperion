@@ -489,7 +489,11 @@ name = "hyperion-driver-framebuffer"
 version = "0.1.0"
 dependencies = [
  "hyperion-framebuffer",
+ "hyperion-log",
+ "hyperion-mem",
  "hyperion-vfs",
+ "spin",
+ "x86_64",
 ]
 
 [[package]]

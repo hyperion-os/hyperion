@@ -3,17 +3,23 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
-use core::{any::type_name_of_val, fmt::Write, sync::atomic::AtomicUsize};
+use core::{
+    any::type_name_of_val,
+    fmt::Write,
+    ptr::NonNull,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use hyperion_arch::syscall::SyscallRegs;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
-    get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with, push_file,
-    push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_ref,
+    get_file, get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with,
+    push_file, push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_ref,
     read_untrusted_str, File, FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
 };
 use hyperion_log::*;
+use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
     futex,
     lock::Mutex,
@@ -28,7 +34,7 @@ use hyperion_syscall::{
 };
 use hyperion_vfs::{path::Path, ramdisk, tree::Node};
 use time::Duration;
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{align_down, align_up, structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
 
@@ -66,6 +72,9 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::OPEN_DIR => call_id(open_dir, args),
         id::FUTEX_WAIT => call_id(futex_wait, args),
         id::FUTEX_WAKE => call_id(futex_wake, args),
+
+        id::MAP_FILE => call_id(map_file, args),
+        id::UNMAP_FILE => call_id(unmap_file, args),
 
         _ => {
             debug!("invalid syscall");
@@ -256,15 +265,7 @@ pub fn close(args: &mut SyscallRegs) -> Result<usize> {
 pub fn read(args: &mut SyscallRegs) -> Result<usize> {
     let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
 
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    let mut files = ext.files.lock();
-
-    let mut file = files
-        .get_mut(args.arg0 as _)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
-        .lock_arc();
+    let mut file = get_file(FileDesc(args.arg0 as usize))?.lock_arc();
 
     let read = file
         .file_ref
@@ -282,15 +283,7 @@ pub fn read(args: &mut SyscallRegs) -> Result<usize> {
 pub fn write(args: &mut SyscallRegs) -> Result<usize> {
     let buf = read_untrusted_bytes(args.arg1, args.arg2)?;
 
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    let mut files = ext.files.lock();
-
-    let mut file = files
-        .get_mut(args.arg0 as _)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
-        .lock_arc();
+    let mut file = get_file(FileDesc(args.arg0 as usize))?.lock_arc();
 
     let written = file
         .file_ref
@@ -589,4 +582,73 @@ pub fn futex_wake(args: &mut SyscallRegs) -> Result<usize> {
     futex::wake(addr, num);
 
     return Ok(0);
+}
+
+/// map file to memory
+///
+/// [`hyperion_syscall::map_file`]
+pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
+    let file = FileDesc(args.arg0 as _);
+    let at = NonNull::new(args.arg1 as *mut ());
+    let mut size = args.arg2 as usize;
+    let offset = args.arg3 as usize;
+
+    let mut file = get_file(file)?.lock_arc();
+
+    let mut file = file.file_ref.lock();
+
+    hyperion_log::debug!("mapping phys pages");
+    let phys = file.map_phys(size).map_err(map_vfs_err_to_syscall_err)?;
+    hyperion_log::debug!("got phys pages");
+
+    let this = process();
+    hyperion_log::debug!("test");
+
+    if size == 0 {
+        hyperion_log::debug!("auto size");
+        size = file.len();
+    }
+
+    let size = align_up(size as _, 0x1000) as u64;
+    let bottom = align_down(
+        this.heap_bottom.fetch_add(size as usize, Ordering::SeqCst) as u64,
+        0x1000,
+    );
+
+    let bottom = VirtAddr::new(bottom);
+    hyperion_log::debug!(
+        "mapping {:?} {:?} {:?}",
+        bottom..bottom + size,
+        PhysAddr::new(phys as _),
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
+    );
+    this.address_space.page_map.map(
+        bottom..bottom + size,
+        PhysAddr::new(phys as _),
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
+    );
+
+    hyperion_log::debug!("mapped");
+
+    Ok(bottom.as_u64() as usize)
+}
+
+/// unmap file from memory
+///
+/// [`hyperion_syscall::unmap_file`]
+pub fn unmap_file(args: &mut SyscallRegs) -> Result<usize> {
+    let file = FileDesc(args.arg0 as _);
+    let at = NonNull::new(args.arg1 as *mut ());
+    let size = args.arg2 as usize;
+
+    hyperion_log::debug!("unmap_file({file:?}, {at:?}, {size})");
+
+    let file = get_file(file)?.lock_arc();
+
+    file.file_ref
+        .lock()
+        .unmap_phys()
+        .map_err(map_vfs_err_to_syscall_err)?;
+
+    Ok(0)
 }

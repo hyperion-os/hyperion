@@ -9,5 +9,10 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+spin.workspace = true
+x86_64.workspace = true
+
 hyperion-framebuffer.path = "../framebuffer"
+hyperion-log.path = "../log"
 hyperion-vfs.path = "../vfs"
+hyperion-mem.path = "../mem"

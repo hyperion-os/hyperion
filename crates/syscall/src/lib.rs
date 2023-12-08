@@ -1,6 +1,9 @@
 #![no_std]
 
-use core::{ptr::NonNull, sync::atomic::AtomicUsize};
+use core::{
+    ptr::{self, NonNull},
+    sync::atomic::AtomicUsize,
+};
 
 use err::Result;
 
@@ -48,6 +51,9 @@ pub mod id {
     pub const OPEN_DIR: usize = 26;
     pub const FUTEX_WAIT: usize = 27;
     pub const FUTEX_WAKE: usize = 28;
+
+    pub const MAP_FILE: usize = 29;
+    pub const UNMAP_FILE: usize = 30;
 }
 
 //
@@ -298,4 +304,35 @@ pub fn futex_wait(addr: &AtomicUsize, val: usize) {
 #[inline(always)]
 pub fn futex_wake(addr: &AtomicUsize, num: usize) {
     unsafe { syscall_2(id::FUTEX_WAKE, addr as *const _ as usize, num) }.unwrap();
+}
+
+/// map file contents to memory (mmap)
+///
+/// maps pages from the file at `align_down(offset, 0x1000)..align_up(offset+size, 0x1000)`
+/// to the virtual address space at `align_down(at, 0x1000)`, or anywhere if `at` is None
+///
+/// `at` should point to unmapped memory that has room for the pages
+///
+/// `size` of 0 automatically maps the whole file
+///
+/// see [`map_file`]
+#[inline(always)]
+pub fn map_file(
+    file: FileDesc,
+    at: Option<NonNull<()>>,
+    size: usize,
+    offset: usize,
+) -> Result<NonNull<()>> {
+    let at = at.map(NonNull::as_ptr).unwrap_or(ptr::null_mut()) as usize;
+    unsafe { syscall_4(id::MAP_FILE, file.0, at, size, offset) }
+        .map(|ptr| NonNull::new(ptr as _).unwrap())
+}
+
+/// unmap device/file mapped memory (munmap)
+///
+/// see [`unmap_file`]
+#[inline(always)]
+pub fn unmap_file(file: FileDesc, at: NonNull<()>, size: usize) -> Result<()> {
+    let at = at.as_ptr() as usize;
+    unsafe { syscall_3(id::UNMAP_FILE, file.0, at, size) }.map(|_| {})
 }
