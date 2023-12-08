@@ -96,11 +96,11 @@ impl Condvar {
     }
 
     unsafe fn _wait(&self, mutex: &Futex) {
-        self.wait_optional_timeout(mutex, None);
+        unsafe { self.wait_optional_timeout(mutex, None) };
     }
 
     unsafe fn _wait_timeout(&self, mutex: &Futex, timeout: Duration) -> bool {
-        self.wait_optional_timeout(mutex, Some(timeout))
+        unsafe { self.wait_optional_timeout(mutex, Some(timeout)) }
     }
 
     unsafe fn wait_optional_timeout(&self, mutex: &Futex, timeout: Option<Duration>) -> bool {

@@ -8,6 +8,10 @@ edition = "2021"
 resolver = "2"
 members = ["crates/*", "userspace/*"]
 
+[workspace.lints.rust]
+#![forbid(unsafe_op_in_unsafe_fn)]
+unsafe_op_in_unsafe_fn = "forbid"
+
 [profile.release]
 debug = false
 strip = true

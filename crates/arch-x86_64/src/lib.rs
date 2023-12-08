@@ -7,7 +7,6 @@
     const_refs_to_cell,
     cell_leak
 )]
-#![forbid(unsafe_op_in_unsafe_fn)]
 
 //
 

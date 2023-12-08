@@ -259,7 +259,7 @@ where
 {
     let mut g = Guard {
         len: buf.len(),
-        buf: buf.as_mut_vec(),
+        buf: unsafe { buf.as_mut_vec() },
     };
     let ret = f(g.buf);
     if core::str::from_utf8(&g.buf[g.len..]).is_err() {

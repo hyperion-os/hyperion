@@ -231,26 +231,24 @@ pub unsafe fn print_backtrace_from(ip: VirtAddr) {
         format_args!("\n"),
     );
     let mut i = 0usize;
-    unwind_stack_from(
-        ip,
-        |FrameInfo {
-             instr_ptr: ip,
-             symbol_name: sym,
-             symbol_offs: offs,
-         }| {
-            let sym = demangle(sym);
-            if let Some(offs) = offs {
-                println!(
-                    "{i:>4}: {:#018x}+{:<4x} => {sym}",
-                    ip.true_cyan(),
-                    offs.true_cyan()
-                );
-            } else {
-                println!("{i:>4}: {:#018x} - {sym}", ip.true_cyan());
-            }
-            i += 1;
-        },
-    );
+    let frame_walker = |FrameInfo {
+                            instr_ptr: ip,
+                            symbol_name: sym,
+                            symbol_offs: offs,
+                        }| {
+        let sym = demangle(sym);
+        if let Some(offs) = offs {
+            println!(
+                "{i:>4}: {:#018x}+{:<4x} => {sym}",
+                ip.true_cyan(),
+                offs.true_cyan()
+            );
+        } else {
+            println!("{i:>4}: {:#018x} - {sym}", ip.true_cyan());
+        }
+        i += 1;
+    };
+    unsafe { unwind_stack_from(ip, frame_walker) };
     hyperion_log::_print_log_custom(
         LogLevel::Info,
         " BACKTRACE".true_yellow(),

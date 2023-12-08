@@ -134,7 +134,10 @@ pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
 /// to the same ApicRegs
 pub unsafe fn get_apic_regs() -> &'static mut ApicRegs {
     let lapic_addr = to_higher_half(PhysAddr::new(MADT.local_apic_addr as u64));
-    &mut *lapic_addr.as_mut_ptr()
+
+    // SAFETY: the reference is valid forever,
+    // even if the ref is sent to another CPU, but at that point, it points to that CPUs lapic regs
+    unsafe { &mut *lapic_addr.as_mut_ptr() }
 }
 
 //

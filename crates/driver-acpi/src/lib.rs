@@ -147,7 +147,7 @@ impl StructUnpacker {
     pub const unsafe fn new(first: *const u8, bytes: usize) -> Self {
         Self {
             next: first,
-            end: first.add(bytes),
+            end: unsafe { first.add(bytes) },
         }
     }
 
@@ -155,14 +155,14 @@ impl StructUnpacker {
     ///
     /// bytes from `first` to `first + core::mem::size_of::<T>()` must be readable
     pub const unsafe fn from<T: Sized>(first: *const T) -> Self {
-        Self::new(first as _, mem::size_of::<T>())
+        unsafe { Self::new(first as _, mem::size_of::<T>()) }
     }
 
     /// # Safety
     ///
     /// bytes from `first` to `end + bytes` must be readable
     pub unsafe fn extend(&mut self, bytes: usize) {
-        self.end = self.end.add(bytes);
+        self.end = unsafe { self.end.add(bytes) };
     }
 
     pub fn next<T: Copy>(&mut self, inc: bool) -> Option<T>
@@ -230,8 +230,8 @@ pub unsafe fn read_unaligned_volatile<T: Sized + Copy>(src: *const T) -> T
 where
     [(); mem::size_of::<T>()]:,
 {
-    let bytes: [u8; mem::size_of::<T>()] = ptr::read_volatile(src as *const _);
-    ptr::read_unaligned(&bytes as *const _ as *const T)
+    let bytes: [u8; mem::size_of::<T>()] = unsafe { ptr::read_volatile(src as *const _) };
+    unsafe { ptr::read_unaligned(&bytes as *const _ as *const T) }
 }
 
 //

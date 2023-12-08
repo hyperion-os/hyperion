@@ -127,7 +127,7 @@ where
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
         if let Some(ptr) = NonNull::new(ptr) {
-            self.free(ptr)
+            unsafe { self.free(ptr) };
         }
     }
 }
@@ -193,12 +193,14 @@ where
         }
     }
 
+    // TODO: Rust tells the layout on free, so I should optimize for that,
+    // now the layout is figured out by reading the first block in a page
     /// # Safety
     /// `alloc` must point to an allocation that was previously allocated
     /// with this specific [`SlabAllocator`]
     pub unsafe fn free(&self, alloc: NonNull<u8>) {
         if alloc.as_ptr().is_aligned_to(0x1000) {
-            return self.big_free(alloc);
+            return unsafe { self.big_free(alloc) };
         }
 
         // align down to 0x1000
@@ -212,7 +214,7 @@ where
             .and_then(|idx| self.slabs.get(idx as usize))
             .expect("alloc header to be valid");
 
-        slab.free(&self.stats, alloc);
+        unsafe { slab.free(&self.stats, alloc) };
     }
 
     fn big_alloc(&self, size: usize) -> *mut u8 {

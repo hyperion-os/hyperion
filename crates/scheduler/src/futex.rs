@@ -25,19 +25,16 @@ pub fn wait(addr: &AtomicUsize, val: usize) {
 
     let next = wait_next_task(|| should_cancel(addr, val).then_some(()));
 
-    match next {
-        Ok(next) => {
-            let addr: NonNull<AtomicUsize> = addr.into();
+    if let Ok(next) = next {
+        let addr: NonNull<AtomicUsize> = addr.into();
 
-            let addr = process()
-                .address_space
-                .page_map
-                .virt_to_phys(VirtAddr::from_ptr(addr.as_ptr()))
-                .unwrap();
+        let addr = process()
+            .address_space
+            .page_map
+            .virt_to_phys(VirtAddr::from_ptr(addr.as_ptr()))
+            .unwrap();
 
-            switch_because(next, TaskState::Sleeping, Cleanup::Wait { addr, val })
-        }
-        Err(()) => return,
+        switch_because(next, TaskState::Sleeping, Cleanup::Wait { addr, val })
     }
 }
 

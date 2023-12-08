@@ -69,7 +69,7 @@ macro_rules! syscall {
                 mut $id: usize
                 $(, $a0: usize $(, $a1: usize $(, $a2: usize $(, $a3: usize $(, $a4: usize)?)?)?)?)?
             ) -> $crate::err::Result<usize> {
-                core::arch::asm!(
+                unsafe { core::arch::asm!(
                     "syscall",
 
                     inout("rax") $id, // syscall id + return value
@@ -94,7 +94,7 @@ macro_rules! syscall {
                     out("r11") _, // syscall saves these 2
 
                     options(nostack),
-                );
+                ) };
 
                 $crate::err::Error::decode($id)
             }
