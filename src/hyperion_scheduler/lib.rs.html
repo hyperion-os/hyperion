@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/scheduler/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_scheduler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/scheduler/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_scheduler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -381,17 +381,15 @@
 <a href="#381" id="381">381</a>
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
-<a href="#384" id="384">384</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
-#![feature(new_uninit, type_name_of_val, extract_if, sync_unsafe_cell, offset_of)]
-#![allow(clippy::needless_return)]
+#![feature(type_name_of_val, offset_of)]
 
 </span><span class="comment">//
 
 </span><span class="kw">use </span>alloc::sync::Arc;
 <span class="kw">use </span>core::{
     any::type_name_of_val,
-    cell::SyncUnsafeCell,
+    cell::UnsafeCell,
     convert::Infallible,
     mem::{offset_of, swap},
     ops::Deref,
@@ -478,19 +476,19 @@
 
 <span class="doccomment">/// init this processors scheduling and
 /// immediately switch to the provided task
-</span><span class="kw">pub fn </span>init(thread: <span class="kw">impl </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>) -&gt; ! {
+</span><span class="kw">pub fn </span>init(thread: <span class="kw">impl </span>FnOnce() + Send + <span class="lifetime">'static</span>) -&gt; ! {
     hyperion_arch::int::disable();
 
     <span class="comment">// init the TLS struct before the apic timer handler tries to
     </span><span class="kw">_ </span>= tls();
 
-    <span class="comment">// init scheduler&#39;s custom page fault handler
+    <span class="comment">// init scheduler's custom page fault handler
     </span>ints::PAGE_FAULT_HANDLER.store(page_fault::page_fault_handler);
 
-    <span class="comment">// init scheduler&#39;s custom general protection fault handler
+    <span class="comment">// init scheduler's custom general protection fault handler
     </span>ints::GP_FAULT_HANDLER.store(|| {
         process().should_terminate.store(<span class="bool-val">true</span>, Ordering::Relaxed);
-        <span class="macro">debug!</span>(<span class="string">&quot;GPF self term&quot;</span>);
+        <span class="macro">debug!</span>(<span class="string">"GPF self term"</span>);
         stop();
     });
 
@@ -506,7 +504,7 @@
         }
 
         <span class="kw">if </span>process().should_terminate.swap(<span class="bool-val">false</span>, Ordering::Relaxed) {
-            <span class="macro">debug!</span>(<span class="string">&quot;should_terminate stop&quot;</span>);
+            <span class="macro">debug!</span>(<span class="string">"should_terminate stop"</span>);
             stop();
         }
 
@@ -537,20 +535,20 @@
 
     <span class="comment">// mark scheduler as initialized and running
     </span><span class="kw">if </span>tls().initialized.swap(<span class="bool-val">true</span>, Ordering::SeqCst) {
-        <span class="macro">panic!</span>(<span class="string">&quot;should be called only once before any tasks are assigned to this processor&quot;</span>)
+        <span class="macro">panic!</span>(<span class="string">"should be called only once before any tasks are assigned to this processor"</span>)
     }
     RUNNING.store(<span class="bool-val">true</span>, Ordering::SeqCst);
 
     <span class="comment">// switch to the init task
     </span>switch_because(task, TaskState::Dropping, Cleanup::Drop);
-    <span class="macro">unreachable!</span>(<span class="string">&quot;a destroyed thread cannot continue executing&quot;</span>);
+    <span class="macro">unreachable!</span>(<span class="string">"a destroyed thread cannot continue executing"</span>);
 }
 
-<span class="kw">pub fn </span>send(target_pid: Pid, data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str&gt; {
+<span class="kw">pub fn </span>send(target_pid: Pid, data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
     ipc::pipe::send(target_pid, data)
 }
 
-<span class="kw">pub fn </span>recv(buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str&gt; {
+<span class="kw">pub fn </span>recv(buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
     ipc::pipe::recv(buf)
 }
 
@@ -598,7 +596,7 @@
     <span class="kw">let </span>next = wait_next_task::&lt;Infallible&gt;(|| <span class="prelude-val">None</span>).unwrap();
     switch_because(next, TaskState::Dropping, Cleanup::Drop);
 
-    <span class="macro">unreachable!</span>(<span class="string">&quot;a destroyed thread cannot continue executing&quot;</span>);
+    <span class="macro">unreachable!</span>(<span class="string">"a destroyed thread cannot continue executing"</span>);
 }
 
 <span class="doccomment">/// spawn a new thread in the currently running process
@@ -628,7 +626,7 @@
 }
 
 <span class="doccomment">/// spawn a new thread on the same process
-</span><span class="kw">pub fn </span>spawn(new: <span class="kw">impl </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>) {
+</span><span class="kw">pub fn </span>spawn(new: <span class="kw">impl </span>FnOnce() + Send + <span class="lifetime">'static</span>) {
     READY.push(Task::thread(process(), new));
 }
 
@@ -649,7 +647,7 @@
     <span class="kw">_ </span>= cpu_time_elapsed();
 }
 
-<span class="doccomment">/// increase the task info&#39;s cpu usage field
+<span class="doccomment">/// increase the task info's cpu usage field
 </span><span class="kw">fn </span>update_cpu_usage() {
     <span class="kw">let </span>elapsed = cpu_time_elapsed();
 
@@ -670,7 +668,7 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(task);
         }
 
-        <span class="comment">// debug!(&quot;no tasks, waiting for interrupts&quot;);
+        <span class="comment">// debug!("no tasks, waiting for interrupts");
         </span>wait();
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(err) = should_abort() {
@@ -712,7 +710,7 @@
 
 <span class="kw">static </span>TLS: Once&lt;Tls&lt;SchedulerTls&gt;&gt; = Once::new();
 
-<span class="kw">fn </span>tls() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>Tls&lt;SchedulerTls&gt; {
+<span class="kw">fn </span>tls() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Tls&lt;SchedulerTls&gt; {
     TLS.call_once(|| {
         Tls::new(|| SchedulerTls {
             active: Once::new(),
@@ -727,11 +725,11 @@
     })
 }
 
-<span class="kw">fn </span>tls_iter() -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>SyncUnsafeCell&lt;SchedulerTls&gt;&gt; {
+<span class="kw">fn </span>tls_iter() -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'static </span>UnsafeCell&lt;SchedulerTls&gt;&gt; {
     Tls::inner(tls()).iter()
 }
 
-<span class="kw">fn </span>tls_try() -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>SchedulerTls&gt; {
+<span class="kw">fn </span>tls_try() -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>SchedulerTls&gt; {
     TLS.get().map(|s| s.deref())
 }
 
@@ -751,19 +749,19 @@
             .unwrap_or(<span class="bool-val">false</span>)
 }
 
-<span class="kw">fn </span>get_task() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>Mutex&lt;Task&gt; {
+<span class="kw">fn </span>get_task() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Mutex&lt;Task&gt; {
     tls().active.call_once(|| Mutex::new(Task::bootloader()))
 }
 
-<span class="kw">fn </span>after() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>SegQueue&lt;CleanupTask&gt; {
+<span class="kw">fn </span>after() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>SegQueue&lt;CleanupTask&gt; {
     <span class="kw-2">&amp;</span>tls().after
 }
 
-<span class="kw">fn </span>last_time() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>AtomicU64 {
+<span class="kw">fn </span>last_time() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>AtomicU64 {
     <span class="kw-2">&amp;</span>tls().last_time
 }
 
-<span class="kw">fn </span>idle_time() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>AtomicU64 {
+<span class="kw">fn </span>idle_time() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>AtomicU64 {
     <span class="kw-2">&amp;</span>tls().idle_time
 }
 </code></pre></div></section></main></body></html>

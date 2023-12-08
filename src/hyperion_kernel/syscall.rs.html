@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -590,203 +590,35 @@
 <a href="#590" id="590">590</a>
 <a href="#591" id="591">591</a>
 <a href="#592" id="592">592</a>
-<a href="#593" id="593">593</a>
-<a href="#594" id="594">594</a>
-<a href="#595" id="595">595</a>
-<a href="#596" id="596">596</a>
-<a href="#597" id="597">597</a>
-<a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a>
-<a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a>
-<a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a>
-<a href="#625" id="625">625</a>
-<a href="#626" id="626">626</a>
-<a href="#627" id="627">627</a>
-<a href="#628" id="628">628</a>
-<a href="#629" id="629">629</a>
-<a href="#630" id="630">630</a>
-<a href="#631" id="631">631</a>
-<a href="#632" id="632">632</a>
-<a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a>
-<a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a>
-<a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a>
-<a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a>
-<a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a>
-<a href="#660" id="660">660</a>
-<a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a>
-<a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a>
-<a href="#668" id="668">668</a>
-<a href="#669" id="669">669</a>
-<a href="#670" id="670">670</a>
-<a href="#671" id="671">671</a>
-<a href="#672" id="672">672</a>
-<a href="#673" id="673">673</a>
-<a href="#674" id="674">674</a>
-<a href="#675" id="675">675</a>
-<a href="#676" id="676">676</a>
-<a href="#677" id="677">677</a>
-<a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a>
-<a href="#680" id="680">680</a>
-<a href="#681" id="681">681</a>
-<a href="#682" id="682">682</a>
-<a href="#683" id="683">683</a>
-<a href="#684" id="684">684</a>
-<a href="#685" id="685">685</a>
-<a href="#686" id="686">686</a>
-<a href="#687" id="687">687</a>
-<a href="#688" id="688">688</a>
-<a href="#689" id="689">689</a>
-<a href="#690" id="690">690</a>
-<a href="#691" id="691">691</a>
-<a href="#692" id="692">692</a>
-<a href="#693" id="693">693</a>
-<a href="#694" id="694">694</a>
-<a href="#695" id="695">695</a>
-<a href="#696" id="696">696</a>
-<a href="#697" id="697">697</a>
-<a href="#698" id="698">698</a>
-<a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a>
-<a href="#702" id="702">702</a>
-<a href="#703" id="703">703</a>
-<a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a>
-<a href="#707" id="707">707</a>
-<a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a>
-<a href="#710" id="710">710</a>
-<a href="#711" id="711">711</a>
-<a href="#712" id="712">712</a>
-<a href="#713" id="713">713</a>
-<a href="#714" id="714">714</a>
-<a href="#715" id="715">715</a>
-<a href="#716" id="716">716</a>
-<a href="#717" id="717">717</a>
-<a href="#718" id="718">718</a>
-<a href="#719" id="719">719</a>
-<a href="#720" id="720">720</a>
-<a href="#721" id="721">721</a>
-<a href="#722" id="722">722</a>
-<a href="#723" id="723">723</a>
-<a href="#724" id="724">724</a>
-<a href="#725" id="725">725</a>
-<a href="#726" id="726">726</a>
-<a href="#727" id="727">727</a>
-<a href="#728" id="728">728</a>
-<a href="#729" id="729">729</a>
-<a href="#730" id="730">730</a>
-<a href="#731" id="731">731</a>
-<a href="#732" id="732">732</a>
-<a href="#733" id="733">733</a>
-<a href="#734" id="734">734</a>
-<a href="#735" id="735">735</a>
-<a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a>
-<a href="#738" id="738">738</a>
-<a href="#739" id="739">739</a>
-<a href="#740" id="740">740</a>
-<a href="#741" id="741">741</a>
-<a href="#742" id="742">742</a>
-<a href="#743" id="743">743</a>
-<a href="#744" id="744">744</a>
-<a href="#745" id="745">745</a>
-<a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a>
-<a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a>
-<a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{boxed::Box, string::ToString, sync::Arc, vec::Vec};
-<span class="kw">use </span>core::any::{type_name_of_val, Any};
+</pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
+<span class="kw">use </span>core::{any::type_name_of_val, fmt::Write, sync::atomic::AtomicUsize};
 
-<span class="kw">use </span>hyperion_arch::{syscall::SyscallRegs, vmm::PageMap};
+<span class="kw">use </span>hyperion_arch::syscall::SyscallRegs;
 <span class="kw">use </span>hyperion_drivers::acpi::hpet::HPET;
 <span class="kw">use </span>hyperion_instant::Instant;
-<span class="kw">use </span>hyperion_kernel_impl::VFS_ROOT;
+<span class="kw">use </span>hyperion_kernel_impl::{
+    get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with, push_file,
+    push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_ref,
+    read_untrusted_str, File, FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
+};
 <span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
-<span class="kw">use </span>hyperion_mem::vmm::PageMapImpl;
 <span class="kw">use </span>hyperion_scheduler::{
-    ipc::pipe::{Channel, Pipe, Receiver, Sender},
-    lock::{Futex, Mutex},
+    futex,
+    lock::Mutex,
     process, task,
-    task::{AllocErr, FreeErr, Process, ProcessExt},
+    task::{AllocErr, FreeErr},
 };
 <span class="kw">use </span>hyperion_syscall::{
     err::{Error, <span class="prelude-ty">Result</span>},
-    fs::FileOpenFlags,
+    fs::{FileDesc, FileOpenFlags},
     id,
     net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
-<span class="kw">use </span>hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-    path::Path,
-    tree::{FileRef, Node},
-};
-<span class="kw">use </span>lock_api::ArcMutexGuard;
+<span class="kw">use </span>hyperion_vfs::{path::Path, ramdisk, tree::Node};
 <span class="kw">use </span>time::Duration;
 <span class="kw">use </span>x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -822,15 +654,20 @@
         id::GET_PID =&gt; call_id(get_pid, args),
         id::GET_TID =&gt; call_id(get_tid, args),
 
+        id::DUP =&gt; call_id(dup, args),
+        id::OPEN_DIR =&gt; call_id(open_dir, args),
+        id::FUTEX_WAIT =&gt; call_id(futex_wait, args),
+        id::FUTEX_WAKE =&gt; call_id(futex_wake, args),
+
         <span class="kw">_ </span>=&gt; {
-            <span class="macro">debug!</span>(<span class="string">&quot;invalid syscall&quot;</span>);
+            <span class="macro">debug!</span>(<span class="string">"invalid syscall"</span>);
             hyperion_scheduler::stop();
         }
     };
 
     <span class="kw">_ </span>= (result, name);
     <span class="comment">// if result &lt; 0 {
-    //     debug!(&quot;syscall `{name}` (id {id}) returned {result}&quot;,);
+    //     debug!("syscall `{name}` (id {id}) returned {result}",);
     // }
 </span>}
 
@@ -841,7 +678,7 @@
     <span class="kw">let </span>name = type_name_of_val(<span class="kw-2">&amp;</span>f);
 
     <span class="comment">// debug!(
-    //     &quot;{name}&lt;{}&gt;({}, {}, {}, {}, {})&quot;,
+    //     "{name}&lt;{}&gt;({}, {}, {}, {}, {})",
     //     args.syscall_id, args.arg0, args.arg1, args.arg2, args.arg3, args.arg4,
     // );
 
@@ -855,7 +692,7 @@
 /// [`hyperion_syscall::log`]
 </span><span class="kw">pub fn </span>log(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>str = read_untrusted_str(args.arg0, args.arg1)<span class="question-mark">?</span>;
-    <span class="macro">hyperion_log::print!</span>(<span class="string">&quot;{str}&quot;</span>);
+    <span class="macro">hyperion_log::print!</span>(<span class="string">"{str}"</span>);
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
@@ -905,7 +742,7 @@
 
 <span class="doccomment">/// spawn a new thread
 ///
-/// thread entry signature: `extern &quot;C&quot; fn thread_entry(stack_ptr: usize, arg1: usize) -&gt; !`
+/// thread entry signature: `extern "C" fn thread_entry(stack_ptr: usize, arg1: usize) -&gt; !`
 ///
 /// [`hyperion_syscall::pthread_spawn`]
 </span><span class="kw">pub fn </span>pthread_spawn(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
@@ -983,10 +820,10 @@
         .find_file(path, mkdirs, create)
         .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>fd = ext.files.lock().push(File {
+    <span class="kw">let </span>fd = ext.files.lock().push(File::new(Mutex::new(FileInner {
         file_ref,
         position: <span class="number">0</span>,
-    });
+    })));
 
     <span class="kw">return </span><span class="prelude-val">Ok</span>(fd);
 }
@@ -1016,9 +853,10 @@
 
     <span class="kw">let </span><span class="kw-2">mut </span>files = ext.files.lock();
 
-    <span class="kw">let </span>file = files
+    <span class="kw">let </span><span class="kw-2">mut </span>file = files
         .get_mut(args.arg0 <span class="kw">as _</span>)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?</span>;
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
+        </span>.lock_arc();
 
     <span class="kw">let </span>read = file
         .file_ref
@@ -1041,9 +879,10 @@
 
     <span class="kw">let </span><span class="kw-2">mut </span>files = ext.files.lock();
 
-    <span class="kw">let </span>file = files
+    <span class="kw">let </span><span class="kw-2">mut </span>file = files
         .get_mut(args.arg0 <span class="kw">as _</span>)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?</span>;
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
+        </span>.lock_arc();
 
     <span class="kw">let </span>written = file
         .file_ref
@@ -1079,26 +918,13 @@
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::UNKNOWN_PROTOCOL);
     }
 
-    <span class="prelude-val">Ok</span>(_socket_from(SocketFile {
+    <span class="prelude-val">Ok</span>(push_socket(SocketFile {
         domain,
         ty,
         proto,
         incoming: <span class="prelude-val">None</span>,
         connection: <span class="prelude-val">None</span>,
     }))
-}
-
-<span class="kw">fn </span>_socket_from(socket: SocketFile) -&gt; SocketDesc {
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
-
-    <span class="kw">let </span>socket = Socket {
-        socket_ref: Arc::new(Mutex::new(socket)),
-    };
-
-    <span class="kw">let </span>fd = ext.sockets.lock().push(socket);
-
-    <span class="kw">return </span>SocketDesc(fd);
 }
 
 <span class="doccomment">/// bind a socket
@@ -1171,7 +997,7 @@
     <span class="comment">// blocks here
     </span><span class="kw">let </span>conn = conn.recv().unwrap();
 
-    <span class="prelude-val">Ok</span>(_socket_from(SocketFile {
+    <span class="prelude-val">Ok</span>(push_socket(SocketFile {
         domain,
         ty,
         proto,
@@ -1282,242 +1108,78 @@
     <span class="prelude-val">Ok</span>(task().tid.num())
 }
 
-<span class="comment">//
+<span class="doccomment">/// duplicate a file descriptor
+///
+/// [`hyperion_syscall::dup`]
+</span><span class="kw">pub fn </span>dup(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>old = FileDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>new = FileDesc(args.arg1 <span class="kw">as _</span>);
 
-</span><span class="kw">struct </span>SparseVec&lt;T&gt; {
-    inner: Vec&lt;<span class="prelude-ty">Option</span>&lt;T&gt;&gt;,
-}
-
-<span class="kw">impl</span>&lt;T&gt; SparseVec&lt;T&gt; {
-    <span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ inner: Vec::new() }
-    }
-
-    <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>T&gt; {
-        <span class="self">self</span>.inner.get(index).and_then(Option::as_ref)
-    }
-
-    <span class="kw">pub fn </span>get_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;mut </span>T&gt; {
-        <span class="self">self</span>.inner.get_mut(index).and_then(Option::as_mut)
-    }
-
-    <span class="kw">pub fn </span>push(<span class="kw-2">&amp;mut </span><span class="self">self</span>, v: T) -&gt; usize {
-        <span class="kw">let </span>index;
-        <span class="kw">if let </span><span class="prelude-val">Some</span>((_index, spot)) = <span class="self">self
-            </span>.inner
-            .iter_mut()
-            .enumerate()
-            .find(|(<span class="kw">_</span>, spot)| spot.is_none())
-        {
-            index = _index;
-            <span class="kw-2">*</span>spot = <span class="prelude-val">Some</span>(v);
-        } <span class="kw">else </span>{
-            index = <span class="self">self</span>.inner.len();
-            <span class="self">self</span>.inner.push(<span class="prelude-val">Some</span>(v));
-        }
-
-        index
-    }
-
-    <span class="kw">pub fn </span>remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt; {
-        <span class="self">self</span>.inner.get_mut(index).and_then(Option::take)
-    }
-}
-
-<span class="kw">struct </span>ProcessExtra {
-    files: Mutex&lt;SparseVec&lt;File&gt;&gt;,
-    sockets: Mutex&lt;SparseVec&lt;Socket&gt;&gt;,
-}
-
-<span class="kw">struct </span>File {
-    file_ref: FileRef&lt;Futex&gt;,
-    position: usize,
-}
-
-<span class="kw">struct </span>Socket {
-    socket_ref: SocketRef,
-}
-
-<span class="kw">type </span>SocketRef = Arc&lt;Mutex&lt;SocketFile&gt;&gt;;
-
-<span class="kw">struct </span>SocketFile {
-    domain: SocketDomain,
-    ty: SocketType,
-    proto: Protocol,
-
-    incoming: <span class="prelude-ty">Option</span>&lt;Arc&lt;Channel&lt;LocalSocketConn&gt;&gt;&gt;,
-    connection: <span class="prelude-ty">Option</span>&lt;LocalSocketConn&gt;,
-}
-
-<span class="kw">impl </span>SocketFile {
-    <span class="kw">pub fn </span>incoming(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Arc&lt;Channel&lt;LocalSocketConn&gt;&gt; {
-        <span class="self">self</span>.incoming
-            .get_or_insert_with(|| Arc::new(Channel::new(<span class="number">16</span>)))
-            .clone()
-    }
-
-    <span class="kw">pub fn </span>try_incoming(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Arc&lt;Channel&lt;LocalSocketConn&gt;&gt;&gt; {
-        <span class="self">self</span>.incoming.as_ref().cloned()
-    }
-
-    <span class="kw">pub fn </span>try_connection(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;LocalSocketConn&gt; {
-        <span class="self">self</span>.connection.as_ref().cloned()
-    }
-}
-
-<span class="attr">#[derive(Clone)]
-</span><span class="kw">struct </span>LocalSocketConn {
-    send: Sender&lt;u8&gt;,
-    recv: Receiver&lt;u8&gt;,
-}
-
-<span class="kw">impl </span>LocalSocketConn {
-    <span class="kw">pub fn </span>new() -&gt; (<span class="self">Self</span>, <span class="self">Self</span>) {
-        <span class="kw">let </span>pipe_0 = Pipe::new(<span class="number">0x1000</span>);
-        <span class="kw">let </span>pipe_1 = Pipe::new(<span class="number">0x1000</span>);
-        <span class="kw">let </span>(send_0, recv_1) = pipe_0.split();
-        <span class="kw">let </span>(send_1, recv_0) = pipe_1.split();
-        (
-            <span class="self">Self </span>{
-                send: send_0,
-                recv: recv_0,
-            },
-            <span class="self">Self </span>{
-                send: send_1,
-                recv: recv_1,
-            },
-        )
-    }
-}
-
-<span class="kw">impl </span>FileDevice <span class="kw">for </span>SocketFile {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-        <span class="self">self
-    </span>}
-
-    <span class="kw">fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="number">0
-    </span>}
-
-    <span class="kw">fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>, _offset: usize, _buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; IoResult&lt;usize&gt; {
-        <span class="prelude-val">Err</span>(IoError::PermissionDenied)
-    }
-
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _offset: usize, _buf: <span class="kw-2">&amp;</span>[u8]) -&gt; IoResult&lt;usize&gt; {
-        <span class="prelude-val">Err</span>(IoError::PermissionDenied)
-    }
-}
-
-<span class="kw">impl </span>ProcessExt <span class="kw">for </span>ProcessExtra {
-    <span class="kw">fn </span>as_any(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="kw">dyn </span>Any {
-        <span class="self">self
-    </span>}
-}
-
-<span class="comment">//
-
-</span><span class="kw">fn </span>get_socket_locked(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;ArcMutexGuard&lt;Futex, SocketFile&gt;&gt; {
-    get_socket(socket).map(|v| v.lock_arc())
-}
-
-<span class="kw">fn </span>get_socket(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;Mutex&lt;SocketFile&gt;&gt;&gt; {
     <span class="kw">let </span>this = process();
     <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
 
-    <span class="kw">let </span>socket = ext
-        .sockets
-        .lock()
-        .get(socket.<span class="number">0</span>)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?
-        </span>.socket_ref
-        .clone();
+    <span class="kw">let </span><span class="kw-2">mut </span>files = ext.files.lock();
 
-    <span class="prelude-val">Ok</span>(socket)
+    <span class="kw">let </span>old = files.get(old.<span class="number">0</span>).ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?</span>.clone();
+    files.replace(new.<span class="number">0</span>, old); <span class="comment">// drop =&gt; close the old one
+
+    </span><span class="prelude-val">Ok</span>(new.<span class="number">0 </span><span class="kw">as _</span>)
 }
 
-<span class="comment">// fn get_file(file: FileDesc) -&gt; Result {
-//     let this = process();
-//     let ext = process_ext_with(&amp;this);
+<span class="doccomment">/// open a directory
+///
+/// [`hyperion_syscall::open_dir`]
+</span><span class="kw">pub fn </span>open_dir(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>path = read_untrusted_str(args.arg0, args.arg1)<span class="question-mark">?</span>;
 
-//     let mut files = ext.files.lock();
+    <span class="kw">let </span><span class="kw-2">mut </span>dir = VFS_ROOT
+        .find_dir(path, <span class="bool-val">false</span>)
+        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?
+        </span>.lock_arc();
 
-//     let file = files.get_mut(file.0).ok_or(Error::BAD_FILE_DESCRIPTOR)?;
-// }
+    <span class="kw">let </span>s = dir.nodes().map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
 
-</span><span class="kw">fn </span>process_ext_with(proc: <span class="kw-2">&amp;</span>Process) -&gt; <span class="kw-2">&amp;</span>ProcessExtra {
-    proc.ext
-        .call_once(|| {
-            Box::new(ProcessExtra {
-                files: Mutex::new(SparseVec::new()),
-                sockets: Mutex::new(SparseVec::new()),
-            })
-        })
-        .as_any()
-        .downcast_ref()
-        .unwrap()
-}
+    <span class="kw">let </span><span class="kw-2">mut </span>buf = String::new(); <span class="comment">// TODO: real readdir
+    </span><span class="kw">for </span>name <span class="kw">in </span>s.iter() {
+        <span class="kw">let </span>node = dir.get_node(name).map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
 
-<span class="kw">fn </span>map_vfs_err_to_syscall_err(err: IoError) -&gt; Error {
-    <span class="kw">match </span>err {
-        IoError::NotFound =&gt; Error::NOT_FOUND,
-        IoError::AlreadyExists =&gt; Error::ALREADY_EXISTS,
-        IoError::NotADirectory =&gt; Error::NOT_A_DIRECTORY,
-        IoError::IsADirectory =&gt; Error::NOT_A_FILE,
-        IoError::FilesystemError =&gt; Error::FILESYSTEM_ERROR,
-        IoError::PermissionDenied =&gt; Error::PERMISSION_DENIED,
-        IoError::UnexpectedEOF =&gt; Error::UNEXPECTED_EOF,
-        IoError::Interrupted =&gt; Error::INTERRUPTED,
-        IoError::WriteZero =&gt; Error::WRITE_ZERO,
-    }
-}
+        <span class="kw">let </span>(mode, size) = <span class="kw">match </span>node {
+            Node::File(f) =&gt; (<span class="string">'f'</span>, f.lock().len()),
+            Node::Directory(<span class="kw">_</span>) =&gt; (<span class="string">'d'</span>, <span class="number">0</span>),
+        };
 
-<span class="kw">fn </span>read_slice_parts(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;(VirtAddr, usize)&gt; {
-    <span class="kw">if </span>len == <span class="number">0 </span>{
-        <span class="kw">return </span><span class="prelude-val">Ok</span>((VirtAddr::new_truncate(<span class="number">0</span>), <span class="number">0</span>));
+        <span class="macro">writeln!</span>(<span class="kw-2">&amp;mut </span>buf, <span class="string">"{mode} {size} {name}"</span>).unwrap();
     }
 
-    <span class="kw">let </span><span class="prelude-val">Some</span>(end) = ptr.checked_add(len) <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
-    };
+    <span class="kw">let </span>fd = push_file(FileInner {
+        file_ref: Arc::new(Mutex::new(ramdisk::File::new(Vec::from(buf)))),
+        position: <span class="number">0</span>,
+    });
 
-    <span class="kw">let </span>(<span class="prelude-val">Ok</span>(start), <span class="prelude-val">Ok</span>(end)) = (VirtAddr::try_new(ptr), VirtAddr::try_new(end)) <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
-    };
-
-    <span class="kw">if </span>!PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {
-        <span class="comment">// debug!(&quot;{:?} not mapped&quot;, start..end);
-        </span><span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ADDRESS);
-    }
-
-    <span class="prelude-val">Ok</span>((start, len <span class="kw">as _</span>))
+    <span class="prelude-val">Ok</span>(fd.<span class="number">0</span>)
 }
 
-<span class="kw">fn </span>read_untrusted_bytes&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>[u8]&gt; {
-    read_slice_parts(ptr, len).map(|(start, len)| {
-        <span class="comment">// TODO:
-        // SAFETY: this is most likely unsafe
-        </span><span class="kw">if </span>len == <span class="number">0 </span>{
-            <span class="kw-2">&amp;</span>[]
-        } <span class="kw">else </span>{
-            <span class="kw">unsafe </span>{ core::slice::from_raw_parts(start.as_ptr(), len <span class="kw">as _</span>) }
-        }
-    })
+<span class="doccomment">/// futex wait
+///
+/// [`hyperion_syscall::futex_wait`]
+</span><span class="kw">pub fn </span>futex_wait(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>addr = read_untrusted_ref::&lt;AtomicUsize&gt;(args.arg0)<span class="question-mark">?</span>;
+    <span class="kw">let </span>val = args.arg1 <span class="kw">as </span>usize;
+
+    futex::wait(addr, val);
+
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 
-<span class="kw">fn </span>read_untrusted_bytes_mut&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>[u8]&gt; {
-    read_slice_parts(ptr, len).map(|(start, len)| {
-        <span class="comment">// TODO:
-        // SAFETY: this is most likely unsafe
-        </span><span class="kw">if </span>len == <span class="number">0 </span>{
-            <span class="kw-2">&amp;mut </span>[]
-        } <span class="kw">else </span>{
-            <span class="kw">unsafe </span>{ core::slice::from_raw_parts_mut(start.as_mut_ptr(), len <span class="kw">as _</span>) }
-        }
-    })
-}
+<span class="doccomment">/// futex wake
+///
+/// [`hyperion_syscall::futex_wake`]
+</span><span class="kw">pub fn </span>futex_wake(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>addr = read_untrusted_ref::&lt;AtomicUsize&gt;(args.arg0)<span class="question-mark">?</span>;
+    <span class="kw">let </span>num = args.arg1 <span class="kw">as </span>usize;
 
-<span class="kw">fn </span>read_untrusted_str&lt;<span class="lifetime">&#39;a</span>&gt;(ptr: u64, len: u64) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str&gt; {
-    read_untrusted_bytes(ptr, len)
-        .and_then(|bytes| core::str::from_utf8(bytes).map_err(|<span class="kw">_</span>| Error::INVALID_UTF8))
+    futex::wake(addr, num);
+
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
 }
 </code></pre></div></section></main></body></html>

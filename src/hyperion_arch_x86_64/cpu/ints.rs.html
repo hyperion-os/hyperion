@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/arch-x86_64/src/cpu/ints.rs`."><title>ints.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="hyperion_arch_x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/arch-x86_64/src/cpu/ints.rs`."><title>ints.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="hyperion_arch_x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -178,77 +178,77 @@
 
 <span class="comment">//
 
-</span><span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>divide_error(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Divide Error\n{stack:#?}&quot;</span>);
+</span><span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>divide_error(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: Divide Error\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>debug(stack: InterruptStackFrame) {
-    <span class="macro">info!</span>(<span class="string">&quot;INT: Debug\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>debug(stack: InterruptStackFrame) {
+    <span class="macro">info!</span>(<span class="string">"INT: Debug\n{stack:#?}"</span>);
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>non_maskable_interrupt(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Non Maskable Interrupt\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>non_maskable_interrupt(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: Non Maskable Interrupt\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>breakpoint(stack: InterruptStackFrame) {
-    <span class="macro">info!</span>(<span class="string">&quot;INT: Breakpoint\n{stack:#?}&quot;</span>)
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>breakpoint(stack: InterruptStackFrame) {
+    <span class="macro">info!</span>(<span class="string">"INT: Breakpoint\n{stack:#?}"</span>)
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>overflow(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Overflow\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>overflow(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: Overflow\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>bound_range_exceeded(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Bound Range Exceeded\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>bound_range_exceeded(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: Bound Range Exceeded\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>invalid_opcode(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Invalid OpCode\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>invalid_opcode(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: Invalid OpCode\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>device_not_available(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Device Not Available\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>device_not_available(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: Device Not Available\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>double_fault(stack: InterruptStackFrame, ec: u64) -&gt; ! {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Double fault ({ec})\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>double_fault(stack: InterruptStackFrame, ec: u64) -&gt; ! {
+    <span class="macro">error!</span>(<span class="string">"INT: Double fault ({ec})\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>invalid_tss(stack: InterruptStackFrame, ec: u64) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Invalid TSS ({ec})\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>invalid_tss(stack: InterruptStackFrame, ec: u64) {
+    <span class="macro">error!</span>(<span class="string">"INT: Invalid TSS ({ec})\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>segment_not_present(stack: InterruptStackFrame, ec: u64) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Segment Not Present ({ec})\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>segment_not_present(stack: InterruptStackFrame, ec: u64) {
+    <span class="macro">error!</span>(<span class="string">"INT: Segment Not Present ({ec})\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>stack_segment_fault(stack: InterruptStackFrame, ec: u64) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Stack Segment Fault ({ec})\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>stack_segment_fault(stack: InterruptStackFrame, ec: u64) {
+    <span class="macro">error!</span>(<span class="string">"INT: Stack Segment Fault ({ec})\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>general_protection_fault(stack: InterruptStackFrame, e: u64) {
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>general_protection_fault(stack: InterruptStackFrame, e: u64) {
     <span class="kw">let </span>addr = Cr2::read();
 
-    <span class="macro">error!</span>(<span class="string">&quot;INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}&quot;</span>);
+    <span class="macro">error!</span>(<span class="string">"INT: General Protection Fault\nAddress: {addr:?}\ne: {e:#x}\n{stack:#?}"</span>);
     <span class="comment">// unsafe { print_backtrace_from(stack.stack_pointer) };
 
     </span>GP_FAULT_HANDLER.load()();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
     <span class="kw">let </span>addr = Cr2::read();
 
-    <span class="macro">trace!</span>(<span class="string">&quot;INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}&quot;</span>);
+    <span class="macro">trace!</span>(<span class="string">"INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}"</span>);
 
     <span class="kw">let </span>privilege = <span class="kw">if </span>ec.contains(PageFaultErrorCode::USER_MODE) {
         Privilege::User
@@ -263,48 +263,48 @@
         <span class="prelude-val">Ok</span>(NotHandled)
     })() {
         <span class="prelude-val">Ok</span>(NotHandled) =&gt; {
-            <span class="macro">error!</span>(<span class="string">&quot;INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}&quot;</span>);
+            <span class="macro">error!</span>(<span class="string">"INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}"</span>);
             <span class="macro">panic!</span>();
         }
         <span class="prelude-val">Err</span>(Handled) =&gt; {
-            <span class="macro">trace!</span>(<span class="string">&quot;page fault handled&quot;</span>);
+            <span class="macro">trace!</span>(<span class="string">"page fault handled"</span>);
         }
     };
 }
 
 <span class="attr">#[no_mangle]
-</span><span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>x87_floating_point(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: x87 Floating Point\n{stack:#?}&quot;</span>);
+</span><span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>x87_floating_point(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: x87 Floating Point\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>alignment_check(stack: InterruptStackFrame, ec: u64) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Alignment Check ({ec})\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>alignment_check(stack: InterruptStackFrame, ec: u64) {
+    <span class="macro">error!</span>(<span class="string">"INT: Alignment Check ({ec})\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>machine_check(stack: InterruptStackFrame) -&gt; ! {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Machine Check\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>machine_check(stack: InterruptStackFrame) -&gt; ! {
+    <span class="macro">error!</span>(<span class="string">"INT: Machine Check\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>simd_floating_point(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: SIMD Floating Point\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>simd_floating_point(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: SIMD Floating Point\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>virtualization(stack: InterruptStackFrame) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Virtualization\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>virtualization(stack: InterruptStackFrame) {
+    <span class="macro">error!</span>(<span class="string">"INT: Virtualization\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>vmm_communication_exception(stack: InterruptStackFrame, ec: u64) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: VMM Communication Exception ({ec})\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>vmm_communication_exception(stack: InterruptStackFrame, ec: u64) {
+    <span class="macro">error!</span>(<span class="string">"INT: VMM Communication Exception ({ec})\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
-<span class="kw">pub extern </span><span class="string">&quot;x86-interrupt&quot; </span><span class="kw">fn </span>security_exception(stack: InterruptStackFrame, ec: u64) {
-    <span class="macro">error!</span>(<span class="string">&quot;INT: Security Exception ({ec})\n{stack:#?}&quot;</span>);
+<span class="kw">pub extern </span><span class="string">"x86-interrupt" </span><span class="kw">fn </span>security_exception(stack: InterruptStackFrame, ec: u64) {
+    <span class="macro">error!</span>(<span class="string">"INT: Security Exception ({ec})\n{stack:#?}"</span>);
     <span class="macro">panic!</span>();
 }
 
@@ -314,6 +314,6 @@
     <span class="kw">use </span>hyperion_interrupts::interrupt_handler;
     <span class="kw">use </span>x86_64::structures::idt::InterruptStackFrame;
 
-    <span class="macro">hyperion_macros::gen_int_handlers!</span>(<span class="string">&quot;x86-interrupt&quot;</span>);
+    <span class="macro">hyperion_macros::gen_int_handlers!</span>(<span class="string">"x86-interrupt"</span>);
 }
 </code></pre></div></section></main></body></html>

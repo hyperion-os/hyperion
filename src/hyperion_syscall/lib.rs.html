@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/syscall/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_syscall" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/syscall/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_syscall" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -264,9 +264,44 @@
 <a href="#264" id="264">264</a>
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
-</span><span class="kw">use </span>core::ptr::NonNull;
+</span><span class="kw">use </span>core::{ptr::NonNull, sync::atomic::AtomicUsize};
 
 <span class="kw">use </span>err::Result;
 
@@ -309,6 +344,11 @@
 
     <span class="kw">pub const </span>GET_PID: usize = <span class="number">23</span>;
     <span class="kw">pub const </span>GET_TID: usize = <span class="number">24</span>;
+
+    <span class="kw">pub const </span>DUP: usize = <span class="number">25</span>;
+    <span class="kw">pub const </span>OPEN_DIR: usize = <span class="number">26</span>;
+    <span class="kw">pub const </span>FUTEX_WAIT: usize = <span class="number">27</span>;
+    <span class="kw">pub const </span>FUTEX_WAKE: usize = <span class="number">28</span>;
 }
 
 <span class="comment">//
@@ -330,32 +370,32 @@
                 <span class="kw-2">mut </span><span class="macro-nonterminal">$id</span>: usize
                 $(, <span class="macro-nonterminal">$a0</span>: usize $(, <span class="macro-nonterminal">$a1</span>: usize $(, <span class="macro-nonterminal">$a2</span>: usize $(, <span class="macro-nonterminal">$a3</span>: usize $(, <span class="macro-nonterminal">$a4</span>: usize)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>)<span class="question-mark">?
             </span>) -&gt; <span class="macro-nonterminal">$crate::err::Result</span>&lt;usize&gt; {
-                <span class="macro">core::arch::asm!</span>(
-                    <span class="string">&quot;syscall&quot;</span>,
+                <span class="kw">unsafe </span>{ <span class="macro">core::arch::asm!</span>(
+                    <span class="string">"syscall"</span>,
 
-                    inout(<span class="string">&quot;rax&quot;</span>) <span class="macro-nonterminal">$id</span>, <span class="comment">// syscall id + return value
+                    inout(<span class="string">"rax"</span>) <span class="macro-nonterminal">$id</span>, <span class="comment">// syscall id + return value
 
                     </span>$( <span class="comment">// optional args
-                        </span><span class="kw">in</span>(<span class="string">&quot;rdi&quot;</span>) <span class="macro-nonterminal">$a0</span>,
+                        </span><span class="kw">in</span>(<span class="string">"rdi"</span>) <span class="macro-nonterminal">$a0</span>,
                         $(
-                            <span class="kw">in</span>(<span class="string">&quot;rsi&quot;</span>) <span class="macro-nonterminal">$a1</span>,
+                            <span class="kw">in</span>(<span class="string">"rsi"</span>) <span class="macro-nonterminal">$a1</span>,
                             $(
-                                <span class="kw">in</span>(<span class="string">&quot;rdx&quot;</span>) <span class="macro-nonterminal">$a2</span>,
+                                <span class="kw">in</span>(<span class="string">"rdx"</span>) <span class="macro-nonterminal">$a2</span>,
                                 $(
-                                    <span class="kw">in</span>(<span class="string">&quot;r8&quot;</span>) <span class="macro-nonterminal">$a3</span>,
+                                    <span class="kw">in</span>(<span class="string">"r8"</span>) <span class="macro-nonterminal">$a3</span>,
                                     $(
-                                        <span class="kw">in</span>(<span class="string">&quot;r9&quot;</span>) <span class="macro-nonterminal">$a4</span>,
+                                        <span class="kw">in</span>(<span class="string">"r9"</span>) <span class="macro-nonterminal">$a4</span>,
                                     )<span class="question-mark">?
                                 </span>)<span class="question-mark">?
                             </span>)<span class="question-mark">?
                         </span>)<span class="question-mark">?
                     </span>)<span class="question-mark">?
 
-                    </span>out(<span class="string">&quot;rcx&quot;</span>) <span class="kw">_</span>, <span class="comment">// remind the compiler that
-                    </span>out(<span class="string">&quot;r11&quot;</span>) <span class="kw">_</span>, <span class="comment">// syscall saves these 2
+                    </span>out(<span class="string">"rcx"</span>) <span class="kw">_</span>, <span class="comment">// remind the compiler that
+                    </span>out(<span class="string">"r11"</span>) <span class="kw">_</span>, <span class="comment">// syscall saves these 2
 
                     </span>options(nostack),
-                );
+                ) };
 
                 <span class="macro-nonterminal">$crate::err::Error::decode</span>(<span class="macro-nonterminal">$id</span>)
             }
@@ -387,7 +427,7 @@
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>exit(code: i64) -&gt; ! {
     <span class="kw">let </span>result = <span class="kw">unsafe </span>{ syscall_1(id::EXIT, code <span class="kw">as </span>usize) };
-    <span class="macro">unreachable!</span>(<span class="string">&quot;{result:?}&quot;</span>);
+    <span class="macro">unreachable!</span>(<span class="string">"{result:?}"</span>);
 }
 
 <span class="doccomment">/// context switch from this process, no guarantees about actually switching
@@ -421,7 +461,7 @@
 
 <span class="doccomment">/// spawn a new pthread for the same process
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>pthread_spawn(thread_entry: <span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn</span>(usize, usize) -&gt; !, arg: usize) {
+</span><span class="kw">pub fn </span>pthread_spawn(thread_entry: <span class="kw">extern </span><span class="string">"C" </span><span class="kw">fn</span>(usize, usize) -&gt; !, arg: usize) {
     <span class="kw">unsafe </span>{ syscall_2(id::PTHREAD_SPAWN, thread_entry <span class="kw">as </span>usize, arg) }.unwrap();
 }
 
@@ -529,5 +569,35 @@
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>get_tid() -&gt; usize {
     <span class="kw">unsafe </span>{ syscall_0(id::GET_TID) }.unwrap()
+}
+
+<span class="doccomment">/// duplicate a file descriptor
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>dup(old: FileDesc, new: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
+    <span class="kw">unsafe </span>{ syscall_2(id::DUP, old.<span class="number">0</span>, new.<span class="number">0</span>) }.map(FileDesc)
+}
+
+<span class="doccomment">/// open a directory
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>open_dir(path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
+    <span class="kw">unsafe </span>{ syscall_2(id::OPEN_DIR, path.as_ptr() <span class="kw">as _</span>, path.len()) }.map(FileDesc)
+}
+
+<span class="doccomment">/// futex wait if value at `addr` is `val`
+///
+/// wakes up when some other thread calls `futex_wake` on the same `addr`
+///
+/// the addr is translated so futexes in inter-process shmem should still work
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>futex_wait(addr: <span class="kw-2">&amp;</span>AtomicUsize, val: usize) {
+    <span class="kw">unsafe </span>{ syscall_2(id::FUTEX_WAIT, addr <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize, val) }.unwrap();
+}
+
+<span class="doccomment">/// wake `num` threads that are sleeping on this `addr`
+///
+/// see [`futex_wait`]
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>futex_wake(addr: <span class="kw-2">&amp;</span>AtomicUsize, num: usize) {
+    <span class="kw">unsafe </span>{ syscall_2(id::FUTEX_WAKE, addr <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span>usize, num) }.unwrap();
 }
 </code></pre></div></section></main></body></html>

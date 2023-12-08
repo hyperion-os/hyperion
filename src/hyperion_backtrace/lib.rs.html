@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/backtrace/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_backtrace" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/backtrace/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_backtrace" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -286,8 +286,6 @@
 <a href="#286" id="286">286</a>
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![feature(naked_functions)]
 
@@ -316,13 +314,13 @@
     ElfParse(ParseError),
 
     <span class="comment">// TODO: this is temporary
-    </span>Inner(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span><span class="self">Self</span>),
+    </span>Inner(<span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="self">Self</span>),
 }
 
 <span class="attr">#[derive(Debug, Clone, Copy)]
 </span><span class="kw">pub struct </span>FrameInfo {
     <span class="kw">pub </span>instr_ptr: usize,
-    <span class="kw">pub </span>symbol_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+    <span class="kw">pub </span>symbol_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
     <span class="kw">pub </span>symbol_offs: <span class="prelude-ty">Option</span>&lt;usize&gt;,
 }
 
@@ -333,14 +331,14 @@
 
     <span class="kw">for </span>sym <span class="kw">in </span>symtab.iter() {
         <span class="kw">if let </span><span class="prelude-val">Ok</span>(s_sym) = strtab.get(sym.st_name <span class="kw">as _</span>) {
-            <span class="kw">if </span>s_sym.matches(<span class="string">&quot;hyperion&quot;</span>).count() == <span class="number">0 </span>{
+            <span class="kw">if </span>s_sym.matches(<span class="string">"hyperion"</span>).count() == <span class="number">0 </span>{
                 <span class="kw">continue</span>;
             }
 
             <span class="kw">let </span>symname = demangle(s_sym);
 
             <span class="macro">println!</span>(
-                <span class="string">&quot;symtab sym `{symname}` at `{:#018x}` size: {}&quot;</span>,
+                <span class="string">"symtab sym `{symname}` at `{:#018x}` size: {}"</span>,
                 sym.st_value, sym.st_size
             );
         }
@@ -352,7 +350,7 @@
 <span class="doccomment">/// returns the `symbol_name + offset` for the provided instruction pointer
 ///
 /// or an error if the (sym/str)tab could not be read
-</span><span class="kw">pub fn </span>symbol(instr_ptr: u64) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, usize), BacktraceError&gt; {
+</span><span class="kw">pub fn </span>symbol(instr_ptr: u64) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, usize), BacktraceError&gt; {
     <span class="kw">let </span>(symtab, strtab) = SYMTAB.as_ref().map_err(BacktraceError::Inner)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>symbol = symtab
@@ -385,7 +383,7 @@
     <span class="kw">let </span>frame: u64;
     <span class="kw">unsafe </span>{
         <span class="comment">// TODO: move to arch
-        </span><span class="macro">asm!</span>(<span class="string">&quot;mov {}, rbp&quot;</span>, out(reg) frame);
+        </span><span class="macro">asm!</span>(<span class="string">"mov {}, rbp"</span>, out(reg) frame);
     }
     VirtAddr::new(frame)
 }
@@ -423,34 +421,34 @@ pub fn current_registers(mut f: impl FnMut(UnwindRegs)) {
     save_current_registers(&amp;mut f);
 
     #[naked]
-    extern &quot;sysv64&quot; fn save_current_registers(_f: *mut &amp;mut dyn FnMut(UnwindRegs)) {
+    extern "sysv64" fn save_current_registers(_f: *mut &amp;mut dyn FnMut(UnwindRegs)) {
         unsafe {
             core::arch::asm!(
                 // save callee-saved registers
                 // https://wiki.osdev.org/System_V_ABI
-                &quot;mov rsi, rsp&quot;, // save stack before this stack save
-                &quot;push rbp&quot;,
-                &quot;push rbx&quot;,
-                &quot;push r12&quot;,
-                &quot;push r13&quot;,
-                &quot;push r14&quot;,
-                &quot;push r15&quot;,
-                &quot;mov rdx, rsp&quot;, // *mut SavedRegs argument for unwind
-                &quot;call {unwind}&quot;,
-                &quot;pop r15&quot;,
-                &quot;pop r14&quot;,
-                &quot;pop r13&quot;,
-                &quot;pop r12&quot;,
-                &quot;pop rbx&quot;,
-                &quot;pop rbp&quot;,
-                &quot;ret&quot;,
+                "mov rsi, rsp", // save stack before this stack save
+                "push rbp",
+                "push rbx",
+                "push r12",
+                "push r13",
+                "push r14",
+                "push r15",
+                "mov rdx, rsp", // *mut SavedRegs argument for unwind
+                "call {unwind}",
+                "pop r15",
+                "pop r14",
+                "pop r13",
+                "pop r12",
+                "pop rbx",
+                "pop rbp",
+                "ret",
                 unwind = sym unwind,
                 options(noreturn),
             );
         }
     }
 
-    extern &quot;sysv64&quot; fn unwind(
+    extern "sysv64" fn unwind(
         _f: *mut &amp;mut dyn FnMut(UnwindRegs),
         stack: u64,
         regs: *mut SavedRegs,
@@ -516,36 +514,34 @@ pub fn current_registers(mut f: impl FnMut(UnwindRegs)) {
 </span><span class="kw">pub unsafe fn </span>print_backtrace_from(ip: VirtAddr) {
     hyperion_log::_print_log_custom(
         LogLevel::Info,
-        <span class="string">&quot; BACKTRACE&quot;</span>.true_yellow(),
-        <span class="string">&quot;begin&quot;</span>,
-        <span class="macro">format_args!</span>(<span class="string">&quot;\n&quot;</span>),
+        <span class="string">" BACKTRACE"</span>.true_yellow(),
+        <span class="string">"begin"</span>,
+        <span class="macro">format_args!</span>(<span class="string">"\n"</span>),
     );
     <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0usize</span>;
-    unwind_stack_from(
-        ip,
-        |FrameInfo {
-             instr_ptr: ip,
-             symbol_name: sym,
-             symbol_offs: offs,
-         }| {
-            <span class="kw">let </span>sym = demangle(sym);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(offs) = offs {
-                <span class="macro">println!</span>(
-                    <span class="string">&quot;{i:&gt;4}: {:#018x}+{:&lt;4x} =&gt; {sym}&quot;</span>,
-                    ip.true_cyan(),
-                    offs.true_cyan()
-                );
-            } <span class="kw">else </span>{
-                <span class="macro">println!</span>(<span class="string">&quot;{i:&gt;4}: {:#018x} - {sym}&quot;</span>, ip.true_cyan());
-            }
-            i += <span class="number">1</span>;
-        },
-    );
+    <span class="kw">let </span>frame_walker = |FrameInfo {
+                            instr_ptr: ip,
+                            symbol_name: sym,
+                            symbol_offs: offs,
+                        }| {
+        <span class="kw">let </span>sym = demangle(sym);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(offs) = offs {
+            <span class="macro">println!</span>(
+                <span class="string">"{i:&gt;4}: {:#018x}+{:&lt;4x} =&gt; {sym}"</span>,
+                ip.true_cyan(),
+                offs.true_cyan()
+            );
+        } <span class="kw">else </span>{
+            <span class="macro">println!</span>(<span class="string">"{i:&gt;4}: {:#018x} - {sym}"</span>, ip.true_cyan());
+        }
+        i += <span class="number">1</span>;
+    };
+    <span class="kw">unsafe </span>{ unwind_stack_from(ip, frame_walker) };
     hyperion_log::_print_log_custom(
         LogLevel::Info,
-        <span class="string">&quot; BACKTRACE&quot;</span>.true_yellow(),
-        <span class="string">&quot;end&quot;</span>,
-        <span class="macro">format_args!</span>(<span class="string">&quot;\n&quot;</span>),
+        <span class="string">" BACKTRACE"</span>.true_yellow(),
+        <span class="string">"end"</span>,
+        <span class="macro">format_args!</span>(<span class="string">"\n"</span>),
     );
 }
 
@@ -555,7 +551,7 @@ pub fn current_registers(mut f: impl FnMut(UnwindRegs)) {
 
 <span class="comment">//
 
-</span><span class="kw">static </span>KERNEL_ELF: Lazy&lt;BacktraceResult&lt;ElfBytes&lt;<span class="lifetime">&#39;static</span>, AnyEndian&gt;&gt;&gt; = Lazy::new(|| {
+</span><span class="kw">static </span>KERNEL_ELF: Lazy&lt;BacktraceResult&lt;ElfBytes&lt;<span class="lifetime">'static</span>, AnyEndian&gt;&gt;&gt; = Lazy::new(|| {
     <span class="kw">let </span>bytes = kernel_file().ok_or(BacktraceError::ElfNotLoaded)<span class="question-mark">?</span>;
     ElfBytes::minimal_parse(bytes).map_err(BacktraceError::ElfParse)
     <span class="comment">// ElfBytes::minimal_parse(bytes)
@@ -564,7 +560,7 @@ pub fn current_registers(mut f: impl FnMut(UnwindRegs)) {
 </span>});
 
 <span class="kw">static </span>SYMTAB: Lazy&lt;
-    <span class="prelude-ty">Result</span>&lt;(SymbolTable&lt;<span class="lifetime">&#39;static</span>, AnyEndian&gt;, StringTable&lt;<span class="lifetime">&#39;static</span>&gt;), BacktraceError&gt;,
+    <span class="prelude-ty">Result</span>&lt;(SymbolTable&lt;<span class="lifetime">'static</span>, AnyEndian&gt;, StringTable&lt;<span class="lifetime">'static</span>&gt;), BacktraceError&gt;,
 &gt; = Lazy::new(|| {
     <span class="kw">let </span>elf = KERNEL_ELF.as_ref().map_err(BacktraceError::Inner)<span class="question-mark">?</span>;
 
@@ -573,9 +569,9 @@ pub fn current_registers(mut f: impl FnMut(UnwindRegs)) {
         </span>.ok_or(BacktraceError::NoSymtabOrStrtab)
 });
 
-<span class="kw">static </span>UNKNOWN: <span class="kw-2">&amp;</span>str = <span class="string">&quot;&lt;unknown&gt;&quot;</span>;
+<span class="kw">static </span>UNKNOWN: <span class="kw-2">&amp;</span>str = <span class="string">"&lt;unknown&gt;"</span>;
 
-<span class="kw">extern </span><span class="string">&quot;C&quot; </span>{
+<span class="kw">extern </span><span class="string">"C" </span>{
     <span class="kw">static </span>KERNEL_BASE: c_void;
 }
 </code></pre></div></section></main></body></html>

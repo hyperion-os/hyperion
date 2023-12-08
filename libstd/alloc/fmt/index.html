@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Utilities for formatting and printing `String`s."><title>libstd::alloc::fmt - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libstd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../libstd/index.html">libstd</a><span class="version">0.1.0</span></h2></div><h2 class="location"><a href="#">Module fmt</a></h2><div class="sidebar-elems"><section><ul class="block"><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Aliases</a></li><li><a href="#derives">Derive Macros</a></li></ul></section><h2><a href="../index.html">In libstd::alloc</a></h2></div></nav><main><div class="width-limiter"><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="main-heading"><h1>Module <a href="../../index.html">libstd</a>::<wbr><a href="../index.html">alloc</a>::<wbr><a class="mod" href="#">fmt</a><button id="copy-path" title="Copy item path to clipboard"><img src="../../../static.files/clipboard-7571035ce49a181d.svg" width="19" height="18" alt="Copy item path"></button></h1><span class="out-of-band"><span class="since" title="Stable since Rust version 1.0.0">1.0.0</span> · <a class="src" href="https://doc.rust-lang.org/nightly/src/alloc/lib.rs.html#246">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Utilities for formatting and printing <code>String</code>s.</p>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Utilities for formatting and printing `String`s."><title>libstd::alloc::fmt - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libstd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../libstd/index.html">libstd</a><span class="version">0.1.0</span></h2></div><h2 class="location"><a href="#">Module fmt</a></h2><div class="sidebar-elems"><section><ul class="block"><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Aliases</a></li><li><a href="#derives">Derive Macros</a></li></ul></section><h2><a href="../index.html">In libstd::alloc</a></h2></div></nav><main><div class="width-limiter"><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="main-heading"><h1>Module <a href="../../index.html">libstd</a>::<wbr><a href="../index.html">alloc</a>::<wbr><a class="mod" href="#">fmt</a><button id="copy-path" title="Copy item path to clipboard"><img src="../../../static.files/clipboard-7571035ce49a181d.svg" width="19" height="18" alt="Copy item path"></button></h1><span class="out-of-band"><span class="since" title="Stable since Rust version 1.0.0">1.0.0</span> · <a class="src" href="https://doc.rust-lang.org/nightly/src/alloc/lib.rs.html#246">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Utilities for formatting and printing <code>String</code>s.</p>
 <p>This module contains the runtime support for the <a href="../macro.format.html" title="macro libstd::alloc::format"><code>format!</code></a> syntax extension.
 This macro is implemented in the compiler to emit calls to this module in
 order to format arguments at runtime into strings.</p>
@@ -7,19 +7,19 @@ order to format arguments at runtime into strings.</p>
 <code>printf</code>/<code>fprintf</code> functions or Python’s <code>str.format</code> function.</p>
 <p>Some examples of the <a href="../macro.format.html" title="macro libstd::alloc::format"><code>format!</code></a> extension are:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">format!</span>(<span class="string">&quot;Hello&quot;</span>);                 <span class="comment">// =&gt; &quot;Hello&quot;
-</span><span class="macro">format!</span>(<span class="string">&quot;Hello, {}!&quot;</span>, <span class="string">&quot;world&quot;</span>);   <span class="comment">// =&gt; &quot;Hello, world!&quot;
-</span><span class="macro">format!</span>(<span class="string">&quot;The number is {}&quot;</span>, <span class="number">1</span>);   <span class="comment">// =&gt; &quot;The number is 1&quot;
-</span><span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, (<span class="number">3</span>, <span class="number">4</span>));          <span class="comment">// =&gt; &quot;(3, 4)&quot;
-</span><span class="macro">format!</span>(<span class="string">&quot;{value}&quot;</span>, value=<span class="number">4</span>);      <span class="comment">// =&gt; &quot;4&quot;
-</span><span class="kw">let </span>people = <span class="string">&quot;Rustaceans&quot;</span>;
-<span class="macro">format!</span>(<span class="string">&quot;Hello {people}!&quot;</span>);       <span class="comment">// =&gt; &quot;Hello Rustaceans!&quot;
-</span><span class="macro">format!</span>(<span class="string">&quot;{} {}&quot;</span>, <span class="number">1</span>, <span class="number">2</span>);           <span class="comment">// =&gt; &quot;1 2&quot;
-</span><span class="macro">format!</span>(<span class="string">&quot;{:04}&quot;</span>, <span class="number">42</span>);             <span class="comment">// =&gt; &quot;0042&quot; with leading zeros
-</span><span class="macro">format!</span>(<span class="string">&quot;{:#?}&quot;</span>, (<span class="number">100</span>, <span class="number">200</span>));     <span class="comment">// =&gt; &quot;(
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">format!</span>(<span class="string">"Hello"</span>);                 <span class="comment">// =&gt; "Hello"
+</span><span class="macro">format!</span>(<span class="string">"Hello, {}!"</span>, <span class="string">"world"</span>);   <span class="comment">// =&gt; "Hello, world!"
+</span><span class="macro">format!</span>(<span class="string">"The number is {}"</span>, <span class="number">1</span>);   <span class="comment">// =&gt; "The number is 1"
+</span><span class="macro">format!</span>(<span class="string">"{:?}"</span>, (<span class="number">3</span>, <span class="number">4</span>));          <span class="comment">// =&gt; "(3, 4)"
+</span><span class="macro">format!</span>(<span class="string">"{value}"</span>, value=<span class="number">4</span>);      <span class="comment">// =&gt; "4"
+</span><span class="kw">let </span>people = <span class="string">"Rustaceans"</span>;
+<span class="macro">format!</span>(<span class="string">"Hello {people}!"</span>);       <span class="comment">// =&gt; "Hello Rustaceans!"
+</span><span class="macro">format!</span>(<span class="string">"{} {}"</span>, <span class="number">1</span>, <span class="number">2</span>);           <span class="comment">// =&gt; "1 2"
+</span><span class="macro">format!</span>(<span class="string">"{:04}"</span>, <span class="number">42</span>);             <span class="comment">// =&gt; "0042" with leading zeros
+</span><span class="macro">format!</span>(<span class="string">"{:#?}"</span>, (<span class="number">100</span>, <span class="number">200</span>));     <span class="comment">// =&gt; "(
                                   //       100,
                                   //       200,
-                                  //     )&quot;</span></code></pre></div>
+                                  //     )"</span></code></pre></div>
 <p>From these, you can see that the first argument is a format string. It is
 required by the compiler for this to be a string literal; it cannot be a
 variable passed in (in order to perform validity checking). The compiler
@@ -38,7 +38,7 @@ positional specifiers. The “next argument” specifier can be thought of as an
 iterator over the argument. Each time a “next argument” specifier is seen,
 the iterator advances. This leads to behavior like this:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">format!</span>(<span class="string">&quot;{1} {} {0} {}&quot;</span>, <span class="number">1</span>, <span class="number">2</span>); <span class="comment">// =&gt; &quot;2 1 1 2&quot;</span></code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">format!</span>(<span class="string">"{1} {} {0} {}"</span>, <span class="number">1</span>, <span class="number">2</span>); <span class="comment">// =&gt; "2 1 1 2"</span></code></pre></div>
 <p>The internal iterator over the argument has not been advanced by the time
 the first <code>{}</code> is seen, so it prints the first argument. Then upon reaching
 the second <code>{}</code>, the iterator has advanced forward to the second argument.
@@ -56,19 +56,19 @@ argument list and have the syntax:</p>
 </code></pre></div>
 <p>For example, the following <a href="../macro.format.html" title="macro libstd::alloc::format"><code>format!</code></a> expressions all use named arguments:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">format!</span>(<span class="string">&quot;{argument}&quot;</span>, argument = <span class="string">&quot;test&quot;</span>);   <span class="comment">// =&gt; &quot;test&quot;
-</span><span class="macro">format!</span>(<span class="string">&quot;{name} {}&quot;</span>, <span class="number">1</span>, name = <span class="number">2</span>);          <span class="comment">// =&gt; &quot;2 1&quot;
-</span><span class="macro">format!</span>(<span class="string">&quot;{a} {c} {b}&quot;</span>, a=<span class="string">&quot;a&quot;</span>, b=<span class="string">&#39;b&#39;</span>, c=<span class="number">3</span>);  <span class="comment">// =&gt; &quot;a 3 b&quot;</span></code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">format!</span>(<span class="string">"{argument}"</span>, argument = <span class="string">"test"</span>);   <span class="comment">// =&gt; "test"
+</span><span class="macro">format!</span>(<span class="string">"{name} {}"</span>, <span class="number">1</span>, name = <span class="number">2</span>);          <span class="comment">// =&gt; "2 1"
+</span><span class="macro">format!</span>(<span class="string">"{a} {c} {b}"</span>, a=<span class="string">"a"</span>, b=<span class="string">'b'</span>, c=<span class="number">3</span>);  <span class="comment">// =&gt; "a 3 b"</span></code></pre></div>
 <p>If a named parameter does not appear in the argument list, <code>format!</code> will
 reference a variable with that name in the current scope.</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>argument = <span class="number">2 </span>+ <span class="number">2</span>;
-<span class="macro">format!</span>(<span class="string">&quot;{argument}&quot;</span>);   <span class="comment">// =&gt; &quot;4&quot;
+<span class="macro">format!</span>(<span class="string">"{argument}"</span>);   <span class="comment">// =&gt; "4"
 
 </span><span class="kw">fn </span>make_string(a: u32, b: <span class="kw-2">&amp;</span>str) -&gt; String {
-    <span class="macro">format!</span>(<span class="string">&quot;{b} {a}&quot;</span>)
+    <span class="macro">format!</span>(<span class="string">"{b} {a}"</span>)
 }
-make_string(<span class="number">927</span>, <span class="string">&quot;label&quot;</span>); <span class="comment">// =&gt; &quot;label 927&quot;</span></code></pre></div>
+make_string(<span class="number">927</span>, <span class="string">"label"</span>); <span class="comment">// =&gt; "label 927"</span></code></pre></div>
 <p>It is not valid to put positional parameters (those without names) after
 arguments that have names. Like with positional parameters, it is not
 valid to provide named parameters that are unused by the format string.</p>
@@ -77,13 +77,13 @@ valid to provide named parameters that are unused by the format string.</p>
 parameters (corresponding to <code>format_spec</code> in <a href="#syntax">the syntax</a>). These
 parameters affect the string representation of what’s being formatted.</p>
 <h3 id="width"><a href="#width">Width</a></h3>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// All of these print &quot;Hello x    !&quot;
-</span><span class="macro">println!</span>(<span class="string">&quot;Hello {:5}!&quot;</span>, <span class="string">&quot;x&quot;</span>);
-<span class="macro">println!</span>(<span class="string">&quot;Hello {:1$}!&quot;</span>, <span class="string">&quot;x&quot;</span>, <span class="number">5</span>);
-<span class="macro">println!</span>(<span class="string">&quot;Hello {1:0$}!&quot;</span>, <span class="number">5</span>, <span class="string">&quot;x&quot;</span>);
-<span class="macro">println!</span>(<span class="string">&quot;Hello {:width$}!&quot;</span>, <span class="string">&quot;x&quot;</span>, width = <span class="number">5</span>);
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// All of these print "Hello x    !"
+</span><span class="macro">println!</span>(<span class="string">"Hello {:5}!"</span>, <span class="string">"x"</span>);
+<span class="macro">println!</span>(<span class="string">"Hello {:1$}!"</span>, <span class="string">"x"</span>, <span class="number">5</span>);
+<span class="macro">println!</span>(<span class="string">"Hello {1:0$}!"</span>, <span class="number">5</span>, <span class="string">"x"</span>);
+<span class="macro">println!</span>(<span class="string">"Hello {:width$}!"</span>, <span class="string">"x"</span>, width = <span class="number">5</span>);
 <span class="kw">let </span>width = <span class="number">5</span>;
-<span class="macro">println!</span>(<span class="string">&quot;Hello {:width$}!&quot;</span>, <span class="string">&quot;x&quot;</span>);</code></pre></div>
+<span class="macro">println!</span>(<span class="string">"Hello {:width$}!"</span>, <span class="string">"x"</span>);</code></pre></div>
 <p>This is a parameter for the “minimum width” that the format should take up.
 If the value’s string does not fill up this many characters, then the
 padding specified by fill/alignment will be used to take up the required
@@ -95,10 +95,10 @@ a <a href="https://doc.rust-lang.org/nightly/core/primitive.usize.html" title="p
 argument” counter, so it’s usually a good idea to refer to arguments by
 position, or use named arguments.</p>
 <h3 id="fillalignment"><a href="#fillalignment">Fill/Alignment</a></h3>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;Hello {:&lt;5}!&quot;</span>, <span class="string">&quot;x&quot;</span>),  <span class="string">&quot;Hello x    !&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;Hello {:-&lt;5}!&quot;</span>, <span class="string">&quot;x&quot;</span>), <span class="string">&quot;Hello x----!&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;Hello {:^5}!&quot;</span>, <span class="string">&quot;x&quot;</span>),  <span class="string">&quot;Hello   x  !&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;Hello {:&gt;5}!&quot;</span>, <span class="string">&quot;x&quot;</span>),  <span class="string">&quot;Hello     x!&quot;</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"Hello {:&lt;5}!"</span>, <span class="string">"x"</span>),  <span class="string">"Hello x    !"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"Hello {:-&lt;5}!"</span>, <span class="string">"x"</span>), <span class="string">"Hello x----!"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"Hello {:^5}!"</span>, <span class="string">"x"</span>),  <span class="string">"Hello   x  !"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"Hello {:&gt;5}!"</span>, <span class="string">"x"</span>),  <span class="string">"Hello     x!"</span>);</code></pre></div>
 <p>The optional fill character and alignment is provided normally in conjunction with the
 <a href="#width"><code>width</code></a> parameter. It must be defined before <code>width</code>, right after the <code>:</code>.
 This indicates that if the value being formatted is smaller than
@@ -119,13 +119,13 @@ is not generally implemented for the <code>Debug</code> trait.  A good way to en
 padding is applied is to format your input, then pad this resulting string
 to obtain your output:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">println!</span>(<span class="string">&quot;Hello {:^15}!&quot;</span>, <span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="prelude-val">Some</span>(<span class="string">&quot;hi&quot;</span>))); <span class="comment">// =&gt; &quot;Hello   Some(&quot;hi&quot;)   !&quot;</span></code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">println!</span>(<span class="string">"Hello {:^15}!"</span>, <span class="macro">format!</span>(<span class="string">"{:?}"</span>, <span class="prelude-val">Some</span>(<span class="string">"hi"</span>))); <span class="comment">// =&gt; "Hello   Some("hi")   !"</span></code></pre></div>
 <h3 id="sign0"><a href="#sign0">Sign/<code>#</code>/<code>0</code></a></h3>
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;Hello {:+}!&quot;</span>, <span class="number">5</span>), <span class="string">&quot;Hello +5!&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;{:#x}!&quot;</span>, <span class="number">27</span>), <span class="string">&quot;0x1b!&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;Hello {:05}!&quot;</span>, <span class="number">5</span>),  <span class="string">&quot;Hello 00005!&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;Hello {:05}!&quot;</span>, -<span class="number">5</span>), <span class="string">&quot;Hello -0005!&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;{:#010x}!&quot;</span>, <span class="number">27</span>), <span class="string">&quot;0x0000001b!&quot;</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"Hello {:+}!"</span>, <span class="number">5</span>), <span class="string">"Hello +5!"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"{:#x}!"</span>, <span class="number">27</span>), <span class="string">"0x1b!"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"Hello {:05}!"</span>, <span class="number">5</span>),  <span class="string">"Hello 00005!"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"Hello {:05}!"</span>, -<span class="number">5</span>), <span class="string">"Hello -0005!"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"{:#010x}!"</span>, <span class="number">27</span>), <span class="string">"0x0000001b!"</span>);</code></pre></div>
 <p>These are all flags altering the behavior of the formatter.</p>
 <ul>
 <li><code>+</code> - This is intended for numeric types and indicates that the sign
@@ -184,35 +184,35 @@ omitted positional parameter (<code>{}</code> instead of <code>{&lt;arg&gt;:}</c
 </ol>
 <p>For example, the following calls all print the same thing <code>Hello x is 0.01000</code>:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// Hello {arg 0 (&quot;x&quot;)} is {arg 1 (0.01) with precision specified inline (5)}
-</span><span class="macro">println!</span>(<span class="string">&quot;Hello {0} is {1:.5}&quot;</span>, <span class="string">&quot;x&quot;</span>, <span class="number">0.01</span>);
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// Hello {arg 0 ("x")} is {arg 1 (0.01) with precision specified inline (5)}
+</span><span class="macro">println!</span>(<span class="string">"Hello {0} is {1:.5}"</span>, <span class="string">"x"</span>, <span class="number">0.01</span>);
 
-<span class="comment">// Hello {arg 1 (&quot;x&quot;)} is {arg 2 (0.01) with precision specified in arg 0 (5)}
-</span><span class="macro">println!</span>(<span class="string">&quot;Hello {1} is {2:.0$}&quot;</span>, <span class="number">5</span>, <span class="string">&quot;x&quot;</span>, <span class="number">0.01</span>);
+<span class="comment">// Hello {arg 1 ("x")} is {arg 2 (0.01) with precision specified in arg 0 (5)}
+</span><span class="macro">println!</span>(<span class="string">"Hello {1} is {2:.0$}"</span>, <span class="number">5</span>, <span class="string">"x"</span>, <span class="number">0.01</span>);
 
-<span class="comment">// Hello {arg 0 (&quot;x&quot;)} is {arg 2 (0.01) with precision specified in arg 1 (5)}
-</span><span class="macro">println!</span>(<span class="string">&quot;Hello {0} is {2:.1$}&quot;</span>, <span class="string">&quot;x&quot;</span>, <span class="number">5</span>, <span class="number">0.01</span>);
+<span class="comment">// Hello {arg 0 ("x")} is {arg 2 (0.01) with precision specified in arg 1 (5)}
+</span><span class="macro">println!</span>(<span class="string">"Hello {0} is {2:.1$}"</span>, <span class="string">"x"</span>, <span class="number">5</span>, <span class="number">0.01</span>);
 
-<span class="comment">// Hello {next arg -&gt; arg 0 (&quot;x&quot;)} is {second of next two args -&gt; arg 2 (0.01) with precision
+<span class="comment">// Hello {next arg -&gt; arg 0 ("x")} is {second of next two args -&gt; arg 2 (0.01) with precision
 //                          specified in first of next two args -&gt; arg 1 (5)}
-</span><span class="macro">println!</span>(<span class="string">&quot;Hello {} is {:.*}&quot;</span>,    <span class="string">&quot;x&quot;</span>, <span class="number">5</span>, <span class="number">0.01</span>);
+</span><span class="macro">println!</span>(<span class="string">"Hello {} is {:.*}"</span>,    <span class="string">"x"</span>, <span class="number">5</span>, <span class="number">0.01</span>);
 
-<span class="comment">// Hello {arg 1 (&quot;x&quot;)} is {arg 2 (0.01) with precision
+<span class="comment">// Hello {arg 1 ("x")} is {arg 2 (0.01) with precision
 //                          specified in next arg -&gt; arg 0 (5)}
-</span><span class="macro">println!</span>(<span class="string">&quot;Hello {1} is {2:.*}&quot;</span>,  <span class="number">5</span>, <span class="string">&quot;x&quot;</span>, <span class="number">0.01</span>);
+</span><span class="macro">println!</span>(<span class="string">"Hello {1} is {2:.*}"</span>,  <span class="number">5</span>, <span class="string">"x"</span>, <span class="number">0.01</span>);
 
-<span class="comment">// Hello {next arg -&gt; arg 0 (&quot;x&quot;)} is {arg 2 (0.01) with precision
+<span class="comment">// Hello {next arg -&gt; arg 0 ("x")} is {arg 2 (0.01) with precision
 //                          specified in next arg -&gt; arg 1 (5)}
-</span><span class="macro">println!</span>(<span class="string">&quot;Hello {} is {2:.*}&quot;</span>,   <span class="string">&quot;x&quot;</span>, <span class="number">5</span>, <span class="number">0.01</span>);
+</span><span class="macro">println!</span>(<span class="string">"Hello {} is {2:.*}"</span>,   <span class="string">"x"</span>, <span class="number">5</span>, <span class="number">0.01</span>);
 
-<span class="comment">// Hello {next arg -&gt; arg 0 (&quot;x&quot;)} is {arg &quot;number&quot; (0.01) with precision specified
-//                          in arg &quot;prec&quot; (5)}
-</span><span class="macro">println!</span>(<span class="string">&quot;Hello {} is {number:.prec$}&quot;</span>, <span class="string">&quot;x&quot;</span>, prec = <span class="number">5</span>, number = <span class="number">0.01</span>);</code></pre></div>
+<span class="comment">// Hello {next arg -&gt; arg 0 ("x")} is {arg "number" (0.01) with precision specified
+//                          in arg "prec" (5)}
+</span><span class="macro">println!</span>(<span class="string">"Hello {} is {number:.prec$}"</span>, <span class="string">"x"</span>, prec = <span class="number">5</span>, number = <span class="number">0.01</span>);</code></pre></div>
 <p>While these:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">println!</span>(<span class="string">&quot;{}, `{name:.*}` has 3 fractional digits&quot;</span>, <span class="string">&quot;Hello&quot;</span>, <span class="number">3</span>, name=<span class="number">1234.56</span>);
-<span class="macro">println!</span>(<span class="string">&quot;{}, `{name:.*}` has 3 characters&quot;</span>, <span class="string">&quot;Hello&quot;</span>, <span class="number">3</span>, name=<span class="string">&quot;1234.56&quot;</span>);
-<span class="macro">println!</span>(<span class="string">&quot;{}, `{name:&gt;8.*}` has 3 right-aligned characters&quot;</span>, <span class="string">&quot;Hello&quot;</span>, <span class="number">3</span>, name=<span class="string">&quot;1234.56&quot;</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">println!</span>(<span class="string">"{}, `{name:.*}` has 3 fractional digits"</span>, <span class="string">"Hello"</span>, <span class="number">3</span>, name=<span class="number">1234.56</span>);
+<span class="macro">println!</span>(<span class="string">"{}, `{name:.*}` has 3 characters"</span>, <span class="string">"Hello"</span>, <span class="number">3</span>, name=<span class="string">"1234.56"</span>);
+<span class="macro">println!</span>(<span class="string">"{}, `{name:&gt;8.*}` has 3 right-aligned characters"</span>, <span class="string">"Hello"</span>, <span class="number">3</span>, name=<span class="string">"1234.56"</span>);</code></pre></div>
 <p>print three significantly different things:</p>
 <div class="example-wrap"><pre class="language-text"><code>Hello, `1234.560` has 3 fractional digits
 Hello, `123` has 3 characters
@@ -226,14 +226,14 @@ configuration.</p>
 <p>For example, the following code will always print <code>1.5</code> even if the system
 locale uses a decimal separator other than a dot.</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">println!</span>(<span class="string">&quot;The value is {}&quot;</span>, <span class="number">1.5</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">println!</span>(<span class="string">"The value is {}"</span>, <span class="number">1.5</span>);</code></pre></div>
 <h2 id="escaping"><a href="#escaping">Escaping</a></h2>
 <p>The literal characters <code>{</code> and <code>}</code> may be included in a string by preceding
 them with the same character. For example, the <code>{</code> character is escaped with
 <code>{{</code> and the <code>}</code> character is escaped with <code>}}</code>.</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;Hello {{}}&quot;</span>), <span class="string">&quot;Hello {}&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;{{ Hello&quot;</span>), <span class="string">&quot;{ Hello&quot;</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"Hello {{}}"</span>), <span class="string">"Hello {}"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"{{ Hello"</span>), <span class="string">"{ Hello"</span>);</code></pre></div>
 <h2 id="syntax"><a href="#syntax">Syntax</a></h2>
 <p>To summarize, here you can find the full grammar of format strings.
 The syntax for the formatting language used is drawn from other languages,
@@ -289,7 +289,7 @@ then the format trait used is the <a href="trait.Display.html" title="trait libs
 <p>When implementing a format trait for your own type, you will have to
 implement a method of the signature:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {</code></pre></div>
 <p>Your type will be passed as <code>self</code> by-reference, and then the function
 should emit output into the Formatter <code>f</code> which implements <code>fmt::Write</code>. It is up to each
 format trait implementation to correctly adhere to the requested formatting parameters.
@@ -318,18 +318,18 @@ like:</p>
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>Vector2D {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="comment">// The `f` value implements the `Write` trait, which is what the
         // write! macro is expecting. Note that this formatting ignores the
         // various flags provided to format strings.
-        </span><span class="macro">write!</span>(f, <span class="string">&quot;({}, {})&quot;</span>, <span class="self">self</span>.x, <span class="self">self</span>.y)
+        </span><span class="macro">write!</span>(f, <span class="string">"({}, {})"</span>, <span class="self">self</span>.x, <span class="self">self</span>.y)
     }
 }
 
 <span class="comment">// Different traits allow different forms of output of a type. The meaning
 // of this format is to print the magnitude of a vector.
 </span><span class="kw">impl </span>fmt::Binary <span class="kw">for </span>Vector2D {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="kw">let </span>magnitude = (<span class="self">self</span>.x * <span class="self">self</span>.x + <span class="self">self</span>.y * <span class="self">self</span>.y) <span class="kw">as </span>f64;
         <span class="kw">let </span>magnitude = magnitude.sqrt();
 
@@ -338,17 +338,17 @@ like:</p>
         // documentation for details, and the function `pad` can be used
         // to pad strings.
         </span><span class="kw">let </span>decimals = f.precision().unwrap_or(<span class="number">3</span>);
-        <span class="kw">let </span>string = <span class="macro">format!</span>(<span class="string">&quot;{magnitude:.decimals$}&quot;</span>);
-        f.pad_integral(<span class="bool-val">true</span>, <span class="string">&quot;&quot;</span>, <span class="kw-2">&amp;</span>string)
+        <span class="kw">let </span>string = <span class="macro">format!</span>(<span class="string">"{magnitude:.decimals$}"</span>);
+        f.pad_integral(<span class="bool-val">true</span>, <span class="string">""</span>, <span class="kw-2">&amp;</span>string)
     }
 }
 
 <span class="kw">fn </span>main() {
     <span class="kw">let </span>myvector = Vector2D { x: <span class="number">3</span>, y: <span class="number">4 </span>};
 
-    <span class="macro">println!</span>(<span class="string">&quot;{myvector}&quot;</span>);       <span class="comment">// =&gt; &quot;(3, 4)&quot;
-    </span><span class="macro">println!</span>(<span class="string">&quot;{myvector:?}&quot;</span>);     <span class="comment">// =&gt; &quot;Vector2D {x: 3, y:4}&quot;
-    </span><span class="macro">println!</span>(<span class="string">&quot;{myvector:10.3b}&quot;</span>); <span class="comment">// =&gt; &quot;     5.000&quot;
+    <span class="macro">println!</span>(<span class="string">"{myvector}"</span>);       <span class="comment">// =&gt; "(3, 4)"
+    </span><span class="macro">println!</span>(<span class="string">"{myvector:?}"</span>);     <span class="comment">// =&gt; "Vector2D {x: 3, y:4}"
+    </span><span class="macro">println!</span>(<span class="string">"{myvector:10.3b}"</span>); <span class="comment">// =&gt; "     5.000"
 </span>}</code></pre></div>
 <h4 id="fmtdisplay-vs-fmtdebug"><a href="#fmtdisplay-vs-fmtdebug"><code>fmt::Display</code> vs <code>fmt::Debug</code></a></h4>
 <p>These two formatting traits have distinct purposes:</p>
@@ -363,9 +363,9 @@ most cases, using <code>#[derive(Debug)]</code> is sufficient and recommended.</
 </ul>
 <p>Some examples of the output from both traits:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;{} {:?}&quot;</span>, <span class="number">3</span>, <span class="number">4</span>), <span class="string">&quot;3 4&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;{} {:?}&quot;</span>, <span class="string">&#39;a&#39;</span>, <span class="string">&#39;b&#39;</span>), <span class="string">&quot;a &#39;b&#39;&quot;</span>);
-<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">&quot;{} {:?}&quot;</span>, <span class="string">&quot;foo\n&quot;</span>, <span class="string">&quot;bar\n&quot;</span>), <span class="string">&quot;foo\n \&quot;bar\\n\&quot;&quot;</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"{} {:?}"</span>, <span class="number">3</span>, <span class="number">4</span>), <span class="string">"3 4"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"{} {:?}"</span>, <span class="string">'a'</span>, <span class="string">'b'</span>), <span class="string">"a 'b'"</span>);
+<span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"{} {:?}"</span>, <span class="string">"foo\n"</span>, <span class="string">"bar\n"</span>), <span class="string">"foo\n \"bar\\n\""</span>);</code></pre></div>
 <h2 id="related-macros"><a href="#related-macros">Related macros</a></h2>
 <p>There are a number of related macros in the <a href="../macro.format.html" title="macro libstd::alloc::format"><code>format!</code></a> family. The ones that
 are currently implemented are:</p>
@@ -387,14 +387,14 @@ function is actually invoking the <a href="../../std/io/trait.Write.html#method.
 
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
 <span class="kw">let </span><span class="kw-2">mut </span>w = Vec::new();
-<span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>w, <span class="string">&quot;Hello {}!&quot;</span>, <span class="string">&quot;world&quot;</span>);</code></pre></div>
+<span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>w, <span class="string">"Hello {}!"</span>, <span class="string">"world"</span>);</code></pre></div>
 <h4 id="print"><a href="#print"><code>print!</code></a></h4>
 <p>This and <a href="../../std/macro.println.html" title="println!"><code>println!</code></a> emit their output to stdout. Similarly to the <a href="https://doc.rust-lang.org/nightly/core/macro.write.html" title="macro core::write"><code>write!</code></a>
 macro, the goal of these macros is to avoid intermediate allocations when
 printing output. Example usage is:</p>
 
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">print!</span>(<span class="string">&quot;Hello {}!&quot;</span>, <span class="string">&quot;world&quot;</span>);
-<span class="macro">println!</span>(<span class="string">&quot;I have a newline {}&quot;</span>, <span class="string">&quot;character at the end&quot;</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="macro">print!</span>(<span class="string">"Hello {}!"</span>, <span class="string">"world"</span>);
+<span class="macro">println!</span>(<span class="string">"I have a newline {}"</span>, <span class="string">"character at the end"</span>);</code></pre></div>
 <h4 id="eprint"><a href="#eprint"><code>eprint!</code></a></h4>
 <p>The <a href="../../std/macro.eprint.html" title="eprint!"><code>eprint!</code></a> and <a href="../../std/macro.eprintln.html" title="eprintln!"><code>eprintln!</code></a> macros are identical to
 <a href="../../std/macro.print.html" title="print!"><code>print!</code></a> and <a href="../../std/macro.println.html" title="println!"><code>println!</code></a>, respectively, except they emit their
@@ -411,12 +411,12 @@ off, some example usage is:</p>
 <span class="kw">use </span>std::io::{<span class="self">self</span>, Write};
 
 <span class="kw">let </span><span class="kw-2">mut </span>some_writer = io::stdout();
-<span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>some_writer, <span class="string">&quot;{}&quot;</span>, <span class="macro">format_args!</span>(<span class="string">&quot;print with a {}&quot;</span>, <span class="string">&quot;macro&quot;</span>));
+<span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>some_writer, <span class="string">"{}"</span>, <span class="macro">format_args!</span>(<span class="string">"print with a {}"</span>, <span class="string">"macro"</span>));
 
-<span class="kw">fn </span>my_fmt_fn(args: fmt::Arguments&lt;<span class="lifetime">&#39;_</span>&gt;) {
-    <span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>io::stdout(), <span class="string">&quot;{args}&quot;</span>);
+<span class="kw">fn </span>my_fmt_fn(args: fmt::Arguments&lt;<span class="lifetime">'_</span>&gt;) {
+    <span class="macro">write!</span>(<span class="kw-2">&amp;mut </span>io::stdout(), <span class="string">"{args}"</span>);
 }
-my_fmt_fn(<span class="macro">format_args!</span>(<span class="string">&quot;, or a {} too&quot;</span>, <span class="string">&quot;function&quot;</span>));</code></pre></div>
+my_fmt_fn(<span class="macro">format_args!</span>(<span class="string">", or a {} too"</span>, <span class="string">"function"</span>));</code></pre></div>
 <p>The result of the <a href="../../std/macro.format_args.html" title="format_args!"><code>format_args!</code></a> macro is a value of type <a href="struct.Arguments.html" title="fmt::Arguments"><code>fmt::Arguments</code></a>.
 This structure can then be passed to the <a href="fn.write.html" title="fmt::write"><code>write</code></a> and <a href="fn.format.html" title="fmt::format"><code>format</code></a> functions
 inside this module in order to process the format string.

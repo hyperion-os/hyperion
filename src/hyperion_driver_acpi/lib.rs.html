@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/driver-acpi/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_driver_acpi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/driver-acpi/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_driver_acpi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -355,8 +355,22 @@
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
 <a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
-#![feature(core_intrinsics)]
+#![allow(incomplete_features)]
+#![feature(generic_const_exprs)]
 
 </span><span class="comment">//
 
@@ -490,7 +504,7 @@
 <span class="kw">impl </span>From&lt;StaticStr&lt;<span class="number">6</span>&gt;&gt; <span class="kw">for </span>AcpiOem {
     <span class="kw">fn </span>from(v: StaticStr&lt;<span class="number">6</span>&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">match </span>v.as_str() {
-            <span class="string">&quot;BOCHS &quot; </span>=&gt; <span class="self">Self</span>::Bochs,
+            <span class="string">"BOCHS " </span>=&gt; <span class="self">Self</span>::Bochs,
             <span class="kw">_ </span>=&gt; <span class="self">Self</span>::Other(v),
         }
     }
@@ -503,7 +517,7 @@
     </span><span class="kw">pub const unsafe fn </span>new(first: <span class="kw-2">*const </span>u8, bytes: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             next: first,
-            end: first.add(bytes),
+            end: <span class="kw">unsafe </span>{ first.add(bytes) },
         }
     }
 
@@ -511,17 +525,20 @@
     ///
     /// bytes from `first` to `first + core::mem::size_of::&lt;T&gt;()` must be readable
     </span><span class="kw">pub const unsafe fn </span>from&lt;T: Sized&gt;(first: <span class="kw-2">*const </span>T) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::new(first <span class="kw">as _</span>, mem::size_of::&lt;T&gt;())
+        <span class="kw">unsafe </span>{ <span class="self">Self</span>::new(first <span class="kw">as _</span>, mem::size_of::&lt;T&gt;()) }
     }
 
     <span class="doccomment">/// # Safety
     ///
     /// bytes from `first` to `end + bytes` must be readable
     </span><span class="kw">pub unsafe fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: usize) {
-        <span class="self">self</span>.end = <span class="self">self</span>.end.add(bytes);
+        <span class="self">self</span>.end = <span class="kw">unsafe </span>{ <span class="self">self</span>.end.add(bytes) };
     }
 
-    <span class="kw">pub fn </span>next&lt;T: Copy&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inc: bool) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt; {
+    <span class="kw">pub fn </span>next&lt;T: Copy&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inc: bool) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt;
+    <span class="kw">where
+        </span>[(); mem::size_of::&lt;T&gt;()]:,
+    {
         <span class="kw">let </span>end = <span class="kw">unsafe </span>{ <span class="self">self</span>.next.add(mem::size_of::&lt;T&gt;()) };
 
         <span class="kw">if </span>end &gt; <span class="self">self</span>.end {
@@ -540,7 +557,10 @@
     <span class="doccomment">/// # Safety
     ///
     /// data at `self.next` must be readable
-    </span><span class="kw">pub unsafe fn </span>next_unchecked&lt;T: Copy&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inc: bool) -&gt; T {
+    </span><span class="kw">pub unsafe fn </span>next_unchecked&lt;T: Copy&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inc: bool) -&gt; T
+    <span class="kw">where
+        </span>[(); mem::size_of::&lt;T&gt;()]:,
+    {
         <span class="kw">let </span>item = <span class="kw">unsafe </span>{ read_unaligned_volatile(<span class="self">self</span>.next <span class="kw">as _</span>) };
 
         <span class="kw">if </span>inc {
@@ -550,7 +570,10 @@
         item
     }
 
-    <span class="kw">pub fn </span>unpack&lt;T: Copy&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inc: bool) -&gt; <span class="prelude-ty">Result</span>&lt;T, SdtError&gt; {
+    <span class="kw">pub fn </span>unpack&lt;T: Copy&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, inc: bool) -&gt; <span class="prelude-ty">Result</span>&lt;T, SdtError&gt;
+    <span class="kw">where
+        </span>[(); mem::size_of::&lt;T&gt;()]:,
+    {
         <span class="self">self</span>.next(inc).ok_or(SdtError::InvalidStructure)
     }
 
@@ -572,10 +595,13 @@
 }
 
 <span class="doccomment">/// # Safety
-/// data in `ptr` must be readable (doesn&#39;t have to be aligned)
-</span><span class="kw">pub unsafe fn </span>read_unaligned_volatile&lt;T: Copy&gt;(ptr: <span class="kw-2">*const </span>T) -&gt; T {
-    <span class="comment">// TODO: replace this with _something_ when _something_ gets stabilized
-    </span>core::intrinsics::unaligned_volatile_load(ptr)
+/// data in `ptr` must be readable (doesn't have to be aligned)
+</span><span class="kw">pub unsafe fn </span>read_unaligned_volatile&lt;T: Sized + Copy&gt;(src: <span class="kw-2">*const </span>T) -&gt; T
+<span class="kw">where
+    </span>[(); mem::size_of::&lt;T&gt;()]:,
+{
+    <span class="kw">let </span>bytes: [u8; mem::size_of::&lt;T&gt;()] = <span class="kw">unsafe </span>{ ptr::read_volatile(src <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_</span>) };
+    <span class="kw">unsafe </span>{ ptr::read_unaligned(<span class="kw-2">&amp;</span>bytes <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span><span class="kw-2">*const </span>T) }
 }
 
 <span class="comment">//
@@ -645,13 +671,13 @@
 
 <span class="kw">impl</span>&lt;T: fmt::Debug + Copy&gt; fmt::Debug <span class="kw">for </span>WriteOnly&lt;T&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
-        fmt::Debug::fmt(<span class="string">&quot;&lt;NO READS&gt;&quot;</span>, f)
+        fmt::Debug::fmt(<span class="string">"&lt;NO READS&gt;"</span>, f)
     }
 }
 
 <span class="kw">impl</span>&lt;T: fmt::Debug + Copy&gt; fmt::Debug <span class="kw">for </span>Reserved&lt;T&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
-        fmt::Debug::fmt(<span class="string">&quot;&lt;NO READS&gt;&quot;</span>, f)
+        fmt::Debug::fmt(<span class="string">"&lt;NO READS&gt;"</span>, f)
     }
 }
 
@@ -703,13 +729,13 @@ impl&lt;T: fmt::Debug + Copy&gt; fmt::Debug for Reg&lt;ReadWrite, T&gt; {
 
 impl&lt;T: fmt::Debug + Copy&gt; fmt::Debug for Reg&lt;WriteOnly, T&gt; {
     fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result {
-        fmt::Debug::fmt(&quot;&lt;NO READS&gt;&quot;, f)
+        fmt::Debug::fmt("&lt;NO READS&gt;", f)
     }
 }
 
 impl&lt;T: fmt::Debug + Copy&gt; fmt::Debug for Reg&lt;(), T&gt; {
     fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result {
-        fmt::Debug::fmt(&quot;&lt;NO READS&gt;&quot;, f)
+        fmt::Debug::fmt("&lt;NO READS&gt;", f)
     }
 } */
 </span></code></pre></div></section></main></body></html>

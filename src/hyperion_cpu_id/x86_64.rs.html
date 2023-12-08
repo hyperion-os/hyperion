@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cpu-id/src/x86_64.rs`."><title>x86_64.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_cpu_id" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/cpu-id/src/x86_64.rs`."><title>x86_64.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_cpu_id" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -161,7 +161,7 @@
 <span class="comment">// TODO: the return type is not usize, its u32
 </span><span class="doccomment">/// technically UB to read before a call to [`init`] on this CPU
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>cpu_id() -&gt; usize {
+</span><span class="kw">pub extern </span><span class="string">"C" </span><span class="kw">fn </span>cpu_id() -&gt; usize {
     _cpu_id_dyn()
     <span class="comment">// _cpu_id_rdpid()
     // _cpu_id_rdtscp()
@@ -213,7 +213,7 @@
 </span><span class="kw">fn </span>_cpu_id_rdpid() -&gt; usize {
     <span class="kw">let </span>cpu_id: usize;
     <span class="kw">unsafe </span>{
-        <span class="macro">asm!</span>(<span class="string">&quot;rdpid {x}&quot;</span>, x = out(reg) cpu_id);
+        <span class="macro">asm!</span>(<span class="string">"rdpid {x}"</span>, x = out(reg) cpu_id);
     }
     cpu_id
 }
@@ -226,7 +226,7 @@
 </span><span class="kw">fn </span>_cpu_id_rdtscp() -&gt; usize {
     <span class="kw">let </span>cpu_id: usize;
     <span class="kw">unsafe </span>{
-        <span class="macro">asm!</span>(<span class="string">&quot;rdtscp&quot;</span>, out(<span class="string">&quot;rdx&quot;</span>) <span class="kw">_</span>, out(<span class="string">&quot;rax&quot;</span>) <span class="kw">_</span>, out(<span class="string">&quot;rcx&quot;</span>) cpu_id);
+        <span class="macro">asm!</span>(<span class="string">"rdtscp"</span>, out(<span class="string">"rdx"</span>) <span class="kw">_</span>, out(<span class="string">"rax"</span>) <span class="kw">_</span>, out(<span class="string">"rcx"</span>) cpu_id);
     }
     cpu_id
 }
@@ -246,12 +246,12 @@
     drivers::lazy_install_late();
     let mut i = 0usize;
     let start = hyperion_instant::Instant::now();
-    println!(&quot;cpuid ty: {}&quot;, hyperion_cpu_id::cpu_id_dyn_type());
+    println!("cpuid ty: {}", hyperion_cpu_id::cpu_id_dyn_type());
     for _ in 0..5_000_000 {
         i += core::hint::black_box(cpu_id)();
     }
     core::hint::black_box(i);
-    println!(&quot;5M cpu_id calls in {}&quot;, start.elapsed());
+    println!("5M cpu_id calls in {}", start.elapsed());
     panic!();
 }
 benchmark(); */
@@ -264,17 +264,17 @@ benchmark(); */
     select_cpu_id_dyn();
 
     <span class="kw">if </span>cpu_id &gt;= cpu_count() {
-        <span class="macro">panic!</span>(<span class="string">&quot;generated cpu_id exceeds cpu_count&quot;</span>);
+        <span class="macro">panic!</span>(<span class="string">"generated cpu_id exceeds cpu_count"</span>);
     }
 
-    <span class="comment">// SAFETY: each cpu gets its own id from the CPU_ID_GEN and the last cpu&#39;s
+    <span class="comment">// SAFETY: each cpu gets its own id from the CPU_ID_GEN and the last cpu's
     // id will be lower than `cpu_count`
     </span><span class="kw">unsafe </span>{ set_cpu_id(cpu_id) };
 }
 
 <span class="doccomment">/// # Safety
 ///
-/// id&#39;s should be unique to each CPU
+/// id's should be unique to each CPU
 /// and the highest id should not be higher or equal to [`cpu_count`]
 </span><span class="kw">unsafe fn </span>set_cpu_id(id: usize) {
     <span class="kw">let </span><span class="kw-2">mut </span>tsc = Msr::new(IA32_TSC_AUX);

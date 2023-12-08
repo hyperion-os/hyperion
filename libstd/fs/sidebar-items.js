@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["File","OpenOptions"]};
+window.SIDEBAR_ITEMS = {"static":["STDERR","STDIN","STDOUT"],"struct":["Dir","DirEntry","File","OpenOptions","Stderr","Stdin","Stdout"]};

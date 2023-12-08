@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kshell/src/shell.rs`."><title>shell.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kshell" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kshell/src/shell.rs`."><title>shell.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kshell" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -725,38 +725,6 @@
 <a href="#725" id="725">725</a>
 <a href="#726" id="726">726</a>
 <a href="#727" id="727">727</a>
-<a href="#728" id="728">728</a>
-<a href="#729" id="729">729</a>
-<a href="#730" id="730">730</a>
-<a href="#731" id="731">731</a>
-<a href="#732" id="732">732</a>
-<a href="#733" id="733">733</a>
-<a href="#734" id="734">734</a>
-<a href="#735" id="735">735</a>
-<a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a>
-<a href="#738" id="738">738</a>
-<a href="#739" id="739">739</a>
-<a href="#740" id="740">740</a>
-<a href="#741" id="741">741</a>
-<a href="#742" id="742">742</a>
-<a href="#743" id="743">743</a>
-<a href="#744" id="744">744</a>
-<a href="#745" id="745">745</a>
-<a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a>
-<a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a>
-<a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     borrow::Cow,
     format,
@@ -770,9 +738,9 @@
 <span class="kw">use </span>hyperion_color::Color;
 <span class="kw">use </span>hyperion_cpu_id::cpu_count;
 <span class="kw">use </span>hyperion_driver_acpi::apic::ApicId;
-<span class="kw">use </span>hyperion_futures::timer::{sleep, ticks};
+<span class="kw">use </span>hyperion_futures::timer::ticks;
 <span class="kw">use </span>hyperion_instant::Instant;
-<span class="kw">use </span>hyperion_kernel_impl::VFS_ROOT;
+<span class="kw">use </span>hyperion_kernel_impl::{PipeInput, PipeOutput, VFS_ROOT};
 <span class="kw">use </span>hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -781,13 +749,14 @@
 <span class="kw">use </span>hyperion_num_postfix::NumberPostfix;
 <span class="kw">use </span>hyperion_random::Rng;
 <span class="kw">use </span>hyperion_scheduler::{
-    idle, schedule,
+    idle,
+    ipc::pipe::channel,
+    schedule, spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
 <span class="kw">use </span>hyperion_vfs::{
     <span class="self">self</span>,
     path::{Path, PathBuf},
-    tree::Node,
 };
 <span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>spin::Mutex;
@@ -811,7 +780,7 @@
     <span class="kw">pub fn </span>new(term: Term) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             term,
-            current_dir: PathBuf::new(<span class="string">&quot;/&quot;</span>),
+            current_dir: PathBuf::new(<span class="string">"/"</span>),
             cmdbuf: &lt;<span class="kw">_</span>&gt;::default(),
             last: &lt;<span class="kw">_</span>&gt;::default(),
         }
@@ -831,32 +800,27 @@
         <span class="kw">let </span>cmdbuf = <span class="self">self</span>.cmdbuf.clone();
         <span class="kw">let </span><span class="kw-2">mut </span>cmdbuf = cmdbuf.lock();
 
-        <span class="kw">if </span>ev.state == ElementState::PressHold &amp;&amp; ev.keycode == KeyCode::Home {
-            <span class="kw">_ </span>= <span class="self">self</span>.run_cmd(<span class="prelude-val">None</span>);
-            <span class="kw">return </span><span class="prelude-val">Some</span>(());
-        }
-
         <span class="kw">let </span><span class="prelude-val">Some</span>(ev) = ev.unicode <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Some</span>(());
         };
 
-        <span class="kw">if </span>ev == <span class="string">&#39;\n&#39; </span>{
+        <span class="kw">if </span>ev == <span class="string">'\n' </span>{
             <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term);
             <span class="kw">match </span><span class="self">self</span>.run_line(<span class="kw-2">&amp;</span>cmdbuf).<span class="kw">await </span>{
                 <span class="prelude-val">Ok</span>(v) =&gt; {
                     v<span class="question-mark">?</span>;
                 }
                 <span class="prelude-val">Err</span>(err) =&gt; {
-                    <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{err}&quot;</span>);
+                    <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{err}"</span>);
                 }
             }
             <span class="self">self</span>.last.clear();
-            <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.last, <span class="string">&quot;{cmdbuf}&quot;</span>);
+            <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.last, <span class="string">"{cmdbuf}"</span>);
             cmdbuf.clear();
             <span class="self">self</span>.prompt();
-        } <span class="kw">else if </span>ev == <span class="string">&#39;\t&#39; </span>{
+        } <span class="kw">else if </span>ev == <span class="string">'\t' </span>{
             cmdbuf.clear();
-            <span class="kw">_ </span>= <span class="macro">write!</span>(cmdbuf, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.last);
+            <span class="kw">_ </span>= <span class="macro">write!</span>(cmdbuf, <span class="string">"{}"</span>, <span class="self">self</span>.last);
             <span class="self">self</span>.prompt();
             <span class="self">self</span>.term.write_bytes(cmdbuf.as_bytes());
             <span class="comment">/* let skip = if self.term.cursor.0 % 4 == 0 {
@@ -865,18 +829,18 @@
                 self.term.cursor.0 % 4
             };
             for _ in 0..skip {
-                self.term.write_byte(b&#39; &#39;);
-                cmdbuf.push(&#39; &#39;);
+                self.term.write_byte(b' ');
+                cmdbuf.push(' ');
             } */
-        </span>} <span class="kw">else if </span>ev == <span class="string">&#39;\u{8}&#39; </span>{
+        </span>} <span class="kw">else if </span>ev == <span class="string">'\u{8}' </span>{
             <span class="kw">if </span>cmdbuf.pop().is_some() {
                 <span class="self">self</span>.term.cursor_prev();
                 <span class="kw">let </span>cursor = <span class="self">self</span>.term.cursor;
-                <span class="self">self</span>.term.write_byte(<span class="string">b&#39; &#39;</span>);
+                <span class="self">self</span>.term.write_byte(<span class="string">b' '</span>);
                 <span class="self">self</span>.term.cursor = cursor;
             }
         } <span class="kw">else </span>{
-            <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">&quot;{ev}&quot;</span>);
+            <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">"{ev}"</span>);
             cmdbuf.push(ev);
         }
 
@@ -886,138 +850,96 @@
     }
 
     <span class="kw">fn </span>prompt(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">&quot;\n[kshell {}]# &quot;</span>, <span class="self">self</span>.current_dir.as_str());
+        <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">"\n[kshell {}]# "</span>, <span class="self">self</span>.current_dir.as_str());
     }
 
     <span class="kw">async fn </span>run_line(<span class="kw-2">&amp;mut </span><span class="self">self</span>, line: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;()&gt;&gt; {
         <span class="kw">let </span>(cmd, args) = line
-            .split_once(<span class="string">&#39; &#39;</span>)
+            .split_once(<span class="string">' '</span>)
             .map(|(cmd, args)| (cmd, <span class="prelude-val">Some</span>(args)))
             .unwrap_or((line, <span class="prelude-val">None</span>));
 
         <span class="kw">match </span>cmd {
-            <span class="string">&quot;splash&quot; </span>=&gt; <span class="self">self</span>.splash_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;pwd&quot; </span>=&gt; <span class="self">self</span>.pwd_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;cd&quot; </span>=&gt; <span class="self">self</span>.cd_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;ls&quot; </span>=&gt; <span class="self">self</span>.ls_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;cat&quot; </span>=&gt; <span class="self">self</span>.cat_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;date&quot; </span>=&gt; <span class="self">self</span>.date_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;mem&quot; </span>=&gt; <span class="self">self</span>.mem_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;sleep&quot; </span>=&gt; <span class="self">self</span>.sleep_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
-            <span class="string">&quot;draw&quot; </span>=&gt; <span class="self">self</span>.draw_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;kbl&quot; </span>=&gt; <span class="self">self</span>.kbl_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;touch&quot; </span>=&gt; <span class="self">self</span>.touch_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;rand&quot; </span>=&gt; <span class="self">self</span>.rand_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;snake&quot; </span>=&gt; <span class="self">self</span>.snake_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
-            <span class="string">&quot;help&quot; </span>=&gt; <span class="self">self</span>.help_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;modeltest&quot; </span>=&gt; <span class="self">self</span>.modeltest_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
-            <span class="string">&quot;run&quot; </span>=&gt; <span class="self">self</span>.run_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;task1&quot; </span>=&gt; <span class="self">self</span>.task1_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
-            <span class="string">&quot;task2&quot; </span>=&gt; <span class="self">self</span>.task2_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;task3&quot; </span>=&gt; <span class="self">self</span>.task3_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;lapic_id&quot; </span>=&gt; <span class="self">self</span>.lapic_id_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;cpu_id&quot; </span>=&gt; <span class="self">self</span>.cpu_id_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;ps&quot; </span>=&gt; <span class="self">self</span>.ps_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;nproc&quot; </span>=&gt; <span class="self">self</span>.nproc_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;top&quot; </span>=&gt; <span class="self">self</span>.top_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;send&quot; </span>=&gt; <span class="self">self</span>.send_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;kill&quot; </span>=&gt; <span class="self">self</span>.kill_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">&quot;exit&quot; </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
-            <span class="string">&quot;clear&quot; </span>=&gt; {
+            <span class="string">"splash" </span>=&gt; <span class="self">self</span>.splash_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"pwd" </span>=&gt; <span class="self">self</span>.pwd_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"cd" </span>=&gt; <span class="self">self</span>.cd_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"date" </span>=&gt; <span class="self">self</span>.date_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"mem" </span>=&gt; <span class="self">self</span>.mem_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"draw" </span>=&gt; <span class="self">self</span>.draw_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"kbl" </span>=&gt; <span class="self">self</span>.kbl_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"rand" </span>=&gt; <span class="self">self</span>.rand_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"snake" </span>=&gt; <span class="self">self</span>.snake_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
+            <span class="string">"help" </span>=&gt; <span class="self">self</span>.help_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"modeltest" </span>=&gt; <span class="self">self</span>.modeltest_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
+            <span class="string">"lapic_id" </span>=&gt; <span class="self">self</span>.lapic_id_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"cpu_id" </span>=&gt; <span class="self">self</span>.cpu_id_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"ps" </span>=&gt; <span class="self">self</span>.ps_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"nproc" </span>=&gt; <span class="self">self</span>.nproc_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"top" </span>=&gt; <span class="self">self</span>.top_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"send" </span>=&gt; <span class="self">self</span>.send_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"kill" </span>=&gt; <span class="self">self</span>.kill_cmd(args)<span class="question-mark">?</span>,
+            <span class="string">"exit" </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
+            <span class="string">"clear" </span>=&gt; {
                 <span class="self">self</span>.term.clear();
             }
-            <span class="string">&quot;&quot; </span>=&gt; <span class="self">self</span>.term.write_byte(<span class="string">b&#39;\n&#39;</span>),
+            <span class="string">"" </span>=&gt; <span class="self">self</span>.term.write_byte(<span class="string">b'\n'</span>),
             other =&gt; {
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;unknown command {other}&quot;</span>);
-                <span class="self">self</span>.help_cmd(<span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+                <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">"/bin/{other}"</span>);
+                <span class="kw">let </span>elf = <span class="self">self</span>.load_elf(<span class="kw-2">&amp;</span>path)<span class="question-mark">?</span>;
+
+                <span class="self">self</span>.run_cmd_from(path.into(), elf.into(), args).<span class="kw">await</span><span class="question-mark">?</span>;
             }
         }
 
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(()))
     }
 
+    <span class="kw">fn </span>load_elf(<span class="kw-2">&amp;</span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>elf = Vec::new();
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(bin) = VFS_ROOT.find_file(path, <span class="bool-val">false</span>, <span class="bool-val">false</span>) <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
+                msg: <span class="string">"unknown command {path}"</span>.into(),
+            });
+        };
+
+        <span class="kw">let </span>bin = bin.lock_arc();
+
+        <span class="kw">loop </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; <span class="number">64</span>];
+            <span class="kw">let </span>len = bin.read(elf.len(), <span class="kw-2">&amp;mut </span>buf).unwrap();
+            elf.extend_from_slice(<span class="kw-2">&amp;</span>buf[..len]);
+            <span class="kw">if </span>len == <span class="number">0 </span>{
+                <span class="kw">break</span>;
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(elf)
+    }
+
     <span class="kw">fn </span>splash_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">use </span>hyperion_kernel_info::{BUILD_REV, BUILD_TIME, NAME, VERSION};
-        <span class="comment">// _ = writeln!(self.term, &quot;{SPLASH}&quot;);
+        <span class="comment">// _ = writeln!(self.term, "{SPLASH}");
         </span><span class="kw">_ </span>= <span class="macro">writeln!</span>(
             <span class="self">self</span>.term,
-            <span class="string">&quot;Welcome to {NAME} - {VERSION} (built {BUILD_TIME} build [{BUILD_REV}])&quot;
+            <span class="string">"Welcome to {NAME} - {VERSION} (built {BUILD_TIME} build [{BUILD_REV}])"
         </span>);
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>pwd_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.current_dir.as_str());
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{}"</span>, <span class="self">self</span>.current_dir.as_str());
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>cd_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>resource = Path::from_str(args.unwrap_or(<span class="string">&quot;/&quot;</span>)).to_absolute(<span class="kw-2">&amp;</span><span class="self">self</span>.current_dir);
+        <span class="kw">let </span>resource = Path::from_str(args.unwrap_or(<span class="string">"/"</span>)).to_absolute(<span class="kw-2">&amp;</span><span class="self">self</span>.current_dir);
         <span class="self">self</span>.current_dir = resource.into_owned();
 
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>ls_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>resource = args
-            .map(|p| Path::from_str(p).to_absolute(<span class="kw-2">&amp;</span><span class="self">self</span>.current_dir))
-            .unwrap_or(Cow::Borrowed(<span class="kw-2">&amp;</span><span class="self">self</span>.current_dir));
-        <span class="kw">let </span>resource = resource.as_ref();
-
-        <span class="kw">let </span>dir = VFS_ROOT
-            .find(resource, <span class="bool-val">false</span>)
-            .context(IoSnafu { resource })<span class="question-mark">?</span>;
-
-        <span class="kw">match </span>dir {
-            Node::File(<span class="kw">_</span>) =&gt; {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(file_name) = resource.file_name() {
-                    <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{file_name}&quot;</span>);
-                } <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::NamelessFile);
-                }
-            }
-            Node::Directory(dir) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>dir = dir.lock();
-                <span class="kw">for </span>entry <span class="kw">in </span>dir.nodes().context(IoSnafu { resource })<span class="question-mark">?</span>.iter() {
-                    <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{entry}&quot;</span>);
-                }
-            }
-        }
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>cat_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>resource = Path::from_str(args.unwrap_or(<span class="string">&quot;.&quot;</span>)).to_absolute(<span class="kw-2">&amp;</span><span class="self">self</span>.current_dir);
-        <span class="kw">let </span>resource = resource.as_ref();
-
-        <span class="kw">let </span>file = VFS_ROOT
-            .find_file(resource, <span class="bool-val">false</span>, <span class="bool-val">false</span>)
-            .context(IoSnafu { resource })<span class="question-mark">?</span>;
-        <span class="kw">let </span>file = file.lock();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>at = <span class="number">0usize</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">16</span>];
-        <span class="kw">loop </span>{
-            <span class="kw">let </span>_addr = (<span class="kw-2">&amp;*</span>file) <span class="kw">as </span><span class="kw-2">*const </span><span class="kw">_ as </span><span class="kw-2">*const </span>() <span class="kw">as </span>u64;
-            <span class="kw">let </span>read = file.read(at, <span class="kw-2">&amp;mut </span>buf).context(IoSnafu { resource })<span class="question-mark">?</span>;
-
-            <span class="kw">if </span>read == <span class="number">0 </span>{
-                <span class="kw">break</span>;
-            }
-            at += read;
-
-            <span class="kw">for </span>byte <span class="kw">in </span><span class="kw-2">&amp;</span>buf[..read] {
-                <span class="self">self</span>.term.write_byte(<span class="kw-2">*</span>byte);
-            }
-            <span class="self">self</span>.term.write_byte(<span class="string">b&#39;\n&#39;</span>);
-        }
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
     <span class="kw">fn </span>date_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>resource = Path::from_str(<span class="string">&quot;/dev/rtc&quot;</span>);
+        <span class="kw">let </span>resource = Path::from_str(<span class="string">"/dev/rtc"</span>);
 
         <span class="kw">let </span>file = VFS_ROOT
             .find_file(resource, <span class="bool-val">false</span>, <span class="bool-val">false</span>)
@@ -1030,7 +952,7 @@
 
         <span class="kw">let </span>date = OffsetDateTime::from_unix_timestamp(i64::from_le_bytes(timestamp));
 
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{date:?}&quot;</span>);
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{date:?}"</span>);
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -1044,65 +966,53 @@
 
         <span class="kw">_ </span>= <span class="macro">writeln!</span>(
             <span class="self">self</span>.term,
-            <span class="string">&quot;Mem:\n - total: {total}B\n - usable: {usable}B\n - used: {used}B ({p:3.1}%)&quot;</span>,
+            <span class="string">"Mem:\n - total: {total}B\n - usable: {usable}B\n - used: {used}B ({p:3.1}%)"</span>,
         );
 
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">async fn </span>sleep_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, seconds: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>seconds: u64 = seconds
-            .map(|s| s.parse::&lt;u8&gt;())
-            .transpose()
-            .context(ParseSnafu {})<span class="question-mark">?
-            </span>.unwrap_or(<span class="number">1</span>) <span class="kw">as _</span>;
-
-        sleep(time::Duration::seconds(seconds <span class="kw">as _</span>)).<span class="kw">await</span>;
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
     <span class="kw">fn </span>draw_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>args = args.unwrap_or(<span class="string">&quot;&quot;</span>).split(<span class="string">&#39; &#39;</span>).filter(|arg| !arg.is_empty());
-        <span class="kw">let </span>mode = args.next().unwrap_or(<span class="string">&quot;&quot;</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>args = args.unwrap_or(<span class="string">""</span>).split(<span class="string">' '</span>).filter(|arg| !arg.is_empty());
+        <span class="kw">let </span>mode = args.next().unwrap_or(<span class="string">""</span>);
 
-        <span class="kw">fn </span>next_int&lt;<span class="lifetime">&#39;a</span>&gt;(
+        <span class="kw">fn </span>next_int&lt;<span class="lifetime">'a</span>&gt;(
             term: <span class="kw-2">&amp;mut </span>Term,
-            args: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str&gt;,
+            args: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt;,
         ) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
             <span class="kw">let </span><span class="prelude-val">Some</span>(arg) = args.next() <span class="kw">else </span>{
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">&quot;unexpected EOF, expected number&quot;</span>);
+                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">"unexpected EOF, expected number"</span>);
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             };
 
             <span class="kw">match </span>arg.parse() {
                 <span class="prelude-val">Err</span>(err) =&gt; {
-                    <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">&quot;failed to parse number: {err}&quot;</span>);
+                    <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">"failed to parse number: {err}"</span>);
                     <span class="prelude-val">None
                 </span>}
                 <span class="prelude-val">Ok</span>(n) =&gt; <span class="prelude-val">Some</span>(n),
             }
         }
 
-        <span class="kw">fn </span>next_color&lt;<span class="lifetime">&#39;a</span>&gt;(
+        <span class="kw">fn </span>next_color&lt;<span class="lifetime">'a</span>&gt;(
             term: <span class="kw-2">&amp;mut </span>Term,
-            args: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str&gt;,
+            args: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt;,
         ) -&gt; <span class="prelude-ty">Option</span>&lt;Color&gt; {
             <span class="kw">let </span><span class="prelude-val">Some</span>(arg) = args.next() <span class="kw">else </span>{
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">&quot;unexpected EOF, expected color&quot;</span>);
+                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">"unexpected EOF, expected color"</span>);
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             };
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(col) = Color::from_hex(arg) {
                 <span class="prelude-val">Some</span>(col)
             } <span class="kw">else </span>{
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">&quot;invalid color hex code&quot;</span>);
+                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">"invalid color hex code"</span>);
                 <span class="prelude-val">None
             </span>}
         }
 
         <span class="kw">match </span>mode {
-            <span class="string">&quot;rect&quot; </span>=&gt; {
+            <span class="string">"rect" </span>=&gt; {
                 <span class="kw">let </span><span class="prelude-val">Some</span>(x) = next_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term, <span class="kw-2">&amp;mut </span>args) <span class="kw">else </span>{
                     <span class="kw">return </span><span class="prelude-val">Ok</span>(());
                 };
@@ -1129,19 +1039,19 @@
 
                 <span class="prelude-val">Ok</span>(())
             }
-            <span class="string">&quot;line&quot; </span>=&gt; {
+            <span class="string">"line" </span>=&gt; {
                 <span class="comment">// TODO:
-                </span><span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;todo&quot;</span>);
+                </span><span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"todo"</span>);
                 <span class="prelude-val">Ok</span>(())
             }
-            <span class="string">&quot;&quot; </span>=&gt; {
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;specify mode [one of: rect, line]&quot;</span>);
+            <span class="string">"" </span>=&gt; {
+                <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"specify mode [one of: rect, line]"</span>);
                 <span class="prelude-val">Ok</span>(())
             }
             <span class="kw">_ </span>=&gt; {
                 <span class="kw">_ </span>= <span class="macro">writeln!</span>(
                     <span class="self">self</span>.term,
-                    <span class="string">&quot;invalid mode `{mode}` [should be one of: rect, line]&quot;
+                    <span class="string">"invalid mode `{mode}` [should be one of: rect, line]"
                 </span>);
                 <span class="prelude-val">Ok</span>(())
             }
@@ -1149,34 +1059,18 @@
     }
 
     <span class="kw">fn </span>kbl_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>name = args.unwrap_or(<span class="string">&quot;us&quot;</span>);
+        <span class="kw">let </span>name = args.unwrap_or(<span class="string">"us"</span>);
         <span class="kw">if </span>set_layout(name).is_none() {
-            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;invalid layout `{name}`&quot;</span>);
-            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;available layouts(s): `{:?}`&quot;</span>, layouts());
+            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"invalid layout `{name}`"</span>);
+            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available layouts(s): `{:?}`"</span>, layouts());
         }
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>touch_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(file) = args <span class="kw">else </span>{
-            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;missing file arg&quot;</span>);
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-        };
-
-        <span class="kw">let </span>resource = Path::from_str(file).to_absolute(<span class="kw-2">&amp;</span><span class="self">self</span>.current_dir);
-        <span class="kw">let </span>resource = resource.as_ref();
-
-        VFS_ROOT
-            .find_file(file, <span class="bool-val">true</span>, <span class="bool-val">true</span>)
-            .context(IoSnafu { resource })<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>rand_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>rng = hyperion_random::next_secure_rng().ok_or(Error::InsecurePrng)<span class="question-mark">?</span>;
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{}&quot;</span>, rng.gen::&lt;u64&gt;());
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{}"</span>, rng.gen::&lt;u64&gt;());
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -1186,7 +1080,7 @@
     </span>}
 
     <span class="kw">fn </span>help_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, task1, task2, task3, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear&quot;</span>);
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear"</span>);
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -1286,101 +1180,143 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>run_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">Self</span>::run_cmd_as(<span class="string">&quot;/bin/run&quot;</span>, args);
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">async fn </span>task1_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>task_pid = <span class="self">Self</span>::run_cmd_as(<span class="string">&quot;/bin/task1&quot;</span>, args);
-
-        <span class="kw">let </span><span class="kw-2">mut </span>events = KeyboardEvents;
-
-        <span class="kw">let </span><span class="kw-2">mut </span>l_ctrl_held = <span class="bool-val">false</span>;
-        <span class="kw">while let </span><span class="prelude-val">Some</span>(KeyboardEvent {
-            state,
-            keycode,
-            unicode,
-        }) = events.next().<span class="kw">await
-        </span>{
-            <span class="kw">if </span>state == ElementState::PressHold &amp;&amp; keycode == KeyCode::LControl {
-                l_ctrl_held = <span class="bool-val">true</span>;
-            }
-            <span class="kw">if </span>state == ElementState::PressRelease &amp;&amp; keycode == KeyCode::LControl {
-                l_ctrl_held = <span class="bool-val">false</span>;
-            }
-
-            <span class="kw">if </span>state != ElementState::PressRelease &amp;&amp; keycode == KeyCode::C &amp;&amp; l_ctrl_held {
-                <span class="kw">break</span>;
-            }
-
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(unicode) = unicode {
-                <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">&quot;{unicode}&quot;</span>);
-                <span class="self">self</span>.term.flush();
-
-                <span class="kw">let </span><span class="kw-2">mut </span>str = [<span class="number">0</span>; <span class="number">4</span>];
-                <span class="kw">let </span>str = unicode.encode_utf8(<span class="kw-2">&amp;mut </span>str);
-
-                <span class="comment">// TODO: buffering
-                </span><span class="kw">if let </span><span class="prelude-val">Err</span>(err) = hyperion_scheduler::send(task_pid, str.as_bytes()) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                        msg: err.to_string(),
-                    });
-                }
-            }
-        }
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>task2_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">Self</span>::run_cmd_as(<span class="string">&quot;/bin/task2&quot;</span>, args);
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>task3_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="self">Self</span>::run_cmd_as(<span class="string">&quot;/bin/task3&quot;</span>, args);
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>run_cmd_as(name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; Pid {
+    <span class="kw">async fn </span>run_cmd_from(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        name: Cow&lt;<span class="lifetime">'static</span>, str&gt;,
+        elf: Cow&lt;<span class="lifetime">'static</span>, [u8]&gt;,
+        args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>args = args.map(String::from);
 
-        <span class="kw">let </span>pid = schedule(<span class="kw">move </span>|| {
+        <span class="comment">// let stdin_tx = pipe();
+        // let stdin_rx = stdin_tx.clone();
+        // let stdout_tx = pipe();
+        // let stderr_tx = stdout_tx.clone();
+        // let stdout_rx = stdout_tx.clone();
+
+        </span><span class="kw">let </span>(stdin_tx, stdin_rx) = channel();
+        <span class="kw">let </span>(stdout_tx, stdout_rx) = channel();
+        <span class="comment">// let (stderr_tx, stderr_rx) = pipe();
+        </span><span class="kw">let </span>stderr_tx = stdout_tx.clone();
+
+        <span class="kw">let </span>(o_tx, o_rx) = hyperion_futures::mpmc::channel();
+
+        <span class="kw">let </span>o_tx_2 = o_tx.clone();
+        spawn(<span class="kw">move </span>|| {
+            <span class="kw">loop </span>{
+                <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; <span class="number">128</span>];
+                <span class="kw">let </span><span class="prelude-val">Ok</span>(len) = stdout_rx.recv_slice(<span class="kw-2">&amp;mut </span>buf) <span class="kw">else </span>{
+                    <span class="kw">break</span>;
+                };
+                <span class="kw">let </span><span class="prelude-val">Ok</span>(str) = core::str::from_utf8(<span class="kw-2">&amp;</span>buf[..len]) <span class="kw">else </span>{
+                    <span class="kw">break</span>;
+                };
+                o_tx_2.send(<span class="prelude-val">Some</span>(str.to_string()));
+            }
+
+            o_tx_2.send(<span class="prelude-val">None</span>);
+        });
+        <span class="kw">let </span>stdin_closed = stdin_tx.clone();
+        spawn(<span class="kw">move </span>|| {
+            stdin_closed.wait_closed();
+            o_tx.send(<span class="prelude-val">None</span>);
+        });
+
+        schedule(<span class="kw">move </span>|| {
+            <span class="kw">let </span>name = name.as_ref();
             hyperion_scheduler::rename(name);
 
-            <span class="kw">let </span>args: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = [name] <span class="comment">// TODO: actually load binaries from vfs
+            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
+                file_ref: Arc::new(lock_api::Mutex::new(PipeOutput(stdin_rx))) <span class="kw">as _</span>,
+                position: <span class="number">0</span>,
+            });
+            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
+                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stdout_tx))) <span class="kw">as _</span>,
+                position: <span class="number">0</span>,
+            });
+            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
+                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stderr_tx))) <span class="kw">as _</span>,
+                position: <span class="number">0</span>,
+            });
+
+            <span class="comment">// ;
+
+            </span><span class="kw">let </span>args: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = [name] <span class="comment">// TODO: actually load binaries from vfs
                 </span>.into_iter()
-                .chain(args.as_deref().iter().flat_map(|args| args.split(<span class="string">&#39; &#39;</span>)))
+                .chain(args.as_deref().iter().flat_map(|args| args.split(<span class="string">' '</span>)))
                 .collect();
             <span class="kw">let </span>args = <span class="kw-2">&amp;</span>args[..];
 
-            <span class="macro">hyperion_log::trace!</span>(<span class="string">&quot;spawning \&quot;{name}\&quot; with args {args:?}&quot;</span>);
+            <span class="macro">hyperion_log::trace!</span>(<span class="string">"spawning \"{name}\" with args {args:?}"</span>);
 
-            <span class="macro">hyperion_log::trace!</span>(
-                <span class="string">&quot;ELF file from: {}&quot;</span>,
-                <span class="macro">env!</span>(<span class="string">&quot;CARGO_BIN_FILE_HYPERION_SAMPLE_ELF&quot;</span>)
-            );
-            <span class="kw">let </span>elf_bytes = <span class="macro">include_bytes!</span>(<span class="macro">env!</span>(<span class="string">&quot;CARGO_BIN_FILE_HYPERION_SAMPLE_ELF&quot;</span>));
-            <span class="kw">let </span>loader = hyperion_loader::Loader::new(elf_bytes);
+            <span class="kw">let </span>loader = hyperion_loader::Loader::new(elf.as_ref());
 
             loader.load();
 
             <span class="kw">if </span>loader.enter_userland(args).is_none() {
-                <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;entry point missing&quot;</span>);
+                <span class="macro">hyperion_log::debug!</span>(<span class="string">"entry point missing"</span>);
             }
         });
-        <span class="macro">hyperion_log::trace!</span>(<span class="string">&quot;spawning {name} done (PID:{pid})&quot;</span>);
-        pid
+
+        <span class="kw">let </span><span class="kw-2">mut </span>events = select(KeyboardEvents.map(<span class="prelude-val">Ok</span>), o_rx.race_stream().map(<span class="prelude-val">Err</span>));
+
+        <span class="kw">let </span><span class="kw-2">mut </span>l_ctrl_held = <span class="bool-val">false</span>;
+        <span class="kw">loop </span>{
+            <span class="kw">match </span>events.next().<span class="kw">await </span>{
+                <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(KeyboardEvent {
+                    state,
+                    keycode,
+                    unicode,
+                })) =&gt; {
+                    <span class="kw">if </span>state == ElementState::PressHold &amp;&amp; keycode == KeyCode::LControl {
+                        l_ctrl_held = <span class="bool-val">true</span>;
+                    }
+                    <span class="kw">if </span>state == ElementState::PressRelease &amp;&amp; keycode == KeyCode::LControl {
+                        l_ctrl_held = <span class="bool-val">false</span>;
+                    }
+
+                    <span class="kw">if </span>state != ElementState::PressRelease
+                        &amp;&amp; (keycode == KeyCode::C || keycode == KeyCode::D)
+                        &amp;&amp; l_ctrl_held
+                    {
+                        <span class="kw">break</span>;
+                    }
+
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(unicode) = unicode {
+                        <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">"{unicode}"</span>);
+                        <span class="self">self</span>.term.flush();
+
+                        <span class="kw">let </span><span class="kw-2">mut </span>str = [<span class="number">0</span>; <span class="number">4</span>];
+
+                        <span class="kw">let </span>str = unicode.encode_utf8(<span class="kw-2">&amp;mut </span>str);
+
+                        <span class="comment">// TODO: buffering
+                        </span><span class="kw">if </span>stdin_tx.send_slice(str.as_bytes()).is_err() {
+                            <span class="kw">break</span>;
+                        }
+                    }
+                }
+                <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="prelude-val">Some</span>(s))) =&gt; {
+                    <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">"{s}"</span>);
+                    <span class="self">self</span>.term.flush();
+                }
+                <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="prelude-val">None</span>)) =&gt; <span class="kw">break</span>,
+                <span class="prelude-val">None </span>=&gt; <span class="kw">break</span>,
+            }
+        }
+
+        stdin_tx.close();
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>lapic_id_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{:?}&quot;</span>, ApicId::current());
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{:?}"</span>, ApicId::current());
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>cpu_id_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{:?}&quot;</span>, hyperion_cpu_id::cpu_id());
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{:?}"</span>, hyperion_cpu_id::cpu_id());
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -1389,8 +1325,8 @@
 
         <span class="kw">_ </span>= <span class="macro">writeln!</span>(
             <span class="self">self</span>.term,
-            <span class="string">&quot;\n{: &gt;6} {: &gt;7} {: &gt;9} CMD&quot;</span>,
-            <span class="string">&quot;PID&quot;</span>, <span class="string">&quot;THREADS&quot;</span>, <span class="string">&quot;TIME&quot;
+            <span class="string">"\n{: &gt;6} {: &gt;7} {: &gt;9} CMD"</span>,
+            <span class="string">"PID"</span>, <span class="string">"THREADS"</span>, <span class="string">"TIME"
         </span>);
         <span class="kw">for </span>proc <span class="kw">in </span>processes {
             <span class="kw">let </span>pid = proc.pid;
@@ -1404,7 +1340,7 @@
 
             <span class="kw">_ </span>= <span class="macro">writeln!</span>(
                 <span class="self">self</span>.term,
-                <span class="string">&quot;{pid: &gt;6} {threads: &gt;7} {time_m: &gt;2}:{time_s:02}.{time_ms:03} {name}&quot;
+                <span class="string">"{pid: &gt;6} {threads: &gt;7} {time_m: &gt;2}:{time_s:02}.{time_ms:03} {name}"
             </span>);
         }
 
@@ -1412,7 +1348,7 @@
     }
 
     <span class="kw">fn </span>nproc_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;{}&quot;</span>, cpu_count());
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{}"</span>, cpu_count());
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -1435,21 +1371,21 @@
         <span class="kw">let </span>mem_free = pmm::PFA.free_mem().postfix_binary();
         <span class="kw">let </span>mem_used = pmm::PFA.used_mem().postfix_binary();
 
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">&quot;top - {uptime_h}:{uptime_m:02}:{uptime_s:02} up&quot;</span>);
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"top - {uptime_h}:{uptime_m:02}:{uptime_s:02} up"</span>);
         <span class="kw">_ </span>= <span class="macro">writeln!</span>(
             <span class="self">self</span>.term,
-            <span class="string">&quot;Tasks: {tasks_total} total, {tasks_running} running, {tasks_sleeping} sleeping, {tasks_ready} ready&quot;
+            <span class="string">"Tasks: {tasks_total} total, {tasks_running} running, {tasks_sleeping} sleeping, {tasks_ready} ready"
         </span>);
         <span class="kw">_ </span>= <span class="macro">writeln!</span>(
             <span class="self">self</span>.term,
-            <span class="string">&quot;Mem: {mem_total} total, {mem_free} free, {mem_used} used&quot;
+            <span class="string">"Mem: {mem_total} total, {mem_free} free, {mem_used} used"
         </span>);
 
-        <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">&quot;Cpu idles: &quot;</span>);
+        <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">"Cpu idles: "</span>);
         <span class="kw">for </span>idle <span class="kw">in </span>idle() {
             <span class="comment">// round the time
             </span><span class="kw">let </span>idle = time::Duration::milliseconds(idle.whole_milliseconds() <span class="kw">as _</span>);
-            <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">&quot;{idle}, &quot;</span>);
+            <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">"{idle}, "</span>);
         }
         <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term);
 
@@ -1458,15 +1394,15 @@
 
     <span class="kw">fn </span>send_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span><span class="prelude-val">Some</span>(args) = args <span class="kw">else </span>{
-            <span class="comment">// _ = writeln!(self.term, &quot;expected arg: PID&quot;);
+            <span class="comment">// _ = writeln!(self.term, "expected arg: PID");
             </span><span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="string">&quot;expected arg: PID&quot;</span>.into(),
+                msg: <span class="string">"expected arg: PID"</span>.into(),
             });
         };
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>((pid, data)) = args.split_once(<span class="string">&#39; &#39;</span>) <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>((pid, data)) = args.split_once(<span class="string">' '</span>) <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="string">&quot;expected arg: DATA&quot;</span>.into(),
+                msg: <span class="string">"expected arg: DATA"</span>.into(),
             });
         };
 
@@ -1474,18 +1410,18 @@
             <span class="prelude-val">Ok</span>(pid) =&gt; pid,
             <span class="prelude-val">Err</span>(err) =&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                    msg: <span class="macro">format!</span>(<span class="string">&quot;failed to parse PID: {err}&quot;</span>),
+                    msg: <span class="macro">format!</span>(<span class="string">"failed to parse PID: {err}"</span>),
                 });
             }
         };
 
-        <span class="kw">let </span>data = data.replace(<span class="string">&quot;\\n&quot;</span>, <span class="string">&quot;\n&quot;</span>);
+        <span class="kw">let </span>data = data.replace(<span class="string">"\\n"</span>, <span class="string">"\n"</span>);
 
         <span class="kw">if let </span><span class="prelude-val">Err</span>(err) =
             hyperion_scheduler::send(hyperion_scheduler::task::Pid::new(pid), data.as_bytes())
         {
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="macro">format!</span>(<span class="string">&quot;failed send data: {err}&quot;</span>),
+                msg: <span class="macro">format!</span>(<span class="string">"failed send data: {err}"</span>),
             });
         };
 
@@ -1495,19 +1431,19 @@
     <span class="kw">fn </span>kill_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span><span class="prelude-val">Some</span>(arg) = args <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="string">&quot;missing arg pid&quot;</span>.to_string(),
+                msg: <span class="string">"missing arg pid"</span>.to_string(),
             });
         };
 
         <span class="kw">let </span><span class="prelude-val">Ok</span>(pid) = arg.parse::&lt;usize&gt;() <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="string">&quot;invalid arg pid&quot;</span>.to_string(),
+                msg: <span class="string">"invalid arg pid"</span>.to_string(),
             });
         };
 
         <span class="kw">let </span><span class="prelude-val">Some</span>(proc) = Pid::new(pid).find() <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="string">&quot;couldn&#39;t find the process&quot;</span>.to_string(),
+                msg: <span class="string">"couldn't find the process"</span>.to_string(),
             });
         };
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/driver-acpi/src/hpet.rs`."><title>hpet.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_driver_acpi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/driver-acpi/src/hpet.rs`."><title>hpet.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_driver_acpi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -714,8 +714,8 @@
 </span>}
 
 <span class="attr">#[derive(Debug)]
-</span><span class="kw">pub struct </span>TimerNHandle&lt;<span class="lifetime">&#39;a</span>&gt; {
-    lock: MutexGuard&lt;<span class="lifetime">&#39;a</span>, TimerN&gt;,
+</span><span class="kw">pub struct </span>TimerNHandle&lt;<span class="lifetime">'a</span>&gt; {
+    lock: MutexGuard&lt;<span class="lifetime">'a</span>, TimerN&gt;,
 }
 
 <span class="attr">#[derive(Debug, Clone, Copy)]
@@ -728,17 +728,17 @@
 
 </span><span class="kw">impl </span>Hpet {
     <span class="kw">pub fn </span>init() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::try_init().expect(<span class="string">&quot;HPET should be valid&quot;</span>)
+        <span class="self">Self</span>::try_init().expect(<span class="string">"HPET should be valid"</span>)
     }
 
     <span class="kw">pub fn </span>try_init() -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, HpetError&gt; {
-        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw-2">mut </span>unpacker) = RSDT.find_table(<span class="kw-2">*</span><span class="string">b&quot;HPET&quot;</span>).ok_or(HpetError::DoesntExist)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw-2">mut </span>unpacker) = RSDT.find_table(<span class="kw-2">*</span><span class="string">b"HPET"</span>).ok_or(HpetError::DoesntExist)<span class="question-mark">?</span>;
         <span class="kw">let </span>u = <span class="kw-2">&amp;mut </span>unpacker;
 
         <span class="kw">let </span>hpet: RawHpet = u.unpack(<span class="bool-val">true</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span>addr = PhysAddr::new(hpet.address.address);
 
-        <span class="macro">trace!</span>(<span class="string">&quot;HPET initialized&quot;</span>);
+        <span class="macro">trace!</span>(<span class="string">"HPET initialized"</span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>res = <span class="self">Self </span>{
             addr: to_higher_half(addr).as_u64(),
@@ -907,7 +907,7 @@
         <span class="self">self</span>.period = caps.period() <span class="kw">as </span>u32;
 
         <span class="kw">let </span>timers = (caps.num_tim_cap() - <span class="number">1</span>).min(cmp_count);
-        <span class="macro">trace!</span>(<span class="string">&quot;HPET timer count: {timers}&quot;</span>);
+        <span class="macro">trace!</span>(<span class="string">"HPET timer count: {timers}"</span>);
         <span class="kw">for </span>timer <span class="kw">in </span><span class="number">0</span>..timers {
             <span class="kw">let </span><span class="kw-2">mut </span>timer = TimerN {
                 addr: <span class="self">self</span>.addr,
@@ -920,14 +920,14 @@
             <span class="self">self</span>.timers.push(Mutex::new(timer));
         }
 
-        <span class="macro">debug!</span>(<span class="string">&quot;Enabling HPET&quot;</span>);
+        <span class="macro">debug!</span>(<span class="string">"Enabling HPET"</span>);
 
         <span class="comment">// enable cnf =&gt; enable hpet
         </span><span class="kw">let </span><span class="kw-2">mut </span>config = <span class="self">self</span>.config();
         config.set_enable(<span class="bool-val">true</span>);
         <span class="self">self</span>.set_config(config);
 
-        <span class="macro">trace!</span>(<span class="string">&quot;HPET freq: {}&quot;</span>, <span class="self">Self</span>::freq(<span class="self">self</span>.period));
+        <span class="macro">trace!</span>(<span class="string">"HPET freq: {}"</span>, <span class="self">Self</span>::freq(<span class="self">self</span>.period));
     }
 
     <span class="attr">#[allow(unused)]
@@ -941,7 +941,7 @@
 
 <span class="kw">impl </span>TimerN {
     <span class="kw">pub fn </span>handler(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ApicId {
-        <span class="self">self</span>.handler.expect(<span class="string">&quot;no I/O APIC handler for HPET timer&quot;</span>)
+        <span class="self">self</span>.handler.expect(<span class="string">"no I/O APIC handler for HPET timer"</span>)
     }
 
     <span class="doccomment">/// non blocking sleep, this triggers an interrupt after `dur`
@@ -959,17 +959,17 @@
         </span><span class="kw">let </span>now = HPET.main_counter_value();
         <span class="kw">let </span>current = <span class="self">self</span>.current;
         <span class="kw">if </span>current &gt; deadline {
-            <span class="comment">// debug!(&quot;current happens after the new deadline&quot;);
+            <span class="comment">// debug!("current happens after the new deadline");
             </span><span class="self">self</span>.deadlines.push(Reverse(current));
             <span class="self">self</span>.set_current(deadline);
         } <span class="kw">else if </span>current &gt; now {
-            <span class="comment">// debug!(&quot;current happens before the new deadline and is still valid&quot;);
+            <span class="comment">// debug!("current happens before the new deadline and is still valid");
             </span><span class="self">self</span>.deadlines.push(Reverse(deadline));
         } <span class="kw">else if </span>deadline &gt; now {
-            <span class="comment">// debug!(&quot;new deadline happens next&quot;);
+            <span class="comment">// debug!("new deadline happens next");
             </span><span class="self">self</span>.set_current(deadline);
         } <span class="kw">else </span>{
-            <span class="comment">// debug!(&quot;new deadline already happened&quot;);
+            <span class="comment">// debug!("new deadline already happened");
         </span>}
     }
 
@@ -990,12 +990,12 @@
                     end_of_interrupt(irq);
                 },
             )
-            .expect(<span class="string">&quot;No avail HPET IRQ&quot;</span>);
+            .expect(<span class="string">"No avail HPET IRQ"</span>);
 
             <span class="kw">let </span>apic = ioapic.set_irq_any(<span class="number">10</span>, hpet_irq);
             <span class="self">self</span>.handler = <span class="prelude-val">Some</span>(apic);
         } <span class="kw">else </span>{
-            <span class="macro">warn!</span>(<span class="string">&quot;HPET: no I/O APIC&quot;</span>);
+            <span class="macro">warn!</span>(<span class="string">"HPET: no I/O APIC"</span>);
         }
     }
 
@@ -1039,7 +1039,7 @@
     }
 }
 
-<span class="kw">impl </span>Deref <span class="kw">for </span>TimerNHandle&lt;<span class="lifetime">&#39;_</span>&gt; {
+<span class="kw">impl </span>Deref <span class="kw">for </span>TimerNHandle&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">type </span>Target = TimerN;
 
     <span class="kw">fn </span>deref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
@@ -1047,13 +1047,13 @@
     }
 }
 
-<span class="kw">impl </span>DerefMut <span class="kw">for </span>TimerNHandle&lt;<span class="lifetime">&#39;_</span>&gt; {
+<span class="kw">impl </span>DerefMut <span class="kw">for </span>TimerNHandle&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>deref_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Target {
         <span class="self">self</span>.lock.deref_mut()
     }
 }
 
-<span class="kw">impl </span>Drop <span class="kw">for </span>TimerNHandle&lt;<span class="lifetime">&#39;_</span>&gt; {
+<span class="kw">impl </span>Drop <span class="kw">for </span>TimerNHandle&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.update(HPET.main_counter_value());
     }
@@ -1218,7 +1218,7 @@
         <span class="doccomment">/// I/O APIC routing `int_route_cap`
         </span>int_route: <span class="number">9</span>..<span class="number">14</span>,
 
-        <span class="doccomment">/// write to periodic timer&#39;s accumulator
+        <span class="doccomment">/// write to periodic timer's accumulator
         </span>value_set: <span class="number">6</span>,
 
         <span class="doccomment">/// has 64 bit mode capability?

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["BufReader","SimpleIpcInputChannel"],"trait":["Read"]};
+window.SIDEBAR_ITEMS = {"struct":["BufReader","BufWriter","ConstBufReader"],"trait":["Read","Write"]};

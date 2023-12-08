@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/arch-x86_64/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_arch_x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/arch-x86_64/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_arch_x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -242,7 +242,7 @@
         selectors.kernel_code,
         selectors.kernel_data,
     )
-    .expect(<span class="string">&quot;IA32_STAR write incorrect&quot;</span>);
+    .expect(<span class="string">"IA32_STAR write incorrect"</span>);
 
     <span class="comment">// syscall handler addr
     // IA32_LSTAR : 0xC0000082
@@ -293,7 +293,7 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="macro">writeln!</span>(
             f,
-            <span class="string">&quot;syscall: {}, args: {:?}&quot;</span>,
+            <span class="string">"syscall: {}, args: {:?}"</span>,
             <span class="self">self</span>.syscall_id,
             (<span class="self">self</span>.arg0, <span class="self">self</span>.arg1, <span class="self">self</span>.arg2, <span class="self">self</span>.arg3, <span class="self">self</span>.arg4)
         )
@@ -308,9 +308,9 @@
 ///
 /// syscalls must also be initialized before calling this
 ///
-/// this call won&#39;t return
+/// this call won't return
 </span><span class="attr">#[no_mangle]
-</span><span class="kw">pub unsafe extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>userland(
+</span><span class="kw">pub unsafe extern </span><span class="string">"C" </span><span class="kw">fn </span>userland(
     _instr_ptr: VirtAddr,
     _stack_ptr: VirtAddr,
     _argc: u64,
@@ -322,37 +322,37 @@
     // rcx = _argv
     </span><span class="kw">unsafe </span>{
         <span class="macro">asm!</span>(
-            <span class="comment">// &quot;cli&quot;,
-            </span><span class="string">&quot;mov r8, rcx&quot;</span>, <span class="comment">// tmp save argc
+            <span class="comment">// "cli",
+            </span><span class="string">"mov r8, rcx"</span>, <span class="comment">// tmp save argc
 
             // setup sysretq args
-            </span><span class="string">&quot;mov rcx, rdi&quot;</span>,
-            <span class="string">&quot;mov rsp, rsi&quot;</span>,
-            <span class="string">&quot;mov r11, {rflags}&quot;</span>,
+            </span><span class="string">"mov rcx, rdi"</span>,
+            <span class="string">"mov rsp, rsi"</span>,
+            <span class="string">"mov r11, {rflags}"</span>,
 
             <span class="comment">// setup argc,argv
-            </span><span class="string">&quot;mov rsi, r8&quot;</span>,
-            <span class="string">&quot;mov rdi, rdx&quot;</span>,
+            </span><span class="string">"mov rsi, r8"</span>,
+            <span class="string">"mov rdi, rdx"</span>,
 
             <span class="comment">// clear some registers
-            </span><span class="string">&quot;xor rax, rax&quot;</span>,
-            <span class="string">&quot;xor rbx, rbx&quot;</span>,
+            </span><span class="string">"xor rax, rax"</span>,
+            <span class="string">"xor rbx, rbx"</span>,
             <span class="comment">// no zeroing rcx, sysreq returns to the address in it (`instr_ptr`)
-            </span><span class="string">&quot;xor rdx, rdx&quot;</span>,
-            <span class="comment">// &quot;xor rdi, rdi&quot;,
-            // &quot;xor rsi, rsi&quot;,
-            </span><span class="string">&quot;xor rbp, rbp&quot;</span>,
+            </span><span class="string">"xor rdx, rdx"</span>,
+            <span class="comment">// "xor rdi, rdi",
+            // "xor rsi, rsi",
+            </span><span class="string">"xor rbp, rbp"</span>,
             <span class="comment">// no zeroing rsp, a stack is needed
-            </span><span class="string">&quot;xor r8, r8&quot;</span>,
-            <span class="string">&quot;xor r9, r9&quot;</span>,
-            <span class="string">&quot;xor r10, r10&quot;</span>,
+            </span><span class="string">"xor r8, r8"</span>,
+            <span class="string">"xor r9, r9"</span>,
+            <span class="string">"xor r10, r10"</span>,
             <span class="comment">// no zeroing r11, it holds RFLAGS
-            </span><span class="string">&quot;xor r12, r12&quot;</span>,
-            <span class="string">&quot;xor r13, r13&quot;</span>,
-            <span class="string">&quot;xor r14, r14&quot;</span>,
-            <span class="string">&quot;xor r15, r15&quot;</span>,
-            <span class="comment">// &quot;call {halt}&quot;,
-            </span><span class="string">&quot;sysretq&quot;</span>,
+            </span><span class="string">"xor r12, r12"</span>,
+            <span class="string">"xor r13, r13"</span>,
+            <span class="string">"xor r14, r14"</span>,
+            <span class="string">"xor r15, r15"</span>,
+            <span class="comment">// "call {halt}",
+            </span><span class="string">"sysretq"</span>,
             rflags = <span class="kw">const</span>(RFlags::INTERRUPT_FLAG.bits()  <span class="comment">/* | RFlags::TRAP_FLAG.bits() */</span>),
             options(noreturn)
         );
@@ -362,7 +362,7 @@
 <span class="comment">//
 
 </span><span class="attr">#[naked]
-</span><span class="kw">unsafe extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>syscall_wrapper() {
+</span><span class="kw">unsafe extern </span><span class="string">"C" </span><span class="kw">fn </span>syscall_wrapper() {
     <span class="comment">// the stack is still the userland stack
     //
     // rcx = return address
@@ -370,54 +370,54 @@
     // r11 = rflags
     </span><span class="kw">unsafe </span>{
         <span class="macro">asm!</span>(
-            <span class="string">&quot;cli&quot;</span>,
-            <span class="string">&quot;swapgs&quot;</span>, <span class="comment">// swap gs and kernelgs to open up a few temporary data locations
-            </span><span class="string">&quot;mov gs:{user_stack}, rsp&quot;</span>,   <span class="comment">// backup the user stack
-            </span><span class="string">&quot;mov rsp, gs:{kernel_stack}&quot;</span>, <span class="comment">// switch to the kernel stack
-            </span><span class="string">&quot;push QWORD PTR gs:{user_stack}&quot;</span>,
-            <span class="string">&quot;swapgs&quot;</span>,
+            <span class="string">"cli"</span>,
+            <span class="string">"swapgs"</span>, <span class="comment">// swap gs and kernelgs to open up a few temporary data locations
+            </span><span class="string">"mov gs:{user_stack}, rsp"</span>,   <span class="comment">// backup the user stack
+            </span><span class="string">"mov rsp, gs:{kernel_stack}"</span>, <span class="comment">// switch to the kernel stack
+            </span><span class="string">"push QWORD PTR gs:{user_stack}"</span>,
+            <span class="string">"swapgs"</span>,
 
-            <span class="string">&quot;push rax&quot;</span>,
-            <span class="string">&quot;push rbx&quot;</span>,
-            <span class="string">&quot;push rcx&quot;</span>,
-            <span class="string">&quot;push rdx&quot;</span>,
-            <span class="string">&quot;push rdi&quot;</span>,
-            <span class="string">&quot;push rsi&quot;</span>,
-            <span class="string">&quot;push rbp&quot;</span>,
-            <span class="string">&quot;push r8&quot;</span>,
-            <span class="string">&quot;push r9&quot;</span>,
-            <span class="string">&quot;push r10&quot;</span>,
-            <span class="string">&quot;push r11&quot;</span>,
-            <span class="string">&quot;push r12&quot;</span>,
-            <span class="string">&quot;push r13&quot;</span>,
-            <span class="string">&quot;push r14&quot;</span>,
-            <span class="string">&quot;push r15&quot;</span>,
+            <span class="string">"push rax"</span>,
+            <span class="string">"push rbx"</span>,
+            <span class="string">"push rcx"</span>,
+            <span class="string">"push rdx"</span>,
+            <span class="string">"push rdi"</span>,
+            <span class="string">"push rsi"</span>,
+            <span class="string">"push rbp"</span>,
+            <span class="string">"push r8"</span>,
+            <span class="string">"push r9"</span>,
+            <span class="string">"push r10"</span>,
+            <span class="string">"push r11"</span>,
+            <span class="string">"push r12"</span>,
+            <span class="string">"push r13"</span>,
+            <span class="string">"push r14"</span>,
+            <span class="string">"push r15"</span>,
 
-            <span class="string">&quot;mov rdi, rsp&quot;</span>,
-            <span class="string">&quot;call {syscall}&quot;</span>,
+            <span class="string">"mov rdi, rsp"</span>,
+            <span class="string">"call {syscall}"</span>,
 
-            <span class="string">&quot;pop r15&quot;</span>,
-            <span class="string">&quot;pop r14&quot;</span>,
-            <span class="string">&quot;pop r13&quot;</span>,
-            <span class="string">&quot;pop r12&quot;</span>,
-            <span class="string">&quot;pop r11&quot;</span>,
-            <span class="string">&quot;pop r10&quot;</span>,
-            <span class="string">&quot;pop r9&quot;</span>,
-            <span class="string">&quot;pop r8&quot;</span>,
-            <span class="string">&quot;pop rbp&quot;</span>,
-            <span class="string">&quot;pop rsi&quot;</span>,
-            <span class="string">&quot;pop rdi&quot;</span>,
-            <span class="string">&quot;pop rdx&quot;</span>,
-            <span class="string">&quot;pop rcx&quot;</span>,
-            <span class="string">&quot;pop rbx&quot;</span>,
-            <span class="string">&quot;pop rax&quot;</span>,
+            <span class="string">"pop r15"</span>,
+            <span class="string">"pop r14"</span>,
+            <span class="string">"pop r13"</span>,
+            <span class="string">"pop r12"</span>,
+            <span class="string">"pop r11"</span>,
+            <span class="string">"pop r10"</span>,
+            <span class="string">"pop r9"</span>,
+            <span class="string">"pop r8"</span>,
+            <span class="string">"pop rbp"</span>,
+            <span class="string">"pop rsi"</span>,
+            <span class="string">"pop rdi"</span>,
+            <span class="string">"pop rdx"</span>,
+            <span class="string">"pop rcx"</span>,
+            <span class="string">"pop rbx"</span>,
+            <span class="string">"pop rax"</span>,
 
-            <span class="string">&quot;swapgs&quot;</span>,
-            <span class="string">&quot;pop QWORD PTR gs:{user_stack}&quot;</span>,
-            <span class="string">&quot;mov rsp, gs:{user_stack}&quot;</span>,
-            <span class="string">&quot;swapgs&quot;</span>,
+            <span class="string">"swapgs"</span>,
+            <span class="string">"pop QWORD PTR gs:{user_stack}"</span>,
+            <span class="string">"mov rsp, gs:{user_stack}"</span>,
+            <span class="string">"swapgs"</span>,
             <span class="comment">// TODO: fix the sysret vulnerability
-            </span><span class="string">&quot;sysretq&quot;</span>,
+            </span><span class="string">"sysretq"</span>,
             syscall = sym syscall,
             user_stack = <span class="kw">const</span>(<span class="macro">offset_of!</span>(ThreadLocalStorage, user_stack)),
             kernel_stack = <span class="kw">const</span>(<span class="macro">offset_of!</span>(ThreadLocalStorage, kernel_stack)),
@@ -428,12 +428,12 @@
 
 <span class="attr">#[inline(always)]
 #[no_mangle]
-</span><span class="kw">unsafe extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>syscall(regs: <span class="kw-2">*mut </span>SyscallRegs) {
+</span><span class="kw">unsafe extern </span><span class="string">"C" </span><span class="kw">fn </span>syscall(regs: <span class="kw-2">*mut </span>SyscallRegs) {
     SYSCALL_HANDLER.load()(<span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut *</span>regs });
 }
 
 <span class="comment">// TODO: static linking instead of dynamic fn ptr
 </span><span class="kw">static </span>SYSCALL_HANDLER: AtomicCell&lt;<span class="kw">fn</span>(<span class="kw-2">&amp;mut </span>SyscallRegs)&gt; = AtomicCell::new(|<span class="kw">_</span>| {
-    <span class="macro">hyperion_log::error!</span>(<span class="string">&quot;Syscall handler not initialized&quot;</span>);
+    <span class="macro">hyperion_log::error!</span>(<span class="string">"Syscall handler not initialized"</span>);
 });
 </code></pre></div></section></main></body></html>

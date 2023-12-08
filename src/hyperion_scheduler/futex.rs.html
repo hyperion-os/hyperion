@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/scheduler/src/futex.rs`."><title>futex.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_scheduler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/scheduler/src/futex.rs`."><title>futex.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_scheduler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -76,82 +76,180 @@
 <a href="#76" id="76">76</a>
 <a href="#77" id="77">77</a>
 <a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::collections::{BTreeMap, VecDeque};
 <span class="kw">use </span>core::{
+    mem::ManuallyDrop,
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+<span class="kw">use </span>hyperion_mem::{to_higher_half, vmm::PageMapImpl};
+<span class="kw">use </span>x86_64::{PhysAddr, VirtAddr};
+
 <span class="kw">use crate</span>::{
     cleanup::Cleanup,
+    process,
     task::{switch_because, Task, TaskState},
     wait_next_task, READY,
 };
 
 <span class="comment">//
 
-</span><span class="kw">static </span>WAITING: spin::Mutex&lt;BTreeMap&lt;usize, VecDeque&lt;Task&gt;&gt;&gt; = spin::Mutex::new(BTreeMap::new());
-
-<span class="comment">//
-
 </span><span class="doccomment">/// if the value at `addr` is eq `val`, go to sleep
-</span><span class="kw">pub fn </span>wait(addr: NonNull&lt;AtomicUsize&gt;, val: usize) {
-    <span class="kw">struct </span>IsNeq;
-
-    <span class="kw">let </span>var: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>AtomicUsize = <span class="kw">unsafe </span>{ <span class="kw-2">&amp;*</span>addr.as_ptr() };
-
-    <span class="kw">if </span>var.load(Ordering::SeqCst) != val {
+</span><span class="kw">pub fn </span>wait(addr: <span class="kw-2">&amp;</span>AtomicUsize, val: usize) {
+    <span class="kw">if </span>addr.load(Ordering::SeqCst) != val {
         <span class="kw">return</span>;
     }
 
-    <span class="kw">let </span>next = wait_next_task(|| {
-        <span class="kw">if </span>var.load(Ordering::SeqCst) != val {
-            <span class="prelude-val">Some</span>(IsNeq)
-        } <span class="kw">else </span>{
-            <span class="prelude-val">None
-        </span>}
-    });
+    <span class="kw">let </span>next = wait_next_task(|| should_cancel(addr, val).then_some(()));
 
-    <span class="kw">match </span>next {
-        <span class="prelude-val">Ok</span>(next) =&gt; switch_because(next, TaskState::Sleeping, Cleanup::Wait { addr, val }),
-        <span class="prelude-val">Err</span>(IsNeq) =&gt; <span class="kw">return</span>,
+    <span class="kw">if let </span><span class="prelude-val">Ok</span>(next) = next {
+        <span class="kw">let </span>addr: NonNull&lt;AtomicUsize&gt; = addr.into();
+
+        <span class="kw">let </span>addr = process()
+            .address_space
+            .page_map
+            .virt_to_phys(VirtAddr::from_ptr(addr.as_ptr()))
+            .unwrap();
+
+        switch_because(next, TaskState::Sleeping, Cleanup::Wait { addr, val })
     }
 }
 
 <span class="doccomment">/// wake up threads waiting for events on this `addr`
-</span><span class="kw">pub fn </span>wake(addr: NonNull&lt;AtomicUsize&gt;, num: usize) {
-    <span class="kw">let </span><span class="kw-2">mut </span>waiting = WAITING.lock();
+</span><span class="kw">pub fn </span>wake(addr: <span class="kw-2">&amp;</span>AtomicUsize, num: usize) {
+    <span class="kw">let </span>addr = process()
+        .address_space
+        .page_map
+        .virt_to_phys(VirtAddr::from_ptr(addr.as_ptr()))
+        .unwrap();
 
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(waiting_on_addr) = waiting.get_mut(<span class="kw-2">&amp;</span>(addr.as_ptr() <span class="kw">as </span>usize)) {
-        <span class="comment">// if drain on VecDeque front is optimized:
-        </span><span class="kw">for </span>task <span class="kw">in </span>waiting_on_addr.drain(..num.min(waiting_on_addr.len())) {
-            READY.push(task);
-        }
-
-        <span class="comment">// for _ in 0..num {
-        //     if waiting_on_addr.pop_front().is_none() {
-        //         break;
-        //     }
-        // }
-    </span>}
+    WAITING.pop(addr.as_u64() <span class="kw">as </span>usize, num);
 }
 
 <span class="doccomment">/// post switch cleanup
-</span><span class="kw">pub fn </span>cleanup(addr: NonNull&lt;AtomicUsize&gt;, val: usize, task: Task) {
-    <span class="kw">let </span>var: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>AtomicUsize = <span class="kw">unsafe </span>{ <span class="kw-2">&amp;*</span>addr.as_ptr() };
+</span><span class="kw">pub fn </span>cleanup(addr: PhysAddr, val: usize, task: Task) {
+    <span class="kw">let </span>var = <span class="kw">unsafe </span>{ <span class="kw-2">&amp;*</span>to_higher_half(addr).as_ptr::&lt;AtomicUsize&gt;() };
 
-    <span class="kw">let </span><span class="kw-2">mut </span>waiting = WAITING.lock();
+    <span class="kw">let </span>cancel = WAITING.push(addr.as_u64() <span class="kw">as </span>usize, task, || {
+        <span class="comment">// cancel the wait if var == val
+        </span>should_cancel(var, val)
+    });
 
-    <span class="kw">if </span>var.load(Ordering::SeqCst) != val {
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(task) = cancel {
         READY.push(task);
-        <span class="kw">return</span>;
+    }
+}
+
+<span class="kw">fn </span>should_cancel(var: <span class="kw-2">&amp;</span>AtomicUsize, val: usize) -&gt; bool {
+    var.load(Ordering::SeqCst) != val
+}
+
+<span class="comment">//
+
+</span><span class="kw">static </span>WAITING: Waiters = Waiters::new();
+
+<span class="comment">//
+
+</span><span class="kw">struct </span>Waiters {
+    addrs: spin::Mutex&lt;BTreeMap&lt;usize, VecDeque&lt;Waiter&gt;&gt;&gt;,
+}
+
+<span class="kw">impl </span>Waiters {
+    <span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            addrs: spin::Mutex::new(BTreeMap::new()),
+        }
     }
 
-    waiting
-        .entry(var.as_ptr() <span class="kw">as </span>usize)
-        .or_default()
-        .push_back(task);
+    <span class="kw">pub fn </span>push(<span class="kw-2">&amp;</span><span class="self">self</span>, addr: usize, task: Task, unless: <span class="kw">impl </span>FnOnce() -&gt; bool) -&gt; <span class="prelude-ty">Option</span>&lt;Task&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>addrs = <span class="self">self</span>.addrs.lock();
 
-    drop(waiting);
+        <span class="kw">if </span>unless() {
+            <span class="kw">return </span><span class="prelude-val">Some</span>(task);
+        }
+
+        addrs.entry(addr).or_default().push_back(Waiter::new(task));
+
+        <span class="prelude-val">None
+    </span>}
+
+    <span class="kw">pub fn </span>pop(<span class="kw-2">&amp;</span><span class="self">self</span>, addr: usize, count: usize) {
+        <span class="kw">let </span><span class="kw-2">mut </span>addrs = <span class="self">self</span>.addrs.lock();
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(waiting_on_addr) = addrs.get_mut(<span class="kw-2">&amp;</span>addr) {
+            <span class="kw">let </span>new_len = waiting_on_addr.len().saturating_sub(count);
+            waiting_on_addr.truncate(new_len);
+        }
+    }
+}
+
+<span class="comment">//
+
+</span><span class="kw">struct </span>Waiter {
+    task: ManuallyDrop&lt;Task&gt;,
+}
+
+<span class="kw">impl </span>Waiter {
+    <span class="kw">pub const fn </span>new(task: Task) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            task: ManuallyDrop::new(task),
+        }
+    }
+}
+
+<span class="kw">impl </span>Drop <span class="kw">for </span>Waiter {
+    <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        READY.push(<span class="kw">unsafe </span>{ ManuallyDrop::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.task) })
+    }
 }
 </code></pre></div></section></main></body></html>

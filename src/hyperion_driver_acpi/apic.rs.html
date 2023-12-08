@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/driver-acpi/src/apic.rs`."><title>apic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_driver_acpi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/driver-acpi/src/apic.rs`."><title>apic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_driver_acpi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -331,29 +331,18 @@
 <a href="#331" id="331">331</a>
 <a href="#332" id="332">332</a>
 <a href="#333" id="333">333</a>
-<a href="#334" id="334">334</a>
-<a href="#335" id="335">335</a>
-<a href="#336" id="336">336</a>
-<a href="#337" id="337">337</a>
-<a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::boxed::Box;
-<span class="kw">use </span>core::ops::Deref;
+<span class="kw">use </span>core::{
+    ops::Deref,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 <span class="kw">use </span>crossbeam::atomic::AtomicCell;
-<span class="kw">use </span>hyperion_atomic_map::AtomicMap;
+<span class="kw">use </span>hyperion_cpu_id::Tls;
 <span class="kw">use </span>hyperion_interrupts::{end_of_interrupt, IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 <span class="kw">use </span>hyperion_log::trace;
 <span class="kw">use </span>hyperion_mem::to_higher_half;
-<span class="kw">use </span>spin::{Lazy, RwLock, RwLockReadGuard, RwLockWriteGuard};
+<span class="kw">use </span>spin::{Lazy, Once, RwLock, RwLockReadGuard, RwLockWriteGuard};
 <span class="kw">use </span>x86_64::PhysAddr;
 
 <span class="kw">use super</span>::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
@@ -368,11 +357,11 @@
 
 //
 
-</span><span class="kw">pub struct </span>ApicTls&lt;T: <span class="lifetime">&#39;static</span>&gt; {
+</span><span class="kw">pub struct </span>ApicTls&lt;T: <span class="lifetime">'static</span>&gt; {
     inner: Box&lt;[(ApicId, T)]&gt;,
 }
 
-<span class="kw">impl</span>&lt;T: <span class="lifetime">&#39;static</span>&gt; ApicTls&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: <span class="lifetime">'static</span>&gt; ApicTls&lt;T&gt; {
     <span class="kw">pub fn </span>new(<span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut() -&gt; T) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>inner: Box&lt;[(ApicId, T)]&gt; = ApicId::iter().map(|id| (id, f())).collect();
 
@@ -382,7 +371,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;T: <span class="lifetime">&#39;static</span>&gt; Deref <span class="kw">for </span>ApicTls&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: <span class="lifetime">'static</span>&gt; Deref <span class="kw">for </span>ApicTls&lt;T&gt; {
     <span class="kw">type </span>Target = T;
 
     <span class="kw">fn </span>deref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Target {
@@ -390,7 +379,7 @@
         <span class="kw">let </span>idx = <span class="self">self
             </span>.inner
             .binary_search_by_key(<span class="kw-2">&amp;</span>key, |(id, <span class="kw">_</span>)| <span class="kw-2">*</span>id)
-            .unwrap_or_else(|<span class="kw">_</span>| <span class="macro">panic!</span>(<span class="string">&quot;{key:?} was expected to be a registered LAPIC&quot;</span>));
+            .unwrap_or_else(|<span class="kw">_</span>| <span class="macro">panic!</span>(<span class="string">"{key:?} was expected to be a registered LAPIC"</span>));
 
         <span class="kw-2">&amp;</span><span class="self">self</span>.inner[idx].<span class="number">1
     </span>}
@@ -416,14 +405,18 @@
         read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
     );
 
-    <span class="comment">// SAFETY: TODO: atm. totally unsafe, because enable could be called twice with the same CPU
-    // but this should be the first time ever this CPU checks the apic regs
+    <span class="comment">// enable apic only once per cpu
+    </span><span class="kw">static </span>ONCE: Lazy&lt;Tls&lt;AtomicBool&gt;&gt; = Lazy::new(|| Tls::new(|| AtomicBool::new(<span class="bool-val">false</span>)));
+    <span class="kw">if </span>ONCE.swap(<span class="bool-val">true</span>, Ordering::SeqCst) {
+        <span class="macro">panic!</span>(<span class="string">"apic enable twice on the same cpu"</span>);
+    }
+
+    <span class="comment">// SAFETY: the check above
     </span><span class="kw">let </span>regs: <span class="kw-2">&amp;mut </span>ApicRegs = <span class="kw">unsafe </span>{ get_apic_regs() };
     <span class="kw">let </span>apic_id = ApicId(regs.lapic_id.read());
 
-    <span class="macro">trace!</span>(<span class="string">&quot;Initializing {apic_id:?}&quot;</span>);
-    LAPICS.insert(apic_id, RwLock::new(Lapic { regs }));
-    <span class="kw">let </span><span class="kw-2">mut </span>lapic = LAPICS.get(<span class="kw-2">&amp;</span>apic_id).unwrap().write();
+    <span class="macro">trace!</span>(<span class="string">"Initializing {apic_id:?}"</span>);
+    <span class="kw">let </span><span class="kw-2">mut </span>lapic = LAPICS.call_once(|| RwLock::new(Lapic { regs })).write();
 
     <span class="kw">const </span>ENABLE_APIC_TASK_SWITCH: bool = <span class="bool-val">true</span>;
     <span class="kw">if </span>ENABLE_APIC_TASK_SWITCH {
@@ -432,25 +425,25 @@
         reset(lapic.regs);
     }
 
-    <span class="macro">trace!</span>(<span class="string">&quot;Done Initializing {apic_id:?}&quot;</span>);
+    <span class="macro">trace!</span>(<span class="string">"Done Initializing {apic_id:?}"</span>);
 }
 
 <span class="kw">pub fn </span>enable_timer(<span class="kw-2">mut </span>lapic: RwLockWriteGuard&lt;Lapic&gt;) {
     <span class="kw">let </span>timer_irq = hyperion_interrupts::set_any_interrupt_handler(
         |irq| (<span class="number">0x30</span>..=<span class="number">0xFF</span>).contains(<span class="kw-2">&amp;</span>irq),
         |irq| {
-            <span class="comment">// hyperion_log::debug!(&quot;APIC timer&quot;);
+            <span class="comment">// hyperion_log::debug!("APIC timer");
 
             /* unsafe {
                 core::arch::asm!(
-                    &quot;syscall&quot;,
-                    in(&quot;rax&quot;) syscall_id,
-                    in(&quot;rdi&quot;) arg0,
-                    in(&quot;rsi&quot;) arg1,
-                    in(&quot;rdx&quot;) arg2,
-                    in(&quot;r8&quot;) arg3,
-                    in(&quot;r9&quot;) arg4,
-                    lateout(&quot;rax&quot;) result
+                    "syscall",
+                    in("rax") syscall_id,
+                    in("rdi") arg0,
+                    in("rsi") arg1,
+                    in("rdx") arg2,
+                    in("r8") arg3,
+                    in("r9") arg4,
+                    lateout("rax") result
                 );
             } */
 
@@ -460,7 +453,7 @@
             <span class="comment">// apic timer interrupt
         </span>},
     )
-    .expect(<span class="string">&quot;No avail APIC timer IRQ&quot;</span>);
+    .expect(<span class="string">"No avail APIC timer IRQ"</span>);
 
     <span class="comment">// let mut lapic = Lapic::current_mut();
 
@@ -472,9 +465,12 @@
 ///
 /// the caller has to make sure there are no other mutable references
 /// to the same ApicRegs
-</span><span class="kw">pub unsafe fn </span>get_apic_regs() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span><span class="kw-2">mut </span>ApicRegs {
+</span><span class="kw">pub unsafe fn </span>get_apic_regs() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw-2">mut </span>ApicRegs {
     <span class="kw">let </span>lapic_addr = to_higher_half(PhysAddr::new(MADT.local_apic_addr <span class="kw">as </span>u64));
-    <span class="kw-2">&amp;mut *</span>lapic_addr.as_mut_ptr()
+
+    <span class="comment">// SAFETY: the reference is valid forever,
+    // even if the ref is sent to another CPU, but at that point, it points to that CPUs lapic regs
+    </span><span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut *</span>lapic_addr.as_mut_ptr() }
 }
 
 <span class="comment">//
@@ -483,7 +479,7 @@
 </span><span class="kw">pub struct </span>ApicId(u32);
 
 <span class="kw">pub struct </span>Lapic {
-    regs: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span><span class="kw-2">mut </span>ApicRegs,
+    regs: <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw-2">mut </span>ApicRegs,
 }
 
 <span class="comment">//
@@ -494,8 +490,7 @@
     }
 
     <span class="kw">pub fn </span>iter() -&gt; <span class="kw">impl </span>Iterator&lt;Item = ApicId&gt; {
-        <span class="comment">// LAPICS.keys().copied()
-        </span>LAPIC_IDS.iter().copied()
+        LAPIC_IDS.iter().copied()
     }
 
     <span class="kw">pub fn </span>inner(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
@@ -508,40 +503,17 @@
 
     <span class="doccomment">/// apic id of this processor
     </span><span class="kw">pub fn </span>current() -&gt; <span class="self">Self </span>{
-        <span class="comment">// FIXME: technically UB, because regs could be shared,
-        // even though only lapic_id is read, and lapic_id is never allowed
-        // to be written
-        //
-        // but rust wants all mutable refs (the whole &amp;mut ApicRegs here)
-        // to be exclusive always
-        </span><span class="self">Self</span>(<span class="kw">unsafe </span>{ get_apic_regs() }.lapic_id.read())
-
-        <span class="comment">// TODO: maybe go with the same solution as Theseus OS
-        /* Self(read_msr(IA32_TSC_AUX) as u32) */
-    </span>}
-
-    <span class="kw">pub fn </span>lapic(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RwLockReadGuard&lt;<span class="lifetime">&#39;static</span>, Lapic&gt; {
-        LAPICS
-            .get(<span class="self">self</span>)
-            .expect(<span class="string">&quot;Invalid ApicID or LAPICS not setup&quot;</span>)
-            .read()
-    }
-
-    <span class="kw">pub fn </span>lapic_mut(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RwLockWriteGuard&lt;<span class="lifetime">&#39;static</span>, Lapic&gt; {
-        LAPICS
-            .get(<span class="self">self</span>)
-            .expect(<span class="string">&quot;Invalid ApicID or LAPICS not setup&quot;</span>)
-            .write()
+        <span class="self">Self</span>(Lapic::current().regs.lapic_id.read())
     }
 }
 
 <span class="kw">impl </span>Lapic {
-    <span class="kw">pub fn </span>current() -&gt; RwLockReadGuard&lt;<span class="lifetime">&#39;static</span>, Lapic&gt; {
-        ApicId::current().lapic()
+    <span class="kw">pub fn </span>current() -&gt; RwLockReadGuard&lt;<span class="lifetime">'static</span>, Lapic&gt; {
+        LAPICS.get().expect(<span class="string">"LAPICS not set up"</span>).read()
     }
 
-    <span class="kw">pub fn </span>current_mut() -&gt; RwLockWriteGuard&lt;<span class="lifetime">&#39;static</span>, Lapic&gt; {
-        ApicId::current().lapic_mut()
+    <span class="kw">pub fn </span>current_mut() -&gt; RwLockWriteGuard&lt;<span class="lifetime">'static</span>, Lapic&gt; {
+        LAPICS.get().expect(<span class="string">"LAPICS not set up"</span>).write()
     }
 
     <span class="kw">pub fn </span>regs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ApicRegs {
@@ -559,8 +531,8 @@
 
 <span class="comment">//
 
-</span><span class="kw">static </span>LAPICS: AtomicMap&lt;ApicId, RwLock&lt;Lapic&gt;&gt; = AtomicMap::new();
-<span class="kw">static </span>LAPIC_IDS: Lazy&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>[ApicId]&gt; =
+</span><span class="kw">static </span>LAPICS: Lazy&lt;Tls&lt;Once&lt;RwLock&lt;Lapic&gt;&gt;&gt;&gt; = Lazy::new(|| Tls::new(Once::new));
+<span class="kw">static </span>LAPIC_IDS: Lazy&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>[ApicId]&gt; =
     Lazy::new(|| Box::leak(hyperion_boot::lapics().map(ApicId).collect::&lt;Box&lt;<span class="kw">_</span>&gt;&gt;()));
 
 <span class="kw">const </span>IA32_APIC_BASE: u32 = <span class="number">0x1B</span>;
@@ -629,7 +601,7 @@
 
     regs.timer_divide.write(APIC_TIMER_DIV);
 
-    <span class="macro">hyperion_log::trace!</span>(<span class="string">&quot;apic timer calibration&quot;</span>);
+    <span class="macro">hyperion_log::trace!</span>(<span class="string">"apic timer calibration"</span>);
     hyperion_clock::get()._apic_sleep_simple_blocking(APIC_CALIBRATION_MICROS, <span class="kw-2">&amp;mut </span>|| {
         <span class="comment">// reset right before PIT sleeping
         </span>regs.timer_init.write(INITIAL_COUNT);

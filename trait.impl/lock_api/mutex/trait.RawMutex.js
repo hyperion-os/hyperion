@@ -1,3 +1,4 @@
 (function() {var implementors = {
-"hyperion_scheduler":[["impl RawMutex for <a class=\"struct\" href=\"hyperion_scheduler/lock/struct.Futex.html\" title=\"struct hyperion_scheduler::lock::Futex\">Futex</a>"],["impl RawMutex for <a class=\"struct\" href=\"hyperion_scheduler/lock/struct.AutoFutex.html\" title=\"struct hyperion_scheduler::lock::AutoFutex\">AutoFutex</a>"]]
+"hyperion_scheduler":[["impl RawMutex for <a class=\"struct\" href=\"hyperion_scheduler/lock/struct.AutoFutex.html\" title=\"struct hyperion_scheduler::lock::AutoFutex\">AutoFutex</a>"],["impl RawMutex for <a class=\"struct\" href=\"hyperion_scheduler/lock/struct.Futex.html\" title=\"struct hyperion_scheduler::lock::Futex\">Futex</a>"]],
+"libstd":[["impl RawMutex for <a class=\"struct\" href=\"libstd/sync/struct.Futex.html\" title=\"struct libstd::sync::Futex\">Futex</a>"]]
 };if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

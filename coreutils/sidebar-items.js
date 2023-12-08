@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["cmd","main"],"mod":["cat","ls","sleep","touch"]};

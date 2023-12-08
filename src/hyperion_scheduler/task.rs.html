@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/scheduler/src/task.rs`."><title>task.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_scheduler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/scheduler/src/task.rs`."><title>task.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_scheduler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -717,14 +717,14 @@
 
 <span class="attr">#[track_caller]
 </span><span class="kw">pub fn </span>switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
-    <span class="comment">// debug!(&quot;switching to {}&quot;, next.name.read().clone());
+    <span class="comment">// debug!("switching to {}", next.name.read().clone());
     </span><span class="kw">if </span>!next.is_valid {
-        <span class="macro">panic!</span>(<span class="string">&quot;this task is not safe to switch to&quot;</span>);
+        <span class="macro">panic!</span>(<span class="string">"this task is not safe to switch to"</span>);
     }
 
     <span class="kw">let </span>next_ctx = next.context.get();
     <span class="kw">if </span>next.swap_state(TaskState::Running) == TaskState::Running {
-        <span class="macro">panic!</span>(<span class="string">&quot;this task is already running&quot;</span>);
+        <span class="macro">panic!</span>(<span class="string">"this task is already running"</span>);
     }
 
     <span class="comment">// tell the page fault handler that the actual current task is still this one
@@ -739,7 +739,7 @@
     <span class="kw">let </span>prev = swap_current(next);
     <span class="kw">let </span>prev_ctx = prev.context.get();
     <span class="kw">if </span>prev.swap_state(new_state) != TaskState::Running {
-        <span class="macro">panic!</span>(<span class="string">&quot;previous task wasn&#39;t running&quot;</span>);
+        <span class="macro">panic!</span>(<span class="string">"previous task wasn't running"</span>);
     }
 
     <span class="comment">// push the current thread to the drop queue AFTER switching
@@ -756,7 +756,7 @@
 }
 
 <span class="kw">fn </span>post_ctx_switch() {
-    <span class="comment">// invalidate the page fault handler&#39;s old task store
+    <span class="comment">// invalidate the page fault handler's old task store
     </span>tls()
         .switch_last_active
         .store(ptr::null_mut(), Ordering::SeqCst);
@@ -764,10 +764,10 @@
     <span class="kw">crate</span>::cleanup();
 }
 
-<span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>thread_entry() -&gt; ! {
+<span class="kw">extern </span><span class="string">"C" </span><span class="kw">fn </span>thread_entry() -&gt; ! {
     post_ctx_switch();
 
-    <span class="kw">let </span>job = task().job.take().expect(<span class="string">&quot;no active jobs&quot;</span>);
+    <span class="kw">let </span>job = task().job.take().expect(<span class="string">"no active jobs"</span>);
     job();
 
     stop();
@@ -778,11 +778,11 @@
 </span><span class="attr">#[derive(Debug, Default)]
 </span><span class="kw">pub struct </span>PageAllocs {
     <span class="comment">// TODO: a better way to keep track of allocated pages
-    </span>bitmap: Once&lt;Mutex&lt;Bitmap&lt;<span class="lifetime">&#39;static</span>&gt;&gt;&gt;,
+    </span>bitmap: Once&lt;Mutex&lt;Bitmap&lt;<span class="lifetime">'static</span>&gt;&gt;&gt;,
 }
 
 <span class="kw">impl </span>PageAllocs {
-    <span class="kw">pub fn </span>bitmap(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MutexGuard&lt;Bitmap&lt;<span class="lifetime">&#39;static</span>&gt;&gt; {
+    <span class="kw">pub fn </span>bitmap(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MutexGuard&lt;Bitmap&lt;<span class="lifetime">'static</span>&gt;&gt; {
         <span class="self">self</span>.bitmap
             .call_once(|| {
                 <span class="kw">let </span>bitmap_alloc = <span class="macro">vec!</span>[<span class="number">0u8</span>; pmm::PFA.bitmap_len() / <span class="number">8</span>];
@@ -848,7 +848,7 @@
 
 <span class="comment">//
 
-</span><span class="doccomment">/// A process, each process can have multiple &#39;tasks&#39; (pthreads)
+</span><span class="doccomment">/// A process, each process can have multiple 'tasks' (pthreads)
 </span><span class="kw">pub struct </span>Process {
     <span class="doccomment">/// process id
     </span><span class="kw">pub </span>pid: Pid,
@@ -879,7 +879,7 @@
     </span><span class="kw">pub </span>allocs: PageAllocs,
 
     <span class="doccomment">/// extra process info added by the kernel (like file descriptors)
-    </span><span class="kw">pub </span>ext: Once&lt;Box&lt;<span class="kw">dyn </span>ProcessExt + <span class="lifetime">&#39;static</span>&gt;&gt;,
+    </span><span class="kw">pub </span>ext: Once&lt;Box&lt;<span class="kw">dyn </span>ProcessExt + <span class="lifetime">'static</span>&gt;&gt;,
 
     <span class="kw">pub </span>should_terminate: AtomicBool,
 }
@@ -1020,7 +1020,7 @@
             pmm::PFA.free(phys_page);
         }
 
-        <span class="comment">// the page map is dropped, so unmapping pages isn&#39;t needed
+        <span class="comment">// the page map is dropped, so unmapping pages isn't needed
     </span>}
 }
 
@@ -1035,13 +1035,13 @@
 </span><span class="kw">pub struct </span>TaskInner {
     <span class="doccomment">/// thread id
     ///
-    /// thread id&#39;s are per process, each process has at least TID 0
+    /// thread id's are per process, each process has at least TID 0
     </span><span class="kw">pub </span>tid: Tid,
 
     <span class="doccomment">/// a shared process ref, multiple tasks can point to the same process
     </span><span class="kw">pub </span>process: Arc&lt;Process&gt;,
 
-    <span class="doccomment">/// task state, &#39;is the task waiting or what?&#39;
+    <span class="doccomment">/// task state, 'is the task waiting or what?'
     </span><span class="kw">pub </span>state: AtomicCell&lt;TaskState&gt;,
 
     <span class="doccomment">/// lazy initialized user-space stack
@@ -1053,9 +1053,9 @@
     </span><span class="kw">pub </span>kernel_stack: Mutex&lt;Stack&lt;KernelStack&gt;&gt;,
 
     <span class="doccomment">/// thread_entry runs this function once, and stops the process after returning
-    </span><span class="kw">pub </span>job: TakeOnce&lt;Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt;, Mutex&lt;()&gt;&gt;,
+    </span><span class="kw">pub </span>job: TakeOnce&lt;Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">'static</span>&gt;, Mutex&lt;()&gt;&gt;,
 
-    <span class="comment">// context is used &#39;unsafely&#39; only in the switch
+    <span class="comment">// context is used 'unsafely' only in the switch
     // TaskInner is pinned in heap using a Box to make sure a pointer to this (`context`)
     // is valid after switching task before switching context
     </span>context: UnsafeCell&lt;Context&gt;,
@@ -1079,7 +1079,7 @@
         <span class="macro">assert_eq!</span>(
             <span class="self">self</span>.state.load(),
             TaskState::Dropping,
-            <span class="string">&quot;{}&quot;</span>,
+            <span class="string">"{}"</span>,
             <span class="self">self</span>.name.read().clone(),
         );
 
@@ -1100,13 +1100,13 @@
 </span><span class="kw">pub struct </span>Task(Arc&lt;TaskInner&gt;);
 
 <span class="kw">impl </span>Task {
-    <span class="kw">pub fn </span>new(f: <span class="kw">impl </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>) -&gt; Task {
+    <span class="kw">pub fn </span>new(f: <span class="kw">impl </span>FnOnce() + Send + <span class="lifetime">'static</span>) -&gt; Task {
         <span class="kw">let </span>name = type_name_of_val(<span class="kw-2">&amp;</span>f);
         <span class="self">Self</span>::new_any(Box::new(f) <span class="kw">as _</span>, name.into())
     }
 
-    <span class="kw">pub fn </span>new_any(f: Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt;, name: ArcStr) -&gt; Task {
-        <span class="macro">trace!</span>(<span class="string">&quot;initializing task {name}&quot;</span>);
+    <span class="kw">pub fn </span>new_any(f: Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">'static</span>&gt;, name: ArcStr) -&gt; Task {
+        <span class="macro">trace!</span>(<span class="string">"initializing task {name}"</span>);
 
         <span class="kw">let </span>process = Process::new(Pid::next(), name, AddressSpace::new(PageMap::new()));
 
@@ -1121,7 +1121,7 @@
         ));
 
         <span class="macro">trace!</span>(
-            <span class="string">&quot;task rsp:{stack_top:#x} cr3:{:#x}&quot;</span>,
+            <span class="string">"task rsp:{stack_top:#x} cr3:{:#x}"</span>,
             process.address_space.page_map.cr3().start_address()
         );
 
@@ -1138,13 +1138,13 @@
         }))
     }
 
-    <span class="kw">pub fn </span>thread(process: Arc&lt;Process&gt;, f: <span class="kw">impl </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>) -&gt; Task {
+    <span class="kw">pub fn </span>thread(process: Arc&lt;Process&gt;, f: <span class="kw">impl </span>FnOnce() + Send + <span class="lifetime">'static</span>) -&gt; Task {
         <span class="self">Self</span>::thread_any(process, Box::new(f))
     }
 
-    <span class="kw">pub fn </span>thread_any(process: Arc&lt;Process&gt;, f: Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">&#39;static</span>&gt;) -&gt; Task {
+    <span class="kw">pub fn </span>thread_any(process: Arc&lt;Process&gt;, f: Box&lt;<span class="kw">dyn </span>FnOnce() + Send + <span class="lifetime">'static</span>&gt;) -&gt; Task {
         <span class="macro">trace!</span>(
-            <span class="string">&quot;initializing secondary thread for process {}&quot;</span>,
+            <span class="string">"initializing secondary thread for process {}"</span>,
             process.name.read().clone()
         );
 
@@ -1177,11 +1177,11 @@
         <span class="comment">// TODO: dropping this task should also free the bootloader stacks
         // they are currently dropped by a task in kernel/src/main.rs
 
-        </span><span class="macro">trace!</span>(<span class="string">&quot;initializing bootloader task&quot;</span>);
+        </span><span class="macro">trace!</span>(<span class="string">"initializing bootloader task"</span>);
 
         <span class="kw">let </span>process = Process::new(
             Pid(<span class="number">0</span>),
-            <span class="string">&quot;bootloader&quot;</span>.into(),
+            <span class="string">"bootloader"</span>.into(),
             AddressSpace::new(PageMap::current()),
         );
         process.should_terminate.store(<span class="bool-val">true</span>, Ordering::Release);
@@ -1251,7 +1251,7 @@
 
 <span class="kw">impl</span>&lt;F&gt; From&lt;F&gt; <span class="kw">for </span>Task
 <span class="kw">where
-    </span>F: FnOnce() + Send + <span class="lifetime">&#39;static</span>,
+    </span>F: FnOnce() + Send + <span class="lifetime">'static</span>,
 {
     <span class="kw">fn </span>from(value: F) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::new(value)
@@ -1271,12 +1271,12 @@
 <span class="kw">const _</span>: () = <span class="macro">assert!</span>(AtomicCell::&lt;TaskState&gt;::is_lock_free());
 
 <span class="kw">impl </span>TaskState {
-    <span class="kw">pub const fn </span>as_str(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str {
+    <span class="kw">pub const fn </span>as_str(<span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
         <span class="kw">match </span><span class="self">self </span>{
-            TaskState::Running =&gt; <span class="string">&quot;running&quot;</span>,
-            TaskState::Sleeping =&gt; <span class="string">&quot;sleeping&quot;</span>,
-            TaskState::Ready =&gt; <span class="string">&quot;ready&quot;</span>,
-            TaskState::Dropping =&gt; <span class="string">&quot;dropping&quot;</span>,
+            TaskState::Running =&gt; <span class="string">"running"</span>,
+            TaskState::Sleeping =&gt; <span class="string">"sleeping"</span>,
+            TaskState::Ready =&gt; <span class="string">"ready"</span>,
+            TaskState::Dropping =&gt; <span class="string">"dropping"</span>,
         }
     }
 

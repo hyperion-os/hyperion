@@ -1,8 +1,8 @@
 var srcIndex = JSON.parse('{\
 "cargo_run":["",[],["main.rs"]],\
+"coreutils":["",[],["cat.rs","ls.rs","main.rs","sleep.rs","touch.rs"]],\
 "hyperion_arch":["",[],["lib.rs"]],\
 "hyperion_arch_x86_64":["",[["cpu",[],["gdt.rs","idt.rs","ints.rs","mod.rs","tss.rs"]]],["context.rs","lib.rs","paging.rs","pmm.rs","stack.rs","syscall.rs","tls.rs","vmm.rs"]],\
-"hyperion_atomic_map":["",[],["lib.rs"]],\
 "hyperion_backtrace":["",[],["lib.rs"]],\
 "hyperion_bitmap":["",[],["lib.rs"]],\
 "hyperion_boot":["",[],["args.rs","lib.rs"]],\
@@ -39,7 +39,6 @@ var srcIndex = JSON.parse('{\
 "hyperion_mem":["",[],["lib.rs","pmm.rs","vmm.rs"]],\
 "hyperion_num_postfix":["",[],["lib.rs"]],\
 "hyperion_random":["",[],["lib.rs"]],\
-"hyperion_sample_elf":["",[],["main.rs"]],\
 "hyperion_scheduler":["",[["ipc",[],["mod.rs","pipe.rs"]]],["cleanup.rs","condvar.rs","futex.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]],\
 "hyperion_slab_alloc":["",[],["lib.rs"]],\
 "hyperion_static_str":["",[],["lib.rs"]],\
@@ -47,6 +46,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_syscall":["",[],["err.rs","fs.rs","lib.rs","net.rs"]],\
 "hyperion_timer":["",[],["lib.rs"]],\
 "hyperion_vfs":["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]],\
-"libstd":["",[],["alloc.rs","fs.rs","io.rs","lib.rs","thread.rs"]]\
+"libstd":["",[],["alloc.rs","fs.rs","io.rs","lib.rs","sync.rs","thread.rs"]],\
+"sample_elf":["",[],["main.rs"]]\
 }');
 createSrcSidebar();

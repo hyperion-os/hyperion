@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/arch-x86_64/src/vmm.rs`."><title>vmm.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_arch_x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/arch-x86_64/src/vmm.rs`."><title>vmm.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_arch_x86_64" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -810,7 +810,7 @@
         l2.set_flags(l2.flags() | PageTableFlags::BIT_9);
         <span class="kw">let </span>l3_511 = (l2.addr(), l2.flags());
 
-        <span class="comment">// no flushing needed, the cpu doesn&#39;t care about the bit 9
+        <span class="comment">// no flushing needed, the cpu doesn't care about the bit 9
 
         </span>(l3_510, l3_511)
     });
@@ -818,19 +818,19 @@
 <span class="comment">//
 
 </span><span class="kw">pub struct </span>PageMap {
-    offs: RwLock&lt;OffsetPageTable&lt;<span class="lifetime">&#39;static</span>&gt;&gt;,
+    offs: RwLock&lt;OffsetPageTable&lt;<span class="lifetime">'static</span>&gt;&gt;,
     owned: bool,
 }
 
 <span class="comment">//
 
-// unsafe fn read_table(addr: PhysAddr) -&gt; &amp;&#39;static PageTable {
+// unsafe fn read_table(addr: PhysAddr) -&gt; &amp;'static PageTable {
 //     let table = to_higher_half(addr);
 //     let table: *const PageTable = table.as_ptr();
 //     unsafe { &amp;*table }
 // }
 
-</span><span class="kw">unsafe fn </span>read_table_mut(addr: PhysAddr) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span><span class="kw-2">mut </span>PageTable {
+</span><span class="kw">unsafe fn </span>read_table_mut(addr: PhysAddr) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw-2">mut </span>PageTable {
     <span class="kw">let </span>table = to_higher_half(addr);
     <span class="kw">let </span>table: <span class="kw-2">*mut </span>PageTable = table.as_mut_ptr();
     <span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut *</span>table }
@@ -844,7 +844,7 @@
     <span class="kw-2">*</span>left -= <span class="number">1</span>;
 
     <span class="kw">if </span><span class="kw-2">*</span>left == <span class="number">0 </span>{
-        <span class="macro">panic!</span>(<span class="string">&quot;crash_after_nth {nth} complete&quot;</span>);
+        <span class="macro">panic!</span>(<span class="string">"crash_after_nth {nth} complete"</span>);
     }
 }
 
@@ -917,7 +917,7 @@
         </span><span class="kw">let </span>offs = RwLock::new(offs);
         <span class="kw">let </span>page_map = <span class="self">Self </span>{ offs, owned: <span class="bool-val">true </span>};
 
-        <span class="comment">// hyperion_log::debug!(&quot;higher half direct map&quot;);
+        <span class="comment">// hyperion_log::debug!("higher half direct map");
         // TODO: pmm::PFA.allocations();
         </span><span class="macro">assert_eq!</span>(
             HIGHER_HALF_DIRECT_MAPPING.as_u64(),
@@ -930,7 +930,7 @@
         );
 
         <span class="comment">/* // TODO: less dumb kernel mapping
-        // hyperion_log::debug!(&quot;kernel map&quot;);
+        // hyperion_log::debug!("kernel map");
         let kernel = VirtAddr::new(hyperion_boot::virt_addr() as _);
         let top = VirtAddr::new(u64::MAX);
         page_map.map(
@@ -950,11 +950,11 @@
         <span class="kw">let </span>cr3 = PhysFrame::containing_address(phys);
 
         <span class="kw">if </span>Cr3::read().<span class="number">0 </span>== cr3 {
-            <span class="macro">hyperion_log::trace!</span>(<span class="string">&quot;page map switch avoided (same)&quot;</span>);
+            <span class="macro">hyperion_log::trace!</span>(<span class="string">"page map switch avoided (same)"</span>);
             <span class="kw">return</span>;
         }
 
-        <span class="macro">hyperion_log::trace!</span>(<span class="string">&quot;switching page maps&quot;</span>);
+        <span class="macro">hyperion_log::trace!</span>(<span class="string">"switching page maps"</span>);
         <span class="kw">unsafe </span>{ Cr3::write(cr3, Cr3Flags::empty()) };
     }
 
@@ -968,7 +968,7 @@
 
     <span class="kw">fn </span>map(<span class="kw-2">&amp;</span><span class="self">self</span>, v_addr: Range&lt;VirtAddr&gt;, <span class="kw-2">mut </span>p_addr: PhysAddr, flags: PageTableFlags) {
         <span class="kw">if </span>!v_addr.start.is_aligned(Size4KiB::SIZE) || !p_addr.is_aligned(Size4KiB::SIZE) {
-            <span class="macro">panic!</span>(<span class="string">&quot;Not aligned&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">"Not aligned"</span>);
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>table = <span class="self">self</span>.offs.write();
@@ -978,61 +978,61 @@
         <span class="kw">let </span><span class="kw-2">mut </span>size;
 
         <span class="macro">hyperion_log::trace!</span>(
-            <span class="string">&quot;mapping [ 0x{start:016x}..0x{end:016x} ] to 0x{p_addr:016x} with {flags:?}&quot;
+            <span class="string">"mapping [ 0x{start:016x}..0x{end:016x} ] to 0x{p_addr:016x} with {flags:?}"
         </span>);
 
         <span class="kw">loop </span>{
-            <span class="comment">/* &#39;try_map: {
+            <span class="comment">/* 'try_map: {
                 size = Size1GiB::SIZE;
                 match try_map_sized::&lt;Size1GiB&gt;(table, start, end, p_addr, flags, pmm) {
-                    Ok(_) =&gt; break &#39;try_map,
+                    Ok(_) =&gt; break 'try_map,
                     Err(TryMapSizedError::MapToError(MapToError::PageAlreadyMapped(p))) =&gt; {
                         if p_addr == p.start_address() {
-                            break &#39;try_map;
+                            break 'try_map;
                         }
 
                         try_unmap_sized::&lt;Size1GiB&gt;(table, start, end)
-                            .expect(&quot;to be able to unmap a page that had to be remapped&quot;);
+                            .expect("to be able to unmap a page that had to be remapped");
                         try_map_sized::&lt;Size1GiB&gt;(table, start, end, p_addr, flags, pmm)
-                            .expect(&quot;to be able to map a page after the error was resolved&quot;)
+                            .expect("to be able to map a page after the error was resolved")
                     }
                     Err(_) =&gt; {}
                 }
             } */
 
             </span><span class="kw">if </span>try_map_sized::&lt;Size1GiB&gt;(table, start, end, p_addr, flags)
-                <span class="comment">// .map_err(|err| hyperion_log::debug!(&quot;1GiB map err: {err:?}&quot;))
+                <span class="comment">// .map_err(|err| hyperion_log::debug!("1GiB map err: {err:?}"))
                 </span>.is_ok()
             {
                 size = Size1GiB::SIZE;
             } <span class="kw">else if </span>try_map_sized::&lt;Size2MiB&gt;(table, start, end, p_addr, flags)
-                <span class="comment">// .map_err(|err| hyperion_log::debug!(&quot;2MiB map err: {err:?}&quot;))
+                <span class="comment">// .map_err(|err| hyperion_log::debug!("2MiB map err: {err:?}"))
                 </span>.is_ok()
             {
                 size = Size2MiB::SIZE;
             } <span class="kw">else if </span>try_map_sized::&lt;Size4KiB&gt;(table, start, end, p_addr, flags)
-                <span class="comment">// .map_err(|err| hyperion_log::debug!(&quot;4KiB map err: {err:?}&quot;))
+                <span class="comment">// .map_err(|err| hyperion_log::debug!("4KiB map err: {err:?}"))
                 </span>.is_ok()
             {
                 size = Size4KiB::SIZE;
             } <span class="kw">else </span>{
-                <span class="macro">hyperion_log::error!</span>(<span class="string">&quot;FIXME: failed to map [ 0x{start:016x} to 0x{p_addr:016x} ]&quot;</span>);
+                <span class="macro">hyperion_log::error!</span>(<span class="string">"FIXME: failed to map [ 0x{start:016x} to 0x{p_addr:016x} ]"</span>);
                 <span class="macro">hyperion_log::error!</span>(
-                    <span class="string">&quot;1GiB: {:?}&quot;</span>,
+                    <span class="string">"1GiB: {:?}"</span>,
                     try_map_sized::&lt;Size1GiB&gt;(table, start, end, p_addr, flags)
                 );
                 <span class="macro">hyperion_log::error!</span>(
-                    <span class="string">&quot;2MiB: {:?}&quot;</span>,
+                    <span class="string">"2MiB: {:?}"</span>,
                     try_map_sized::&lt;Size2MiB&gt;(table, start, end, p_addr, flags)
                 );
                 <span class="macro">hyperion_log::error!</span>(
-                    <span class="string">&quot;4KiB: {:?}&quot;</span>,
+                    <span class="string">"4KiB: {:?}"</span>,
                     try_map_sized::&lt;Size4KiB&gt;(table, start, end, p_addr, flags)
                 );
                 size = Size4KiB::SIZE;
             }
 
-            <span class="comment">// hyperion_log::trace!(&quot;mapped 0x{size:0x}&quot;);
+            <span class="comment">// hyperion_log::trace!("mapped 0x{size:0x}");
 
             </span><span class="kw">if let </span>(<span class="prelude-val">Some</span>(next_start), <span class="prelude-val">Some</span>(next_p_addr)) = (
                 v_addr_checked_add(start, size),
@@ -1047,7 +1047,7 @@
             <span class="kw">match </span>start.cmp(<span class="kw-2">&amp;</span>end) {
                 Ordering::Equal =&gt; <span class="kw">break</span>,
                 Ordering::Greater =&gt; {
-                    <span class="macro">hyperion_log::error!</span>(<span class="string">&quot;FIXME: over-mapped&quot;</span>);
+                    <span class="macro">hyperion_log::error!</span>(<span class="string">"FIXME: over-mapped"</span>);
                     <span class="kw">break</span>;
                 }
                 <span class="kw">_ </span>=&gt; {}
@@ -1057,7 +1057,7 @@
 
     <span class="kw">fn </span>unmap(<span class="kw-2">&amp;</span><span class="self">self</span>, v_addr: Range&lt;VirtAddr&gt;) {
         <span class="kw">if </span>!v_addr.start.is_aligned(Size4KiB::SIZE) {
-            <span class="macro">panic!</span>(<span class="string">&quot;Not aligned&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">"Not aligned"</span>);
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>table = <span class="self">self</span>.offs.write();
@@ -1066,10 +1066,10 @@
         </span><span class="kw">let </span>Range { <span class="kw-2">mut </span>start, end } = v_addr;
         <span class="kw">let </span><span class="kw-2">mut </span>size;
 
-        <span class="macro">hyperion_log::trace!</span>(<span class="string">&quot;unmapping [ 0x{start:016x}..0x{end:016x} ]&quot;</span>);
+        <span class="macro">hyperion_log::trace!</span>(<span class="string">"unmapping [ 0x{start:016x}..0x{end:016x} ]"</span>);
 
         <span class="kw">loop </span>{
-            <span class="comment">// hyperion_log::debug!(&quot;unmapping {start:?}..{end:?}&quot;);
+            <span class="comment">// hyperion_log::debug!("unmapping {start:?}..{end:?}");
 
             </span><span class="kw">if </span>try_unmap_sized::&lt;Size1GiB&gt;(table, start, end).is_ok() {
                 size = Size1GiB::SIZE;
@@ -1078,7 +1078,7 @@
             } <span class="kw">else if </span>try_unmap_sized::&lt;Size4KiB&gt;(table, start, end).is_ok() {
                 size = Size4KiB::SIZE;
             } <span class="kw">else </span>{
-                <span class="macro">hyperion_log::error!</span>(<span class="string">&quot;FIXME: failed to unmap [ 0x{start:016x} ]&quot;</span>);
+                <span class="macro">hyperion_log::error!</span>(<span class="string">"FIXME: failed to unmap [ 0x{start:016x} ]"</span>);
                 size = Size4KiB::SIZE;
             }
 
@@ -1091,7 +1091,7 @@
             <span class="kw">match </span>start.cmp(<span class="kw-2">&amp;</span>end) {
                 Ordering::Equal =&gt; <span class="kw">break</span>,
                 Ordering::Greater =&gt; {
-                    <span class="macro">hyperion_log::error!</span>(<span class="string">&quot;FIXME: over-unmapped&quot;</span>);
+                    <span class="macro">hyperion_log::error!</span>(<span class="string">"FIXME: over-unmapped"</span>);
                     <span class="kw">break</span>;
                 }
                 <span class="kw">_ </span>=&gt; {}
@@ -1110,7 +1110,7 @@
                 TranslateResult::Mapped { frame, flags, .. } =&gt; (frame, flags),
                 TranslateResult::NotMapped =&gt; <span class="kw">return </span><span class="bool-val">false</span>,
                 TranslateResult::InvalidFrameAddress(err) =&gt; {
-                    <span class="macro">hyperion_log::error!</span>(<span class="string">&quot;Invalid page table frame address: 0x{err:016x}&quot;</span>);
+                    <span class="macro">hyperion_log::error!</span>(<span class="string">"Invalid page table frame address: 0x{err:016x}"</span>);
                     <span class="kw">return </span><span class="bool-val">false</span>;
                 }
             };
@@ -1203,7 +1203,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>offs = <span class="self">self</span>.offs.write();
 
-        <span class="macro">println!</span>(<span class="string">&quot;BEGIN PAGE TABLE ITER&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">"BEGIN PAGE TABLE ITER"</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>output = BTreeMap::new();
         <span class="kw">let </span><span class="kw-2">mut </span>output_hh = BTreeMap::new();
         <span class="kw">let </span>l4 = Level4::from_pml4(offs.level_4_table());
@@ -1215,7 +1215,7 @@
                 travel_level(flags, entry, <span class="kw-2">&amp;mut </span>output_hh, v_addr);
             }
         }
-        <span class="macro">println!</span>(<span class="string">&quot;END PAGE TABLE ITER&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">"END PAGE TABLE ITER"</span>);
 
         <span class="kw">let </span>print_output = |output: BTreeMap&lt;u64, (PageTableFlags, u64)&gt;| {
             <span class="kw">let </span><span class="kw-2">mut </span>last = <span class="prelude-val">None</span>;
@@ -1228,7 +1228,7 @@
                 <span class="kw">if let </span><span class="prelude-val">Some</span>((last_flags, last_start, last_end)) = last.take() {
                     <span class="kw">if </span>last_flags != flags || last_end &lt; segment_start {
                         <span class="macro">println!</span>(
-                            <span class="string">&quot;PAGING SEGMENT [ 0x{last_start:016x}..0x{last_end:016x} ] {:?}&quot;</span>,
+                            <span class="string">"PAGING SEGMENT [ 0x{last_start:016x}..0x{last_end:016x} ] {:?}"</span>,
                             last_flags
                         );
                         last = <span class="prelude-val">Some</span>((flags, segment_start, segment_end));
@@ -1241,16 +1241,16 @@
             }
             <span class="kw">if let </span><span class="prelude-val">Some</span>((last_flags, last_start, last_end)) = last {
                 <span class="macro">println!</span>(
-                    <span class="string">&quot;PAGING SEGMENT [ 0x{last_start:016x}..0x{last_end:016x} ] {:?}&quot;</span>,
+                    <span class="string">"PAGING SEGMENT [ 0x{last_start:016x}..0x{last_end:016x} ] {:?}"</span>,
                     last_flags
                 );
             }
         };
-        <span class="macro">println!</span>(<span class="string">&quot;BEGIN PAGE TABLE SEGMENTS&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">"BEGIN PAGE TABLE SEGMENTS"</span>);
         print_output(output);
-        <span class="macro">println!</span>(<span class="string">&quot;BEGIN HIGHER HALF PAGE TABLE SEGMENTS&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">"BEGIN HIGHER HALF PAGE TABLE SEGMENTS"</span>);
         print_output(output_hh);
-        <span class="macro">println!</span>(<span class="string">&quot;END PAGE TABLE SEGMENTS&quot;</span>);
+        <span class="macro">println!</span>(<span class="string">"END PAGE TABLE SEGMENTS"</span>);
     }
 }
 
@@ -1307,7 +1307,7 @@
             <span class="kw">if </span>!flags.contains(PageTableFlags::BIT_9) {
                 travel_level(entry);
             } <span class="kw">else </span>{
-                <span class="macro">hyperion_log::debug!</span>(<span class="string">&quot;skip bit 9&quot;</span>);
+                <span class="macro">hyperion_log::debug!</span>(<span class="string">"skip bit 9"</span>);
             }
         }
 
@@ -1357,7 +1357,7 @@ fn lazy_map_sized&lt;T&gt;(
 ) -&gt; PageFaultResult
 where
     T: PageSize + core::fmt::Debug,
-    for&lt;&#39;a&gt; OffsetPageTable&lt;&#39;a&gt;: Mapper&lt;T&gt;,
+    for&lt;'a&gt; OffsetPageTable&lt;'a&gt;: Mapper&lt;T&gt;,
 {
     let map = v_addr.align_down(T::SIZE)..v_addr.align_up(T::SIZE);
     if !region.contains(&amp;map.start) &amp;&amp; region.contains(&amp;map.end) {
@@ -1367,7 +1367,7 @@ where
     let p_addr = p_addr - map.start.as_u64();
 
     if let Err(err) = try_map_sized::&lt;T&gt;(table, map.start, map.end, p_addr, flags) {
-        hyperion_log::error!(&quot;map err: {err:?}&quot;);
+        hyperion_log::error!("map err: {err:?}");
         return PageFaultResult::NotHandled;
     }
 
@@ -1391,7 +1391,7 @@ where
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), TryMapSizedError&lt;T&gt;&gt;
 <span class="kw">where
     </span>T: PageSize,
-    <span class="kw">for</span>&lt;<span class="lifetime">&#39;a</span>&gt; OffsetPageTable&lt;<span class="lifetime">&#39;a</span>&gt;: Mapper&lt;T&gt;,
+    <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; OffsetPageTable&lt;<span class="lifetime">'a</span>&gt;: Mapper&lt;T&gt;,
 {
     <span class="kw">let </span><span class="prelude-val">Some</span>(mapping_end) = start.as_u64().checked_add(T::SIZE - <span class="number">1</span>) <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(TryMapSizedError::Overflow);
@@ -1420,7 +1420,7 @@ where
         .map_err(|err| TryMapSizedError::MapToError(err))<span class="question-mark">?
         </span>.flush();
 
-    <span class="comment">/* hyperion_log::debug!(&quot;mapped 1GiB at 0x{:016x}&quot;, start);
+    <span class="comment">/* hyperion_log::debug!("mapped 1GiB at 0x{:016x}", start);
     crash_after_nth(10); */
 
     </span><span class="prelude-val">Ok</span>(())
@@ -1433,7 +1433,7 @@ where
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), TryMapSizedError&lt;T&gt;&gt;
 <span class="kw">where
     </span>T: PageSize,
-    <span class="kw">for</span>&lt;<span class="lifetime">&#39;a</span>&gt; OffsetPageTable&lt;<span class="lifetime">&#39;a</span>&gt;: Mapper&lt;T&gt;,
+    <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; OffsetPageTable&lt;<span class="lifetime">'a</span>&gt;: Mapper&lt;T&gt;,
 {
     <span class="kw">let </span><span class="prelude-val">Some</span>(_mapping_end) = start.as_u64().checked_add(T::SIZE - <span class="number">1</span>) <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(TryMapSizedError::Overflow);
@@ -1455,11 +1455,11 @@ where
             <span class="prelude-val">Ok</span>(())
         }
         <span class="prelude-val">Err</span>(UnmapError::PageNotMapped) =&gt; {
-            <span class="comment">// hyperion_log::debug!(&quot;already not mapped&quot;);
+            <span class="comment">// hyperion_log::debug!("already not mapped");
             </span><span class="prelude-val">Ok</span>(())
         }
         <span class="prelude-val">Err</span>(UnmapError::ParentEntryHugePage) =&gt; <span class="prelude-val">Err</span>(TryMapSizedError::WrongSize),
-        <span class="prelude-val">Err</span>(_err) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;{_err:?}&quot;</span>),
+        <span class="prelude-val">Err</span>(_err) =&gt; <span class="macro">panic!</span>(<span class="string">"{_err:?}"</span>),
     }
 }
 

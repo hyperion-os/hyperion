@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/mem/src/pmm.rs`."><title>pmm.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_mem" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/mem/src/pmm.rs`."><title>pmm.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_mem" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -453,7 +453,7 @@
 
 </span><span class="kw">pub struct </span>PageFrameAllocator {
     <span class="comment">// 1 bits are used pages
-    </span>bitmap: AtomicBitmap&lt;<span class="lifetime">&#39;static</span>&gt;,
+    </span>bitmap: AtomicBitmap&lt;<span class="lifetime">'static</span>&gt;,
     usable: AtomicUsize,
     used: AtomicUsize,
     total: AtomicUsize,
@@ -510,10 +510,10 @@
             <span class="macro">assert_eq!</span>(
                 <span class="self">self</span>.bitmap.swap(page, <span class="bool-val">false</span>, Ordering::Release),
                 <span class="prelude-val">Some</span>(<span class="bool-val">true</span>),
-                <span class="string">&quot;trying to free pages that were already free&quot;
+                <span class="string">"trying to free pages that were already free"
             </span>);
         }
-        <span class="comment">// trace!(&quot;freeing pages first={page} count={}&quot;, frame.count);
+        <span class="comment">// trace!("freeing pages first={page} count={}", frame.count);
 
         </span>frame.as_bytes_mut().fill(<span class="number">0</span>);
 
@@ -534,7 +534,7 @@
         };
 
         <span class="comment">/* hyperion_log::debug!(
-            &quot;allocating {count} pages (from {})&quot;,
+            "allocating {count} pages (from {})",
             core::panic::Location::caller()
         ); */
 
@@ -543,7 +543,7 @@
         <span class="kw">let </span>first_page = <span class="self">self</span>.alloc_at(from, count).unwrap_or_else(|| {
             <span class="comment">// TODO: handle OOM a bit better
             </span><span class="self">self</span>.last_alloc_index.store(<span class="number">0</span>, Ordering::SeqCst);
-            <span class="self">self</span>.alloc_at(<span class="number">0</span>, count).expect(<span class="string">&quot;OOM&quot;</span>)
+            <span class="self">self</span>.alloc_at(<span class="number">0</span>, count).expect(<span class="string">"OOM"</span>)
         });
 
         <span class="self">self</span>.last_alloc_index
@@ -553,7 +553,7 @@
         <span class="kw">let </span>page_ptr: <span class="kw-2">*mut </span>MaybeUninit&lt;u8&gt; = to_higher_half(addr).as_mut_ptr();
         <span class="macro">assert!</span>(
             page_ptr.is_aligned_to(PAGE_SIZE),
-            <span class="string">&quot;pages should be aligned to {PAGE_SIZE}&quot;
+            <span class="string">"pages should be aligned to {PAGE_SIZE}"
         </span>);
 
         <span class="comment">// Safety: the pages get protected from allocations
@@ -574,7 +574,7 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>first_page = from;
         <span class="kw">let </span>bitmap_len = <span class="self">self</span>.bitmap.len();
 
-        <span class="lifetime">&#39;main</span>: <span class="kw">loop </span>{
+        <span class="lifetime">'main</span>: <span class="kw">loop </span>{
             <span class="kw">if </span>first_page + count &gt; bitmap_len {
                 <span class="kw">return </span><span class="prelude-val">None</span>;
             }
@@ -585,7 +585,7 @@
 
                 <span class="comment">// lock the window
                 </span><span class="kw">if </span><span class="self">self</span>.bitmap.swap(page, <span class="bool-val">true</span>, Ordering::Acquire).unwrap() {
-                    <span class="comment">// 0..offs, means that the last page that we couldn&#39;t acquire, won&#39;t be freed
+                    <span class="comment">// 0..offs, means that the last page that we couldn't acquire, won't be freed
                     </span><span class="kw">for </span>offs <span class="kw">in </span><span class="number">0</span>..offs {
                         <span class="kw">let </span>page = first_page + offs;
                         <span class="comment">// the first swap already acquired exclusive access to these pages
@@ -595,7 +595,7 @@
                     }
 
                     first_page = first_page + offs + <span class="number">1</span>;
-                    <span class="kw">continue </span><span class="lifetime">&#39;main</span>;
+                    <span class="kw">continue </span><span class="lifetime">'main</span>;
                 }
             }
 
@@ -621,7 +621,7 @@
             .filter(Memmap::is_usable)
             .map(|Memmap { base, len, ty: <span class="kw">_ </span>}| base + len)
             .max()
-            .expect(<span class="string">&quot;No memory&quot;</span>);
+            .expect(<span class="string">"No memory"</span>);
 
         <span class="kw">let </span>used: usize = memmap()
             .filter(|m| m.is_bootloader_reclaimable())
@@ -633,7 +633,7 @@
         <span class="kw">let </span>bitmap_data: usize = memmap()
             .filter(Memmap::is_usable)
             .find(|Memmap { len, .. }| <span class="kw-2">*</span>len &gt;= bitmap_size)
-            .expect(<span class="string">&quot;No place to store PageFrameAllocator bitmap&quot;</span>)
+            .expect(<span class="string">"No place to store PageFrameAllocator bitmap"</span>)
             .base;
         <span class="kw">let </span>bitmap_ptr: <span class="kw-2">*mut </span>MaybeUninit&lt;u8&gt; =
             to_higher_half(PhysAddr::new(bitmap_data <span class="kw">as _</span>)).as_mut_ptr();
@@ -664,7 +664,7 @@
             <span class="kw">let </span><span class="kw-2">mut </span>top = base + len;
 
             <span class="macro">debug!</span>(
-                <span class="string">&quot;Free pages: [ {:#018x?} ] ({}B)&quot;</span>,
+                <span class="string">"Free pages: [ {:#018x?} ] ({}B)"</span>,
                 bottom..top,
                 (top - bottom).postfix_binary()
             );
@@ -689,7 +689,7 @@
             last_alloc_index: <span class="number">0</span>.into(),
         };
 
-        <span class="macro">debug!</span>(<span class="string">&quot;PFA initialized:\n{pfa}&quot;</span>);
+        <span class="macro">debug!</span>(<span class="string">"PFA initialized:\n{pfa}"</span>);
 
         pfa
     }
@@ -713,30 +713,30 @@
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>PageFrameAllocator {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="macro">writeln!</span>(
             f,
-            <span class="string">&quot;Total system memory: {}B&quot;</span>,
+            <span class="string">"Total system memory: {}B"</span>,
             <span class="self">self</span>.total_mem().postfix_binary()
         )<span class="question-mark">?</span>;
         <span class="macro">writeln!</span>(
             f,
-            <span class="string">&quot;Usable system memory: {}B&quot;</span>,
+            <span class="string">"Usable system memory: {}B"</span>,
             <span class="self">self</span>.usable_mem().postfix_binary()
         )<span class="question-mark">?</span>;
         <span class="macro">writeln!</span>(
             f,
-            <span class="string">&quot;Used system memory: {}B&quot;</span>,
+            <span class="string">"Used system memory: {}B"</span>,
             <span class="self">self</span>.used_mem().postfix_binary()
         )<span class="question-mark">?</span>;
         <span class="macro">writeln!</span>(
             f,
-            <span class="string">&quot;Free system memory: {}B&quot;</span>,
+            <span class="string">"Free system memory: {}B"</span>,
             <span class="self">self</span>.free_mem().postfix_binary()
         )<span class="question-mark">?</span>;
         <span class="macro">write!</span>(
             f,
-            <span class="string">&quot;Reserved system memory: {}B&quot;</span>,
+            <span class="string">"Reserved system memory: {}B"</span>,
             <span class="self">self</span>.reserved_mem().postfix_binary()
         )<span class="question-mark">?</span>;
 
@@ -800,7 +800,7 @@
     ///
     /// page frames are not deallocated automatically anyways,
     /// this just takes ownership to give a safe method of getting a static ref to the data
-    </span><span class="kw">pub fn </span>leak(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span><span class="kw-2">mut </span>[u8] {
+    </span><span class="kw">pub fn </span>leak(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw-2">mut </span>[u8] {
         <span class="kw">unsafe </span>{ transmute(<span class="self">self</span>.as_bytes_mut()) }
     }
 }

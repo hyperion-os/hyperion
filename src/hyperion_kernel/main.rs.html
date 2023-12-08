@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -172,38 +172,14 @@
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-</pre></div><pre class="rust"><code><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">&quot;../../../README.md&quot;</span>)]
+</pre></div><pre class="rust"><code><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">"../../../README.md"</span>)]
 </span><span class="comment">//
 </span><span class="attr">#![no_std]
 #![no_main]
 </span><span class="comment">//
-</span><span class="attr">#![feature(
-    const_option,
-    allocator_api,
-    pointer_is_aligned,
-    int_roundings,
-    array_chunks,
-    core_intrinsics,
-    custom_test_frameworks,
-    panic_can_unwind,
-    type_name_of_val,
-    asm_const,
-    offset_of
-)]
+</span><span class="attr">#![feature(custom_test_frameworks, type_name_of_val)]
 #![test_runner(<span class="kw">crate</span>::testfw::test_runner)]
-#![reexport_test_harness_main = <span class="string">&quot;test_main&quot;</span>]
+#![reexport_test_harness_main = <span class="string">"test_main"</span>]
 #![allow(clippy::needless_return)]
 
 </span><span class="comment">//
@@ -243,7 +219,7 @@
 <span class="comment">//
 
 </span><span class="attr">#[no_mangle]
-</span><span class="kw">extern </span><span class="string">&quot;C&quot; </span><span class="kw">fn </span>_start() -&gt; ! {
+</span><span class="kw">extern </span><span class="string">"C" </span><span class="kw">fn </span>_start() -&gt; ! {
     <span class="comment">// save the bootloader stack range so it can be freed later
     </span><span class="kw">let </span>boot_stack = arch::stack_pages();
 
@@ -252,11 +228,11 @@
 
     <span class="kw">if </span><span class="macro">sync::once!</span>() {
         <span class="comment">// enable logging and and outputs based on the kernel args,
-        // any logging before won&#39;t be shown
+        // any logging before won't be shown
         </span>log_multi::init_logger();
 
-        <span class="macro">debug!</span>(<span class="string">&quot;Entering kernel_main&quot;</span>);
-        <span class="macro">debug!</span>(<span class="string">&quot;{NAME} {VERSION} was booted with {}&quot;</span>, boot::NAME);
+        <span class="macro">debug!</span>(<span class="string">"Entering kernel_main"</span>);
+        <span class="macro">debug!</span>(<span class="string">"{NAME} {VERSION} was booted with {}"</span>, boot::NAME);
 
         <span class="comment">// user-space syscall handler
         </span>arch::syscall::set_handler(syscall::syscall);
@@ -268,12 +244,12 @@
     <span class="kw">let </span>boot_vmm = PageMap::current();
 
     <span class="comment">// init task per cpu
-    </span><span class="macro">debug!</span>(<span class="string">&quot;init CPU-{}&quot;</span>, cpu_id());
+    </span><span class="macro">debug!</span>(<span class="string">"init CPU-{}"</span>, cpu_id());
     scheduler::init(<span class="kw">move </span>|| init(boot_stack, boot_vmm));
 }
 
 <span class="kw">fn </span>init(boot_stack: Range&lt;VirtAddr&gt;, <span class="kw-2">mut </span>boot_vmm: PageMap) {
-    scheduler::rename(<span class="string">&quot;&lt;kernel async&gt;&quot;</span>);
+    scheduler::rename(<span class="string">"&lt;kernel async&gt;"</span>);
 
     <span class="comment">// init task once
     </span><span class="kw">if </span><span class="macro">sync::once!</span>() {
@@ -295,7 +271,7 @@
     // is the only one that can delete it.
     </span><span class="kw">if </span><span class="macro">sync::last!</span>() {
         <span class="macro">debug!</span>(
-            <span class="string">&quot;freeing bootloader page table: {:#x}&quot;</span>,
+            <span class="string">"freeing bootloader page table: {:#x}"</span>,
             boot_vmm.cr3().start_address()
         );
         <span class="kw">unsafe </span>{
@@ -310,7 +286,7 @@
     <span class="comment">// Bootloader provided stack can be freed after switching away from
     // the bootloader task.
     </span><span class="kw">let </span>frames = <span class="kw">unsafe </span>{ hyperion_mem::pmm::PageFrame::new(first, count) };
-    <span class="macro">trace!</span>(<span class="string">&quot;deallocating bootloader provided stack {boot_stack:?}&quot;</span>);
+    <span class="macro">trace!</span>(<span class="string">"deallocating bootloader provided stack {boot_stack:?}"</span>);
     hyperion_mem::pmm::PFA.free(frames);
 
     <span class="comment">// start doing kernel things
@@ -331,12 +307,12 @@
         <span class="kw">let </span>(pipe_tx, pipe_rx) = Pipe::new_pipe().split();
 
         spawn(<span class="kw">move </span>|| {
-            pipe_tx.send_slice(<span class="string">b&quot;some random bytes&quot;</span>).unwrap();
+            pipe_tx.send_slice(<span class="string">b"some random bytes"</span>).unwrap();
         });
 
         <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">64</span>];
         <span class="kw">let </span>len = pipe_rx.recv_slice(<span class="kw-2">&amp;mut </span>buf).unwrap();
-        <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>buf[..len], <span class="string">b&quot;some random bytes&quot;</span>)
+        <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>buf[..len], <span class="string">b"some random bytes"</span>)
     }
 
     <span class="attr">#[test_case]

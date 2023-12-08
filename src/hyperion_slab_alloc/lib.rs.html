@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/slab-alloc/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_slab_alloc" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (8c2b57721 2023-12-01)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/slab-alloc/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c67e44d78ab2db17.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_slab_alloc" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (503e12932 2023-12-07)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -442,6 +442,15 @@
 <a href="#442" id="442">442</a>
 <a href="#443" id="443">443</a>
 <a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Slab allocator
 //!
 //! - Allocates pages from [`PageFrameAllocator`].
@@ -450,7 +459,7 @@
 //! The alignment is at least the same as the asked size. (up to 4KiB)
 //! - Bigger allocations waste one page of memory to keep track of the allocation metadata.
 //!
-//! Note: the current implementation doesn&#39;t ever free the pages
+//! Note: the current implementation doesn't ever free the pages
 
 </span><span class="attr">#![no_std]
 #![feature(pointer_is_aligned, const_pointer_is_aligned)]
@@ -543,12 +552,19 @@
 <span class="kw">pub struct </span>Slab&lt;P, Lock&gt; {
     <span class="kw">pub </span>size: usize,
 
-    next: Mutex&lt;Lock, <span class="kw-2">*mut </span>u8&gt;,
+    <span class="comment">// head: Mutex&lt;Lock, Option&lt;NonNull&lt;Node&gt;&gt;&gt;,
+    </span>next: Mutex&lt;Lock, <span class="kw-2">*mut </span>u8&gt;,
 
     _p: PhantomData&lt;P&gt;,
 }
 
-<span class="kw">unsafe impl</span>&lt;P, Lock: Sync&gt; Sync <span class="kw">for </span>Slab&lt;P, Lock&gt; {}
+<span class="comment">// DST, `size_of::&lt;Self&gt;() == Slab.size`
+// struct Node {
+//     next: Option&lt;NonNull&lt;Self&gt;&gt;,
+//     data: [u8; 0],
+// }
+
+</span><span class="kw">unsafe impl</span>&lt;P, Lock: Sync&gt; Sync <span class="kw">for </span>Slab&lt;P, Lock&gt; {}
 <span class="kw">unsafe impl</span>&lt;P, Lock: Send&gt; Send <span class="kw">for </span>Slab&lt;P, Lock&gt; {}
 
 <span class="comment">//
@@ -564,7 +580,7 @@
 
     <span class="kw">unsafe fn </span>dealloc(<span class="kw-2">&amp;</span><span class="self">self</span>, ptr: <span class="kw-2">*mut </span>u8, _layout: Layout) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(ptr) = NonNull::new(ptr) {
-            <span class="self">self</span>.free(ptr)
+            <span class="kw">unsafe </span>{ <span class="self">self</span>.free(ptr) };
         }
     }
 }
@@ -622,7 +638,7 @@
     Lock: RawMutex,
 {
     <span class="kw">pub fn </span>alloc(<span class="kw-2">&amp;</span><span class="self">self</span>, size: usize) -&gt; <span class="kw-2">*mut </span>u8 {
-        <span class="comment">// crate::println!(&quot;alloc {size}&quot;);
+        <span class="comment">// crate::println!("alloc {size}");
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>((idx, slab)) = <span class="self">self</span>.get_slab(size) {
             slab.alloc(idx, <span class="kw-2">&amp;</span><span class="self">self</span>.stats)
         } <span class="kw">else </span>{
@@ -630,12 +646,14 @@
         }
     }
 
-    <span class="doccomment">/// # Safety
+    <span class="comment">// TODO: Rust tells the layout on free, so I should optimize for that,
+    // now the layout is figured out by reading the first block in a page
+    </span><span class="doccomment">/// # Safety
     /// `alloc` must point to an allocation that was previously allocated
     /// with this specific [`SlabAllocator`]
     </span><span class="kw">pub unsafe fn </span>free(<span class="kw-2">&amp;</span><span class="self">self</span>, alloc: NonNull&lt;u8&gt;) {
         <span class="kw">if </span>alloc.as_ptr().is_aligned_to(<span class="number">0x1000</span>) {
-            <span class="kw">return </span><span class="self">self</span>.big_free(alloc);
+            <span class="kw">return unsafe </span>{ <span class="self">self</span>.big_free(alloc) };
         }
 
         <span class="comment">// align down to 0x1000
@@ -647,9 +665,9 @@
         <span class="kw">let </span>slab = header
             .idx()
             .and_then(|idx| <span class="self">self</span>.slabs.get(idx <span class="kw">as </span>usize))
-            .expect(<span class="string">&quot;alloc header to be valid&quot;</span>);
+            .expect(<span class="string">"alloc header to be valid"</span>);
 
-        slab.free(<span class="kw-2">&amp;</span><span class="self">self</span>.stats, alloc);
+        <span class="kw">unsafe </span>{ slab.free(<span class="kw-2">&amp;</span><span class="self">self</span>.stats, alloc) };
     }
 
     <span class="kw">fn </span>big_alloc(<span class="kw-2">&amp;</span><span class="self">self</span>, size: usize) -&gt; <span class="kw-2">*mut </span>u8 {
@@ -666,10 +684,10 @@
         <span class="comment">// write the big alloc metadata
 
         </span><span class="kw">let </span>metadata: <span class="kw-2">&amp;mut </span>[BigAllocMetadata] =
-            bytemuck::try_cast_slice_mut(pages.as_bytes_mut()).expect(<span class="string">&quot;allocation to be aligned&quot;</span>);
+            bytemuck::try_cast_slice_mut(pages.as_bytes_mut()).expect(<span class="string">"allocation to be aligned"</span>);
         metadata[<span class="number">0</span>] = BigAllocMetadata::new(page_count);
 
-        <span class="comment">// trace!(&quot;BigAlloc    {:#x} {size}&quot;, pages.addr().as_u64());
+        <span class="comment">// trace!("BigAlloc    {:#x} {size}", pages.addr().as_u64());
 
         // pmm already zeroed the memory
         //
@@ -684,7 +702,7 @@
         <span class="kw">let </span>alloc = <span class="kw">unsafe </span>{ alloc.as_ptr().sub(<span class="number">0x1000</span>) };
 
         <span class="kw">let </span>metadata: BigAllocMetadata = <span class="kw">unsafe </span>{ <span class="kw-2">*</span>(alloc <span class="kw">as </span><span class="kw-2">*const </span>BigAllocMetadata) };
-        <span class="kw">let </span>pages = metadata.size().expect(<span class="string">&quot;big alloc metadata to be valid&quot;</span>);
+        <span class="kw">let </span>pages = metadata.size().expect(<span class="string">"big alloc metadata to be valid"</span>);
 
         <span class="kw">let </span>pages = <span class="kw">unsafe </span>{ PageFrames::new(alloc, pages) };
 
@@ -695,7 +713,7 @@
             .used
             .fetch_sub(pages.byte_len(), Ordering::SeqCst);
 
-        <span class="comment">// trace!(&quot;BigFree     {:#x} {size}&quot;, pages.addr().as_u64());
+        <span class="comment">// trace!("BigFree     {:#x} {size}", pages.addr().as_u64());
 
         </span>P::free(pages)
     }
@@ -717,7 +735,7 @@
     <span class="kw">pub const fn </span>new(size: usize) -&gt; <span class="self">Self </span>{
         <span class="macro">assert!</span>(
             size &gt;= size_of::&lt;u64&gt;() &amp;&amp; size % size_of::&lt;u64&gt;() == <span class="number">0</span>,
-            <span class="string">&quot;slab size should be a multiple of u64&#39;s size (8 bytes) and not zero&quot;
+            <span class="string">"slab size should be a multiple of u64's size (8 bytes) and not zero"
         </span>);
 
         <span class="self">Self </span>{
@@ -737,9 +755,9 @@
     </span><span class="kw">pub fn </span>pop(<span class="kw-2">&amp;</span><span class="self">self</span>, idx: u8, stats: <span class="kw-2">&amp;</span>SlabAllocatorStats) -&gt; <span class="kw-2">*mut </span>u8 {
         <span class="kw">let </span><span class="kw-2">mut </span>next = <span class="self">self</span>.next.lock();
 
-        <span class="comment">// hyperion_log::trace!(&quot;allocating {}&quot;, self.size);
+        <span class="comment">// hyperion_log::trace!("allocating {}", self.size);
         </span><span class="kw">let </span>block = <span class="kw">if </span>!next.is_null() {
-            <span class="comment">// hyperion_log::trace!(&quot;using a preallocated slab&quot;);
+            <span class="comment">// hyperion_log::trace!("using a preallocated slab");
             </span><span class="kw-2">*</span>next
         } <span class="kw">else </span>{
             <span class="self">Self</span>::next_block(idx, <span class="self">self</span>.size, stats)
@@ -748,7 +766,7 @@
         <span class="kw">let </span>block_data: <span class="kw-2">&amp;mut </span>[u64] =
             <span class="kw">unsafe </span>{ slice::from_raw_parts_mut(block <span class="kw">as </span><span class="kw-2">*mut </span>u64, <span class="self">self</span>.size / <span class="number">8</span>) };
         <span class="kw-2">*</span>next = block_data[<span class="number">0</span>] <span class="kw">as _</span>;
-        block_data[<span class="number">0</span>] = <span class="number">0</span>; <span class="comment">// zero out the first u64 that was used as the &#39;next&#39; pointer
+        block_data[<span class="number">0</span>] = <span class="number">0</span>; <span class="comment">// zero out the first u64 that was used as the 'next' pointer
 
         </span>block
     }
@@ -764,7 +782,7 @@
 
         <span class="comment">// write header
 
-        </span><span class="kw">let </span>header = <span class="kw-2">&amp;mut </span>blocks.next().expect(<span class="string">&quot;Slab size too large&quot;</span>)[<span class="number">0</span>];
+        </span><span class="kw">let </span>header = <span class="kw-2">&amp;mut </span>blocks.next().expect(<span class="string">"Slab size too large"</span>)[<span class="number">0</span>];
         <span class="kw">let </span>header: <span class="kw-2">&amp;mut </span>AllocMetadata = bytemuck::cast_mut(header);
         <span class="kw-2">*</span>header = AllocMetadata::new(idx);
 
@@ -785,7 +803,7 @@
         }
 
         <span class="kw">let </span>(<span class="prelude-val">Some</span>(first), <span class="prelude-val">Some</span>(prev)) = (first, prev) <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">&quot;Slab size too large&quot;</span>);
+            <span class="macro">panic!</span>(<span class="string">"Slab size too large"</span>);
         };
 
         prev[<span class="number">0</span>] = <span class="number">0</span>;
