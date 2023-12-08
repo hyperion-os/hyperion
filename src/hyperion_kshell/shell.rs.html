@@ -1080,7 +1080,7 @@
     </span>}
 
     <span class="kw">fn </span>help_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available commands:\nsplash, pwd, cd, ls, cat, date, mem, sleep, draw, kbl, touch, rand, snake, help, modeltest, run, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear"</span>);
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available built-in shell commands:\nsplash, pwd, cd, date, mem, draw, kbl, rand, snake, help, modeltest, run, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear"</span>);
 
         <span class="prelude-val">Ok</span>(())
     }
