@@ -89,7 +89,7 @@ include ./${BOOT_DIR}/Makefile
 include ./qemu.mk
 
 # nextest doesn't support excluding packages
-EXCLUDED_UNITS   := sample-elf coreutils libstd hyperion-kernel
+EXCLUDED_UNITS   := fbtest sample-elf coreutils libstd hyperion-kernel
 unittest:
 	${CARGO} test \
 		--no-fail-fast \

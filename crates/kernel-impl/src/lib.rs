@@ -361,6 +361,16 @@ pub fn read_untrusted_ref<'a, T>(ptr: u64) -> Result<&'a T> {
     read_slice_parts(ptr, mem::size_of::<T>() as _).map(|(start, _)| unsafe { &*start.as_ptr() })
 }
 
+pub fn read_untrusted_mut<'a, T>(ptr: u64) -> Result<&'a mut T> {
+    if !(ptr as *const T).is_aligned() {
+        hyperion_log::debug!("not aligned");
+        return Err(Error::INVALID_ADDRESS);
+    }
+
+    read_slice_parts(ptr, mem::size_of::<T>() as _)
+        .map(|(start, _)| unsafe { &mut *start.as_mut_ptr() })
+}
+
 pub fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {
     read_slice_parts(ptr, len).map(|(start, len)| {
         // TODO:

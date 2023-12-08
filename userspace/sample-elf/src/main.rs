@@ -1,9 +1,10 @@
 #![no_std]
 #![no_main]
+#![feature(slice_as_chunks)]
 
 //
 
-use core::{ptr::write_volatile, str::from_utf8};
+use core::str::from_utf8;
 
 use libstd::{
     alloc::{format, string::String},
@@ -142,31 +143,10 @@ fn _repeat_stdin_to_stdout() {
     }
 }
 
-fn _framebuffer_ops() {
-    let fbo = OpenOptions::new().write(true).open("/dev/fbo").unwrap();
-    // let meta = fbo.metadata().unwrap();
-
-    let fbo_mapped = map_file(fbo.as_desc(), None, 0, 0).unwrap();
-
-    let mut cursor = fbo_mapped.as_ptr() as *mut _;
-    for _ in 0..200 {
-        for _ in 0..1000 {
-            unsafe { write_volatile(cursor, u64::MAX) };
-            cursor = unsafe { cursor.add(1) };
-        }
-
-        // fill the screen slowly
-        nanosleep(10_000_000);
-    }
-    unmap_file(fbo.as_desc(), fbo_mapped, 0).unwrap();
-}
-
 #[no_mangle]
 pub fn main(_args: CliArgs) {
     // _test_userspace_mutex();
     // _repeat_stdin_to_stdout();
-
-    _framebuffer_ops();
 
     println!("PID:{} TID:{}", get_pid(), get_tid());
 

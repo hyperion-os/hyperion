@@ -3,14 +3,18 @@
 
 //
 
+extern crate alloc;
+
+use alloc::{format, string::String};
+
 use hyperion_framebuffer::framebuffer::Framebuffer;
-use hyperion_log::{debug, error};
+use hyperion_log::error;
 use hyperion_mem::from_higher_half;
 use hyperion_vfs::{
     device::FileDevice,
     error::{IoError, IoResult},
 };
-use spin::MutexGuard;
+use spin::{MutexGuard, Once};
 use x86_64::VirtAddr;
 
 //
@@ -19,6 +23,10 @@ pub struct FboDevice {
     maps: usize,
 
     lock: Option<MutexGuard<'static, Framebuffer>>,
+}
+
+pub struct FboInfoDevice {
+    info: Once<String>,
 }
 
 //
@@ -112,5 +120,44 @@ impl FboDevice {
         };
 
         f(this)
+    }
+}
+
+impl FileDevice for FboInfoDevice {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
+    fn len(&self) -> usize {
+        self.get().len()
+    }
+
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        self.get().as_bytes().read(offset, buf)
+    }
+
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
+    }
+}
+
+impl FboInfoDevice {
+    pub const fn new() -> Self {
+        Self { info: Once::new() }
+    }
+
+    pub fn get(&self) -> &str {
+        self.info
+            .try_call_once(|| {
+                if let Some(fbo) = Framebuffer::get() {
+                    let fbo = fbo.lock();
+                    let info = format!("{}:{}:{}:{}", fbo.width, fbo.height, fbo.pitch, 32);
+                    Ok(info)
+                } else {
+                    Err(())
+                }
+            })
+            .map(|s| s.as_str())
+            .unwrap_or("")
     }
 }

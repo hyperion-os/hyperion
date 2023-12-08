@@ -20,7 +20,8 @@ pub fn lazy_install_early(root: impl IntoNode) {
     let root = root.into_node();
     root.install_dev("dev/rtc", rtc::RtcDevice);
     root.install_dev("dev/hpet", acpi::hpet::HpetDevice);
-    root.install_dev("dev/fbo", fbo::FboDevice::new());
+    root.install_dev("dev/fb0", fbo::FboDevice::new());
+    root.install_dev("dev/fb0-info", fbo::FboInfoDevice::new());
 
     hyperion_clock::set_source_picker(|| {
         // TODO: more clocks

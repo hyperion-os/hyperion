@@ -4,8 +4,8 @@ use core_alloc::string::String;
 use hyperion_syscall::{
     close,
     err::Result,
-    fs::{FileDesc, FileOpenFlags},
-    open, open_dir, read, write,
+    fs::{FileDesc, FileOpenFlags, Metadata},
+    metadata, open, open_dir, read, write,
 };
 use spin::{Mutex, MutexGuard};
 
@@ -153,6 +153,14 @@ impl File {
 
     pub fn close(&self) -> Result<()> {
         close(self.desc)
+    }
+
+    pub fn metadata(&self) -> Result<Metadata> {
+        let mut meta = Metadata::zeroed();
+        crate::println!("metadata at {:#x}", &mut meta as *mut _ as usize);
+        metadata(self.desc, &mut meta)?;
+        crate::println!("metadata {meta:?}");
+        Ok(meta)
     }
 }
 

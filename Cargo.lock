@@ -327,6 +327,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f6e7d85896690fe195447717af8eceae0593ac2196fd42fe88c184e904406ce"
 
 [[package]]
+name = "fbtest"
+version = "0.1.0"
+dependencies = [
+ "hyperion-color",
+ "libm",
+ "libstd",
+ "x86_64",
+]
+
+[[package]]
 name = "futures-core"
 version = "0.3.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -709,6 +719,7 @@ version = "0.1.0"
 dependencies = [
  "arcstr",
  "coreutils",
+ "fbtest",
  "futures-util",
  "glam",
  "hyperion-arch",
@@ -1125,7 +1136,6 @@ name = "sample-elf"
 version = "0.1.0"
 dependencies = [
  "libstd",
- "x86_64",
 ]
 
 [[package]]

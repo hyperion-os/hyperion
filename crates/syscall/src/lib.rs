@@ -8,7 +8,7 @@ use core::{
 use err::Result;
 
 use self::{
-    fs::{FileDesc, FileOpenFlags},
+    fs::{FileDesc, FileOpenFlags, Metadata},
     net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
 
@@ -54,6 +54,7 @@ pub mod id {
 
     pub const MAP_FILE: usize = 29;
     pub const UNMAP_FILE: usize = 30;
+    pub const METADATA: usize = 31;
 }
 
 //
@@ -312,10 +313,6 @@ pub fn futex_wake(addr: &AtomicUsize, num: usize) {
 /// to the virtual address space at `align_down(at, 0x1000)`, or anywhere if `at` is None
 ///
 /// `at` should point to unmapped memory that has room for the pages
-///
-/// `size` of 0 automatically maps the whole file
-///
-/// see [`map_file`]
 #[inline(always)]
 pub fn map_file(
     file: FileDesc,
@@ -335,4 +332,10 @@ pub fn map_file(
 pub fn unmap_file(file: FileDesc, at: NonNull<()>, size: usize) -> Result<()> {
     let at = at.as_ptr() as usize;
     unsafe { syscall_3(id::UNMAP_FILE, file.0, at, size) }.map(|_| {})
+}
+
+/// file metadata (stat)
+#[inline(always)]
+pub fn metadata(file: FileDesc, metadata: &mut Metadata) -> Result<()> {
+    unsafe { syscall_2(id::METADATA, file.0, metadata as *mut _ as usize) }.map(|_| {})
 }

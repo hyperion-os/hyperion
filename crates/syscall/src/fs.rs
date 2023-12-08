@@ -32,3 +32,28 @@ pub struct FileOpenFlags: usize {
     const TRUNC      = 0b100000;
 }
 }
+
+//
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(C)]
+pub struct Metadata {
+    pub len: usize,
+}
+
+impl Metadata {
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self { len: 0 }
+    }
+
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.len
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}

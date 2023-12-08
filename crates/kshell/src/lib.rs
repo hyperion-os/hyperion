@@ -34,6 +34,8 @@ pub async fn kshell() {
     // TODO: initrd
     let bin = include_bytes!(env!("CARGO_BIN_FILE_SAMPLE_ELF"));
     VFS_ROOT.install_dev("/bin/run", ramdisk::File::new(bin.into()));
+    let bin = include_bytes!(env!("CARGO_BIN_FILE_FBTEST"));
+    VFS_ROOT.install_dev("/bin/fbtest", ramdisk::File::new(bin.into()));
     let bin = include_bytes!(env!("CARGO_BIN_FILE_COREUTILS"));
     let bin = Arc::new(Mutex::new(ramdisk::File::new(bin.into())));
 
