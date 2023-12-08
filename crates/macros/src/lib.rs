@@ -98,7 +98,7 @@ pub fn build_time(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let time = Utc::now()
         .naive_local()
-        .format("%Y-%m-%d %H:%M:%S")
+        .format("%d/%m/%Y %H:%M:%S")
         .to_string();
 
     (quote! {
