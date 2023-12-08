@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(
     abi_x86_interrupt,
-    custom_test_frameworks,
     naked_functions,
     new_uninit,
     asm_const,

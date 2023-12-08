@@ -1,10 +1,5 @@
 #![no_std]
-#![feature(
-    new_uninit,
-    const_slice_from_raw_parts_mut,
-    const_mut_refs,
-    str_split_remainder
-)]
+#![feature(new_uninit, const_mut_refs, str_split_remainder)]
 
 //
 

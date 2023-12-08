@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(int_roundings, pointer_is_aligned, allocator_api, maybe_uninit_slice)]
+#![feature(pointer_is_aligned, allocator_api, maybe_uninit_slice)]
 
 //
 

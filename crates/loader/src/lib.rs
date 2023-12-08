@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(new_uninit, maybe_uninit_slice, maybe_uninit_write_slice)]
+#![feature(maybe_uninit_write_slice)]
 
 //
 

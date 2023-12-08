@@ -3,18 +3,7 @@
 #![no_std]
 #![no_main]
 //
-#![feature(
-    const_option,
-    allocator_api,
-    pointer_is_aligned,
-    int_roundings,
-    array_chunks,
-    custom_test_frameworks,
-    panic_can_unwind,
-    type_name_of_val,
-    asm_const,
-    offset_of
-)]
+#![feature(custom_test_frameworks, type_name_of_val)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![allow(clippy::needless_return)]

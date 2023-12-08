@@ -1,13 +1,12 @@
 #![no_std]
-#![feature(new_uninit, type_name_of_val, extract_if, sync_unsafe_cell, offset_of)]
-#![allow(clippy::needless_return)]
+#![feature(type_name_of_val, offset_of)]
 
 //
 
 use alloc::sync::Arc;
 use core::{
     any::type_name_of_val,
-    cell::SyncUnsafeCell,
+    cell::UnsafeCell,
     convert::Infallible,
     mem::{offset_of, swap},
     ops::Deref,
@@ -343,7 +342,7 @@ fn tls() -> &'static Tls<SchedulerTls> {
     })
 }
 
-fn tls_iter() -> impl Iterator<Item = &'static SyncUnsafeCell<SchedulerTls>> {
+fn tls_iter() -> impl Iterator<Item = &'static UnsafeCell<SchedulerTls>> {
     Tls::inner(tls()).iter()
 }
 
