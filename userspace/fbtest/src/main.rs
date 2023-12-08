@@ -46,20 +46,23 @@ fn drawing(mut fb: Framebuffer, buf: &mut [u8]) {
     fb.fill(0, 0, w, h, Color::from_hex("#222222").unwrap());
 
     for i in 0..1000 {
-        let i = i as f32 * 0.1;
-        let x0 = (250.0 + libm::cosf(i) * 25.0) as usize;
-        let y0 = (250.0 + libm::sinf(i) * 25.0) as usize;
-        let x1 = (250.0 - libm::cosf(i) * 25.0) as usize;
-        let y1 = (250.0 - libm::sinf(i) * 25.0) as usize;
+        let i = i as f32 * 0.05;
+        let cos = libm::cosf(i) * 25.0;
+        let sin = libm::sinf(i) * 25.0;
 
-        fb.fill(x0, y0, 20, 20, Color::from_hex("#00FFFF").unwrap());
-        fb.fill(x1, y1, 20, 20, Color::from_hex("#00FFFF").unwrap());
+        let points = [(cos, sin), (-cos, -sin), (sin, -cos), (-sin, cos)]
+            .map(|(x, y)| ((50.0 + x) as usize, (50.0 + y) as usize));
+
+        for (x, y) in points {
+            fb.fill(x, y, 20, 20, Color::from_hex("#00FFFF").unwrap());
+        }
 
         buf.copy_from_slice(fb.buf);
         nanosleep(5_000_000);
 
-        fb.fill(x0, y0, 20, 20, Color::from_hex("#222222").unwrap());
-        fb.fill(x1, y1, 20, 20, Color::from_hex("#222222").unwrap());
+        for (x, y) in points {
+            fb.fill(x, y, 20, 20, Color::from_hex("#222222").unwrap());
+        }
     }
 
     fb.fill(0, 0, w, h, Color::from_hex("#000000").unwrap());
