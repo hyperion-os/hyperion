@@ -36,7 +36,7 @@ pub struct FileOpenFlags: usize {
 //
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(C)]
+#[repr(C, align(8))]
 pub struct Metadata {
     pub len: usize,
 }

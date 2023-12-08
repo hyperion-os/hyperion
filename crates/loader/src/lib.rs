@@ -132,7 +132,7 @@ impl<'a> Loader<'a> {
         }
     }
 
-    pub fn init_stack(args: &[&str]) -> VirtAddr {
+    pub fn init_stack(args: &[&str]) -> (VirtAddr, VirtAddr) {
         let mut stack_top = hyperion_scheduler::task().user_stack.lock().top;
 
         for arg in args.iter().rev() {
@@ -147,7 +147,7 @@ impl<'a> Loader<'a> {
 
         push(&mut stack_top, args.len() as u64);
 
-        stack_top
+        (stack_top.align_down(0x8u64), stack_top)
     }
 
     // TODO: impl args
@@ -163,10 +163,10 @@ impl<'a> Loader<'a> {
             return None;
         }
 
-        let stack_top = Self::init_stack(args);
+        let (stack_top, arg) = Self::init_stack(args);
 
         trace!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}");
-        unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, stack_top.as_u64(), 69) };
+        unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, arg.as_u64(), 69) };
     }
 }
 
