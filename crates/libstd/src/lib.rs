@@ -1,7 +1,5 @@
 #![no_std]
 #![feature(
-    format_args_nl,
-    slice_internals,
     new_uninit,
     const_slice_from_raw_parts_mut,
     const_mut_refs,
@@ -109,7 +107,7 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
-    pub fn iter(self) -> impl Iterator<Item = &'static str> + Clone + DoubleEndedIterator {
+    pub fn iter(self) -> impl DoubleEndedIterator<Item = &'static str> + Clone {
         let mut ptr = self.hyperion_cli_args_ptr;
 
         let argc: usize = Self::pop(&mut ptr);

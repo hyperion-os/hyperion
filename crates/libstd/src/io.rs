@@ -1,4 +1,4 @@
-use core::{fmt, slice::memchr};
+use core::fmt;
 
 use core_alloc::{boxed::Box, string::String, vec::Vec};
 use hyperion_syscall::err::{Error, Result};
@@ -191,12 +191,13 @@ impl<T: Write> Write for BufWriter<T> {
 
 //
 
+// TODO: BufReader and ConstBufReader should impl BufRead instead
 fn read_until<T: Read>(r: &mut BufReader<T>, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
     let mut read = 0;
     loop {
         let (done, used) = {
             let available = r.fill_buf()?;
-            match memchr::memchr(delim, available) {
+            match available.iter().position(|&c| c == delim) {
                 Some(i) => {
                     buf.extend_from_slice(&available[..=i]);
                     (true, i + 1)
@@ -220,7 +221,7 @@ fn read_until_2<T: Read>(r: &mut ConstBufReader<T>, delim: u8, buf: &mut Vec<u8>
     loop {
         let (done, used) = {
             let available = r.fill_buf()?;
-            match memchr::memchr(delim, available) {
+            match available.iter().position(|&c| c == delim) {
                 Some(i) => {
                     buf.extend_from_slice(&available[..=i]);
                     (true, i + 1)

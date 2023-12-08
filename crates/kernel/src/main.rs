@@ -9,7 +9,6 @@
     pointer_is_aligned,
     int_roundings,
     array_chunks,
-    core_intrinsics,
     custom_test_frameworks,
     panic_can_unwind,
     type_name_of_val,

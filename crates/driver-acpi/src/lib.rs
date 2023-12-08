@@ -1,5 +1,6 @@
 #![no_std]
-#![feature(core_intrinsics)]
+#![allow(incomplete_features)]
+#![feature(generic_const_exprs)]
 
 //
 
@@ -164,7 +165,10 @@ impl StructUnpacker {
         self.end = self.end.add(bytes);
     }
 
-    pub fn next<T: Copy>(&mut self, inc: bool) -> Option<T> {
+    pub fn next<T: Copy>(&mut self, inc: bool) -> Option<T>
+    where
+        [(); mem::size_of::<T>()]:,
+    {
         let end = unsafe { self.next.add(mem::size_of::<T>()) };
 
         if end > self.end {
@@ -183,7 +187,10 @@ impl StructUnpacker {
     /// # Safety
     ///
     /// data at `self.next` must be readable
-    pub unsafe fn next_unchecked<T: Copy>(&mut self, inc: bool) -> T {
+    pub unsafe fn next_unchecked<T: Copy>(&mut self, inc: bool) -> T
+    where
+        [(); mem::size_of::<T>()]:,
+    {
         let item = unsafe { read_unaligned_volatile(self.next as _) };
 
         if inc {
@@ -193,7 +200,10 @@ impl StructUnpacker {
         item
     }
 
-    pub fn unpack<T: Copy>(&mut self, inc: bool) -> Result<T, SdtError> {
+    pub fn unpack<T: Copy>(&mut self, inc: bool) -> Result<T, SdtError>
+    where
+        [(); mem::size_of::<T>()]:,
+    {
         self.next(inc).ok_or(SdtError::InvalidStructure)
     }
 
@@ -216,9 +226,12 @@ impl StructUnpacker {
 
 /// # Safety
 /// data in `ptr` must be readable (doesn't have to be aligned)
-pub unsafe fn read_unaligned_volatile<T: Copy>(ptr: *const T) -> T {
-    // TODO: replace this with _something_ when _something_ gets stabilized
-    core::intrinsics::unaligned_volatile_load(ptr)
+pub unsafe fn read_unaligned_volatile<T: Sized + Copy>(src: *const T) -> T
+where
+    [(); mem::size_of::<T>()]:,
+{
+    let bytes: [u8; mem::size_of::<T>()] = ptr::read_volatile(src as *const _);
+    ptr::read_unaligned(&bytes as *const _ as *const T)
 }
 
 //
