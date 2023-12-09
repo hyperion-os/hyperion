@@ -1,5 +1,11 @@
 #![no_std]
-#![feature(new_uninit, const_mut_refs, str_split_remainder, lang_items)]
+#![feature(
+    new_uninit,
+    const_mut_refs,
+    str_split_remainder,
+    lang_items,
+    never_type
+)]
 #![allow(internal_features)]
 
 //
@@ -24,6 +30,7 @@ pub mod alloc;
 pub mod env;
 pub mod fs;
 pub mod io;
+pub mod process;
 mod rt;
 pub mod sync;
 pub mod thread;

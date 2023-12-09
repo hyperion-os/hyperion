@@ -15,12 +15,13 @@ pub(crate) unsafe fn init_args(hyperion_cli_args_ptr: usize) {
         hyperion_cli_args_ptr,
     };
 
-    let mut args = Vec::<&str>::new();
-    for arg in stack_args.iter() {
-        args.push(String::from(arg).leak())
-    }
+    let args = stack_args
+        .iter()
+        .map(|arg| &*String::from(arg).leak())
+        .collect::<Vec<_>>()
+        .leak();
 
-    *unsafe { &mut ARGS } = args.leak();
+    unsafe { ARGS = args };
 }
 
 //

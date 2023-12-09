@@ -1,21 +1,41 @@
-use core::mem;
+use core::ptr;
 
-use crate::env;
+use crate::{
+    env,
+    process::{ExitCode, Termination},
+};
 
 //
 
-fn lang_start_internal<T>(main: fn() -> T, a0: usize, _a1: usize, _a2: usize) -> isize {
-    unsafe { env::init_args(a0) };
-    main();
-    0
+fn lang_start_internal<T: Termination>(main: fn() -> T) -> isize {
+    main().report().to_i32() as _
 }
 
 #[lang = "start"]
-fn lang_start<T>(main: fn() -> T, argc: isize, argv: *const *const u8, idk: u8) -> isize {
-    lang_start_internal(
-        main,
-        unsafe { mem::transmute::<isize, usize>(argc) },
-        argv as _,
-        idk as _,
-    )
+fn lang_start<T: Termination>(
+    main: fn() -> T,
+    _argc: isize,
+    _argv: *const *const u8,
+    _idk: u8,
+) -> isize {
+    lang_start_internal(main)
+}
+
+#[no_mangle]
+extern "C" fn _start(hyperion_cli_args_ptr: usize, _a2: usize) -> ! {
+    // rustc generates the real `main` function, that fn
+    // simply calls `lang_start` with the correct args
+    extern "Rust" {
+        fn main(argc: isize, argv: *const *const u8) -> isize;
+    }
+
+    // init cli args from stack, move them to the heap
+    crate::println!("init cli args");
+    unsafe { env::init_args(hyperion_cli_args_ptr) };
+
+    // call `lang_start`
+    crate::println!("calling main");
+    let exit_code = unsafe { main(0, ptr::null()) };
+
+    ExitCode::from_i32(exit_code as _).exit_process();
 }

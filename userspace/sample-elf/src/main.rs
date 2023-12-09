@@ -144,15 +144,12 @@ fn _repeat_stdin_to_stdout() {
     }
 }
 
-pub fn main() {
+pub fn main() -> Result<()> {
     // _test_userspace_mutex();
     // _repeat_stdin_to_stdout();
 
     println!("PID:{} TID:{}", get_pid(), get_tid());
 
-    if run_server().is_err() {
-        if let Err(err) = run_client() {
-            println!("error: {err}")
-        };
-    }
+    _ = run_server();
+    run_client()
 }
