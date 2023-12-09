@@ -166,6 +166,7 @@ impl<'a> Loader<'a> {
         let (stack_top, arg) = Self::init_stack(args);
 
         trace!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}");
+        debug!("cli args init with: {:#x} {:#x}", arg.as_u64(), 69);
         unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, arg.as_u64(), 69) };
     }
 }

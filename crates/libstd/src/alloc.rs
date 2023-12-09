@@ -1,6 +1,5 @@
 use core::{alloc::GlobalAlloc, ptr::NonNull};
 
-pub use core_alloc::*;
 use hyperion_slab_alloc::{PageFrameAllocator, PageFrames, SlabAllocator};
 use hyperion_syscall::{palloc, pfree};
 

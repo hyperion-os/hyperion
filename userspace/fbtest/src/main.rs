@@ -1,20 +1,15 @@
 #![no_std]
-#![no_main]
 #![feature(slice_as_chunks)]
 
 //
 
+extern crate alloc;
+
+use alloc::{string::String, vec};
 use core::slice;
 
 use hyperion_color::Color;
-use libstd::{
-    alloc::{string::String, vec},
-    fs::OpenOptions,
-    io::BufReader,
-    println,
-    sys::*,
-    CliArgs,
-};
+use libstd::{fs::OpenOptions, io::BufReader, println, sys::*};
 
 //
 
@@ -89,8 +84,7 @@ impl Framebuffer<'_> {
     }
 }
 
-#[no_mangle]
-pub fn main(_args: CliArgs) {
+pub fn main() {
     let mut info = framebuffer_info();
 
     println!("fb0 = {info:?}");

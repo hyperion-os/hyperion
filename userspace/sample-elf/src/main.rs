@@ -1,16 +1,18 @@
 #![no_std]
-#![no_main]
 #![feature(slice_as_chunks)]
 
 //
 
+extern crate alloc;
+
+use alloc::{format, string::String, sync::Arc};
 use core::str::from_utf8;
 
 use libstd::{
-    alloc::{format, string::String},
     fs::{File, OpenOptions, Stdin, STDOUT},
     io::{BufReader, Write},
     println,
+    sync::Mutex,
     sys::{
         err::Result,
         fs::FileDesc,
@@ -18,7 +20,6 @@ use libstd::{
         *,
     },
     thread::spawn,
-    CliArgs,
 };
 
 //
@@ -105,7 +106,7 @@ fn _test_duplicate_stdin() -> File {
 }
 
 fn _test_userspace_mutex() {
-    let counter = libstd::alloc::sync::Arc::new(libstd::sync::Mutex::new(0usize));
+    let counter = Arc::new(Mutex::new(0usize));
     for _ in 0..100 {
         let counter = counter.clone();
         spawn(move || {
@@ -143,8 +144,7 @@ fn _repeat_stdin_to_stdout() {
     }
 }
 
-#[no_mangle]
-pub fn main(_args: CliArgs) {
+pub fn main() {
     // _test_userspace_mutex();
     // _repeat_stdin_to_stdout();
 

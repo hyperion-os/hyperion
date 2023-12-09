@@ -1,5 +1,4 @@
 #![no_std]
-#![no_main]
 
 //
 
@@ -13,13 +12,12 @@ mod touch;
 //
 
 use anyhow::Result;
-use libstd::{eprintln, println, sys::exit, CliArgs};
+use libstd::{env, eprintln, println, sys::exit};
 
 //
 
-#[no_mangle]
-fn main(args: CliArgs) {
-    let mut args = args.iter();
+fn main() {
+    let mut args = env::args();
     let cmd = args.next().expect("arg 0 should always be there");
 
     let cmd = cmd.rsplit_once('/').map(|(_, rhs)| rhs).unwrap_or(cmd);
