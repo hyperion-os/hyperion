@@ -30,11 +30,11 @@ extern "C" fn _start(hyperion_cli_args_ptr: usize, _a2: usize) -> ! {
     }
 
     // init cli args from stack, move them to the heap
-    crate::println!("init cli args");
+    // crate::println!("init cli args");
     unsafe { env::init_args(hyperion_cli_args_ptr) };
 
     // call `lang_start`
-    crate::println!("calling main");
+    // crate::println!("calling main");
     let exit_code = unsafe { main(0, ptr::null()) };
 
     ExitCode::from_i32(exit_code as _).exit_process();

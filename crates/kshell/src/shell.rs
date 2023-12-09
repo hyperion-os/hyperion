@@ -479,20 +479,17 @@ impl Shell {
             loop {
                 let mut buf = [0; 128];
                 let Ok(len) = stdout_rx.recv_slice(&mut buf) else {
+                    debug!("end of stream");
                     break;
                 };
                 let Ok(str) = core::str::from_utf8(&buf[..len]) else {
+                    debug!("invalid utf8");
                     break;
                 };
                 o_tx_2.send(Some(str.to_string()));
             }
 
             o_tx_2.send(None);
-        });
-        let stdin_closed = stdin_tx.clone();
-        spawn(move || {
-            stdin_closed.wait_closed();
-            o_tx.send(None);
         });
 
         schedule(move || {
@@ -511,8 +508,6 @@ impl Shell {
                 file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stderr_tx))) as _,
                 position: 0,
             });
-
-            // ;
 
             let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
                 .into_iter()
@@ -573,7 +568,11 @@ impl Shell {
                     _ = write!(self.term, "{s}");
                     self.term.flush();
                 }
-                Some(Err(None)) => break,
+                Some(Err(None)) => {
+                    _ = write!(self.term, "got EOI");
+                    self.term.flush();
+                    break;
+                }
                 None => break,
             }
         }
