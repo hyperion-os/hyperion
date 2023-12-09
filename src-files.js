@@ -47,7 +47,7 @@ var srcIndex = JSON.parse('{\
 "hyperion_syscall":["",[],["err.rs","fs.rs","lib.rs","net.rs"]],\
 "hyperion_timer":["",[],["lib.rs"]],\
 "hyperion_vfs":["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]],\
-"libstd":["",[],["alloc.rs","fs.rs","io.rs","lib.rs","sync.rs","thread.rs"]],\
+"libstd":["",[],["alloc.rs","env.rs","fs.rs","io.rs","lib.rs","process.rs","rt.rs","sync.rs","thread.rs"]],\
 "sample_elf":["",[],["main.rs"]]\
 }');
 createSrcSidebar();

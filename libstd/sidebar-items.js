@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["eprint","eprintln","print","println"],"mod":["alloc","fs","io","sync","sys","thread"],"struct":["CliArgs"]};
+window.SIDEBAR_ITEMS = {"macro":["eprint","eprintln","print","println"],"mod":["alloc","env","fs","io","process","sync","sys","thread"]};
