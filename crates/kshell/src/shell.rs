@@ -569,8 +569,8 @@ impl Shell {
                     self.term.flush();
                 }
                 Some(Err(None)) => {
-                    _ = write!(self.term, "got EOI");
-                    self.term.flush();
+                    // _ = write!(self.term, "got EOI");
+                    // self.term.flush();
                     break;
                 }
                 None => break,

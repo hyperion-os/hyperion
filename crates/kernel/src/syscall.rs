@@ -76,6 +76,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::MAP_FILE => call_id(map_file, args),
         id::UNMAP_FILE => call_id(unmap_file, args),
         id::METADATA => call_id(metadata, args),
+        id::SEEK => call_id(seek, args),
 
         _ => {
             debug!("invalid syscall");
@@ -535,7 +536,7 @@ pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
     let path = read_untrusted_str(args.arg0, args.arg1)?;
 
     let mut dir = VFS_ROOT
-        .find_dir(path, false)
+        .find_dir(path, true) // TODO: mkdir
         .map_err(map_vfs_err_to_syscall_err)?
         .lock_arc();
 
@@ -647,12 +648,41 @@ pub fn unmap_file(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::metadata`]
 pub fn metadata(args: &mut SyscallRegs) -> Result<usize> {
-    hyperion_log::debug!("metadata: a0:{} a1:{:#x}", args.arg0, args.arg1);
+    // hyperion_log::debug!("metadata: a0:{} a1:{:#x}", args.arg0, args.arg1);
     let file = FileDesc(args.arg0 as _);
     let meta: &mut Metadata = read_untrusted_mut(args.arg1)?;
 
-    let file = get_file(file)?.lock().file_ref.lock_arc();
-    meta.len = file.len();
+    let file = get_file(file)?.lock_arc();
+    let file_ref = file.file_ref.lock();
+    meta.len = file_ref.len();
+    meta.position = file.position;
+
+    Ok(0)
+}
+
+/// set file position
+///
+/// [`hyperion_syscall::seek`]
+pub fn seek(args: &mut SyscallRegs) -> Result<usize> {
+    let file = FileDesc(args.arg0 as _);
+    let offset = args.arg1 as isize;
+    let origin = args.arg2 as usize;
+
+    let mut file = get_file(file)?.lock_arc();
+    let len = file.file_ref.lock().len();
+
+    match origin {
+        hyperion_syscall::fs::SEEK_SET => {
+            file.position = offset as usize;
+        }
+        hyperion_syscall::fs::SEEK_CUR => {
+            file.position = (file.position as isize + offset) as usize;
+        }
+        hyperion_syscall::fs::SEEK_END => {
+            file.position = (len as isize + offset) as usize;
+        }
+        _ => return Err(Error::INVALID_FLAGS),
+    }
 
     Ok(0)
 }

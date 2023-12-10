@@ -55,6 +55,7 @@ pub mod id {
     pub const MAP_FILE: usize = 29;
     pub const UNMAP_FILE: usize = 30;
     pub const METADATA: usize = 31;
+    pub const SEEK: usize = 32;
 }
 
 //
@@ -338,4 +339,10 @@ pub fn unmap_file(file: FileDesc, at: NonNull<()>, size: usize) -> Result<()> {
 #[inline(always)]
 pub fn metadata(file: FileDesc, metadata: &mut Metadata) -> Result<()> {
     unsafe { syscall_2(id::METADATA, file.0, metadata as *mut _ as usize) }.map(|_| {})
+}
+
+/// file position seek (fseek)
+#[inline(always)]
+pub fn seek(file: FileDesc, offset: isize, origin: usize) -> Result<()> {
+    unsafe { syscall_3(id::SEEK, file.0, offset as _, origin) }.map(|_| {})
 }

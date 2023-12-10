@@ -2,6 +2,12 @@ use bitflags::bitflags;
 
 //
 
+pub const SEEK_SET: usize = 0;
+pub const SEEK_CUR: usize = 1;
+pub const SEEK_END: usize = 2;
+
+//
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FileDesc(pub usize);
 
@@ -38,12 +44,16 @@ pub struct FileOpenFlags: usize {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Metadata {
     pub len: usize,
+    pub position: usize,
 }
 
 impl Metadata {
     #[must_use]
     pub const fn zeroed() -> Self {
-        Self { len: 0 }
+        Self {
+            len: 0,
+            position: 0,
+        }
     }
 
     #[must_use]
@@ -54,5 +64,10 @@ impl Metadata {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    #[must_use]
+    pub fn position(&self) -> usize {
+        self.position
     }
 }

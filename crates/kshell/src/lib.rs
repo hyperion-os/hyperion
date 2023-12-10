@@ -30,9 +30,15 @@ pub mod term;
 //
 
 macro_rules! load_elf {
-    ($bin:literal) => {{
-        const FILE: &[u8] = include_bytes!(env!(concat!("CARGO_BIN_FILE_", $bin)));
-        debug!("ELF from {}", env!(concat!("CARGO_BIN_FILE_", $bin)));
+    ($bin:literal) => {
+        load_elf_from!(env!(concat!("CARGO_BIN_FILE_", $bin)))
+    };
+}
+
+macro_rules! load_elf_from {
+    ($($t:tt)*) => {{
+        const FILE: &[u8] = include_bytes!($($t)*);
+        debug!("ELF from {}", $($t)*);
         FILE
     }};
 }
@@ -44,6 +50,10 @@ pub async fn kshell() {
 
     // TODO: initrd
 
+    let bin = load_elf_from!("../../../asset/doomgeneric-hyperion").into();
+    VFS_ROOT.install_dev("/bin/doom", ramdisk::File::new(bin));
+    let bin = load_elf_from!("../../../asset/doom1.wad").into();
+    VFS_ROOT.install_dev("/doom1.wad", ramdisk::File::new(bin));
     let bin = load_elf!("SAMPLE_ELF").into();
     VFS_ROOT.install_dev("/bin/run", ramdisk::File::new(bin));
     let bin = load_elf!("FBTEST").into();

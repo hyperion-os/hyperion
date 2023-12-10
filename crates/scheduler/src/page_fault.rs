@@ -14,7 +14,7 @@ use crate::{stop, task, task::TaskInner, tls};
 
 //
 
-pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
+pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFaultResult {
     trace!("scheduler page fault (from {user:?}) (cpu: {})", cpu_id());
 
     let actual_current = tls().switch_last_active.load(Ordering::SeqCst);
@@ -40,7 +40,7 @@ pub fn page_fault_handler(addr: usize, user: Privilege) -> PageFaultResult {
         handle_stack_grow(&current.user_stack, addr)?;
 
         // user process tried to access memory thats not available to it
-        hyperion_log::warn!("killing user-space process");
+        hyperion_log::warn!("killing user-space process, it tried to use {addr:#x} at {instr:#x}");
         current.should_terminate.store(true, Ordering::SeqCst);
         stop();
     } else {

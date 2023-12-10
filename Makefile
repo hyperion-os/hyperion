@@ -57,7 +57,7 @@ CARGO_FLAGS      += --package=hyperion-kernel
 KERNEL           := ${CARGO_DIR}/hyperion-kernel
 KERNEL_TESTING   := ${KERNEL}-testing
 #KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion-kernel.d))
-KERNEL_SRC       := $(shell find crates -name *.rs) $(shell find userspace -name *.rs)
+KERNEL_SRC       := $(shell find crates -name *.rs) $(shell find userspace -name *.rs) $(shell find asset -type f)
 
 # gdb
 override GDB_FLAGS += --eval-command="target remote localhost:1234"

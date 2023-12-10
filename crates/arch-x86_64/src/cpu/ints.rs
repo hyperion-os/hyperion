@@ -10,8 +10,8 @@ use crate::vmm::PageMap;
 
 //
 
-pub static PAGE_FAULT_HANDLER: AtomicCell<fn(usize, Privilege) -> PageFaultResult> =
-    AtomicCell::new(|_, _| Ok(NotHandled));
+pub static PAGE_FAULT_HANDLER: AtomicCell<fn(usize, usize, Privilege) -> PageFaultResult> =
+    AtomicCell::new(|_, _, _| Ok(NotHandled));
 
 pub static GP_FAULT_HANDLER: AtomicCell<fn()> = AtomicCell::new(|| {
     panic!();
@@ -99,7 +99,11 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
 
     match (|| {
         PageMap::current().page_fault(addr, privilege)?;
-        PAGE_FAULT_HANDLER.load()(addr.as_u64() as _, privilege)?;
+        PAGE_FAULT_HANDLER.load()(
+            stack.instruction_pointer.as_u64() as _,
+            addr.as_u64() as _,
+            privilege,
+        )?;
 
         Ok(NotHandled)
     })() {

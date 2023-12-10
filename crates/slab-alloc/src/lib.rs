@@ -203,18 +203,32 @@ where
             return unsafe { self.big_free(alloc) };
         }
 
+        let slab = self.slab_of(alloc);
+        unsafe { slab.free(&self.stats, alloc) }
+    }
+
+    /// # Safety
+    /// `alloc` must point to an allocation that was previously allocated
+    /// with this specific [`SlabAllocator`]
+    pub unsafe fn size(&self, alloc: NonNull<u8>) -> usize {
+        if alloc.as_ptr().is_aligned_to(0x1000) {
+            return unsafe { self.big_pages(alloc).1 * 0x1000 };
+        }
+
+        self.slab_of(alloc).size
+    }
+
+    fn slab_of(&self, alloc: NonNull<u8>) -> &Slab<P, Lock> {
         // align down to 0x1000
         // the first bytes in the page tells the slab size
         let page_alloc = ((alloc.as_ptr() as u64) & 0xFFFFFFFFFFFFF000) as *mut u8;
 
         let header: AllocMetadata = unsafe { *(page_alloc as *const AllocMetadata) };
 
-        let slab = header
+        header
             .idx()
             .and_then(|idx| self.slabs.get(idx as usize))
-            .expect("alloc header to be valid");
-
-        unsafe { slab.free(&self.stats, alloc) };
+            .expect("alloc header to be valid")
     }
 
     fn big_alloc(&self, size: usize) -> *mut u8 {
@@ -246,11 +260,7 @@ where
     /// The `v_addr` pointer must point to a big allocation that was previously allocated
     /// with this specific [`SlabAllocator`]
     unsafe fn big_free(&self, alloc: NonNull<u8>) {
-        let alloc = unsafe { alloc.as_ptr().sub(0x1000) };
-
-        let metadata: BigAllocMetadata = unsafe { *(alloc as *const BigAllocMetadata) };
-        let pages = metadata.size().expect("big alloc metadata to be valid");
-
+        let (alloc, pages) = unsafe { self.big_pages(alloc) };
         let pages = unsafe { PageFrames::new(alloc, pages) };
 
         self.stats
@@ -263,6 +273,15 @@ where
         // trace!("BigFree     {:#x} {size}", pages.addr().as_u64());
 
         P::free(pages)
+    }
+
+    unsafe fn big_pages(&self, alloc: NonNull<u8>) -> (*mut u8, usize) {
+        let alloc = unsafe { alloc.as_ptr().sub(0x1000) };
+
+        let metadata: BigAllocMetadata = unsafe { *(alloc as *const BigAllocMetadata) };
+        let pages = metadata.size().expect("big alloc metadata to be valid");
+
+        (alloc, pages)
     }
 }
 

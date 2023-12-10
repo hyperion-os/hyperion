@@ -157,9 +157,7 @@ impl File {
 
     pub fn metadata(&self) -> Result<Metadata> {
         let mut meta = Metadata::zeroed();
-        crate::println!("metadata at {:#x}", &mut meta as *mut _ as usize);
         metadata(self.desc, &mut meta)?;
-        crate::println!("metadata {meta:?}");
         Ok(meta)
     }
 }
