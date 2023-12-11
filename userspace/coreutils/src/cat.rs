@@ -1,7 +1,7 @@
 use core::fmt;
 
 use anyhow::{anyhow, Result};
-use libstd::{fs::File, print, println};
+use libstd::{fs::File, io::Read, print, println};
 
 //
 
@@ -10,7 +10,7 @@ pub fn cmd<'a>(mut args: impl Iterator<Item = &'a str>) -> Result<()> {
         .next()
         .ok_or_else(|| anyhow!("expected at least one argument"))?;
 
-    let file = File::open(a1).map_err(|err| anyhow!("`{a1}`: {err}"))?;
+    let mut file = File::open(a1).map_err(|err| anyhow!("`{a1}`: {err}"))?;
 
     let mut buf = [0u8; 512];
     loop {

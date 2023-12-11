@@ -56,7 +56,7 @@ impl ExitCode {
 
     pub const FAILURE: Self = Self(-1);
 
-    pub(crate) fn from_i32(i: i32) -> Self {
+    pub fn from_i32(i: i32) -> Self {
         Self(i)
     }
 

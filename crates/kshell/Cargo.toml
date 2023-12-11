@@ -19,6 +19,9 @@ lock_api.workspace = true
 glam = { version = "0.24", default-features = false, features = ["libm"] }
 itertools = { version = "0.11", default-features = false }
 
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+
 hyperion-arch.path = "../arch"
 hyperion-color.path = "../color"
 hyperion-driver-acpi.path = "../driver-acpi"

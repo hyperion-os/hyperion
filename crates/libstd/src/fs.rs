@@ -3,13 +3,13 @@ use core::mem::ManuallyDrop;
 use core_alloc::string::String;
 use hyperion_syscall::{
     close,
-    err::Result,
+    err::{Error, Result},
     fs::{FileDesc, FileOpenFlags, Metadata},
     metadata, open, open_dir, read, write,
 };
 use spin::{Mutex, MutexGuard};
 
-use crate::io::{BufReader, BufWriter, ConstBufReader};
+use crate::io::{self, BufReader, BufWriter, ConstBufReader};
 
 //
 
@@ -99,6 +99,7 @@ impl Dir {
 
 //
 
+#[derive(Debug)]
 pub struct DirEntry<'a> {
     pub is_dir: bool, // TODO: mode flags later
     pub size: usize,
@@ -107,8 +108,10 @@ pub struct DirEntry<'a> {
 
 //
 
+#[derive(Debug)]
 pub struct File {
     desc: FileDesc,
+    closed: bool,
 }
 
 impl File {
@@ -118,7 +121,10 @@ impl File {
     ///
     /// this transfers the ownership of `desc` and will automatically close the file when dropped
     pub const unsafe fn new(desc: FileDesc) -> Self {
-        Self { desc }
+        Self {
+            desc,
+            closed: false,
+        }
     }
 
     /// # Safety
@@ -132,7 +138,10 @@ impl File {
     ///
     /// file i/o won't be automatically synchronized
     pub const unsafe fn clone(&self) -> Self {
-        Self { desc: self.desc }
+        Self {
+            desc: self.desc,
+            closed: self.closed,
+        }
     }
 
     pub const fn as_desc(&self) -> FileDesc {
@@ -143,15 +152,12 @@ impl File {
         OpenOptions::new().read(true).write(true).open(path)
     }
 
-    pub fn read(&self, buf: &mut [u8]) -> Result<usize> {
-        read(self.desc, buf)
-    }
+    pub fn close(&mut self) -> Result<()> {
+        if self.closed {
+            return Err(Error::CLOSED);
+        }
+        self.closed = true;
 
-    pub fn write(&self, buf: &[u8]) -> Result<usize> {
-        write(self.desc, buf)
-    }
-
-    pub fn close(&self) -> Result<()> {
         close(self.desc)
     }
 
@@ -162,9 +168,31 @@ impl File {
     }
 }
 
+impl io::Read for File {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        if self.closed {
+            return Err(Error::CLOSED);
+        }
+        read(self.desc, buf)
+    }
+}
+
+impl io::Write for File {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        if self.closed {
+            return Err(Error::CLOSED);
+        }
+        write(self.desc, buf)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
 impl Drop for File {
     fn drop(&mut self) {
-        self.close().expect("failed to close the file");
+        close(self.desc).expect("failed to close the file");
     }
 }
 

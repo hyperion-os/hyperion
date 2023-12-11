@@ -5,7 +5,7 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
-use core::{fmt::Write, sync::atomic::Ordering};
+use core::{fmt::Write, sync::atomic::Ordering, time::Duration};
 
 use futures_util::stream::select;
 use hyperion_color::Color;
@@ -469,8 +469,8 @@ impl Shell {
 
         let (stdin_tx, stdin_rx) = channel();
         let (stdout_tx, stdout_rx) = channel();
-        // let (stderr_tx, stderr_rx) = pipe();
-        let stderr_tx = stdout_tx.clone();
+        let (stderr_tx, stderr_rx) = channel();
+        // let stderr_tx = stdout_tx.clone();
 
         let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
 
@@ -490,6 +490,20 @@ impl Shell {
             }
 
             o_tx_2.send(None);
+        });
+
+        spawn(move || loop {
+            let mut buf = [0; 128];
+            let Ok(len) = stderr_rx.recv_slice(&mut buf) else {
+                debug!("end of stream");
+                break;
+            };
+            let Ok(str) = core::str::from_utf8(&buf[..len]) else {
+                debug!("invalid utf8");
+                break;
+            };
+
+            print!("{str}");
         });
 
         schedule(move || {
@@ -526,11 +540,38 @@ impl Shell {
             }
         });
 
+        // hyperion_futures::executor::spawn(async move {
+        //     while let Some(ev) = KeyboardEvents.next().await {
+        //         hyperion_log::debug!("GOT {ev:?}");
+
+        //         let mut str = [0; 4];
+
+        //         if let Some(unicode) = ev.unicode {
+        //             let str = unicode.encode_utf8(&mut str);
+
+        //             // TODO: buffering
+        //             if let Err(err) = stdin_tx.send_slice(str.as_bytes()) {
+        //                 hyperion_log::debug!("STDIN send err {err:?}");
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // });
+
+        // loop {
+        //     hyperion_log::debug!("sleep");
+        //     hyperion_futures::timer::sleep(time::Duration::SECOND).await;
+        // }
+
         let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
 
         let mut l_ctrl_held = false;
         loop {
-            match events.next().await {
+            // hyperion_log::debug!("Waiting for events ...");
+            let ev = events.next().await;
+            // hyperion_log::debug!("Event {ev:?}");
+
+            match ev {
                 Some(Ok(KeyboardEvent {
                     state,
                     keycode,
@@ -550,23 +591,47 @@ impl Shell {
                         break;
                     }
 
-                    if let Some(unicode) = unicode {
-                        _ = write!(self.term, "{unicode}");
-                        self.term.flush();
+                    // if let Some(unicode) = unicode {
+                    //     // _ = write!(self.term, "{unicode}");
+                    //     // self.term.flush();
 
-                        let mut str = [0; 4];
+                    //     let mut str = [0; 4];
 
-                        let str = unicode.encode_utf8(&mut str);
+                    //     let str = unicode.encode_utf8(&mut str);
 
-                        // TODO: buffering
-                        if stdin_tx.send_slice(str.as_bytes()).is_err() {
-                            break;
-                        }
+                    //     // TODO: buffering
+                    //     if let Err(err) = stdin_tx.send_slice(str.as_bytes()) {
+                    //         break;
+                    //     }
+                    // }
+
+                    #[derive(serde::Serialize, serde::Deserialize)]
+                    struct KeyboardEventSer {
+                        // pub scancode: u8,
+                        state: u8,
+                        keycode: u8,
+                        unicode: Option<char>,
+                    }
+
+                    let ev = serde_json::to_string(&KeyboardEventSer {
+                        state: state as u8,
+                        keycode: keycode as u8,
+                        unicode,
+                    })
+                    .unwrap();
+                    // hyperion_log::debug!("sending {ev}");
+                    if let Err(_) = stdin_tx.send_slice(ev.as_bytes()) {
+                        // hyperion_log::debug!("stdin closed");
+                        break;
+                    }
+                    if let Err(_) = stdin_tx.send_slice("\n".as_bytes()) {
+                        // hyperion_log::debug!("stdin closed");
+                        break;
                     }
                 }
                 Some(Err(Some(s))) => {
-                    _ = write!(self.term, "{s}");
-                    self.term.flush();
+                    // _ = write!(self.term, "{s}");
+                    // self.term.flush();
                 }
                 Some(Err(None)) => {
                     // _ = write!(self.term, "got EOI");
@@ -577,7 +642,9 @@ impl Shell {
             }
         }
 
-        stdin_tx.close();
+        hyperion_log::debug!("done");
+
+        // stdin_tx.close();
 
         Ok(())
     }

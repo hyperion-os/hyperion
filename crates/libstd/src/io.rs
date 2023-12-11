@@ -9,11 +9,26 @@ use crate::fs::File;
 
 pub trait Read {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
-}
 
-impl Read for File {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        File::read(self, buf)
+    fn read_exact(&mut self, mut buf: &mut [u8], bytes_read: &mut usize) -> Result<()> {
+        while !buf.is_empty() {
+            match self.read(buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let tmp = buf;
+                    buf = &mut tmp[n..];
+                    *bytes_read += n;
+                }
+                Err(Error::INTERRUPTED) => {}
+                Err(err) => return Err(err),
+            }
+        }
+
+        if !buf.is_empty() {
+            Err(Error::UNEXPECTED_EOF)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -28,17 +43,22 @@ impl<T: Read> Read for &mut T {
 pub trait Write {
     fn write(&mut self, buf: &[u8]) -> Result<usize>;
 
-    fn flush(&mut self) -> Result<()>;
-}
-
-impl Write for File {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        File::write(self, buf)
-    }
-
-    fn flush(&mut self) -> Result<()> {
+    fn write_exact(&mut self, mut buf: &[u8], bytes_written: &mut usize) -> Result<()> {
+        while !buf.is_empty() {
+            match self.write(buf) {
+                Ok(0) => return Err(Error::WRITE_ZERO),
+                Ok(n) => {
+                    buf = &buf[n..];
+                    *bytes_written += n;
+                }
+                Err(Error::INTERRUPTED) => {}
+                Err(err) => return Err(err),
+            }
+        }
         Ok(())
     }
+
+    fn flush(&mut self) -> Result<()>;
 }
 
 impl<T: Write> Write for &mut T {

@@ -46,7 +46,7 @@ macro_rules! load_elf_from {
 //
 
 pub async fn kshell() {
-    hyperion_futures::executor::spawn(spinner());
+    // hyperion_futures::executor::spawn(spinner());
 
     // TODO: initrd
 
@@ -84,22 +84,22 @@ pub async fn kshell() {
     term.flush();
 }
 
-async fn spinner() {
-    let mut ticks = ticks(Duration::milliseconds(50));
-    let mut rng = hyperion_random::next_fast_rng();
+// async fn spinner() {
+//     let mut ticks = ticks(Duration::milliseconds(50));
+//     let mut rng = hyperion_random::next_fast_rng();
 
-    while ticks.next().await.is_some() {
-        let Some(fbo) = Framebuffer::get() else {
-            continue;
-        };
-        let mut fbo = fbo.lock();
+//     while ticks.next().await.is_some() {
+//         let Some(fbo) = Framebuffer::get() else {
+//             continue;
+//         };
+//         let mut fbo = fbo.lock();
 
-        let (r, g, b) = rng.gen();
-        let x = fbo.width - 20;
-        let y = fbo.height - 20;
-        fbo.fill(x, y, 10, 10, Color::new(r, g, b));
-    }
-}
+//         let (r, g, b) = rng.gen();
+//         let x = fbo.width - 20;
+//         let y = fbo.height - 20;
+//         fbo.fill(x, y, 10, 10, Color::new(r, g, b));
+//     }
+// }
 
 //
 

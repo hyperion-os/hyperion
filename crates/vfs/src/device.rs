@@ -100,7 +100,7 @@ impl FileDevice for [u8] {
             .ok_or(IoError::UnexpectedEOF)?
             .min(buf.len());
 
-        buf[..len].copy_from_slice(&self[offset..offset + len]);
+        buf[..len].copy_from_slice(&self[offset..][..len]);
 
         Ok(len)
     }
@@ -112,7 +112,7 @@ impl FileDevice for [u8] {
             .ok_or(IoError::UnexpectedEOF)?
             .min(buf.len());
 
-        self[offset..offset + len].copy_from_slice(&buf[..len]);
+        self[offset..][..len].copy_from_slice(&buf[..len]);
 
         Ok(len)
     }

@@ -87,6 +87,6 @@ pub fn _eprint(args: fmt::Arguments) {
 
 #[panic_handler]
 fn panic_handler(info: &core::panic::PanicInfo) -> ! {
-    println!("{info}");
+    eprintln!("{info}");
     exit(-1);
 }

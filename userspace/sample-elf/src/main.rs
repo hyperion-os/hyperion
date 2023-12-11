@@ -10,7 +10,7 @@ use core::str::from_utf8;
 
 use libstd::{
     fs::{File, OpenOptions, Stdin, STDOUT},
-    io::{BufReader, Write},
+    io::{BufReader, Read, Write},
     println,
     sync::Mutex,
     sys::{
@@ -50,7 +50,7 @@ fn handle_client(i: usize, conn: SocketDesc) -> Result<()> {
     let len = recv(conn, &mut buf, 0)?;
     assert_eq!(&buf[..len], b"ack");
 
-    let file = OpenOptions::new()
+    let mut file = OpenOptions::new()
         .read(true)
         .create(false)
         .open(format!("/tmp/{msg}"))?;
@@ -78,7 +78,7 @@ fn run_client() -> Result<()> {
         let msg = from_utf8(utf8).unwrap();
         println!("got `{msg:?}`");
 
-        let file = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .write(true)
             .create(true)
             .open(format!("/tmp/{msg}"))?;
