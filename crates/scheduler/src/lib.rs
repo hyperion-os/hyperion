@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(type_name_of_val, offset_of)]
+#![feature(offset_of)]
 
 //
 

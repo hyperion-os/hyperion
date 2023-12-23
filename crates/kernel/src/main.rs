@@ -3,7 +3,7 @@
 #![no_std]
 #![no_main]
 //
-#![feature(custom_test_frameworks, type_name_of_val)]
+#![feature(custom_test_frameworks)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![allow(clippy::needless_return)]
