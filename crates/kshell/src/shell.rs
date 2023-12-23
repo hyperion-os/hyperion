@@ -467,13 +467,13 @@ impl Shell {
         // setup STDIO
         let (stdin_tx, stdin_rx) = channel();
         let (stdout_tx, stdout_rx) = channel();
-        let (stderr_tx, stderr_rx) = channel();
+        // let (stderr_tx, stderr_rx) = channel();
+        let stderr_tx = stdout_tx.clone();
 
         // hacky blocking channel -> async channel stuff
         let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
 
         // stdout -> terminal
-        let o_tx_2 = o_tx.clone();
         spawn(move || {
             loop {
                 let mut buf = [0; 128];
@@ -485,25 +485,10 @@ impl Shell {
                     debug!("invalid utf8");
                     break;
                 };
-                o_tx_2.send(Some(str.to_string()));
+                o_tx.send(Some(str.to_string()));
             }
 
-            o_tx_2.send(None);
-        });
-
-        // stderr -> kernel logs
-        spawn(move || loop {
-            let mut buf = [0; 128];
-            let Ok(len) = stderr_rx.recv_slice(&mut buf) else {
-                debug!("end of stream");
-                break;
-            };
-            let Ok(str) = core::str::from_utf8(&buf[..len]) else {
-                debug!("invalid utf8");
-                break;
-            };
-
-            print!("{str}");
+            o_tx.send(None);
         });
 
         // spawn the new process
@@ -603,7 +588,7 @@ impl Shell {
                     })
                     .unwrap();
                     ev.push('\n');
-                    debug!("sending: {ev:?}");
+                    // debug!("sending: {ev:?}");
                     if stdin_tx.send_slice(ev.as_bytes()).is_err() {
                         // hyperion_log::debug!("stdin closed");
                         break;
@@ -627,8 +612,6 @@ impl Shell {
                 None => break,
             }
         }
-
-        hyperion_log::debug!("done");
 
         // stdin_tx.close();
 
