@@ -5,7 +5,7 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
-use core::{fmt::Write, sync::atomic::Ordering, time::Duration};
+use core::{fmt::Write, sync::atomic::Ordering};
 
 use futures_util::stream::select;
 use hyperion_color::Color;

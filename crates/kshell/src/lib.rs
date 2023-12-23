@@ -4,20 +4,17 @@
 
 extern crate alloc;
 
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{string::String, sync::Arc};
 use core::num::ParseIntError;
 
 use futures_util::StreamExt;
-use hyperion_color::Color;
 use hyperion_framebuffer::framebuffer::Framebuffer;
-use hyperion_futures::{keyboard::KeyboardEvents, timer::ticks};
+use hyperion_futures::keyboard::KeyboardEvents;
 use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_log::*;
-use hyperion_random::Rng;
 use hyperion_scheduler::lock::Mutex;
 use hyperion_vfs::{error::IoError, path::PathBuf, ramdisk};
 use snafu::Snafu;
-use time::Duration;
 
 use self::{shell::Shell, term::Term};
 

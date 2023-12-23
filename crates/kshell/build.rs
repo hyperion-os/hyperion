@@ -1,6 +1,6 @@
 use std::{
     env,
-    fs::{read_dir, DirEntry, File},
+    fs::{read_dir, File},
     io::Write,
     path::Path,
 };
@@ -12,12 +12,6 @@ fn main() {
     let mut asset_rs_file = File::create(asset_rs_file).unwrap();
 
     writeln!(asset_rs_file, "pub static ASSETS: &[(&str, &[u8])] = &[").unwrap();
-    // for file in read_dir("./../../asset").unwrap() {
-    //     let file = file.unwrap();
-
-    //     let path = file.path().canonicalize().unwrap();
-    //     writeln!(asset_rs_file, "    include_bytes!({path:?}),",).unwrap();
-    // }
 
     let from = "./../../asset";
     travel(from.as_ref(), &mut |path| {
