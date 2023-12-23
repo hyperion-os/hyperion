@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Directory","File"]};
+window.SIDEBAR_ITEMS = {"struct":["Directory","File","StaticRoFile"]};

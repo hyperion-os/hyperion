@@ -1,4 +1,4 @@
 (function() {var implementors = {
 "hyperion_mem":[["impl PageFrameAllocator for <a class=\"struct\" href=\"hyperion_mem/struct.Pfa.html\" title=\"struct hyperion_mem::Pfa\">Pfa</a>"]],
-"libstd":[["impl PageFrameAllocator for <a class=\"struct\" href=\"libstd/alloc/struct.PageAlloc.html\" title=\"struct libstd::alloc::PageAlloc\">PageAlloc</a>"]]
+"libstd":[["impl <a class=\"trait\" href=\"hyperion_slab_alloc/trait.PageFrameAllocator.html\" title=\"trait hyperion_slab_alloc::PageFrameAllocator\">PageFrameAllocator</a> for <a class=\"struct\" href=\"libstd/alloc/struct.PageAlloc.html\" title=\"struct libstd::alloc::PageAlloc\">PageAlloc</a>"]]
 };if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

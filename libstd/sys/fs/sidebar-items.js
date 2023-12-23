@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["FileDesc","FileOpenFlags","Metadata"]};
+window.SIDEBAR_ITEMS = {"constant":["SEEK_CUR","SEEK_END","SEEK_SET"],"struct":["FileDesc","FileOpenFlags","Metadata"]};

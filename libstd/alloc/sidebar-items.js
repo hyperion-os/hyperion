@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["PageAlloc"],"type":["SlabAlloc"]};
+window.SIDEBAR_ITEMS = {"static":["GLOBAL_ALLOC"],"struct":["PageAlloc"],"type":["SlabAlloc"]};

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Error"],"fn":["kshell"],"mod":["shell","snake","term"],"type":["Result"]};
+window.SIDEBAR_ITEMS = {"enum":["Error"],"fn":["kshell"],"mod":["shell","snake","term"],"static":["ASSETS"],"type":["Result"]};

@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kshell/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e883e87179a81222.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kshell" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (f967532a4 2023-12-08)" data-channel="nightly" data-search-js="search-5a66c239c06b3a66.js" data-settings-js="settings-fe03fdc259827cd2.js" ><script src="../../static.files/storage-bc37acceda91d44a.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-77dede896d6ac08e.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kshell/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kshell" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (d6d7a9386 2023-12-22)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -120,6 +121,16 @@
 <a href="#120" id="120">120</a>
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="comment">//
@@ -130,16 +141,13 @@
 <span class="kw">use </span>core::num::ParseIntError;
 
 <span class="kw">use </span>futures_util::StreamExt;
-<span class="kw">use </span>hyperion_color::Color;
 <span class="kw">use </span>hyperion_framebuffer::framebuffer::Framebuffer;
-<span class="kw">use </span>hyperion_futures::{keyboard::KeyboardEvents, timer::ticks};
+<span class="kw">use </span>hyperion_futures::keyboard::KeyboardEvents;
 <span class="kw">use </span>hyperion_kernel_impl::VFS_ROOT;
 <span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
-<span class="kw">use </span>hyperion_random::Rng;
 <span class="kw">use </span>hyperion_scheduler::lock::Mutex;
-<span class="kw">use </span>hyperion_vfs::{error::IoError, path::PathBuf, ramdisk};
+<span class="kw">use </span>hyperion_vfs::{error::IoError, path::PathBuf, ramdisk::StaticRoFile};
 <span class="kw">use </span>snafu::Snafu;
-<span class="kw">use </span>time::Duration;
 
 <span class="kw">use </span><span class="self">self</span>::{shell::Shell, term::Term};
 
@@ -152,27 +160,40 @@
 <span class="comment">//
 
 </span><span class="macro">macro_rules! </span>load_elf {
-    (<span class="macro-nonterminal">$bin</span>:literal) =&gt; {{
-        <span class="kw">const </span>FILE: <span class="kw-2">&amp;</span>[u8] = <span class="macro">include_bytes!</span>(<span class="macro">env!</span>(<span class="macro">concat!</span>(<span class="string">"CARGO_BIN_FILE_"</span>, <span class="macro-nonterminal">$bin</span>)));
-        <span class="macro">debug!</span>(<span class="string">"ELF from {}"</span>, <span class="macro">env!</span>(<span class="macro">concat!</span>(<span class="string">"CARGO_BIN_FILE_"</span>, <span class="macro-nonterminal">$bin</span>)));
+    (<span class="macro-nonterminal">$bin</span>:literal) =&gt; {
+        <span class="macro">load_elf_from!</span>(<span class="macro">env!</span>(<span class="macro">concat!</span>(<span class="string">"CARGO_BIN_FILE_"</span>, <span class="macro-nonterminal">$bin</span>)))
+    };
+}
+
+<span class="macro">macro_rules! </span>load_elf_from {
+    ($(<span class="macro-nonterminal">$t</span>:tt)<span class="kw-2">*</span>) =&gt; {{
+        <span class="kw">const </span>FILE: <span class="kw-2">&amp;</span>[u8] = <span class="macro">include_bytes!</span>($(<span class="macro-nonterminal">$t</span>)<span class="kw-2">*</span>);
+        <span class="macro">debug!</span>(<span class="string">"ELF from {}"</span>, $(<span class="macro-nonterminal">$t</span>)<span class="kw-2">*</span>);
         FILE
     }};
 }
 
 <span class="comment">//
 
+</span><span class="macro">include!</span>(<span class="macro">concat!</span>(<span class="macro">env!</span>(<span class="string">"OUT_DIR"</span>), <span class="string">"/asset.rs"</span>));
+
+<span class="comment">//
+
 </span><span class="kw">pub async fn </span>kshell() {
-    hyperion_futures::executor::spawn(spinner());
+    <span class="comment">// hyperion_futures::executor::spawn(spinner());
 
-    <span class="comment">// TODO: initrd
+    // TODO: initrd
 
-    </span><span class="kw">let </span>bin = <span class="macro">load_elf!</span>(<span class="string">"SAMPLE_ELF"</span>).into();
-    VFS_ROOT.install_dev(<span class="string">"/bin/run"</span>, ramdisk::File::new(bin));
-    <span class="kw">let </span>bin = <span class="macro">load_elf!</span>(<span class="string">"FBTEST"</span>).into();
-    VFS_ROOT.install_dev(<span class="string">"/bin/fbtest"</span>, ramdisk::File::new(bin));
-    <span class="kw">let </span>bin = <span class="macro">load_elf!</span>(<span class="string">"COREUTILS"</span>).into();
-    <span class="kw">let </span>bin = Arc::new(Mutex::new(ramdisk::File::new(bin)));
+    </span><span class="kw">for </span>asset <span class="kw">in </span>ASSETS {
+        <span class="kw">let </span>(path, bytes): (<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>[u8]) = <span class="kw-2">*</span>asset;
+        VFS_ROOT.install_dev(path, StaticRoFile::new(bytes));
+    }
 
+    VFS_ROOT.install_dev(<span class="string">"/bin/run"</span>, StaticRoFile::new(<span class="macro">load_elf!</span>(<span class="string">"SAMPLE_ELF"</span>)));
+    VFS_ROOT.install_dev(<span class="string">"/bin/fbtest"</span>, StaticRoFile::new(<span class="macro">load_elf!</span>(<span class="string">"FBTEST"</span>)));
+
+    <span class="comment">// everything is the same file
+    </span><span class="kw">let </span>bin = Arc::new(Mutex::new(StaticRoFile::new(<span class="macro">load_elf!</span>(<span class="string">"COREUTILS"</span>))));
     VFS_ROOT.install_dev_ref(<span class="string">"/bin/coreutils"</span>, bin.clone());
     VFS_ROOT.install_dev_ref(<span class="string">"/bin/cat"</span>, bin.clone());
     VFS_ROOT.install_dev_ref(<span class="string">"/bin/ls"</span>, bin.clone());
@@ -196,24 +217,24 @@
     term.flush();
 }
 
-<span class="kw">async fn </span>spinner() {
-    <span class="kw">let </span><span class="kw-2">mut </span>ticks = ticks(Duration::milliseconds(<span class="number">50</span>));
-    <span class="kw">let </span><span class="kw-2">mut </span>rng = hyperion_random::next_fast_rng();
+<span class="comment">// async fn spinner() {
+//     let mut ticks = ticks(Duration::milliseconds(50));
+//     let mut rng = hyperion_random::next_fast_rng();
 
-    <span class="kw">while </span>ticks.next().<span class="kw">await</span>.is_some() {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(fbo) = Framebuffer::get() <span class="kw">else </span>{
-            <span class="kw">continue</span>;
-        };
-        <span class="kw">let </span><span class="kw-2">mut </span>fbo = fbo.lock();
+//     while ticks.next().await.is_some() {
+//         let Some(fbo) = Framebuffer::get() else {
+//             continue;
+//         };
+//         let mut fbo = fbo.lock();
 
-        <span class="kw">let </span>(r, g, b) = rng.gen();
-        <span class="kw">let </span>x = fbo.width - <span class="number">20</span>;
-        <span class="kw">let </span>y = fbo.height - <span class="number">20</span>;
-        fbo.fill(x, y, <span class="number">10</span>, <span class="number">10</span>, Color::new(r, g, b));
-    }
-}
+//         let (r, g, b) = rng.gen();
+//         let x = fbo.width - 20;
+//         let y = fbo.height - 20;
+//         fbo.fill(x, y, 10, 10, Color::new(r, g, b));
+//     }
+// }
 
-<span class="comment">//
+//
 
 </span><span class="kw">const </span>CHAR_SIZE: (u8, u8) = (<span class="number">8</span>, <span class="number">16</span>);
 <span class="comment">// const WIDE_CHAR_SIZE: (u8, u8) = (16, 16);
