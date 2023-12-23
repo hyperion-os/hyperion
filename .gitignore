@@ -1,4 +1,4 @@
 /target
 /.direnv
-/asset/doomgeneric-hyperion
+/asset/bin/*
 /asset/doom1.wad

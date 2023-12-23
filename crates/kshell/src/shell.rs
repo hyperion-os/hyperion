@@ -461,19 +461,18 @@ impl Shell {
     ) -> Result<()> {
         let args = args.map(String::from);
 
-        // let stdin_tx = pipe();
-        // let stdin_rx = stdin_tx.clone();
-        // let stdout_tx = pipe();
-        // let stderr_tx = stdout_tx.clone();
-        // let stdout_rx = stdout_tx.clone();
+        // TODO: HACK:
+        let is_doom = name.ends_with("doom");
 
+        // setup STDIO
         let (stdin_tx, stdin_rx) = channel();
         let (stdout_tx, stdout_rx) = channel();
         let (stderr_tx, stderr_rx) = channel();
-        // let stderr_tx = stdout_tx.clone();
 
+        // hacky blocking channel -> async channel stuff
         let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
 
+        // stdout -> terminal
         let o_tx_2 = o_tx.clone();
         spawn(move || {
             loop {
@@ -492,6 +491,7 @@ impl Shell {
             o_tx_2.send(None);
         });
 
+        // stderr -> kernel logs
         spawn(move || loop {
             let mut buf = [0; 128];
             let Ok(len) = stderr_rx.recv_slice(&mut buf) else {
@@ -506,10 +506,13 @@ impl Shell {
             print!("{str}");
         });
 
+        // spawn the new process
         schedule(move || {
+            // set its name
             let name = name.as_ref();
             hyperion_scheduler::rename(name);
 
+            // setup the STDIO
             hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
                 file_ref: Arc::new(lock_api::Mutex::new(PipeOutput(stdin_rx))) as _,
                 position: 0,
@@ -523,6 +526,7 @@ impl Shell {
                 position: 0,
             });
 
+            // load and exec the binary
             let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
                 .into_iter()
                 .chain(args.as_deref().iter().flat_map(|args| args.split(' ')))
@@ -540,29 +544,7 @@ impl Shell {
             }
         });
 
-        // hyperion_futures::executor::spawn(async move {
-        //     while let Some(ev) = KeyboardEvents.next().await {
-        //         hyperion_log::debug!("GOT {ev:?}");
-
-        //         let mut str = [0; 4];
-
-        //         if let Some(unicode) = ev.unicode {
-        //             let str = unicode.encode_utf8(&mut str);
-
-        //             // TODO: buffering
-        //             if let Err(err) = stdin_tx.send_slice(str.as_bytes()) {
-        //                 hyperion_log::debug!("STDIN send err {err:?}");
-        //                 break;
-        //             }
-        //         }
-        //     }
-        // });
-
-        // loop {
-        //     hyperion_log::debug!("sleep");
-        //     hyperion_futures::timer::sleep(time::Duration::SECOND).await;
-        // }
-
+        // start sending keyboard events to the process and read stdout into the terminal
         let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
 
         let mut l_ctrl_held = false;
@@ -605,6 +587,7 @@ impl Shell {
                     //     }
                     // }
 
+                    // TODO: proper raw keyboard input
                     #[derive(serde::Serialize, serde::Deserialize)]
                     struct KeyboardEventSer {
                         // pub scancode: u8,
@@ -620,18 +603,24 @@ impl Shell {
                     })
                     .unwrap();
                     // hyperion_log::debug!("sending {ev}");
-                    if let Err(_) = stdin_tx.send_slice(ev.as_bytes()) {
+                    if stdin_tx.send_slice(ev.as_bytes()).is_err() {
                         // hyperion_log::debug!("stdin closed");
                         break;
                     }
-                    if let Err(_) = stdin_tx.send_slice("\n".as_bytes()) {
+                    if stdin_tx.send_slice("\n".as_bytes()).is_err() {
                         // hyperion_log::debug!("stdin closed");
                         break;
                     }
                 }
                 Some(Err(Some(s))) => {
-                    // _ = write!(self.term, "{s}");
-                    // self.term.flush();
+                    // TODO: HACK: doom locks the framebuffer and flushing here would deadlock,
+                    // as kshell cannot send any keyboard input anymore
+                    if is_doom {
+                        continue;
+                    }
+
+                    _ = write!(self.term, "{s}");
+                    self.term.flush();
                 }
                 Some(Err(None)) => {
                     // _ = write!(self.term, "got EOI");

@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use alloc::{string::String, sync::Arc};
+use alloc::{string::String, sync::Arc, vec::Vec};
 use core::num::ParseIntError;
 
 use futures_util::StreamExt;
@@ -45,22 +45,29 @@ macro_rules! load_elf_from {
 
 //
 
+include!(concat!(env!("OUT_DIR"), "/asset.rs"));
+
+//
+
 pub async fn kshell() {
     // hyperion_futures::executor::spawn(spinner());
 
     // TODO: initrd
 
-    let bin = load_elf_from!("../../../asset/doomgeneric-hyperion").into();
-    VFS_ROOT.install_dev("/bin/doom", ramdisk::File::new(bin));
-    let bin = load_elf_from!("../../../asset/doom1.wad").into();
-    VFS_ROOT.install_dev("/doom1.wad", ramdisk::File::new(bin));
+    for asset in ASSETS {
+        let (path, bytes): (&str, &[u8]) = *asset;
+        // TODO: no copy
+        VFS_ROOT.install_dev(path, ramdisk::File::new(bytes.into()));
+    }
+
     let bin = load_elf!("SAMPLE_ELF").into();
     VFS_ROOT.install_dev("/bin/run", ramdisk::File::new(bin));
     let bin = load_elf!("FBTEST").into();
     VFS_ROOT.install_dev("/bin/fbtest", ramdisk::File::new(bin));
+
+    // everything is the same file
     let bin = load_elf!("COREUTILS").into();
     let bin = Arc::new(Mutex::new(ramdisk::File::new(bin)));
-
     VFS_ROOT.install_dev_ref("/bin/coreutils", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/cat", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/ls", bin.clone());
