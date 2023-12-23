@@ -596,18 +596,15 @@ impl Shell {
                         unicode: Option<char>,
                     }
 
-                    let ev = serde_json::to_string(&KeyboardEventSer {
+                    let mut ev = serde_json::to_string(&KeyboardEventSer {
                         state: state as u8,
                         keycode: keycode as u8,
                         unicode,
                     })
                     .unwrap();
-                    // hyperion_log::debug!("sending {ev}");
+                    ev.push('\n');
+                    debug!("sending: {ev:?}");
                     if stdin_tx.send_slice(ev.as_bytes()).is_err() {
-                        // hyperion_log::debug!("stdin closed");
-                        break;
-                    }
-                    if stdin_tx.send_slice("\n".as_bytes()).is_err() {
                         // hyperion_log::debug!("stdin closed");
                         break;
                     }

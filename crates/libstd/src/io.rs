@@ -98,7 +98,7 @@ impl<T: Write> fmt::Write for BufWriter<T> {
 
 pub struct BufReader<T> {
     buf: Box<[u8]>,
-    end: u8,
+    end: usize,
     inner: T,
 }
 
@@ -116,16 +116,16 @@ impl<T: Read> BufReader<T> {
     }
 
     fn fill_buf(&mut self) -> Result<&[u8]> {
-        let bytes_read = self.inner.read(&mut self.buf[self.end as usize..])?;
-        self.end += bytes_read as u8;
-        assert!((self.end as usize) <= self.buf.len());
+        let bytes_read = self.inner.read(&mut self.buf[self.end..])?;
+        self.end += bytes_read;
+        assert!(self.end <= self.buf.len());
 
-        Ok(&self.buf[..self.end as usize])
+        Ok(&self.buf[..self.end])
     }
 
     fn consume(&mut self, used: usize) {
         self.buf.rotate_left(used);
-        self.end -= used as u8;
+        self.end -= used;
     }
 }
 
