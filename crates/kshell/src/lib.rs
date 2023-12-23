@@ -13,7 +13,7 @@ use hyperion_futures::keyboard::KeyboardEvents;
 use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_log::*;
 use hyperion_scheduler::lock::Mutex;
-use hyperion_vfs::{error::IoError, path::PathBuf, ramdisk};
+use hyperion_vfs::{error::IoError, path::PathBuf, ramdisk::StaticRoFile};
 use snafu::Snafu;
 
 use self::{shell::Shell, term::Term};
@@ -53,18 +53,14 @@ pub async fn kshell() {
 
     for asset in ASSETS {
         let (path, bytes): (&str, &[u8]) = *asset;
-        // TODO: no copy
-        VFS_ROOT.install_dev(path, ramdisk::File::new(bytes.into()));
+        VFS_ROOT.install_dev(path, StaticRoFile::new(bytes));
     }
 
-    let bin = load_elf!("SAMPLE_ELF").into();
-    VFS_ROOT.install_dev("/bin/run", ramdisk::File::new(bin));
-    let bin = load_elf!("FBTEST").into();
-    VFS_ROOT.install_dev("/bin/fbtest", ramdisk::File::new(bin));
+    VFS_ROOT.install_dev("/bin/run", StaticRoFile::new(load_elf!("SAMPLE_ELF")));
+    VFS_ROOT.install_dev("/bin/fbtest", StaticRoFile::new(load_elf!("FBTEST")));
 
     // everything is the same file
-    let bin = load_elf!("COREUTILS").into();
-    let bin = Arc::new(Mutex::new(ramdisk::File::new(bin)));
+    let bin = Arc::new(Mutex::new(StaticRoFile::new(load_elf!("COREUTILS"))));
     VFS_ROOT.install_dev_ref("/bin/coreutils", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/cat", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/ls", bin.clone());

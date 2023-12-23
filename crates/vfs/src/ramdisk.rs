@@ -3,6 +3,7 @@ use alloc::{
     sync::Arc,
     vec::Vec,
 };
+use core::any::Any;
 
 use lock_api::Mutex;
 
@@ -23,6 +24,20 @@ impl File {
     pub fn new(bytes: Vec<u8>) -> Self {
         Self { bytes }
     }
+
+    pub fn new_empty<Mut: AnyMutex>() -> FileRef<Mut> {
+        Arc::new(Mutex::new(Self { bytes: Vec::new() })) as _
+    }
+}
+
+pub struct StaticRoFile {
+    bytes: &'static [u8],
+}
+
+impl StaticRoFile {
+    pub const fn new(bytes: &'static [u8]) -> Self {
+        Self { bytes }
+    }
 }
 
 pub struct Directory<Mut: AnyMutex> {
@@ -36,7 +51,7 @@ pub struct Directory<Mut: AnyMutex> {
 //
 
 impl FileDevice for File {
-    fn as_any(&self) -> &dyn core::any::Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 
@@ -45,19 +60,31 @@ impl FileDevice for File {
     }
 
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        FileDevice::read(&self.bytes[..], offset, buf)
+        self.bytes.read(offset, buf)
     }
 
     fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
         self.bytes
             .resize(self.bytes.len().max(buf.len() + offset), b'?');
-        FileDevice::write(&mut self.bytes[..], offset, buf)
+        self.bytes.write(offset, buf)
     }
 }
 
-impl File {
-    pub fn new_empty<Mut: AnyMutex>() -> FileRef<Mut> {
-        Arc::new(Mutex::new(Self { bytes: Vec::new() })) as _
+impl FileDevice for StaticRoFile {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        self.bytes.read(offset, buf)
+    }
+
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
     }
 }
 
