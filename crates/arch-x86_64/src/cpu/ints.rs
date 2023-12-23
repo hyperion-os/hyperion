@@ -97,7 +97,7 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
         Privilege::Kernel
     };
 
-    match (|| {
+    let res = (|| {
         PageMap::current().page_fault(addr, privilege)?;
         PAGE_FAULT_HANDLER.load()(
             stack.instruction_pointer.as_u64() as _,
@@ -106,7 +106,9 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
         )?;
 
         Ok(NotHandled)
-    })() {
+    })();
+
+    match res {
         Ok(NotHandled) => {
             error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
             panic!();
