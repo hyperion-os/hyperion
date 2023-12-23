@@ -390,7 +390,7 @@
 
 </span><span class="kw">pub struct </span>BufReader&lt;T&gt; {
     buf: Box&lt;[u8]&gt;,
-    end: u8,
+    end: usize,
     inner: T,
 }
 
@@ -408,16 +408,16 @@
     }
 
     <span class="kw">fn </span>fill_buf(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span>[u8]&gt; {
-        <span class="kw">let </span>bytes_read = <span class="self">self</span>.inner.read(<span class="kw-2">&amp;mut </span><span class="self">self</span>.buf[<span class="self">self</span>.end <span class="kw">as </span>usize..])<span class="question-mark">?</span>;
-        <span class="self">self</span>.end += bytes_read <span class="kw">as </span>u8;
-        <span class="macro">assert!</span>((<span class="self">self</span>.end <span class="kw">as </span>usize) &lt;= <span class="self">self</span>.buf.len());
+        <span class="kw">let </span>bytes_read = <span class="self">self</span>.inner.read(<span class="kw-2">&amp;mut </span><span class="self">self</span>.buf[<span class="self">self</span>.end..])<span class="question-mark">?</span>;
+        <span class="self">self</span>.end += bytes_read;
+        <span class="macro">assert!</span>(<span class="self">self</span>.end &lt;= <span class="self">self</span>.buf.len());
 
-        <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.buf[..<span class="self">self</span>.end <span class="kw">as </span>usize])
+        <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.buf[..<span class="self">self</span>.end])
     }
 
     <span class="kw">fn </span>consume(<span class="kw-2">&amp;mut </span><span class="self">self</span>, used: usize) {
         <span class="self">self</span>.buf.rotate_left(used);
-        <span class="self">self</span>.end -= used <span class="kw">as </span>u8;
+        <span class="self">self</span>.end -= used;
     }
 }
 
