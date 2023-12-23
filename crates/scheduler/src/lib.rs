@@ -208,6 +208,10 @@ pub fn sleep_until(deadline: Instant) {
 /// and switch to another thread
 #[track_caller]
 pub fn stop() -> ! {
+    if let Some(ext) = process().ext.get() {
+        ext.close();
+    }
+
     update_cpu_usage();
 
     let next = wait_next_task::<Infallible>(|| None).unwrap();

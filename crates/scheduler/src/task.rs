@@ -363,6 +363,8 @@ impl Drop for Process {
             pmm::PFA.free(phys_page);
         }
 
+        // debug!("process `{}` died", self.name.get_mut());
+
         // the page map is dropped, so unmapping pages isn't needed
     }
 }
@@ -371,6 +373,10 @@ impl Drop for Process {
 
 pub trait ProcessExt: Sync + Send {
     fn as_any(&self) -> &dyn Any;
+
+    /// close everything before the actual process closes,
+    /// because there might be no tasks to switch to (and that would keep this open)
+    fn close(&self);
 }
 
 //
