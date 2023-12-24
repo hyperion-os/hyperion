@@ -249,6 +249,11 @@ impl ProcessExt for ProcessExtra {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    fn close(&self) {
+        self.files.lock().inner.clear();
+        self.sockets.lock().inner.clear();
+    }
 }
 
 //

@@ -43,11 +43,12 @@ pub fn syscall(args: &mut SyscallRegs) {
     let (result, name) = match id as usize {
         id::LOG => call_id(log, args),
         id::EXIT => call_id(exit, args),
+        id::DONE => call_id(done, args),
         id::YIELD_NOW => call_id(yield_now, args),
         id::TIMESTAMP => call_id(timestamp, args),
         id::NANOSLEEP => call_id(nanosleep, args),
         id::NANOSLEEP_UNTIL => call_id(nanosleep_until, args),
-        id::PTHREAD_SPAWN => call_id(pthread_spawn, args),
+        id::SPAWN => call_id(spawn, args),
         id::PALLOC => call_id(palloc, args),
         id::PFREE => call_id(pfree, args),
         id::SEND => call_id(send, args),
@@ -80,7 +81,7 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         _ => {
             debug!("invalid syscall");
-            hyperion_scheduler::stop();
+            hyperion_scheduler::exit();
         }
     };
 
@@ -120,7 +121,15 @@ pub fn log(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::exit`]
 pub fn exit(_args: &mut SyscallRegs) -> Result<usize> {
     // TODO: exit code
-    hyperion_scheduler::stop();
+    hyperion_scheduler::exit();
+}
+
+/// exit and kill the current thread
+///
+/// [`hyperion_syscall::done`]
+pub fn done(_args: &mut SyscallRegs) -> Result<usize> {
+    // TODO: exit code
+    hyperion_scheduler::done();
 }
 
 /// give the processor back to the kernel temporarily
@@ -163,8 +172,8 @@ pub fn nanosleep_until(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// thread entry signature: `extern "C" fn thread_entry(stack_ptr: usize, arg1: usize) -> !`
 ///
-/// [`hyperion_syscall::pthread_spawn`]
-pub fn pthread_spawn(args: &mut SyscallRegs) -> Result<usize> {
+/// [`hyperion_syscall::spawn`]
+pub fn spawn(args: &mut SyscallRegs) -> Result<usize> {
     hyperion_scheduler::spawn_userspace(args.arg0, args.arg1);
     return Ok(0);
 }
@@ -225,11 +234,14 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 
     let create = flags.contains(FileOpenFlags::CREATE) || flags.contains(FileOpenFlags::CREATE_NEW);
 
-    if flags.contains(FileOpenFlags::CREATE_NEW)
-        || flags.contains(FileOpenFlags::TRUNC)
-        || flags.contains(FileOpenFlags::APPEND)
-        || (!flags.contains(FileOpenFlags::READ) && !flags.contains(FileOpenFlags::WRITE))
-    {
+    if !flags.intersects(FileOpenFlags::READ | FileOpenFlags::WRITE) {
+        // tried to open a file with no read and no write
+        return Err(Error::INVALID_FLAGS);
+    }
+
+    let todo = FileOpenFlags::CREATE_NEW;
+    if flags.intersects(todo) {
+        error!("TODO `open` flags: {:?}", flags.intersection(todo));
         return Err(Error::FILESYSTEM_ERROR);
     }
 
@@ -239,10 +251,23 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
         .find_file(path, mkdirs, create)
         .map_err(map_vfs_err_to_syscall_err)?;
 
-    let fd = ext.files.lock().push(File::new(Mutex::new(FileInner {
-        file_ref,
-        position: 0,
-    })));
+    let mut file_lock = file_ref.lock();
+    if flags.contains(FileOpenFlags::TRUNC) {
+        file_lock.set_len(0).map_err(map_vfs_err_to_syscall_err)?;
+    }
+
+    let position = if flags.contains(FileOpenFlags::APPEND) {
+        file_lock.len()
+    } else {
+        0
+    };
+
+    drop(file_lock);
+
+    let fd = ext
+        .files
+        .lock()
+        .push(File::new(Mutex::new(FileInner { file_ref, position })));
 
     return Ok(fd);
 }

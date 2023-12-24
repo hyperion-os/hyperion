@@ -21,12 +21,13 @@ pub mod net;
 pub mod id {
     pub const LOG: usize = 1;
     pub const EXIT: usize = 420;
+    pub const DONE: usize = 421;
     pub const YIELD_NOW: usize = 3;
     pub const TIMESTAMP: usize = 4;
     pub const NANOSLEEP: usize = 5;
     pub const NANOSLEEP_UNTIL: usize = 6;
 
-    pub const PTHREAD_SPAWN: usize = 8;
+    pub const SPAWN: usize = 8;
     pub const PALLOC: usize = 9;
     pub const PFREE: usize = 10;
     pub const SEND: usize = 11;
@@ -137,6 +138,13 @@ pub fn exit(code: i64) -> ! {
     unreachable!("{result:?}");
 }
 
+/// exit the thread with a code
+#[inline(always)]
+pub fn done(code: i64) -> ! {
+    let result = unsafe { syscall_1(id::DONE, code as usize) };
+    unreachable!("{result:?}");
+}
+
 /// context switch from this process, no guarantees about actually switching
 #[inline(always)]
 pub fn yield_now() {
@@ -168,8 +176,8 @@ pub fn nanosleep_until(deadline_nanos: u64) {
 
 /// spawn a new pthread for the same process
 #[inline(always)]
-pub fn pthread_spawn(thread_entry: extern "C" fn(usize, usize) -> !, arg: usize) {
-    unsafe { syscall_2(id::PTHREAD_SPAWN, thread_entry as usize, arg) }.unwrap();
+pub fn spawn(thread_entry: extern "C" fn(usize, usize) -> !, arg: usize) {
+    unsafe { syscall_2(id::SPAWN, thread_entry as usize, arg) }.unwrap();
 }
 
 /// allocate physical pages and map to heap

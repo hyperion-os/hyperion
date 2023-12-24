@@ -9,7 +9,7 @@ use hyperion_syscall::{
 };
 use spin::{Mutex, MutexGuard};
 
-use crate::io::{self, BufReader, BufWriter, ConstBufReader};
+use crate::io::{self, BufReader, BufWriter};
 
 //
 
@@ -17,13 +17,7 @@ use crate::io::{self, BufReader, BufWriter, ConstBufReader};
 // static STDOUT: File = unsafe { File::new(FileDesc(1)) };
 // static STDERR: File = unsafe { File::new(FileDesc(2)) };
 
-pub static STDIN: Stdin = {
-    static mut STDIN_BUF: [u8; 4096] = [0u8; 4096];
-    Stdin(Mutex::new(ConstBufReader::new(
-        unsafe { File::new(Stdin::FD) },
-        unsafe { &mut STDIN_BUF },
-    )))
-};
+pub static STDIN: Stdin = Stdin(Mutex::new(BufReader::new(unsafe { File::new(Stdin::FD) })));
 
 pub static STDOUT: Stdout = Stdout(Mutex::new(BufWriter::new(unsafe { File::new(Stdout::FD) })));
 
@@ -31,12 +25,12 @@ pub static STDERR: Stderr = Stderr(Mutex::new(BufWriter::new(unsafe { File::new(
 
 //
 
-pub struct Stdin(Mutex<ConstBufReader<'static, File>>);
+pub struct Stdin(Mutex<BufReader<File>>);
 
 impl Stdin {
     pub const FD: FileDesc = FileDesc(0);
 
-    pub fn lock(&self) -> MutexGuard<ConstBufReader<'static, File>> {
+    pub fn lock(&self) -> MutexGuard<BufReader<File>> {
         self.0.lock()
     }
 }
@@ -198,6 +192,7 @@ impl Drop for File {
 
 //
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenOptions {
     flags: FileOpenFlags,
 }

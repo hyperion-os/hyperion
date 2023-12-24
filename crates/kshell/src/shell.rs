@@ -152,9 +152,7 @@ impl Shell {
             "send" => self.send_cmd(args)?,
             "kill" => self.kill_cmd(args)?,
             "exit" => return Ok(None),
-            "clear" => {
-                self.term.clear();
-            }
+            "clear" => self.term.clear(),
             "" => self.term.write_byte(b'\n'),
             other => {
                 let path = format!("/bin/{other}");
@@ -569,7 +567,10 @@ impl Shell {
                     if state != ElementState::PressRelease
                         && (keycode == KeyCode::C || keycode == KeyCode::D)
                         && l_ctrl_held
+                        && !is_doom
+                    // no ctrl+c / ctrl+d in raw mode
                     {
+                        hyperion_log::debug!("ctrl+C/D");
                         break;
                     }
 
@@ -596,6 +597,14 @@ impl Shell {
                         unicode: Option<char>,
                     }
 
+                    if keycode == KeyCode::CapsLock {
+                        if stdin_tx.send_slice(b"\n").is_err() {
+                            hyperion_log::debug!("stdin closed");
+                            break;
+                        }
+                        continue;
+                    }
+
                     let mut ev = serde_json::to_string(&KeyboardEventSer {
                         state: state as u8,
                         keycode: keycode as u8,
@@ -603,9 +612,9 @@ impl Shell {
                     })
                     .unwrap();
                     ev.push('\n');
-                    debug!("sending: {ev:?}");
+                    // debug!("sending: {ev:?}");
                     if stdin_tx.send_slice(ev.as_bytes()).is_err() {
-                        // hyperion_log::debug!("stdin closed");
+                        hyperion_log::debug!("stdin closed");
                         break;
                     }
                 }
@@ -622,9 +631,13 @@ impl Shell {
                 Some(Err(None)) => {
                     // _ = write!(self.term, "got EOI");
                     // self.term.flush();
+                    hyperion_log::debug!("EOI");
                     break;
                 }
-                None => break,
+                None => {
+                    hyperion_log::debug!("NONE");
+                    break;
+                }
             }
         }
 
