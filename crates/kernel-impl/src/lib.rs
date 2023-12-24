@@ -104,6 +104,10 @@ impl FileDevice for PipeInput {
         0
     }
 
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    }
+
     fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
         if let Ok(n) = self.0.weak_recv_slice(buf) {
             Ok(n)
@@ -130,6 +134,10 @@ impl FileDevice for PipeOutput {
 
     fn len(&self) -> usize {
         0
+    }
+
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
     }
 
     fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
@@ -222,6 +230,10 @@ impl FileDevice for SocketFile {
 
     fn len(&self) -> usize {
         0
+    }
+
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
     }
 
     fn read(&self, _offset: usize, _buf: &mut [u8]) -> IoResult<usize> {

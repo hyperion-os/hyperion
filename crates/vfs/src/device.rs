@@ -15,6 +15,9 @@ pub trait FileDevice: Send + Sync {
 
     fn len(&self) -> usize;
 
+    /// truncate or add zeros to set the length
+    fn set_len(&mut self, len: usize) -> IoResult<()>;
+
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -93,6 +96,10 @@ impl FileDevice for [u8] {
         <[u8]>::len(self)
     }
 
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    }
+
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
         let len = self
             .len()
@@ -125,6 +132,10 @@ impl<T: FileDevice> FileDevice for &'static T {
 
     fn len(&self) -> usize {
         (**self).len()
+    }
+
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
     }
 
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {

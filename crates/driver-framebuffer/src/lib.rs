@@ -44,6 +44,10 @@ impl FileDevice for FboDevice {
         }
     }
 
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    }
+
     fn map_phys(&mut self, size_bytes: usize) -> IoResult<usize> {
         self.maps = self.maps.checked_add(1).ok_or(IoError::FilesystemError)?;
 
@@ -130,6 +134,10 @@ impl FileDevice for FboInfoDevice {
 
     fn len(&self) -> usize {
         self.get().len()
+    }
+
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
     }
 
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {

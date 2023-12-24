@@ -59,6 +59,11 @@ impl FileDevice for File {
         self.bytes.len()
     }
 
+    fn set_len(&mut self, len: usize) -> IoResult<()> {
+        self.bytes.resize(len, 0);
+        Ok(())
+    }
+
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
         self.bytes.read(offset, buf)
     }
@@ -77,6 +82,10 @@ impl FileDevice for StaticRoFile {
 
     fn len(&self) -> usize {
         self.bytes.len()
+    }
+
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
     }
 
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {

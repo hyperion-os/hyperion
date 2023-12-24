@@ -124,6 +124,10 @@ impl FileDevice for RtcDevice {
         mem::size_of::<i64>()
     }
 
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    }
+
     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
         let bytes = &RTC.now_bytes()[..];
         bytes.read(offset, buf)
