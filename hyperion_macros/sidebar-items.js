@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["array","bmp_to_font","build_rev","build_time","gen_int_handlers","get_int_handlers","rtc_year"]};
+window.SIDEBAR_ITEMS = {"macro":["array","build_rev","build_time","gen_int_handlers","get_int_handlers","rtc_year"]};
