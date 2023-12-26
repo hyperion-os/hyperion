@@ -6,19 +6,23 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
-use core::{any::Any, mem};
+use core::{
+    any::Any,
+    mem,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use hyperion_arch::vmm::PageMap;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
-    ipc::pipe::{channel_with, Channel, Receiver, Sender},
+    ipc::pipe::{channel_with, Channel, Pipe, Receiver, Sender},
     lock::{Futex, Mutex},
     process,
     task::{Process, ProcessExt},
 };
 use hyperion_syscall::{
     err::{Error, Result},
-    fs::FileDesc,
+    fs::{FileDesc, Seek},
     net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
 use hyperion_vfs::{
@@ -36,6 +40,7 @@ pub static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(Node::new_root);
 
 //
 
+#[derive(Clone)]
 pub struct SparseVec<T> {
     inner: Vec<Option<T>>,
 }
@@ -93,120 +98,263 @@ impl<T> SparseVec<T> {
 
 //
 
-pub struct PipeInput(pub Sender<u8>);
+pub trait FileDescriptor: Send + Sync {
+    fn as_any(&self) -> &dyn Any;
 
-impl FileDevice for PipeInput {
-    fn as_any(&self) -> &dyn Any {
-        self
+    /// `end - start`
+    fn len(&self) -> Result<usize> {
+        Err(Error::INVALID_ARGUMENT)
     }
 
-    fn len(&self) -> usize {
-        0
+    fn is_empty(&self) -> Result<bool> {
+        self.len().map(|len| len == 0)
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
+    /// truncate/add zeros
+    #[allow(unused_variables)]
+    fn set_len(&self, len: usize) -> Result<()> {
+        Err(Error::INVALID_ARGUMENT)
     }
 
-    fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
-        if let Ok(n) = self.0.weak_recv_slice(buf) {
-            Ok(n)
-        } else {
-            Ok(0)
-        }
+    // /// get the current read/write position
+    // fn tell(&self) -> Result<usize> {
+    //     Err(Error::INVALID_ARGUMENT)
+    // }
+
+    /// set the current read/write position
+    #[allow(unused_variables)]
+    fn seek(&self, offset: isize, origin: Seek) -> Result<usize> {
+        Err(Error::INVALID_ARGUMENT)
     }
 
-    fn write(&mut self, _: usize, data: &[u8]) -> IoResult<usize> {
-        if self.0.send_slice(data).is_err() {
-            Ok(0)
-        } else {
-            Ok(data.len())
-        }
-    }
-}
-
-pub struct PipeOutput(pub Receiver<u8>);
-
-impl FileDevice for PipeOutput {
-    fn as_any(&self) -> &dyn Any {
-        self
+    /// read and advance the read/write position
+    #[allow(unused_variables)]
+    fn read(&self, buf: &mut [u8]) -> Result<usize> {
+        Err(Error::INVALID_ARGUMENT)
     }
 
-    fn len(&self) -> usize {
-        0
-    }
-
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
-        if let Ok(n) = self.0.recv_slice(buf) {
-            Ok(n)
-        } else {
-            Ok(0)
-        }
-    }
-
-    fn write(&mut self, _: usize, data: &[u8]) -> IoResult<usize> {
-        if self.0.weak_send_slice(data).is_err() {
-            Ok(0)
-        } else {
-            Ok(data.len())
-        }
+    /// write and advance the read/write position
+    #[allow(unused_variables)]
+    fn write(&self, buf: &[u8]) -> Result<usize> {
+        Err(Error::INVALID_ARGUMENT)
     }
 }
 
-pub struct ProcessExtra {
-    pub files: Mutex<SparseVec<File>>,
-    pub sockets: Mutex<SparseVec<Socket>>,
-}
-
-pub type File = Arc<Mutex<FileInner>>;
-
-pub struct FileInner {
+/// file descriptor backend that points to an opened VFS file
+pub struct FileDescData {
+    /// VFS node
     pub file_ref: FileRef<Futex>,
-    pub position: usize,
+
+    /// the current read/write offset
+    pub position: AtomicUsize,
 }
 
-pub struct Socket {
-    pub socket_ref: SocketRef,
+impl Clone for FileDescData {
+    fn clone(&self) -> Self {
+        let position = AtomicUsize::new(self.position.load(Ordering::SeqCst));
+        Self {
+            file_ref: self.file_ref.clone(),
+            position,
+        }
+    }
 }
 
-pub type SocketRef = Arc<Mutex<SocketFile>>;
-
-pub struct SocketFile {
-    pub domain: SocketDomain,
-    pub ty: SocketType,
-    pub proto: Protocol,
-
-    pub incoming: Option<Arc<Channel<LocalSocketConn>>>,
-    pub connection: Option<LocalSocketConn>,
+impl From<FileRef<Futex>> for FileDescData {
+    fn from(file_ref: FileRef<Futex>) -> Self {
+        Self {
+            file_ref,
+            position: AtomicUsize::new(0),
+        }
+    }
 }
 
-impl SocketFile {
-    pub fn incoming(&mut self) -> Arc<Channel<LocalSocketConn>> {
-        self.incoming
-            .get_or_insert_with(|| Arc::new(Channel::new(16)))
-            .clone()
+impl FileDescriptor for FileDescData {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 
-    pub fn try_incoming(&self) -> Option<Arc<Channel<LocalSocketConn>>> {
-        self.incoming.as_ref().cloned()
+    fn len(&self) -> Result<usize> {
+        Ok(self.file_ref.lock().len())
     }
 
-    pub fn try_connection(&self) -> Option<LocalSocketConn> {
-        self.connection.as_ref().cloned()
+    fn set_len(&self, len: usize) -> Result<()> {
+        self.file_ref
+            .lock()
+            .set_len(len)
+            .map_err(map_vfs_err_to_syscall_err)
+    }
+
+    fn seek(&self, offset: isize, origin: Seek) -> Result<usize> {
+        let pos = match origin {
+            Seek::SET => {
+                let _lock = self.file_ref.lock();
+                let offset = offset.abs_diff(0);
+                self.position.store(offset, Ordering::SeqCst);
+                offset
+            }
+            Seek::CUR => {
+                if offset == 0 {
+                    self.position.load(Ordering::SeqCst)
+                } else if offset > 0 {
+                    let _lock = self.file_ref.lock();
+                    self.position.fetch_add(offset as usize, Ordering::SeqCst)
+                } else {
+                    let _lock = self.file_ref.lock();
+                    self.position
+                        .fetch_sub((-offset) as usize, Ordering::SeqCst)
+                }
+            }
+            Seek::END => {
+                let lock = self.file_ref.lock();
+                let pos = (lock.len() as isize + offset) as usize;
+                self.position.store(pos, Ordering::SeqCst);
+                pos
+            }
+            _ => return Err(Error::INVALID_FLAGS),
+        };
+
+        Ok(pos)
+    }
+
+    fn read(&self, buf: &mut [u8]) -> Result<usize> {
+        let lock = self.file_ref.lock();
+        let bytes = lock
+            .read(self.position.load(Ordering::SeqCst), buf)
+            .map_err(map_vfs_err_to_syscall_err)?;
+        self.position.fetch_add(bytes, Ordering::SeqCst);
+        Ok(bytes)
+    }
+
+    fn write(&self, buf: &[u8]) -> Result<usize> {
+        let lock = self.file_ref.lock();
+        let bytes = self
+            .file_ref
+            .lock()
+            .write(self.position.load(Ordering::SeqCst), buf)
+            .map_err(map_vfs_err_to_syscall_err)?;
+        self.position.fetch_add(bytes, Ordering::SeqCst);
+        Ok(bytes)
     }
 }
 
 #[derive(Clone)]
-pub struct LocalSocketConn {
+pub struct PipeDescData {
+    pipe: Arc<Pipe>,
+}
+
+impl FileDescriptor for PipeDescData {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn len(&self) -> Result<usize> {
+        Err(Error::IS_A_PIPE)
+    }
+
+    fn set_len(&self, len: usize) -> Result<()> {
+        Err(Error::IS_A_PIPE)
+    }
+
+    fn seek(&self, offset: isize, origin: Seek) -> Result<usize> {
+        Err(Error::IS_A_PIPE)
+    }
+
+    fn read(&self, buf: &mut [u8]) -> Result<usize> {
+        if let Ok(n) = self.pipe.recv_slice(buf) {
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn write(&self, buf: &[u8]) -> Result<usize> {
+        if self.pipe.send_slice(buf).is_ok() {
+            Ok(buf.len())
+        } else {
+            Ok(0)
+        }
+    }
+}
+
+/// general socket backend info
+#[derive(Clone)]
+pub struct SocketInfo {
+    pub domain: SocketDomain,
+    pub ty: SocketType,
+    pub proto: Protocol,
+}
+
+/// file descriptor backend that points to a local domain socket listener
+#[derive(Clone)]
+pub struct SocketLocalListenerDescData {
+    pub info: SocketInfo,
+    pub incoming: Arc<Channel<SocketPipe>>,
+}
+
+impl SocketLocalListenerDescData {
+    pub fn new(info: SocketInfo) -> Self {
+        Self {
+            info,
+            incoming: Arc::new(Channel::new(16)),
+        }
+    }
+}
+
+impl FileDescriptor for SocketLocalListenerDescData {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// file descriptor backend that points to a local domain socket connection
+#[derive(Clone)]
+pub struct SocketLocalConnDescData {
+    pub info: SocketInfo,
+    pub conn: SocketPipe,
+}
+
+impl FileDescriptor for SocketLocalConnDescData {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn len(&self) -> Result<usize> {
+        Err(Error::IS_A_PIPE)
+    }
+
+    fn set_len(&self, len: usize) -> Result<()> {
+        Err(Error::IS_A_PIPE)
+    }
+
+    fn seek(&self, offset: isize, origin: Seek) -> Result<usize> {
+        Err(Error::IS_A_PIPE)
+    }
+
+    fn read(&self, buf: &mut [u8]) -> Result<usize> {
+        if let Ok(n) = self.conn.recv.recv_slice(buf) {
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn write(&self, buf: &[u8]) -> Result<usize> {
+        if self.conn.send.send_slice(buf).is_ok() {
+            Ok(buf.len())
+        } else {
+            Ok(0)
+        }
+    }
+}
+
+/// local domain socket "pipe"
+#[derive(Clone)]
+pub struct SocketPipe {
     pub send: Sender<u8>,
     pub recv: Receiver<u8>,
 }
 
-impl LocalSocketConn {
+impl SocketPipe {
     pub fn new() -> (Self, Self) {
         let (send_0, recv_1) = channel_with(0x1000);
         let (send_1, recv_0) = channel_with(0x1000);
@@ -223,25 +371,16 @@ impl LocalSocketConn {
     }
 }
 
-impl FileDevice for SocketFile {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+//
 
-    fn len(&self) -> usize {
-        0
-    }
+pub struct ProcessExtra {
+    pub files: Mutex<SparseVec<Arc<dyn FileDescriptor>>>,
+}
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, _offset: usize, _buf: &mut [u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn write(&mut self, _offset: usize, _buf: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
+impl Clone for ProcessExtra {
+    fn clone(&self) -> Self {
+        let files = Mutex::new(self.files.lock().clone());
+        Self { files }
     }
 }
 
@@ -252,82 +391,54 @@ impl ProcessExt for ProcessExtra {
 
     fn close(&self) {
         self.files.lock().inner.clear();
-        self.sockets.lock().inner.clear();
     }
 }
 
 //
 
-pub fn get_socket_locked(socket: SocketDesc) -> Result<ArcMutexGuard<Futex, SocketFile>> {
-    get_socket(socket).map(|v| v.lock_arc())
+pub fn fd_query(fd: FileDesc) -> Result<Arc<dyn FileDescriptor>> {
+    with_proc_ext(|ext| {
+        ext.files
+            .lock()
+            .get(fd.0)
+            .ok_or(Error::BAD_FILE_DESCRIPTOR)
+            .cloned()
+    })
 }
 
-pub fn get_socket(socket: SocketDesc) -> Result<Arc<Mutex<SocketFile>>> {
+pub fn fd_push(data: Arc<dyn FileDescriptor>) -> FileDesc {
+    with_proc_ext(|ext| FileDesc(ext.files.lock().push(data.into())))
+}
+
+pub fn fd_replace(fd: FileDesc, data: Arc<dyn FileDescriptor>) -> Option<Arc<dyn FileDescriptor>> {
+    with_proc_ext(|ext| ext.files.lock().replace(fd.0, data.into()))
+}
+
+pub fn fd_copy(old: FileDesc, new: FileDesc) {
+    with_proc_ext(|ext| {
+        let mut files = ext.files.lock();
+
+        if let Some(old) = files.get(old.0).cloned() {
+            files.replace(new.0, old);
+        }
+    })
+}
+
+pub fn fd_clone_all() -> SparseVec<Arc<dyn FileDescriptor>> {
+    with_proc_ext(|ext| ext.files.lock().clone())
+}
+
+pub fn with_proc_ext<F: FnOnce(&ProcessExtra) -> T, T>(f: F) -> T {
     let this = process();
     let ext = process_ext_with(&this);
-
-    let socket = ext
-        .sockets
-        .lock()
-        .get(socket.0)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
-        .socket_ref
-        .clone();
-
-    Ok(socket)
+    f(ext)
 }
-
-pub fn get_file(file: FileDesc) -> Result<Arc<Mutex<FileInner>>> {
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    let mut files = ext.files.lock();
-
-    let file = files
-        .get_mut(file.0)
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?
-        .clone();
-
-    Ok(file)
-}
-
-pub fn push_file(file: FileInner) -> FileDesc {
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    let file = File::new(Mutex::new(file));
-
-    let fd = ext.files.lock().push(file);
-    FileDesc(fd)
-}
-
-pub fn push_socket(socket: SocketFile) -> SocketDesc {
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    let socket = Socket {
-        socket_ref: Arc::new(Mutex::new(socket)),
-    };
-
-    let fd = ext.sockets.lock().push(socket);
-    SocketDesc(fd)
-}
-
-// fn get_file(file: FileDesc) -> Result {
-//     let this = process();
-//     let ext = process_ext_with(&this);
-
-//     let mut files = ext.files.lock();
-
-//     let file = files.get_mut(file.0).ok_or(Error::BAD_FILE_DESCRIPTOR)?;
-// }
 
 pub fn process_ext_with(proc: &Process) -> &ProcessExtra {
     proc.ext
         .call_once(|| {
             Box::new(ProcessExtra {
                 files: Mutex::new(SparseVec::new()),
-                sockets: Mutex::new(SparseVec::new()),
             })
         })
         .as_any()

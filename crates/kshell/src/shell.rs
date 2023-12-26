@@ -13,7 +13,7 @@ use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
 use hyperion_futures::timer::ticks;
 use hyperion_instant::Instant;
-use hyperion_kernel_impl::{PipeInput, PipeOutput, VFS_ROOT};
+use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -505,42 +505,6 @@ impl Shell {
         });
 
         // spawn the new process
-        schedule(move || {
-            // set its name
-            let name = name.as_ref();
-            hyperion_scheduler::rename(name);
-
-            // setup the STDIO
-            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeOutput(stdin_rx))) as _,
-                position: 0,
-            });
-            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stdout_tx))) as _,
-                position: 0,
-            });
-            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stderr_tx))) as _,
-                position: 0,
-            });
-
-            // load and exec the binary
-            let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
-                .into_iter()
-                .chain(args.as_deref().iter().flat_map(|args| args.split(' ')))
-                .collect();
-            let args = &args[..];
-
-            hyperion_log::trace!("spawning \"{name}\" with args {args:?}");
-
-            let loader = hyperion_loader::Loader::new(elf.as_ref());
-
-            loader.load();
-
-            if loader.enter_userland(args).is_none() {
-                hyperion_log::debug!("entry point missing");
-            }
-        });
 
         // start sending keyboard events to the process and read stdout into the terminal
         let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));

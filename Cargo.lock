@@ -569,6 +569,7 @@ dependencies = [
  "hyperion-driver-ps2",
  "hyperion-driver-rtc",
  "hyperion-keyboard",
+ "hyperion-random",
  "hyperion-sync",
  "hyperion-vfs",
 ]
@@ -740,6 +741,7 @@ dependencies = [
  "hyperion-num-postfix",
  "hyperion-random",
  "hyperion-scheduler",
+ "hyperion-syscall",
  "hyperion-vfs",
  "itertools",
  "libm",

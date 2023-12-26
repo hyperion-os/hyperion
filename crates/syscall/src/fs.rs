@@ -2,9 +2,14 @@ use bitflags::bitflags;
 
 //
 
-pub const SEEK_SET: usize = 0;
-pub const SEEK_CUR: usize = 1;
-pub const SEEK_END: usize = 2;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Seek(pub usize);
+
+impl Seek {
+    pub const SET: Self = Seek(0);
+    pub const CUR: Self = Seek(1);
+    pub const END: Self = Seek(2);
+}
 
 //
 

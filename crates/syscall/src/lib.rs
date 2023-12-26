@@ -263,9 +263,9 @@ pub fn connect(socket: SocketDesc, addr: &str) -> Result<()> {
 
 /// send data to a socket
 #[inline(always)]
-pub fn send(socket: SocketDesc, data: &[u8], flags: usize) -> Result<()> {
+pub fn send(socket: SocketDesc, data: &[u8], flags: usize) -> Result<usize> {
     let (data, data_len) = (data.as_ptr() as usize, data.len());
-    unsafe { syscall_4(id::SEND, socket.0, data, data_len, flags) }.map(|_| {})
+    unsafe { syscall_4(id::SEND, socket.0, data, data_len, flags) }
 }
 
 /// read data from a socket

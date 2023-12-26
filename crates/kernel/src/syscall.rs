@@ -14,9 +14,9 @@ use hyperion_arch::syscall::SyscallRegs;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
-    get_file, get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with,
-    push_file, push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut,
-    read_untrusted_ref, read_untrusted_str, File, FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
+    fd_push, fd_query, map_vfs_err_to_syscall_err, process_ext_with, read_untrusted_bytes,
+    read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref, read_untrusted_str, File,
+    FileDescData, FileInner, SocketFile, SocketLocalListenerDescData, SocketPipe, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
@@ -28,7 +28,7 @@ use hyperion_scheduler::{
 };
 use hyperion_syscall::{
     err::{Error, Result},
-    fs::{FileDesc, FileOpenFlags, Metadata},
+    fs::{FileDesc, FileOpenFlags, Metadata, Seek},
     id,
     net::{Protocol, SocketDesc, SocketDomain, SocketType},
 };
@@ -438,14 +438,18 @@ fn _accept(socket: SocketDesc) -> Result<SocketDesc> {
 ///
 /// [`hyperion_syscall::connect`]
 fn connect(args: &mut SyscallRegs) -> Result<usize> {
-    let socket = SocketDesc(args.arg0 as _);
+    let socket = FileDesc(args.arg0 as _);
     let addr = read_untrusted_str(args.arg1, args.arg2)?;
 
     _connect(socket, addr).map(|_| 0)
 }
 
-fn _connect(socket: SocketDesc, addr: &str) -> Result<()> {
+fn _connect(socket_fd: FileDesc, addr: &str) -> Result<()> {
     // get the client socket early to test for errors, but lock it late
+    let client = fd_query(socket_fd)?;
+    let client = client
+        .as_any()
+        .downcast_ref::<SocketLocalListenerDescData>();
     let client = get_socket(socket)?;
 
     let server = VFS_ROOT
@@ -463,7 +467,7 @@ fn _connect(socket: SocketDesc, addr: &str) -> Result<()> {
 
     drop(server);
 
-    let (conn_client, conn_server) = LocalSocketConn::new();
+    let (conn_client, conn_server) = SocketPipe::new();
     client.lock().connection = Some(conn_client);
     incoming
         .send(conn_server)
@@ -476,50 +480,34 @@ fn _connect(socket: SocketDesc, addr: &str) -> Result<()> {
 ///
 /// [`hyperion_syscall::send`]
 pub fn send(args: &mut SyscallRegs) -> Result<usize> {
-    let socket = SocketDesc(args.arg0 as _);
-    let data = read_untrusted_bytes(args.arg1, args.arg2)?;
+    let socket = FileDesc(args.arg0 as _);
+    let buf = read_untrusted_bytes(args.arg1, args.arg2)?;
     let flags = args.arg3 as _;
 
-    _send(socket, data, flags).map(|_| 0)
+    _send(socket, buf, flags)
 }
 
-fn _send(socket: SocketDesc, data: &[u8], _flags: usize) -> Result<()> {
-    let socket = get_socket_locked(socket)?;
-
-    let Some(conn) = socket.try_connection() else {
-        return Err(Error::BAD_FILE_DESCRIPTOR);
-    };
-
-    drop(socket);
-
-    conn.send.send_slice(data).map_err(|_| Error::CLOSED)?;
-
-    return Ok(());
+fn _send(socket_fd: FileDesc, buf: &[u8], _flags: usize) -> Result<usize> {
+    let socket = fd_query(socket_fd)?;
+    socket.write(buf)
 }
 
 /// recv data from a socket
 ///
+/// `read` does the exact same thing
+///
 /// [`hyperion_syscall::recv`]
 pub fn recv(args: &mut SyscallRegs) -> Result<usize> {
-    let socket = SocketDesc(args.arg0 as _);
+    let socket = FileDesc(args.arg0 as _);
     let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
     let flags = args.arg3 as _;
 
     _recv(socket, buf, flags)
 }
 
-fn _recv(socket: SocketDesc, buf: &mut [u8], _flags: usize) -> Result<usize> {
-    let socket = get_socket_locked(socket)?;
-
-    let Some(conn) = socket.try_connection() else {
-        return Err(Error::BAD_FILE_DESCRIPTOR);
-    };
-
-    drop(socket);
-
-    let n_bytes = conn.recv.recv_slice(buf).map_err(|_| Error::CLOSED)?;
-
-    return Ok(n_bytes);
+fn _recv(socket_fd: FileDesc, buf: &mut [u8], _flags: usize) -> Result<usize> {
+    let socket = fd_query(socket_fd)?;
+    socket.read(buf)
 }
 
 /// pid of the current process
@@ -579,10 +567,10 @@ pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
         writeln!(&mut buf, "{mode} {size} {name}").unwrap();
     }
 
-    let fd = push_file(FileInner {
+    let fd = fd_push(Arc::new(FileDescData {
         file_ref: Arc::new(Mutex::new(ramdisk::File::new(Vec::from(buf)))),
-        position: 0,
-    });
+        position: AtomicUsize::new(0),
+    }));
 
     Ok(fd.0)
 }
@@ -627,7 +615,13 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
         error!("handle map_file offset {offset:?}");
     }
 
-    let mut file = get_file(file)?.lock().file_ref.lock_arc();
+    let file = fd_query(fd)?;
+
+    let file = file
+        .as_any()
+        .downcast_ref::<FileDescData>()
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?;
+    let mut file = file.file_ref.lock();
 
     let phys = file.map_phys(size).map_err(map_vfs_err_to_syscall_err)?;
 
@@ -653,13 +647,18 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::unmap_file`]
 pub fn unmap_file(args: &mut SyscallRegs) -> Result<usize> {
-    let file = FileDesc(args.arg0 as _);
+    let fd = FileDesc(args.arg0 as _);
     let at = NonNull::new(args.arg1 as *mut ());
     let size = args.arg2 as usize;
 
-    hyperion_log::debug!("unmap_file({file:?}, {at:?}, {size})");
+    // hyperion_log::debug!("unmap_file({file:?}, {at:?}, {size})");
 
-    let file = get_file(file)?.lock_arc();
+    let file = fd_query(fd)?;
+
+    let file = file
+        .as_any()
+        .downcast_ref::<FileDescData>()
+        .ok_or(Error::BAD_FILE_DESCRIPTOR)?;
 
     file.file_ref
         .lock()
@@ -674,13 +673,12 @@ pub fn unmap_file(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::metadata`]
 pub fn metadata(args: &mut SyscallRegs) -> Result<usize> {
     // hyperion_log::debug!("metadata: a0:{} a1:{:#x}", args.arg0, args.arg1);
-    let file = FileDesc(args.arg0 as _);
+    let fd = FileDesc(args.arg0 as _);
     let meta: &mut Metadata = read_untrusted_mut(args.arg1)?;
 
-    let file = get_file(file)?.lock_arc();
-    let file_ref = file.file_ref.lock();
-    meta.len = file_ref.len();
-    meta.position = file.position;
+    let file = fd_query(fd)?;
+    meta.len = file.len()?;
+    meta.position = file.seek(0, Seek::CUR)?;
 
     Ok(0)
 }
@@ -691,23 +689,10 @@ pub fn metadata(args: &mut SyscallRegs) -> Result<usize> {
 pub fn seek(args: &mut SyscallRegs) -> Result<usize> {
     let file = FileDesc(args.arg0 as _);
     let offset = args.arg1 as isize;
-    let origin = args.arg2 as usize;
+    let origin = Seek(args.arg2 as usize);
 
-    let mut file = get_file(file)?.lock_arc();
-    let len = file.file_ref.lock().len();
-
-    match origin {
-        hyperion_syscall::fs::SEEK_SET => {
-            file.position = offset as usize;
-        }
-        hyperion_syscall::fs::SEEK_CUR => {
-            file.position = (file.position as isize + offset) as usize;
-        }
-        hyperion_syscall::fs::SEEK_END => {
-            file.position = (len as isize + offset) as usize;
-        }
-        _ => return Err(Error::INVALID_FLAGS),
-    }
+    let file = fd_query(fd)?;
+    file.seek(offset, origin)?;
 
     Ok(0)
 }
