@@ -25,10 +25,10 @@ fn main() {
 
     let result = match cmd {
         "cat" => cat::cmd(args),
-        "ls" => ls::cmd(args),
-        "touch" => touch::cmd(args),
-        "sleep" => sleep::cmd(args),
         "echo" => echo::cmd(args),
+        "ls" => ls::cmd(args),
+        "sleep" => sleep::cmd(args),
+        "touch" => touch::cmd(args),
         _ => crate::cmd(),
     };
 
