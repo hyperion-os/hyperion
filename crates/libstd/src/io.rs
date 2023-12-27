@@ -111,6 +111,18 @@ impl<T: Read> BufReader<T> {
         }
     }
 
+    pub fn get_ref(&self) -> &T {
+        &self.inner
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+
     fn buf(buf: &mut Option<Box<[u8]>>) -> &mut [u8] {
         buf.get_or_insert_with(|| unsafe { Box::new_zeroed_slice(0x4000).assume_init() })
     }
@@ -119,7 +131,7 @@ impl<T: Read> BufReader<T> {
         unsafe { append_to_string(buf, |b| read_until(self, b'\n', b)) }
     }
 
-    fn fill_buf(&mut self) -> Result<&[u8]> {
+    pub fn fill_buf(&mut self) -> Result<&[u8]> {
         let buf = Self::buf(&mut self.buf);
 
         if self.end != 0 {
@@ -133,7 +145,7 @@ impl<T: Read> BufReader<T> {
         Ok(&buf[..self.end])
     }
 
-    fn consume(&mut self, used: usize) {
+    pub fn consume(&mut self, used: usize) {
         let buf = Self::buf(&mut self.buf);
         buf.rotate_left(used);
         self.end -= used;
