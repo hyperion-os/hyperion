@@ -829,6 +829,7 @@ dependencies = [
 name = "hyperion-kshell"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "arcstr",
  "coreutils",
  "fbtest",

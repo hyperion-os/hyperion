@@ -1,16 +1,25 @@
 use alloc::{borrow::Cow, string::String, sync::Arc, vec::Vec};
 use core::{any::Any, str::from_utf8};
 
-use hyperion_kernel_impl::{FileDescData, FileDescriptor, VFS_ROOT};
+use anyhow::{anyhow, Result};
+use hyperion_kernel_impl::{fd_query, FileDescData, FileDescriptor, VFS_ROOT};
+use hyperion_loader::Loader;
 use hyperion_log::*;
 use hyperion_scheduler::{lock::Lazy, schedule};
-use hyperion_syscall::{err::Result, fs::FileDesc};
+use hyperion_syscall::fs::FileDesc;
+
+//
+
+static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
+    Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
+
+static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
+    Lazy::new(|| Arc::new(FileDescData::open("/dev/log").unwrap()));
 
 //
 
 pub struct Command {
     program: String,
-    program_elf: Cow<'static, [u8]>,
     args: Vec<String>,
 
     stdin: Option<Arc<dyn FileDescriptor>>,
@@ -19,10 +28,9 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn new(program: impl Into<String>, program_elf: Cow<'static, [u8]>) -> Self {
+    pub fn new(program: impl Into<String>) -> Self {
         Self {
             program: program.into(),
-            program_elf,
             args: Vec::new(),
 
             stdin: None,
@@ -56,21 +64,10 @@ impl Command {
         self
     }
 
-    pub fn spawn(&mut self) {
-        // let mut c = std::process::Command::new("ls");
-        // c.stdin(output)
-        // c.output();
-        // c.spawn();
-
+    pub fn spawn(&mut self) -> Result<()> {
         let program = self.program.clone();
-        let elf = self.program_elf.clone();
         let args = self.args.clone();
-
-        static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
-            Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
-
-        static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
-            Lazy::new(|| Arc::new(FileDescData::open("/dev/log").unwrap()));
+        let elf = Self::load_elf(&program)?;
 
         let stdin = self.stdin.clone().unwrap_or_else(|| NULL_DEV.clone());
         let stdout = self.stdout.clone().unwrap_or_else(|| NULL_DEV.clone());
@@ -85,7 +82,7 @@ impl Command {
             hyperion_kernel_impl::fd_replace(FileDesc(1), stdout);
             hyperion_kernel_impl::fd_replace(FileDesc(2), stderr);
 
-            // load and exec the binary
+            // setup the environment
             let args: Vec<&str> = [program.as_str()] // TODO: actually load binaries from vfs
                 .into_iter()
                 .chain(args.iter().flat_map(|args| args.split(' ')))
@@ -94,13 +91,38 @@ impl Command {
 
             trace!("spawning \"{program}\" with args {args:?}");
 
-            let loader = hyperion_loader::Loader::new(elf.as_ref());
-
+            // load ..
+            let loader = Loader::new(elf.as_ref());
             loader.load();
 
+            // .. and exec the binary
             if loader.enter_userland(args).is_none() {
-                hyperion_log::debug!("entry point missing");
+                let stderr = fd_query(FileDesc(2)).unwrap();
+                stderr.write(b"invalid ELF: entry point missing");
             }
         });
+
+        Ok(())
+    }
+
+    fn load_elf(path: &str) -> Result<Vec<u8>> {
+        let mut elf = Vec::new();
+
+        let bin = VFS_ROOT
+            .find_file(path, false, false)
+            .map_err(|err| anyhow!("unknown command `{path}`: {err}"))?;
+
+        let bin = bin.lock_arc();
+
+        loop {
+            let mut buf = [0; 64];
+            let len = bin.read(elf.len(), &mut buf).unwrap();
+            elf.extend_from_slice(&buf[..len]);
+            if len == 0 {
+                break;
+            }
+        }
+
+        Ok(elf)
     }
 }

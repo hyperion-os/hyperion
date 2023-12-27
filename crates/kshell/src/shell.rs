@@ -155,36 +155,165 @@ impl Shell {
             "clear" => self.term.clear(),
             "" => self.term.write_byte(b'\n'),
             other => {
-                let path = format!("/bin/{other}");
-                let elf = self.load_elf(&path)?;
-
-                self.run_cmd_from(path.into(), elf.into(), args).await?;
+                let name = if other.starts_with('/') {
+                    Cow::Owned(other.into())
+                } else {
+                    format!("/bin/{other}").into()
+                };
+                self.run_cmd_from(name, args).await?;
             }
         }
 
         Ok(Some(()))
     }
 
-    fn load_elf(&self, path: &str) -> Result<Vec<u8>> {
-        let mut elf = Vec::new();
-        let Ok(bin) = VFS_ROOT.find_file(path, false, false) else {
+    async fn run_cmd_from(&mut self, name: Cow<'static, str>, args: Option<&str>) -> Result<()> {
+        // TODO: HACK:
+        let is_doom = name.ends_with("doom");
+
+        // setup STDIO
+        let (stdin_tx, stdin_rx) = pipe().split();
+        let (stdout_tx, stdout_rx) = pipe().split();
+        let stderr_tx = stdout_tx.clone();
+
+        // hacky blocking channel -> async channel stuff
+        let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
+
+        // stdout -> terminal
+        spawn(move || {
+            loop {
+                let mut buf = [0; 128];
+                let Ok(len) = stdout_rx.recv_slice(&mut buf) else {
+                    trace!("end of stream");
+                    break;
+                };
+                let Ok(str) = core::str::from_utf8(&buf[..len]) else {
+                    trace!("invalid utf8");
+                    break;
+                };
+                o_tx.send(Some(str.to_string()));
+            }
+
+            o_tx.send(None);
+        });
+
+        // spawn the new process
+        let res = Command::new(name)
+            .args(args.unwrap_or("").split(' '))
+            .stdin(Arc::new(stdin_rx))
+            .stdout(Arc::new(stdout_tx))
+            .stderr(Arc::new(stderr_tx))
+            .spawn();
+
+        if let Err(err) = res {
             return Err(Error::Other {
-                msg: "unknown command {path}".into(),
+                msg: err.to_string(),
             });
-        };
+        }
 
-        let bin = bin.lock_arc();
+        // start sending keyboard events to the process and read stdout into the terminal
+        let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
 
+        let mut l_ctrl_held = false;
         loop {
-            let mut buf = [0; 64];
-            let len = bin.read(elf.len(), &mut buf).unwrap();
-            elf.extend_from_slice(&buf[..len]);
-            if len == 0 {
-                break;
+            // hyperion_log::debug!("Waiting for events ...");
+            let ev = events.next().await;
+            // hyperion_log::debug!("Event {ev:?}");
+
+            match ev {
+                Some(Ok(KeyboardEvent {
+                    state,
+                    keycode,
+                    unicode,
+                })) => {
+                    if state == ElementState::PressHold && keycode == KeyCode::LControl {
+                        l_ctrl_held = true;
+                    }
+                    if state == ElementState::PressRelease && keycode == KeyCode::LControl {
+                        l_ctrl_held = false;
+                    }
+
+                    if state != ElementState::PressRelease
+                        && (keycode == KeyCode::C || keycode == KeyCode::D)
+                        && l_ctrl_held
+                        && !is_doom
+                    // no ctrl+c / ctrl+d in raw mode
+                    {
+                        trace!("ctrl+C/D");
+                        break;
+                    }
+
+                    // TODO: raw mode
+                    if is_doom {
+                        // TODO: proper raw keyboard input
+                        #[derive(serde::Serialize, serde::Deserialize)]
+                        struct KeyboardEventSer {
+                            // pub scancode: u8,
+                            state: u8,
+                            keycode: u8,
+                            unicode: Option<char>,
+                        }
+
+                        if keycode == KeyCode::CapsLock {
+                            if stdin_tx.send_slice(b"\n").is_err() {
+                                trace!("stdin closed");
+                                break;
+                            }
+                            continue;
+                        }
+
+                        let mut ev = serde_json::to_string(&KeyboardEventSer {
+                            state: state as u8,
+                            keycode: keycode as u8,
+                            unicode,
+                        })
+                        .unwrap();
+                        ev.push('\n');
+                        // debug!("sending: {ev:?}");
+                        if stdin_tx.send_slice(ev.as_bytes()).is_err() {
+                            trace!("stdin closed");
+                            break;
+                        }
+                    } else {
+                        if let Some(unicode) = unicode {
+                            _ = write!(self.term, "{unicode}");
+                            self.term.flush();
+
+                            let mut str = [0; 4];
+
+                            let str = unicode.encode_utf8(&mut str);
+
+                            // TODO: buffering
+                            if stdin_tx.send_slice(str.as_bytes()).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                }
+                Some(Err(Some(s))) => {
+                    // TODO: HACK: doom locks the framebuffer and flushing here would deadlock,
+                    // as kshell cannot send any keyboard input anymore
+                    if is_doom {
+                        continue;
+                    }
+
+                    _ = write!(self.term, "{s}");
+                    self.term.flush();
+                }
+                Some(Err(None)) => {
+                    // _ = write!(self.term, "got EOI");
+                    // self.term.flush();
+                    trace!("EOI");
+                    break;
+                }
+                None => {
+                    trace!("NONE");
+                    break;
+                }
             }
         }
 
-        Ok(elf)
+        Ok(())
     }
 
     fn splash_cmd(&mut self, _: Option<&str>) -> Result<()> {
@@ -445,155 +574,6 @@ impl Shell {
 
             if stop {
                 break;
-            }
-        }
-
-        Ok(())
-    }
-
-    async fn run_cmd_from(
-        &mut self,
-        name: Cow<'static, str>,
-        elf: Cow<'static, [u8]>,
-        args: Option<&str>,
-    ) -> Result<()> {
-        // let args = args.map(String::from);
-
-        // TODO: HACK:
-        let is_doom = name.ends_with("doom");
-
-        // setup STDIO
-        let (stdin_tx, stdin_rx) = pipe().split();
-        let (stdout_tx, stdout_rx) = pipe().split();
-
-        // hacky blocking channel -> async channel stuff
-        let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
-
-        // stdout -> terminal
-        spawn(move || {
-            loop {
-                let mut buf = [0; 128];
-                let Ok(len) = stdout_rx.recv_slice(&mut buf) else {
-                    trace!("end of stream");
-                    break;
-                };
-                let Ok(str) = core::str::from_utf8(&buf[..len]) else {
-                    trace!("invalid utf8");
-                    break;
-                };
-                o_tx.send(Some(str.to_string()));
-            }
-
-            o_tx.send(None);
-        });
-
-        // spawn the new process
-        Command::new(name, elf)
-            .args(args.unwrap_or("").split(' '))
-            .stdin(Arc::new(stdin_rx))
-            .stdout(Arc::new(stdout_tx))
-            // .stderr(Arc::new(stderr_tx))
-            .spawn();
-
-        // start sending keyboard events to the process and read stdout into the terminal
-        let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
-
-        let mut l_ctrl_held = false;
-        loop {
-            // hyperion_log::debug!("Waiting for events ...");
-            let ev = events.next().await;
-            // hyperion_log::debug!("Event {ev:?}");
-
-            match ev {
-                Some(Ok(KeyboardEvent {
-                    state,
-                    keycode,
-                    unicode,
-                })) => {
-                    if state == ElementState::PressHold && keycode == KeyCode::LControl {
-                        l_ctrl_held = true;
-                    }
-                    if state == ElementState::PressRelease && keycode == KeyCode::LControl {
-                        l_ctrl_held = false;
-                    }
-
-                    if state != ElementState::PressRelease
-                        && (keycode == KeyCode::C || keycode == KeyCode::D)
-                        && l_ctrl_held
-                        && !is_doom
-                    // no ctrl+c / ctrl+d in raw mode
-                    {
-                        trace!("ctrl+C/D");
-                        break;
-                    }
-
-                    // TODO: raw mode
-                    if is_doom {
-                        // TODO: proper raw keyboard input
-                        #[derive(serde::Serialize, serde::Deserialize)]
-                        struct KeyboardEventSer {
-                            // pub scancode: u8,
-                            state: u8,
-                            keycode: u8,
-                            unicode: Option<char>,
-                        }
-
-                        if keycode == KeyCode::CapsLock {
-                            if stdin_tx.send_slice(b"\n").is_err() {
-                                trace!("stdin closed");
-                                break;
-                            }
-                            continue;
-                        }
-
-                        let mut ev = serde_json::to_string(&KeyboardEventSer {
-                            state: state as u8,
-                            keycode: keycode as u8,
-                            unicode,
-                        })
-                        .unwrap();
-                        ev.push('\n');
-                        // debug!("sending: {ev:?}");
-                        if stdin_tx.send_slice(ev.as_bytes()).is_err() {
-                            trace!("stdin closed");
-                            break;
-                        }
-                    } else {
-                        if let Some(unicode) = unicode {
-                            _ = write!(self.term, "{unicode}");
-                            self.term.flush();
-
-                            let mut str = [0; 4];
-
-                            let str = unicode.encode_utf8(&mut str);
-
-                            // TODO: buffering
-                            if stdin_tx.send_slice(str.as_bytes()).is_err() {
-                                break;
-                            }
-                        }
-                    }
-                }
-                Some(Err(Some(s))) => {
-                    // TODO: HACK: doom locks the framebuffer and flushing here would deadlock,
-                    // as kshell cannot send any keyboard input anymore
-                    if is_doom {
-                        continue;
-                    }
-
-                    _ = write!(self.term, "{s}");
-                    self.term.flush();
-                }
-                Some(Err(None)) => {
-                    // _ = write!(self.term, "got EOI");
-                    // self.term.flush();
-                    trace!("EOI");
-                    break;
-                }
-                None => {
-                    trace!("NONE");
-                    break;
-                }
             }
         }
 
