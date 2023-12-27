@@ -97,18 +97,22 @@ impl<T: Write> fmt::Write for BufWriter<T> {
 //
 
 pub struct BufReader<T> {
-    buf: Box<[u8]>,
+    buf: Option<Box<[u8]>>,
     end: usize,
     inner: T,
 }
 
 impl<T: Read> BufReader<T> {
-    pub fn new(read: T) -> Self {
+    pub const fn new(read: T) -> Self {
         Self {
-            buf: unsafe { Box::new_zeroed_slice(512).assume_init() },
+            buf: None,
             end: 0,
             inner: read,
         }
+    }
+
+    fn buf(buf: &mut Option<Box<[u8]>>) -> &mut [u8] {
+        buf.get_or_insert_with(|| unsafe { Box::new_zeroed_slice(0x4000).assume_init() })
     }
 
     pub fn read_line(&mut self, buf: &mut String) -> Result<usize> {
@@ -116,49 +120,23 @@ impl<T: Read> BufReader<T> {
     }
 
     fn fill_buf(&mut self) -> Result<&[u8]> {
-        let bytes_read = self.inner.read(&mut self.buf[self.end..])?;
-        self.end += bytes_read;
-        assert!(self.end <= self.buf.len());
+        let buf = Self::buf(&mut self.buf);
 
-        Ok(&self.buf[..self.end])
-    }
-
-    fn consume(&mut self, used: usize) {
-        self.buf.rotate_left(used);
-        self.end -= used;
-    }
-}
-
-pub struct ConstBufReader<'a, T> {
-    buf: &'a mut [u8],
-    end: u8,
-    inner: T,
-}
-
-impl<'a, T: Read> ConstBufReader<'a, T> {
-    pub const fn new(read: T, buf: &'a mut [u8]) -> Self {
-        Self {
-            buf,
-            end: 0,
-            inner: read,
+        if self.end != 0 {
+            return Ok(&buf[..self.end]);
         }
-    }
 
-    pub fn read_line(&mut self, buf: &mut String) -> Result<usize> {
-        unsafe { append_to_string(buf, |b| read_until_2(self, b'\n', b)) }
-    }
+        let bytes_read = self.inner.read(&mut buf[self.end..])?;
+        self.end += bytes_read;
+        assert!(self.end <= buf.len());
 
-    fn fill_buf(&mut self) -> Result<&[u8]> {
-        let bytes_read = self.inner.read(&mut self.buf[self.end as usize..])?;
-        self.end += bytes_read as u8;
-        assert!((self.end as usize) <= self.buf.len());
-
-        Ok(&self.buf[..self.end as usize])
+        Ok(&buf[..self.end])
     }
 
     fn consume(&mut self, used: usize) {
-        self.buf.rotate_left(used);
-        self.end -= used as u8;
+        let buf = Self::buf(&mut self.buf);
+        buf.rotate_left(used);
+        self.end -= used;
     }
 }
 
@@ -213,30 +191,6 @@ impl<T: Write> Write for BufWriter<T> {
 
 // TODO: BufReader and ConstBufReader should impl BufRead instead
 fn read_until<T: Read>(r: &mut BufReader<T>, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
-    let mut read = 0;
-    loop {
-        let (done, used) = {
-            let available = r.fill_buf()?;
-            match available.iter().position(|&c| c == delim) {
-                Some(i) => {
-                    buf.extend_from_slice(&available[..=i]);
-                    (true, i + 1)
-                }
-                None => {
-                    buf.extend_from_slice(available);
-                    (false, available.len())
-                }
-            }
-        };
-        r.consume(used);
-        read += used;
-        if done || used == 0 {
-            return Ok(read);
-        }
-    }
-}
-
-fn read_until_2<T: Read>(r: &mut ConstBufReader<T>, delim: u8, buf: &mut Vec<u8>) -> Result<usize> {
     let mut read = 0;
     loop {
         let (done, used) = {

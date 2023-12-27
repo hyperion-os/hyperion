@@ -10,3 +10,4 @@ workspace = true
 
 [dependencies]
 bitflags = "2.4"
+# strum = { version = "0.25", default-features = false, features = ["derive"] }

@@ -18,6 +18,7 @@ use arcstr::ArcStr;
 use crossbeam::atomic::AtomicCell;
 use hyperion_arch::{
     context::{switch as ctx_switch, Context},
+    done,
     stack::{AddressSpace, KernelStack, Stack, UserStack, USER_HEAP_TOP},
     vmm::PageMap,
 };
@@ -31,7 +32,7 @@ use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
-use crate::{after, cleanup::Cleanup, ipc::pipe::Pipe, stop, swap_current, task, tls};
+use crate::{after, cleanup::Cleanup, ipc::pipe::Pipe, swap_current, task, tls};
 
 //
 
@@ -113,7 +114,7 @@ extern "C" fn thread_entry() -> ! {
     let job = task().job.take().expect("no active jobs");
     job();
 
-    stop();
+    done();
 }
 
 //

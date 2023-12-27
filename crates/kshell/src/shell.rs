@@ -13,7 +13,7 @@ use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
 use hyperion_futures::timer::ticks;
 use hyperion_instant::Instant;
-use hyperion_kernel_impl::{PipeInput, PipeOutput, VFS_ROOT};
+use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -152,9 +152,7 @@ impl Shell {
             "send" => self.send_cmd(args)?,
             "kill" => self.kill_cmd(args)?,
             "exit" => return Ok(None),
-            "clear" => {
-                self.term.clear();
-            }
+            "clear" => self.term.clear(),
             "" => self.term.write_byte(b'\n'),
             other => {
                 let path = format!("/bin/{other}");
@@ -492,42 +490,6 @@ impl Shell {
         });
 
         // spawn the new process
-        schedule(move || {
-            // set its name
-            let name = name.as_ref();
-            hyperion_scheduler::rename(name);
-
-            // setup the STDIO
-            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeOutput(stdin_rx))) as _,
-                position: 0,
-            });
-            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stdout_tx))) as _,
-                position: 0,
-            });
-            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stderr_tx))) as _,
-                position: 0,
-            });
-
-            // load and exec the binary
-            let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
-                .into_iter()
-                .chain(args.as_deref().iter().flat_map(|args| args.split(' ')))
-                .collect();
-            let args = &args[..];
-
-            hyperion_log::trace!("spawning \"{name}\" with args {args:?}");
-
-            let loader = hyperion_loader::Loader::new(elf.as_ref());
-
-            loader.load();
-
-            if loader.enter_userland(args).is_none() {
-                hyperion_log::debug!("entry point missing");
-            }
-        });
 
         // start sending keyboard events to the process and read stdout into the terminal
         let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
@@ -554,7 +516,10 @@ impl Shell {
                     if state != ElementState::PressRelease
                         && (keycode == KeyCode::C || keycode == KeyCode::D)
                         && l_ctrl_held
+                        && !is_doom
+                    // no ctrl+c / ctrl+d in raw mode
                     {
+                        hyperion_log::debug!("ctrl+C/D");
                         break;
                     }
 
@@ -581,6 +546,14 @@ impl Shell {
                         unicode: Option<char>,
                     }
 
+                    if keycode == KeyCode::CapsLock {
+                        if stdin_tx.send_slice(b"\n").is_err() {
+                            hyperion_log::debug!("stdin closed");
+                            break;
+                        }
+                        continue;
+                    }
+
                     let mut ev = serde_json::to_string(&KeyboardEventSer {
                         state: state as u8,
                         keycode: keycode as u8,
@@ -590,7 +563,7 @@ impl Shell {
                     ev.push('\n');
                     // debug!("sending: {ev:?}");
                     if stdin_tx.send_slice(ev.as_bytes()).is_err() {
-                        // hyperion_log::debug!("stdin closed");
+                        hyperion_log::debug!("stdin closed");
                         break;
                     }
                 }
@@ -607,9 +580,13 @@ impl Shell {
                 Some(Err(None)) => {
                     // _ = write!(self.term, "got EOI");
                     // self.term.flush();
+                    hyperion_log::debug!("EOI");
                     break;
                 }
-                None => break,
+                None => {
+                    hyperion_log::debug!("NONE");
+                    break;
+                }
             }
         }
 

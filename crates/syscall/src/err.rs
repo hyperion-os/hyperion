@@ -55,6 +55,10 @@ impl_error! {
     pub const CONNECTION_REFUSED: "connection refused" = 21;
     pub const CLOSED: "stream closed" = 22;
 
+    pub const INVALID_ARGUMENT: "invalid argument" = 23;
+
+    pub const IS_A_PIPE: "file descriptor is a pipe/socket" = 24;
+
     pub const _: "unknown error" = _;
 }
 

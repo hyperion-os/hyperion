@@ -106,7 +106,7 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
     ints::GP_FAULT_HANDLER.store(|| {
         process().should_terminate.store(true, Ordering::Relaxed);
         debug!("GPF self term");
-        stop();
+        exit();
     });
 
     // init HPET timer interrupts for sleep events
@@ -116,18 +116,16 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
     apic::APIC_TIMER_HANDLER.store(|| {
         sleep::wake_up_completed(None);
 
-        if !tls().initialized.load(Ordering::SeqCst) {
+        let tls = tls();
+        if !tls.initialized.load(Ordering::SeqCst) || tls.idle.load(Ordering::SeqCst) {
             return;
         }
 
         if process().should_terminate.swap(false, Ordering::Relaxed) {
-            debug!("should_terminate stop");
-            stop();
+            exit();
         }
 
-        if !tls().idle.load(Ordering::SeqCst) {
-            yield_now();
-        }
+        yield_now();
     });
 
     // hyperion_sync::init_futex(futex::wait, futex::wake);
@@ -206,18 +204,24 @@ pub fn sleep_until(deadline: Instant) {
 
 /// destroy the current thread
 /// and switch to another thread
-#[track_caller]
-pub fn stop() -> ! {
+pub fn done() -> ! {
+    update_cpu_usage();
+
     if let Some(ext) = process().ext.get() {
         ext.close();
     }
-
-    update_cpu_usage();
 
     let next = wait_next_task::<Infallible>(|| None).unwrap();
     switch_because(next, TaskState::Dropping, Cleanup::Drop);
 
     unreachable!("a destroyed thread cannot continue executing");
+}
+
+/// destroy the current process
+/// and switch to another
+pub fn exit() -> ! {
+    process().should_terminate.store(true, Ordering::Release);
+    done();
 }
 
 /// spawn a new thread in the currently running process

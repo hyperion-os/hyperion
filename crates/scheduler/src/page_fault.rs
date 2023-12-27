@@ -10,7 +10,7 @@ use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use spin::Mutex;
 use x86_64::VirtAddr;
 
-use crate::{stop, task, task::TaskInner, tls};
+use crate::{exit, task, task::TaskInner, tls};
 
 //
 
@@ -42,7 +42,7 @@ pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFau
         // user process tried to access memory thats not available to it
         hyperion_log::warn!("killing user-space process, it tried to use {addr:#x} at {instr:#x}");
         current.should_terminate.store(true, Ordering::SeqCst);
-        stop();
+        exit();
     } else {
         handle_stack_grow(&current.kernel_stack, addr)?;
         handle_stack_grow(&current.user_stack, addr)?;

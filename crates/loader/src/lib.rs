@@ -62,7 +62,7 @@ impl<'a> Loader<'a> {
 
         if is_higher_half(v_end.as_u64()) {
             error!("ELF segments cannot be mapped to higher half");
-            hyperion_scheduler::stop();
+            hyperion_scheduler::exit();
         }
 
         let flags = Self::flags(segment.p_flags);
@@ -75,7 +75,7 @@ impl<'a> Loader<'a> {
             .alloc_at(v_size as usize / 0x1000, v_addr, flags)
             .unwrap_or_else(|_| {
                 error!("could not load ELF: out of VMEM, killing process");
-                hyperion_scheduler::stop();
+                hyperion_scheduler::exit();
             });
 
         // using the HHDM address allows writing to a page that the ELF requested to be read only

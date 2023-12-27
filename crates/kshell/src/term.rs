@@ -100,6 +100,10 @@ impl Term {
     pub fn clear(&mut self) {
         self.cursor = (0, 0);
         self.buf.fill(b' ');
+
+        let mut fbo = Framebuffer::get().unwrap().lock();
+        let (w, h) = (fbo.width, fbo.height);
+        fbo.fill(0, 0, w, h, Color::BLACK);
     }
 
     pub fn read_at(&self, cursor: (usize, usize)) -> u8 {
