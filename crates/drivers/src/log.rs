@@ -20,11 +20,11 @@ impl FileDevice for KernelLogs {
         0
     }
 
-    fn set_len(&mut self, len: usize) -> IoResult<()> {
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
         Err(IoError::PermissionDenied)
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, _: usize, _: &mut [u8]) -> IoResult<usize> {
         Ok(0)
     }
 

@@ -1,19 +1,18 @@
 use alloc::{
-    borrow::Cow,
     format,
     string::{String, ToString},
     sync::Arc,
-    vec::Vec,
 };
 use core::{fmt::Write, sync::atomic::Ordering};
 
+use anyhow::anyhow;
 use futures_util::stream::select;
 use hyperion_color::Color;
 use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
 use hyperion_futures::timer::ticks;
 use hyperion_instant::Instant;
-use hyperion_kernel_impl::VFS_ROOT;
+use hyperion_kernel_impl::{FileDescData, FileDescriptor, VFS_ROOT};
 use hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -36,7 +35,10 @@ use spin::Mutex;
 use time::OffsetDateTime;
 
 use super::{term::Term, *};
-use crate::{cmd::Command, snake::snake_game};
+use crate::{
+    cmd::{Command, NULL_DEV},
+    snake::snake_game,
+};
 
 //
 
@@ -127,6 +129,8 @@ impl Shell {
     }
 
     async fn run_line(&mut self, line: &str) -> Result<Option<()>> {
+        let line = line.trim();
+
         let (cmd, args) = line
             .split_once(' ')
             .map(|(cmd, args)| (cmd, Some(args)))
@@ -154,39 +158,100 @@ impl Shell {
             "exit" => return Ok(None),
             "clear" => self.term.clear(),
             "" => self.term.write_byte(b'\n'),
-            other => {
-                let name = if other.starts_with('/') {
-                    Cow::Owned(other.into())
-                } else {
-                    format!("/bin/{other}").into()
-                };
-                self.run_cmd_from(name, args).await?;
-            }
+            _ => self.cmd_line(line).await.map_err(|err| Error::Other {
+                msg: err.to_string(),
+            })?,
         }
 
         Ok(Some(()))
     }
 
-    async fn run_cmd_from(&mut self, name: Cow<'static, str>, args: Option<&str>) -> Result<()> {
-        // TODO: HACK:
-        let is_doom = name.ends_with("doom");
+    async fn cmd_line(&mut self, line: &str) -> anyhow::Result<()> {
+        let mut is_doom = false;
 
-        // setup STDIO
         let (stdin_tx, stdin_rx) = pipe().split();
-        let (stdout_tx, stdout_rx) = pipe().split();
-        let stderr_tx = stdout_tx.clone();
+        let (stderr_tx, stderr_rx) = pipe().split();
+
+        let stderr = Arc::new(stderr_tx);
+        let mut stdin = Arc::new(stdin_rx) as _;
+        for part in line.split('|') {
+            let mut redirects = part.split('>');
+
+            let program = redirects.next().unwrap_or(part).trim();
+            let (program, args) = program
+                .split_once(' ')
+                .map(|(cmd, args)| (cmd, Some(args)))
+                .unwrap_or((program, None));
+
+            let program = if program.starts_with('/') {
+                program.to_string()
+            } else {
+                format!("/bin/{program}")
+            };
+
+            let args = args.map(|v| v.split(' ')).into_iter().flatten();
+
+            // TODO: HACK:
+            is_doom |= program.ends_with("doom");
+
+            let mut cmd = Command::new(program);
+            cmd.args(args).stdin(stdin).stderr(stderr.clone());
+
+            if let Some(output_file) = redirects.last() {
+                let stdout_tx = Arc::new(
+                    FileDescData::open(output_file.trim())
+                        .map_err(|err| anyhow!("couldn't open file `{output_file:?}`: {err}"))?,
+                );
+
+                // spawn the new process
+                cmd.stdout(stdout_tx).spawn()?;
+
+                stdin = NULL_DEV.clone();
+            } else {
+                let (stdout_tx, stdout_rx) = pipe().split();
+
+                // spawn the new process
+                cmd.stdout(Arc::new(stdout_tx)).spawn()?;
+
+                stdin = Arc::new(stdout_rx);
+            };
+        }
 
         // hacky blocking channel -> async channel stuff
         let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
-
-        // stdout -> terminal
+        // last program's stdout (stdin) -> terminal
+        let o_tx_2 = o_tx.clone();
         spawn(move || {
             loop {
                 let mut buf = [0; 128];
-                let Ok(len) = stdout_rx.recv_slice(&mut buf) else {
+                let Ok(len) = stderr_rx.read(&mut buf) else {
                     trace!("end of stream");
                     break;
                 };
+                if len == 0 {
+                    trace!("end of stream");
+                    break;
+                }
+                let Ok(str) = core::str::from_utf8(&buf[..len]) else {
+                    trace!("invalid utf8");
+                    break;
+                };
+                o_tx_2.send(Some(str.to_string()));
+            }
+
+            o_tx_2.send(None);
+        });
+        spawn(move || {
+            loop {
+                let mut buf = [0; 128];
+                let Ok(len) = stdin.read(&mut buf) else {
+                    trace!("end of stream");
+                    break;
+                };
+                if len == 0 {
+                    trace!("end of stream");
+                    break;
+                }
                 let Ok(str) = core::str::from_utf8(&buf[..len]) else {
                     trace!("invalid utf8");
                     break;
@@ -196,20 +261,6 @@ impl Shell {
 
             o_tx.send(None);
         });
-
-        // spawn the new process
-        let res = Command::new(name)
-            .args(args.unwrap_or("").split(' '))
-            .stdin(Arc::new(stdin_rx))
-            .stdout(Arc::new(stdout_tx))
-            .stderr(Arc::new(stderr_tx))
-            .spawn();
-
-        if let Err(err) = res {
-            return Err(Error::Other {
-                msg: err.to_string(),
-            });
-        }
 
         // start sending keyboard events to the process and read stdout into the terminal
         let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
@@ -274,19 +325,17 @@ impl Shell {
                             trace!("stdin closed");
                             break;
                         }
-                    } else {
-                        if let Some(unicode) = unicode {
-                            _ = write!(self.term, "{unicode}");
-                            self.term.flush();
+                    } else if let Some(unicode) = unicode {
+                        _ = write!(self.term, "{unicode}");
+                        self.term.flush();
 
-                            let mut str = [0; 4];
+                        let mut str = [0; 4];
 
-                            let str = unicode.encode_utf8(&mut str);
+                        let str = unicode.encode_utf8(&mut str);
 
-                            // TODO: buffering
-                            if stdin_tx.send_slice(str.as_bytes()).is_err() {
-                                break;
-                            }
+                        // TODO: buffering
+                        if stdin_tx.send_slice(str.as_bytes()).is_err() {
+                            break;
                         }
                     }
                 }

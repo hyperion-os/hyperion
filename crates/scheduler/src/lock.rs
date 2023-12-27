@@ -122,8 +122,7 @@ unsafe impl lock_api::RawMutex for AutoFutex {
 
 //
 
-const INIT: usize = 2;
-const RUNNING: usize = 1;
+const INIT: usize = 1;
 const UNINIT: usize = 0;
 
 //
@@ -175,17 +174,14 @@ impl<T> Once<T> {
         //     .compare_exchange(UNINIT, RUNNING, Ordering::Acquire, Ordering::Relaxed)
         //     .is_err()
         // {}
-        if let Some(v) = self.get() {
-            return v;
-        } else {
-            self.call_once_cold(f)
-        }
+
+        self.get().unwrap_or_else(|| self.call_once_cold(f))
     }
 
     #[cold]
     fn call_once_cold(&self, f: impl FnOnce() -> T) -> &T {
         let mut ran = false;
-        let v = self.inner.call_once(move || {
+        let v = self.inner.call_once(|| {
             ran = true;
             f()
         });

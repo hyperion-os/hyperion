@@ -157,7 +157,7 @@ impl FileDescData {
 
     pub fn open(path: &str) -> Result<Self> {
         VFS_ROOT
-            .find_file("/dev/null", false, false)
+            .find_file(path, true, true)
             .map(Self::from)
             .map_err(map_vfs_err_to_syscall_err)
     }
@@ -206,18 +206,19 @@ impl FileDescriptor for FileDescData {
                 self.position.store(offset, Ordering::SeqCst);
                 offset
             }
-            Seek::CUR => {
-                if offset == 0 {
-                    self.position.load(Ordering::SeqCst)
-                } else if offset > 0 {
+            Seek::CUR => match offset.signum() {
+                1 => {
                     let _lock = self.file_ref.lock();
                     self.position.fetch_add(offset as usize, Ordering::SeqCst)
-                } else {
+                }
+                0 => self.position.load(Ordering::SeqCst),
+                -1 => {
                     let _lock = self.file_ref.lock();
                     self.position
                         .fetch_sub((-offset) as usize, Ordering::SeqCst)
                 }
-            }
+                _ => unreachable!(),
+            },
             Seek::END => {
                 let lock = self.file_ref.lock();
                 let pos = (lock.len() as isize + offset) as usize;
@@ -522,11 +523,11 @@ pub fn fd_query_of<T: FileDescriptor + Any + 'static>(fd: FileDesc) -> Result<Ar
 }
 
 pub fn fd_push(data: Arc<dyn FileDescriptor>) -> FileDesc {
-    with_proc_ext(|ext| FileDesc(ext.files.lock().push(data.into())))
+    with_proc_ext(|ext| FileDesc(ext.files.lock().push(data)))
 }
 
 pub fn fd_replace(fd: FileDesc, data: Arc<dyn FileDescriptor>) -> Option<Arc<dyn FileDescriptor>> {
-    with_proc_ext(|ext| ext.files.lock().replace(fd.0, data.into()))
+    with_proc_ext(|ext| ext.files.lock().replace(fd.0, data))
 }
 
 pub fn fd_take(fd: FileDesc) -> Option<Arc<dyn FileDescriptor>> {

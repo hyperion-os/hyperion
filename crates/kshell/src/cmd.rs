@@ -1,5 +1,4 @@
-use alloc::{borrow::Cow, string::String, sync::Arc, vec::Vec};
-use core::{any::Any, str::from_utf8};
+use alloc::{string::String, sync::Arc, vec::Vec};
 
 use anyhow::{anyhow, Result};
 use hyperion_kernel_impl::{fd_query, FileDescData, FileDescriptor, VFS_ROOT};
@@ -10,10 +9,10 @@ use hyperion_syscall::fs::FileDesc;
 
 //
 
-static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
+pub static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
     Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
 
-static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
+pub static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
     Lazy::new(|| Arc::new(FileDescData::open("/dev/log").unwrap()));
 
 //
@@ -98,7 +97,7 @@ impl Command {
             // .. and exec the binary
             if loader.enter_userland(args).is_none() {
                 let stderr = fd_query(FileDesc(2)).unwrap();
-                stderr.write(b"invalid ELF: entry point missing");
+                stderr.write(b"invalid ELF: entry point missing").unwrap();
             }
         });
 
