@@ -142,7 +142,6 @@ impl Shell {
             "cd" => self.cd_cmd(args)?,
             "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
-            "draw" => self.draw_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
             "rand" => self.rand_cmd(args)?,
             "snake" => self.snake_cmd(args).await?,
@@ -421,92 +420,6 @@ impl Shell {
         Ok(())
     }
 
-    fn draw_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let mut args = args.unwrap_or("").split(' ').filter(|arg| !arg.is_empty());
-        let mode = args.next().unwrap_or("");
-
-        fn next_int<'a>(
-            term: &mut Term,
-            args: &mut impl Iterator<Item = &'a str>,
-        ) -> Option<usize> {
-            let Some(arg) = args.next() else {
-                _ = writeln!(term, "unexpected EOF, expected number");
-                return None;
-            };
-
-            match arg.parse() {
-                Err(err) => {
-                    _ = writeln!(term, "failed to parse number: {err}");
-                    None
-                }
-                Ok(n) => Some(n),
-            }
-        }
-
-        fn next_color<'a>(
-            term: &mut Term,
-            args: &mut impl Iterator<Item = &'a str>,
-        ) -> Option<Color> {
-            let Some(arg) = args.next() else {
-                _ = writeln!(term, "unexpected EOF, expected color");
-                return None;
-            };
-
-            if let Some(col) = Color::from_hex(arg) {
-                Some(col)
-            } else {
-                _ = writeln!(term, "invalid color hex code");
-                None
-            }
-        }
-
-        match mode {
-            "rect" => {
-                let Some(x) = next_int(&mut self.term, &mut args) else {
-                    return Ok(());
-                };
-                let Some(y) = next_int(&mut self.term, &mut args) else {
-                    return Ok(());
-                };
-                let Some(mut w) = next_int(&mut self.term, &mut args) else {
-                    return Ok(());
-                };
-                let Some(mut h) = next_int(&mut self.term, &mut args) else {
-                    return Ok(());
-                };
-                let Some(col) = next_color(&mut self.term, &mut args) else {
-                    return Ok(());
-                };
-
-                let mut fbo = Framebuffer::get().unwrap().lock();
-                if x > fbo.width || y > fbo.height || w == 0 || h == 0 {
-                    return Ok(());
-                }
-                w = w.min(fbo.width - x);
-                h = h.min(fbo.height - y);
-                fbo.fill(x, y, w, h, col);
-
-                Ok(())
-            }
-            "line" => {
-                // TODO:
-                _ = writeln!(self.term, "todo");
-                Ok(())
-            }
-            "" => {
-                _ = writeln!(self.term, "specify mode [one of: rect, line]");
-                Ok(())
-            }
-            _ => {
-                _ = writeln!(
-                    self.term,
-                    "invalid mode `{mode}` [should be one of: rect, line]"
-                );
-                Ok(())
-            }
-        }
-    }
-
     fn kbl_cmd(&mut self, args: Option<&str>) -> Result<()> {
         let name = args.unwrap_or("us");
         if set_layout(name).is_none() {
@@ -529,7 +442,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, date, mem, draw, kbl, rand, snake, help, modeltest, run, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear");
+        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, date, mem, kbl, rand, snake, help, modeltest, run, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear");
 
         Ok(())
     }
