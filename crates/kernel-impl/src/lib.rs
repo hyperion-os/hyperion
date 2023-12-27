@@ -154,6 +154,13 @@ impl FileDescData {
             position: AtomicUsize::new(position),
         }
     }
+
+    pub fn open(path: &str) -> Result<Self> {
+        VFS_ROOT
+            .find_file("/dev/null", false, false)
+            .map(Self::from)
+            .map_err(map_vfs_err_to_syscall_err)
+    }
 }
 
 impl Clone for FileDescData {

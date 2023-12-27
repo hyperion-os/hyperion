@@ -3,7 +3,7 @@ use core::{any::Any, str::from_utf8};
 
 use hyperion_kernel_impl::{FileDescData, FileDescriptor, VFS_ROOT};
 use hyperion_log::*;
-use hyperion_scheduler::schedule;
+use hyperion_scheduler::{lock::Lazy, schedule};
 use hyperion_syscall::{err::Result, fs::FileDesc};
 
 //
@@ -62,34 +62,19 @@ impl Command {
         // c.output();
         // c.spawn();
 
-        struct KernelLogs;
-
-        impl FileDescriptor for KernelLogs {
-            fn as_any(&self) -> &dyn Any {
-                self
-            }
-
-            fn write(&self, buf: &[u8]) -> Result<usize> {
-                if let Ok(str) = from_utf8(buf) {
-                    println!("{str}");
-                }
-
-                Ok(buf.len())
-            }
-        }
-
         let program = self.program.clone();
         let elf = self.program_elf.clone();
         let args = self.args.clone();
 
-        let null = Arc::new(FileDescData::new(
-            VFS_ROOT.find_file("/dev/null", false, false).unwrap(),
-            0,
-        ));
+        static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
+            Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
 
-        let stdin = self.stdin.clone().unwrap_or_else(|| null.clone());
-        let stdout = self.stdout.clone().unwrap_or_else(|| null.clone());
-        let stderr = self.stderr.clone().unwrap_or_else(|| Arc::new(KernelLogs));
+        static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
+            Lazy::new(|| Arc::new(FileDescData::open("/dev/log").unwrap()));
+
+        let stdin = self.stdin.clone().unwrap_or_else(|| NULL_DEV.clone());
+        let stdout = self.stdout.clone().unwrap_or_else(|| NULL_DEV.clone());
+        let stderr = self.stderr.clone().unwrap_or_else(|| LOG_DEV.clone());
 
         schedule(move || {
             // set its name

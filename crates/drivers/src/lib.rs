@@ -12,6 +12,7 @@ use hyperion_vfs::tree::IntoNode;
 
 //
 
+mod log;
 mod null;
 mod rand;
 
@@ -26,6 +27,7 @@ pub fn lazy_install_early(root: impl IntoNode) {
     root.install_dev("dev/null", null::Null);
     root.install_dev("dev/random", rand::Random); // TODO: /dev/random is supposed to block when it runs out of entropy
     root.install_dev("dev/urandom", rand::Random);
+    root.install_dev("dev/log", log::KernelLogs);
     root.install_dev("dev/rtc", rtc::RtcDevice);
     root.install_dev("dev/hpet", acpi::hpet::HpetDevice);
     root.install_dev("dev/fb0", fbo::FboDevice::new());
