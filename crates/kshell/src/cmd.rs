@@ -1,22 +1,16 @@
-use alloc::{string::String, sync::Arc, vec::Vec};
-use core::any::Any;
+use alloc::{borrow::Cow, string::String, sync::Arc, vec::Vec};
+use core::{any::Any, str::from_utf8};
 
-use hyperion_kernel_impl::FileDescriptor;
-use hyperion_scheduler::{
-    lock::{Futex, Mutex},
-    process, schedule,
-};
-use hyperion_syscall::fs::FileDesc;
-use hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-    tree::FileRef,
-};
+use hyperion_kernel_impl::{FileDescData, FileDescriptor, VFS_ROOT};
+use hyperion_log::*;
+use hyperion_scheduler::schedule;
+use hyperion_syscall::{err::Result, fs::FileDesc};
 
 //
 
 pub struct Command {
     program: String,
+    program_elf: Cow<'static, [u8]>,
     args: Vec<String>,
 
     stdin: Option<Arc<dyn FileDescriptor>>,
@@ -25,9 +19,10 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn new(program: impl Into<String>) -> Self {
+    pub fn new(program: impl Into<String>, program_elf: Cow<'static, [u8]>) -> Self {
         Self {
             program: program.into(),
+            program_elf,
             args: Vec::new(),
 
             stdin: None,
@@ -46,82 +41,81 @@ impl Command {
         self
     }
 
+    pub fn stdin(&mut self, stdin: Arc<dyn FileDescriptor>) -> &mut Self {
+        self.stdin = Some(stdin);
+        self
+    }
+
+    pub fn stdout(&mut self, stdout: Arc<dyn FileDescriptor>) -> &mut Self {
+        self.stdout = Some(stdout);
+        self
+    }
+
+    pub fn stderr(&mut self, stderr: Arc<dyn FileDescriptor>) -> &mut Self {
+        self.stderr = Some(stderr);
+        self
+    }
+
     pub fn spawn(&mut self) {
         // let mut c = std::process::Command::new("ls");
         // c.stdin(output)
         // c.output();
         // c.spawn();
 
-        // struct KernelLogs;
+        struct KernelLogs;
 
-        // impl FileDevice for KernelLogs {
-        //     fn as_any(&self) -> &dyn Any {
-        //         self
-        //     }
+        impl FileDescriptor for KernelLogs {
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
 
-        //     fn len(&self) -> usize {
-        //         0
-        //     }
+            fn write(&self, buf: &[u8]) -> Result<usize> {
+                if let Ok(str) = from_utf8(buf) {
+                    println!("{str}");
+                }
 
-        //     fn set_len(&mut self, _: usize) -> IoResult<()> {
-        //         Err(IoError::PermissionDenied)
-        //     }
+                Ok(buf.len())
+            }
+        }
 
-        //     fn read(&self, _: usize, _: &mut [u8]) -> IoResult<usize> {
-        //         Err(IoError::PermissionDenied)
-        //     }
+        let program = self.program.clone();
+        let elf = self.program_elf.clone();
+        let args = self.args.clone();
 
-        //     fn write(&mut self, _: usize, buf: &[u8]) -> IoResult<usize> {
-        //         if let Ok(str) = core::str::from_utf8(buf) {
-        //             hyperion_log::println!("{str}");
-        //         }
+        let null = Arc::new(FileDescData::new(
+            VFS_ROOT.find_file("/dev/null", false, false).unwrap(),
+            0,
+        ));
 
-        //         Ok(buf.len())
-        //     }
-        // }
+        let stdin = self.stdin.clone().unwrap_or_else(|| null.clone());
+        let stdout = self.stdout.clone().unwrap_or_else(|| null.clone());
+        let stderr = self.stderr.clone().unwrap_or_else(|| Arc::new(KernelLogs));
 
-        // let program = self.program.clone();
+        schedule(move || {
+            // set its name
+            hyperion_scheduler::rename(program.as_str());
 
-        // let stdin = self.stdin.clone();
-        // let stdout = self.stdout.clone();
-        // let stderr = self
-        //     .stderr
-        //     .clone()
-        //     .unwrap_or_else(|| Arc::new(Mutex::new(KernelLogs)));
+            // setup the STDIO
+            hyperion_kernel_impl::fd_replace(FileDesc(0), stdin);
+            hyperion_kernel_impl::fd_replace(FileDesc(1), stdout);
+            hyperion_kernel_impl::fd_replace(FileDesc(2), stderr);
 
-        // process();
+            // load and exec the binary
+            let args: Vec<&str> = [program.as_str()] // TODO: actually load binaries from vfs
+                .into_iter()
+                .chain(args.iter().flat_map(|args| args.split(' ')))
+                .collect();
+            let args = &args[..];
 
-        // schedule(move || {
-        //     // set its name
-        //     hyperion_scheduler::rename(program.as_str());
+            trace!("spawning \"{program}\" with args {args:?}");
 
-        //     // setup the STDIO
-        //     if let Some(stdin) = stdin {
-        //         hyperion_kernel_impl::fd_replace(FileDesc(0), stdin);
-        //     } else {
-        //         hyperion_kernel_impl;
-        //     }
-        //     if let Some(stdout) = stdout {
-        //         hyperion_kernel_impl::set_fd(FileDesc(1), stdout);
-        //     }
-        //     hyperion_kernel_impl::set_fd(FileDesc(2), stderr);
+            let loader = hyperion_loader::Loader::new(elf.as_ref());
 
-        //     // load and exec the binary
-        //     let args: Vec<&str> = [name] // TODO: actually load binaries from vfs
-        //         .into_iter()
-        //         .chain(args.as_deref().iter().flat_map(|args| args.split(' ')))
-        //         .collect();
-        //     let args = &args[..];
+            loader.load();
 
-        //     hyperion_log::trace!("spawning \"{name}\" with args {args:?}");
-
-        //     let loader = hyperion_loader::Loader::new(self.as_ref());
-
-        //     loader.load();
-
-        //     if loader.enter_userland(args).is_none() {
-        //         hyperion_log::debug!("entry point missing");
-        //     }
-        // });
+            if loader.enter_userland(args).is_none() {
+                hyperion_log::debug!("entry point missing");
+            }
+        });
     }
 }

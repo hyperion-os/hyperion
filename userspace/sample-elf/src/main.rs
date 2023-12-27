@@ -9,14 +9,14 @@ use alloc::{format, string::String, sync::Arc};
 use core::str::from_utf8;
 
 use libstd::{
-    fs::{File, OpenOptions, Stdin, STDOUT},
+    fs::{File, OpenOptions, Stdin, Stdout, STDOUT},
     io::{BufReader, Read, Write},
     println,
     sync::Mutex,
     sys::{
         err::Result,
         fs::FileDesc,
-        net::{Protocol, SocketDesc, SocketDomain, SocketType},
+        net::{Protocol, SocketDomain, SocketType},
         *,
     },
     thread::spawn,
@@ -26,9 +26,11 @@ use libstd::{
 
 fn run_server() -> Result<()> {
     let server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
-    bind(server, "/dev/server.sock")?;
+    open_dir("/run").unwrap();
+    bind(server, "/run/server.sock")?;
 
     close(Stdin::FD).unwrap();
+    close(Stdout::FD).unwrap();
 
     rename("local server")?;
 
@@ -41,7 +43,7 @@ fn run_server() -> Result<()> {
     }
 }
 
-fn handle_client(i: usize, conn: SocketDesc) -> Result<()> {
+fn handle_client(i: usize, conn: FileDesc) -> Result<()> {
     let msg = format!("Hello {i}");
 
     send(conn, msg.as_bytes(), 0)?;
@@ -59,12 +61,14 @@ fn handle_client(i: usize, conn: SocketDesc) -> Result<()> {
     let len = file.read(&mut buf)?;
     assert_eq!(&buf[..len], b"testing data");
 
+    close(conn).unwrap();
+
     Ok(())
 }
 
 fn run_client() -> Result<()> {
     let client = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
-    connect(client, "/dev/server.sock")?;
+    connect(client, "/run/server.sock")?;
 
     rename("local client")?;
 
@@ -73,6 +77,10 @@ fn run_client() -> Result<()> {
     loop {
         let mut buf = [0u8; 64];
         let len = recv(client, &mut buf, 0)?;
+
+        if len == 0 {
+            break Ok(());
+        }
 
         let utf8 = &buf[..len];
         let msg = from_utf8(utf8).unwrap();

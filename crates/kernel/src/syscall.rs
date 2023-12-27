@@ -11,12 +11,13 @@ use core::{
 };
 
 use hyperion_arch::syscall::SyscallRegs;
+use hyperion_defer::DeferInit;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
-    fd_push, fd_query, map_vfs_err_to_syscall_err, process_ext_with, read_untrusted_bytes,
-    read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref, read_untrusted_str, File,
-    FileDescData, FileInner, SocketFile, SocketLocalListenerDescData, SocketPipe, VFS_ROOT,
+    fd_push, fd_query, fd_query_of, fd_take, map_vfs_err_to_syscall_err, process_ext_with,
+    read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
+    read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo, SocketPipe, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
@@ -30,7 +31,7 @@ use hyperion_syscall::{
     err::{Error, Result},
     fs::{FileDesc, FileOpenFlags, Metadata, Seek},
     id,
-    net::{Protocol, SocketDesc, SocketDomain, SocketType},
+    net::{Protocol, SocketDomain, SocketType},
 };
 use hyperion_vfs::{path::Path, ramdisk, tree::Node};
 use time::Duration;
@@ -229,9 +230,6 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
         return Err(Error::INVALID_FLAGS);
     };
 
-    let this = process();
-    let ext = process_ext_with(&this);
-
     let create = flags.contains(FileOpenFlags::CREATE) || flags.contains(FileOpenFlags::CREATE_NEW);
 
     if !flags.intersects(FileOpenFlags::READ | FileOpenFlags::WRITE) {
@@ -251,7 +249,8 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
         .find_file(path, mkdirs, create)
         .map_err(map_vfs_err_to_syscall_err)?;
 
-    let mut file_lock = file_ref.lock();
+    // let mut file_lock = file_ref.lock();
+    let mut file_lock = DeferInit::new(|| file_ref.lock());
     if flags.contains(FileOpenFlags::TRUNC) {
         file_lock.set_len(0).map_err(map_vfs_err_to_syscall_err)?;
     }
@@ -264,22 +263,18 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 
     drop(file_lock);
 
-    let fd = ext
-        .files
-        .lock()
-        .push(File::new(Mutex::new(FileInner { file_ref, position })));
+    let fd = fd_push(Arc::new(FileDescData::new(file_ref, position)));
 
-    return Ok(fd);
+    return Ok(fd.0);
 }
 
 /// close a file
 ///
 /// [`hyperion_syscall::close`]
 pub fn close(args: &mut SyscallRegs) -> Result<usize> {
-    let this = process();
-    let ext = process_ext_with(&this);
+    let fd = FileDesc(args.arg0 as usize);
 
-    if ext.files.lock().remove(args.arg0 as _).is_none() {
+    if fd_take(fd).is_none() {
         return Err(Error::BAD_FILE_DESCRIPTOR);
     }
 
@@ -291,17 +286,10 @@ pub fn close(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::read`]
 pub fn read(args: &mut SyscallRegs) -> Result<usize> {
     let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
+    let fd = FileDesc(args.arg0 as usize);
 
-    let mut file = get_file(FileDesc(args.arg0 as usize))?.lock_arc();
-
-    let read = file
-        .file_ref
-        .lock()
-        .read(file.position, buf)
-        .map_err(map_vfs_err_to_syscall_err)?;
-    file.position += read;
-
-    return Ok(read);
+    let file = fd_query(fd)?;
+    return file.read(buf);
 }
 
 /// write bytes into a file
@@ -309,17 +297,10 @@ pub fn read(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::write`]
 pub fn write(args: &mut SyscallRegs) -> Result<usize> {
     let buf = read_untrusted_bytes(args.arg1, args.arg2)?;
+    let fd = FileDesc(args.arg0 as usize);
 
-    let mut file = get_file(FileDesc(args.arg0 as usize))?.lock_arc();
-
-    let written = file
-        .file_ref
-        .lock()
-        .write(file.position, buf)
-        .map_err(map_vfs_err_to_syscall_err)?;
-    file.position += written;
-
-    return Ok(written);
+    let file = fd_query(fd)?;
+    return file.write(buf);
 }
 
 /// create a socket
@@ -329,50 +310,45 @@ fn socket(args: &mut SyscallRegs) -> Result<usize> {
     let domain = SocketDomain(args.arg0 as _);
     let ty = SocketType(args.arg1 as _);
     let proto = Protocol(args.arg2 as _);
+    let info = SocketInfo { domain, ty, proto };
 
-    _socket(domain, ty, proto).map(|fd| fd.0)
+    _socket(info).map(|fd| fd.0)
 }
 
-fn _socket(domain: SocketDomain, ty: SocketType, proto: Protocol) -> Result<SocketDesc> {
-    if domain != SocketDomain::LOCAL {
+fn _socket(info: SocketInfo) -> Result<FileDesc> {
+    if info.domain != SocketDomain::LOCAL {
         return Err(Error::INVALID_DOMAIN);
     }
 
-    if ty != SocketType::STREAM {
+    if info.ty != SocketType::STREAM {
         return Err(Error::INVALID_TYPE);
     }
 
-    if proto != Protocol::LOCAL {
+    if info.proto != Protocol::LOCAL {
         return Err(Error::UNKNOWN_PROTOCOL);
     }
 
-    Ok(push_socket(SocketFile {
-        domain,
-        ty,
-        proto,
-        incoming: None,
-        connection: None,
-    }))
+    Ok(fd_push(Arc::new(LocalSocket::new(info))))
 }
 
 /// bind a socket
 ///
 /// [`hyperion_syscall::bind`]
 fn bind(args: &mut SyscallRegs) -> Result<usize> {
-    let socket = SocketDesc(args.arg0 as _);
+    let socket_fd = FileDesc(args.arg0 as _);
     let addr = read_untrusted_str(args.arg1, args.arg2)?;
 
-    _bind(socket, addr).map(|_| 0)
+    _bind(socket_fd, addr).map(|_| 0)
 }
 
-fn _bind(socket: SocketDesc, addr: &str) -> Result<()> {
+fn _bind(socket_fd: FileDesc, addr: &str) -> Result<()> {
     // TODO: this is only for LOCAL domain sockets atm
     let path = Path::from_str(addr);
     let Some((dir, sock_file)) = path.split() else {
         return Err(Error::NOT_FOUND);
     };
 
-    let socket = get_socket(socket)?;
+    let socket = fd_query_of::<LocalSocket>(socket_fd)?;
 
     VFS_ROOT
         // find the directory node
@@ -381,7 +357,10 @@ fn _bind(socket: SocketDesc, addr: &str) -> Result<()> {
         // lock the directory
         .lock_arc()
         // create the socket file in that directory
-        .create_node(sock_file, Node::File(socket))
+        .create_node(
+            sock_file,
+            Node::File(Arc::new(Mutex::new(BoundSocket(socket)))),
+        )
         .map_err(map_vfs_err_to_syscall_err)?;
 
     return Ok(());
@@ -391,13 +370,13 @@ fn _bind(socket: SocketDesc, addr: &str) -> Result<()> {
 ///
 /// [`hyperion_syscall::listen`]
 fn listen(args: &mut SyscallRegs) -> Result<usize> {
-    let socket = SocketDesc(args.arg0 as _);
-    _listen(socket).map(|_| 0)
+    let socket_fd = FileDesc(args.arg0 as _);
+    _listen(socket_fd).map(|_| 0)
 }
 
-fn _listen(socket: SocketDesc) -> Result<()> {
-    get_socket_locked(socket)?.incoming();
-
+fn _listen(socket_fd: FileDesc) -> Result<()> {
+    let socket = fd_query_of::<LocalSocket>(socket_fd)?;
+    socket.listener()?;
     Ok(())
 }
 
@@ -405,33 +384,23 @@ fn _listen(socket: SocketDesc) -> Result<()> {
 ///
 /// [`hyperion_syscall::accept`]
 fn accept(args: &mut SyscallRegs) -> Result<usize> {
-    let socket = SocketDesc(args.arg0 as _);
+    let socket_fd = FileDesc(args.arg0 as _);
 
-    _accept(socket).map(|fd| fd.0)
+    _accept(socket_fd).map(|fd| fd.0)
 }
 
-fn _accept(socket: SocketDesc) -> Result<SocketDesc> {
-    let mut socket = get_socket_locked(socket)?;
-
-    let domain = socket.domain;
-    let ty = socket.ty;
-    let proto = socket.proto;
+fn _accept(socket_fd: FileDesc) -> Result<FileDesc> {
+    let socket = fd_query_of::<LocalSocket>(socket_fd)?;
 
     // `listen` syscall is not required
-    let conn = socket.incoming();
-
-    drop(socket);
+    let incoming = socket.listener()?;
 
     // blocks here
-    let conn = conn.recv().unwrap();
+    let pipe = incoming
+        .recv()
+        .expect("local socket listener send end should never close");
 
-    Ok(push_socket(SocketFile {
-        domain,
-        ty,
-        proto,
-        incoming: None,
-        connection: Some(conn),
-    }))
+    Ok(fd_push(Arc::new(LocalSocket::connected(socket.info, pipe))))
 }
 
 /// connect to a socket
@@ -445,31 +414,27 @@ fn connect(args: &mut SyscallRegs) -> Result<usize> {
 }
 
 fn _connect(socket_fd: FileDesc, addr: &str) -> Result<()> {
-    // get the client socket early to test for errors, but lock it late
-    let client = fd_query(socket_fd)?;
-    let client = client
-        .as_any()
-        .downcast_ref::<SocketLocalListenerDescData>();
-    let client = get_socket(socket)?;
+    let client = fd_query_of::<LocalSocket>(socket_fd)?;
 
     let server = VFS_ROOT
+        // TODO: inode
         .find_file(addr, false, false)
         .map_err(map_vfs_err_to_syscall_err)?
-        .lock_arc();
-
-    // TODO: inode
-    let incoming = server
+        .lock_arc()
         .as_any()
-        .downcast_ref::<SocketFile>()
+        .downcast_ref::<BoundSocket>()
         .ok_or(Error::CONNECTION_REFUSED)?
-        .try_incoming()
-        .ok_or(Error::CONNECTION_REFUSED)?;
+        .0
+        .clone();
 
-    drop(server);
+    if !client.is_uninit() {
+        return Err(Error::INVALID_ARGUMENT);
+    }
+    let listener = server.listener()?;
 
     let (conn_client, conn_server) = SocketPipe::new();
-    client.lock().connection = Some(conn_client);
-    incoming
+    client.connection(conn_client)?;
+    listener
         .send(conn_server)
         .map_err(|_| Error::CONNECTION_REFUSED)?;
 
@@ -603,7 +568,7 @@ pub fn futex_wake(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::map_file`]
 pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
-    let file = FileDesc(args.arg0 as _);
+    let fd = FileDesc(args.arg0 as _);
     let at = NonNull::new(args.arg1 as *mut ());
     let size = args.arg2 as usize;
     let offset = args.arg3 as usize;
@@ -648,8 +613,8 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::unmap_file`]
 pub fn unmap_file(args: &mut SyscallRegs) -> Result<usize> {
     let fd = FileDesc(args.arg0 as _);
-    let at = NonNull::new(args.arg1 as *mut ());
-    let size = args.arg2 as usize;
+    // let at = NonNull::new(args.arg1 as *mut ());
+    // let size = args.arg2 as usize;
 
     // hyperion_log::debug!("unmap_file({file:?}, {at:?}, {size})");
 
@@ -687,7 +652,7 @@ pub fn metadata(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::seek`]
 pub fn seek(args: &mut SyscallRegs) -> Result<usize> {
-    let file = FileDesc(args.arg0 as _);
+    let fd = FileDesc(args.arg0 as _);
     let offset = args.arg1 as isize;
     let origin = Seek(args.arg2 as usize);
 

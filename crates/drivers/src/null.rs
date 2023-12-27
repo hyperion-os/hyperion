@@ -22,9 +22,8 @@ impl FileDevice for Null {
         Err(IoError::PermissionDenied)
     }
 
-    fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
-        buf.fill(0);
-        Ok(buf.len())
+    fn read(&self, _: usize, _: &mut [u8]) -> IoResult<usize> {
+        Ok(0)
     }
 
     fn write(&mut self, _: usize, buf: &[u8]) -> IoResult<usize> {

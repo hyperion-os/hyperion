@@ -9,7 +9,7 @@ use err::Result;
 
 use self::{
     fs::{FileDesc, FileOpenFlags, Metadata},
-    net::{Protocol, SocketDesc, SocketDomain, SocketType},
+    net::{Protocol, SocketDomain, SocketType},
 };
 
 //
@@ -233,43 +233,43 @@ pub fn write(file: FileDesc, buf: &[u8]) -> Result<usize> {
 
 /// create a socket
 #[inline(always)]
-pub fn socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -> Result<SocketDesc> {
-    unsafe { syscall_3(id::SOCKET, domain.0, ty.0, protocol.0) }.map(SocketDesc)
+pub fn socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -> Result<FileDesc> {
+    unsafe { syscall_3(id::SOCKET, domain.0, ty.0, protocol.0) }.map(FileDesc)
 }
 
 /// bind a name to a socket
 #[inline(always)]
-pub fn bind(socket: SocketDesc, addr: &str) -> Result<()> {
+pub fn bind(socket: FileDesc, addr: &str) -> Result<()> {
     unsafe { syscall_3(id::BIND, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
 }
 
 /// start listening for connections on a socket
 #[inline(always)]
-pub fn listen(socket: SocketDesc) -> Result<()> {
+pub fn listen(socket: FileDesc) -> Result<()> {
     unsafe { syscall_1(id::LISTEN, socket.0) }.map(|_| {})
 }
 
 /// accept a connection on a socket
 #[inline(always)]
-pub fn accept(socket: SocketDesc) -> Result<SocketDesc> {
-    unsafe { syscall_1(id::ACCEPT, socket.0) }.map(SocketDesc)
+pub fn accept(socket: FileDesc) -> Result<FileDesc> {
+    unsafe { syscall_1(id::ACCEPT, socket.0) }.map(FileDesc)
 }
 
 /// connect to a socket
 #[inline(always)]
-pub fn connect(socket: SocketDesc, addr: &str) -> Result<()> {
+pub fn connect(socket: FileDesc, addr: &str) -> Result<()> {
     unsafe { syscall_3(id::CONNECT, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
 }
 
 /// send data to a socket
 #[inline(always)]
-pub fn send(socket: SocketDesc, data: &[u8], flags: usize) -> Result<usize> {
+pub fn send(socket: FileDesc, data: &[u8], flags: usize) -> Result<usize> {
     let (data, data_len) = (data.as_ptr() as usize, data.len());
     unsafe { syscall_4(id::SEND, socket.0, data, data_len, flags) }
 }
 
 /// read data from a socket
-pub fn recv(socket: SocketDesc, buf: &mut [u8], flags: usize) -> Result<usize> {
+pub fn recv(socket: FileDesc, buf: &mut [u8], flags: usize) -> Result<usize> {
     let (buf, buf_len) = (buf.as_ptr() as usize, buf.len());
     unsafe { syscall_4(id::RECV, socket.0, buf, buf_len, flags) }
 }

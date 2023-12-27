@@ -1,6 +1,6 @@
 use core::mem::ManuallyDrop;
 
-use core_alloc::string::String;
+use core_alloc::{borrow::Cow, string::String};
 use hyperion_syscall::{
     close,
     err::{Error, Result},
@@ -81,7 +81,7 @@ impl Dir {
         let mut iter = self.cur.trim().split(' ');
         let is_dir = iter.next()?;
         let size = iter.next()?;
-        let file_name = iter.remainder()?;
+        let file_name = Cow::Borrowed(iter.remainder()?);
 
         Some(DirEntry {
             is_dir: is_dir == "d",
@@ -91,13 +91,31 @@ impl Dir {
     }
 }
 
+impl Iterator for Dir {
+    type Item = DirEntry<'static>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_entry().map(DirEntry::into_owned)
+    }
+}
+
 //
 
 #[derive(Debug)]
 pub struct DirEntry<'a> {
     pub is_dir: bool, // TODO: mode flags later
     pub size: usize,
-    pub file_name: &'a str,
+    pub file_name: Cow<'a, str>,
+}
+
+impl DirEntry<'_> {
+    fn into_owned(self) -> DirEntry<'static> {
+        DirEntry {
+            is_dir: self.is_dir,
+            size: self.size,
+            file_name: Cow::Owned(self.file_name.into_owned()),
+        }
+    }
 }
 
 //

@@ -4,20 +4,20 @@ use crate::{condvar::Condvar, lock::Mutex, process, task::Pid};
 
 //
 
-pub fn channel() -> (Sender<u8>, Receiver<u8>) {
-    Pipe::new_pipe().split()
+// pub fn channel() -> (Sender<u8>, Receiver<u8>) {
+//     Pipe::new_pipe().split()
+// }
+
+// pub fn channel_with(capacity: usize) -> (Sender<u8>, Receiver<u8>) {
+//     Pipe::new(capacity).split()
+// }
+
+pub fn pipe() -> Pipe {
+    Pipe::new_pipe()
 }
 
-pub fn channel_with(capacity: usize) -> (Sender<u8>, Receiver<u8>) {
-    Pipe::new(capacity).split()
-}
-
-pub fn pipe() -> Arc<Channel<u8>> {
-    Arc::new(Pipe::new_pipe())
-}
-
-pub fn pipe_with(capacity: usize) -> Arc<Channel<u8>> {
-    Arc::new(Pipe::new(capacity))
+pub fn pipe_with(capacity: usize) -> Pipe {
+    Pipe::new(capacity)
 }
 
 //

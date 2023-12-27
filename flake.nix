@@ -14,10 +14,6 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-        rustPlatform = pkgs.makeRustPlatform {
-          cargo = pkgs.rust-bin.nightly.latest.default;
-          rustc = pkgs.rust-bin.nightly.latest.default;
-        };
       in
       {
         # `nix develop`
@@ -39,6 +35,7 @@
             act
             lld_16
             clang_16
+            bacon
           ];
         };
       }

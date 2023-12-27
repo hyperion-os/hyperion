@@ -23,8 +23,8 @@ use hyperion_num_postfix::NumberPostfix;
 use hyperion_random::Rng;
 use hyperion_scheduler::{
     idle,
-    ipc::pipe::channel,
-    schedule, spawn,
+    ipc::pipe::pipe,
+    spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
 use hyperion_vfs::{
@@ -36,7 +36,7 @@ use spin::Mutex;
 use time::OffsetDateTime;
 
 use super::{term::Term, *};
-use crate::snake::snake_game;
+use crate::{cmd::Command, snake::snake_game};
 
 //
 
@@ -457,16 +457,14 @@ impl Shell {
         elf: Cow<'static, [u8]>,
         args: Option<&str>,
     ) -> Result<()> {
-        let args = args.map(String::from);
+        // let args = args.map(String::from);
 
         // TODO: HACK:
         let is_doom = name.ends_with("doom");
 
         // setup STDIO
-        let (stdin_tx, stdin_rx) = channel();
-        let (stdout_tx, stdout_rx) = channel();
-        // let (stderr_tx, stderr_rx) = channel();
-        let stderr_tx = stdout_tx.clone();
+        let (stdin_tx, stdin_rx) = pipe().split();
+        let (stdout_tx, stdout_rx) = pipe().split();
 
         // hacky blocking channel -> async channel stuff
         let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
@@ -476,11 +474,11 @@ impl Shell {
             loop {
                 let mut buf = [0; 128];
                 let Ok(len) = stdout_rx.recv_slice(&mut buf) else {
-                    debug!("end of stream");
+                    trace!("end of stream");
                     break;
                 };
                 let Ok(str) = core::str::from_utf8(&buf[..len]) else {
-                    debug!("invalid utf8");
+                    trace!("invalid utf8");
                     break;
                 };
                 o_tx.send(Some(str.to_string()));
@@ -490,6 +488,12 @@ impl Shell {
         });
 
         // spawn the new process
+        Command::new(name, elf)
+            .args(args.unwrap_or("").split(' '))
+            .stdin(Arc::new(stdin_rx))
+            .stdout(Arc::new(stdout_tx))
+            // .stderr(Arc::new(stderr_tx))
+            .spawn();
 
         // start sending keyboard events to the process and read stdout into the terminal
         let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
@@ -519,52 +523,55 @@ impl Shell {
                         && !is_doom
                     // no ctrl+c / ctrl+d in raw mode
                     {
-                        hyperion_log::debug!("ctrl+C/D");
+                        trace!("ctrl+C/D");
                         break;
                     }
 
-                    // if let Some(unicode) = unicode {
-                    //     // _ = write!(self.term, "{unicode}");
-                    //     // self.term.flush();
+                    // TODO: raw mode
+                    if is_doom {
+                        // TODO: proper raw keyboard input
+                        #[derive(serde::Serialize, serde::Deserialize)]
+                        struct KeyboardEventSer {
+                            // pub scancode: u8,
+                            state: u8,
+                            keycode: u8,
+                            unicode: Option<char>,
+                        }
 
-                    //     let mut str = [0; 4];
+                        if keycode == KeyCode::CapsLock {
+                            if stdin_tx.send_slice(b"\n").is_err() {
+                                trace!("stdin closed");
+                                break;
+                            }
+                            continue;
+                        }
 
-                    //     let str = unicode.encode_utf8(&mut str);
-
-                    //     // TODO: buffering
-                    //     if let Err(err) = stdin_tx.send_slice(str.as_bytes()) {
-                    //         break;
-                    //     }
-                    // }
-
-                    // TODO: proper raw keyboard input
-                    #[derive(serde::Serialize, serde::Deserialize)]
-                    struct KeyboardEventSer {
-                        // pub scancode: u8,
-                        state: u8,
-                        keycode: u8,
-                        unicode: Option<char>,
-                    }
-
-                    if keycode == KeyCode::CapsLock {
-                        if stdin_tx.send_slice(b"\n").is_err() {
-                            hyperion_log::debug!("stdin closed");
+                        let mut ev = serde_json::to_string(&KeyboardEventSer {
+                            state: state as u8,
+                            keycode: keycode as u8,
+                            unicode,
+                        })
+                        .unwrap();
+                        ev.push('\n');
+                        // debug!("sending: {ev:?}");
+                        if stdin_tx.send_slice(ev.as_bytes()).is_err() {
+                            trace!("stdin closed");
                             break;
                         }
-                        continue;
-                    }
+                    } else {
+                        if let Some(unicode) = unicode {
+                            _ = write!(self.term, "{unicode}");
+                            self.term.flush();
 
-                    let mut ev = serde_json::to_string(&KeyboardEventSer {
-                        state: state as u8,
-                        keycode: keycode as u8,
-                        unicode,
-                    })
-                    .unwrap();
-                    ev.push('\n');
-                    // debug!("sending: {ev:?}");
-                    if stdin_tx.send_slice(ev.as_bytes()).is_err() {
-                        hyperion_log::debug!("stdin closed");
-                        break;
+                            let mut str = [0; 4];
+
+                            let str = unicode.encode_utf8(&mut str);
+
+                            // TODO: buffering
+                            if stdin_tx.send_slice(str.as_bytes()).is_err() {
+                                break;
+                            }
+                        }
                     }
                 }
                 Some(Err(Some(s))) => {
@@ -580,17 +587,15 @@ impl Shell {
                 Some(Err(None)) => {
                     // _ = write!(self.term, "got EOI");
                     // self.term.flush();
-                    hyperion_log::debug!("EOI");
+                    trace!("EOI");
                     break;
                 }
                 None => {
-                    hyperion_log::debug!("NONE");
+                    trace!("NONE");
                     break;
                 }
             }
         }
-
-        // stdin_tx.close();
 
         Ok(())
     }

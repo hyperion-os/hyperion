@@ -1,9 +1,4 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SocketDesc(pub usize);
-
-//
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SocketDomain(pub usize);
 
 impl SocketDomain {

@@ -764,6 +764,7 @@ dependencies = [
  "hyperion-boot-interface",
  "hyperion-color",
  "hyperion-cpu-id",
+ "hyperion-defer",
  "hyperion-drivers",
  "hyperion-framebuffer",
  "hyperion-futures",
