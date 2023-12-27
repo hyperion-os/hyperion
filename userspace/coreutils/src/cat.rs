@@ -1,29 +1,44 @@
+use alloc::vec::Vec;
 use core::fmt;
 
 use anyhow::{anyhow, Result};
-use libstd::{fs::File, io::Read, print, println};
+use libstd::{
+    fs::{File, STDIN},
+    io::Read,
+    print, println,
+};
 
 //
 
-pub fn cmd<'a>(mut args: impl Iterator<Item = &'a str>) -> Result<()> {
-    let a1 = args
-        .next()
-        .ok_or_else(|| anyhow!("expected at least one argument"))?;
+pub fn cmd<'a>(args: impl Iterator<Item = &'a str>) -> Result<()> {
+    let mut stdin = STDIN.lock();
+    let stdin = stdin.get_mut();
 
-    let mut file = File::open(a1).map_err(|err| anyhow!("`{a1}`: {err}"))?;
+    let mut files = args
+        .map(|path| {
+            File::open(path)
+                .map(|file| (path, file))
+                .map_err(|err| anyhow!("`{path}`: {err}"))
+        })
+        .collect::<Result<Vec<_>>>()?;
 
-    let mut buf = [0u8; 512];
-    loop {
-        let len = file
-            .read(&mut buf)
-            .map_err(|err| anyhow!("`{a1}`: {err}"))?;
-        let buf = &buf[..len];
+    for (path, file) in [("<stdin>", stdin)]
+        .into_iter()
+        .chain(files.iter_mut().map(|(path, file)| (*path, file)))
+    {
+        let mut buf = [0u8; 512];
+        loop {
+            let len = file
+                .read(&mut buf)
+                .map_err(|err| anyhow!("`{path}`: {err}"))?;
+            let buf = &buf[..len];
 
-        if len == 0 {
-            break;
+            if len == 0 {
+                break;
+            }
+
+            print!("{}", Bytes(buf));
         }
-
-        print!("{}", Bytes(buf));
     }
 
     println!();
