@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(offset_of)]
+#![feature(offset_of, let_chains)]
 
 //
 
@@ -199,7 +199,10 @@ pub fn sleep_until(deadline: Instant) {
 pub fn done() -> ! {
     update_cpu_usage();
 
-    if let Some(ext) = process().ext.get() {
+    let proc = process();
+    if let Some(ext) = proc.ext.get()
+        && proc.threads.load(Ordering::SeqCst) == 1
+    {
         ext.close();
     }
 
