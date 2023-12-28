@@ -113,7 +113,8 @@ pub fn spin_loop() {
     core::hint::spin_loop()
 }
 
-pub fn done() -> ! {
+/// `HCF` - halt the cpu forever
+pub fn die() -> ! {
     loop {
         // spin_loop();
         int::wait()

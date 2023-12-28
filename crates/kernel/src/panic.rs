@@ -11,7 +11,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
     if hyperion_scheduler::running() {
         hyperion_scheduler::done();
     } else {
-        hyperion_arch::done();
+        hyperion_arch::die();
     }
 }
 

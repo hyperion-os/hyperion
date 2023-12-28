@@ -18,7 +18,6 @@ use arcstr::ArcStr;
 use crossbeam::atomic::AtomicCell;
 use hyperion_arch::{
     context::{switch as ctx_switch, Context},
-    done,
     stack::{AddressSpace, KernelStack, Stack, UserStack, USER_HEAP_TOP},
     vmm::PageMap,
 };
@@ -32,7 +31,7 @@ use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
-use crate::{after, cleanup::Cleanup, swap_current, task, tls};
+use crate::{after, cleanup::Cleanup, done, swap_current, task, tls};
 
 //
 
