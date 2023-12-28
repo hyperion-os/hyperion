@@ -125,7 +125,7 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
             exit();
         }
 
-        yield_now();
+        // yield_now();
     });
 
     // hyperion_sync::init_futex(futex::wait, futex::wake);
