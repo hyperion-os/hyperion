@@ -471,6 +471,12 @@
 <a href="#470" id="470">470</a>
 <a href="#471" id="471">471</a>
 <a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Slab allocator
 //!
 //! - Allocates pages from [`PageFrameAllocator`].
@@ -525,7 +531,8 @@
         <span class="self">Self </span>{ first, len }
     }
 
-    <span class="kw">pub const fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.len
     }
 
@@ -534,19 +541,22 @@
         <span class="self">self</span>.len() == <span class="number">0
     </span>}
 
-    <span class="kw">pub const fn </span>byte_len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>byte_len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.len() * PAGE_SIZE
     }
 
-    <span class="kw">pub const fn </span>as_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
-        <span class="kw">unsafe </span>{ slice::from_raw_parts(<span class="self">self</span>.first <span class="kw">as </span><span class="kw-2">*const </span>u8, <span class="self">self</span>.byte_len()) }
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>as_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
+        <span class="kw">unsafe </span>{ slice::from_raw_parts(<span class="self">self</span>.first.cast_const(), <span class="self">self</span>.byte_len()) }
     }
 
     <span class="kw">pub fn </span>as_bytes_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>[u8] {
         <span class="kw">unsafe </span>{ slice::from_raw_parts_mut(<span class="self">self</span>.first, <span class="self">self</span>.byte_len()) }
     }
 
-    <span class="kw">pub const fn </span>as_ptr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">*mut </span>u8 {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>as_ptr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">*mut </span>u8 {
         <span class="self">self</span>.first
     }
 }
@@ -609,7 +619,8 @@
 <span class="kw">where
     </span>Lock: RawMutex,
 {
-    <span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>slabs = [
             Slab::new(<span class="number">8</span>),
             Slab::new(<span class="number">16</span>),
@@ -694,7 +705,7 @@
     <span class="kw">fn </span>slab_of(<span class="kw-2">&amp;</span><span class="self">self</span>, alloc: NonNull&lt;u8&gt;) -&gt; <span class="kw-2">&amp;</span>Slab&lt;P, Lock&gt; {
         <span class="comment">// align down to 0x1000
         // the first bytes in the page tells the slab size
-        </span><span class="kw">let </span>page_alloc = ((alloc.as_ptr() <span class="kw">as </span>u64) &amp; <span class="number">0xFFFFFFFFFFFFF000</span>) <span class="kw">as </span><span class="kw-2">*mut </span>u8;
+        </span><span class="kw">let </span>page_alloc = ((alloc.as_ptr() <span class="kw">as </span>u64) &amp; <span class="number">0xFFFF_FFFF_FFFF_F000</span>) <span class="kw">as </span><span class="kw-2">*mut </span>u8;
 
         <span class="kw">let </span>header: AllocMetadata = <span class="kw">unsafe </span>{ <span class="kw-2">*</span>(page_alloc <span class="kw">as </span><span class="kw-2">*const </span>AllocMetadata) };
 
@@ -745,7 +756,7 @@
 
         <span class="comment">// trace!("BigFree     {:#x} {size}", pages.addr().as_u64());
 
-        </span>P::free(pages)
+        </span>P::free(pages);
     }
 
     <span class="kw">unsafe fn </span>big_pages(<span class="kw-2">&amp;</span><span class="self">self</span>, alloc: NonNull&lt;u8&gt;) -&gt; (<span class="kw-2">*mut </span>u8, usize) {
@@ -771,7 +782,8 @@
 <span class="kw">where
     </span>Lock: RawMutex,
 {
-    <span class="kw">pub const fn </span>new(size: usize) -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>new(size: usize) -&gt; <span class="self">Self </span>{
         <span class="macro">assert!</span>(
             size &gt;= size_of::&lt;u64&gt;() &amp;&amp; size % size_of::&lt;u64&gt;() == <span class="number">0</span>,
             <span class="string">"slab size should be a multiple of u64's size (8 bytes) and not zero"
@@ -803,7 +815,7 @@
         };
 
         <span class="kw">let </span>block_data: <span class="kw-2">&amp;mut </span>[u64] =
-            <span class="kw">unsafe </span>{ slice::from_raw_parts_mut(block <span class="kw">as </span><span class="kw-2">*mut </span>u64, <span class="self">self</span>.size / <span class="number">8</span>) };
+            <span class="kw">unsafe </span>{ slice::from_raw_parts_mut(block.cast::&lt;u64&gt;(), <span class="self">self</span>.size / <span class="number">8</span>) };
         <span class="kw-2">*</span>next = block_data[<span class="number">0</span>] <span class="kw">as _</span>;
         block_data[<span class="number">0</span>] = <span class="number">0</span>; <span class="comment">// zero out the first u64 that was used as the 'next' pointer
 
@@ -852,7 +864,7 @@
 
     <span class="kw">pub fn </span>push(<span class="kw-2">&amp;</span><span class="self">self</span>, block: NonNull&lt;u8&gt;) {
         <span class="kw">let </span>block_data: <span class="kw-2">&amp;mut </span>[u64] =
-            <span class="kw">unsafe </span>{ slice::from_raw_parts_mut(block.as_ptr() <span class="kw">as </span><span class="kw-2">*mut </span>u64, <span class="self">self</span>.size / <span class="number">8</span>) };
+            <span class="kw">unsafe </span>{ slice::from_raw_parts_mut(block.as_ptr().cast::&lt;u64&gt;(), <span class="self">self</span>.size / <span class="number">8</span>) };
         block_data.fill(<span class="number">0</span>);
 
         <span class="kw">let </span><span class="kw-2">mut </span>next = <span class="self">self</span>.next.lock();
@@ -870,7 +882,7 @@
     /// with this specific [`Slab`]
     </span><span class="kw">pub unsafe fn </span>free(<span class="kw-2">&amp;</span><span class="self">self</span>, stats: <span class="kw-2">&amp;</span>SlabAllocatorStats, block: NonNull&lt;u8&gt;) {
         stats.used.fetch_sub(<span class="self">self</span>.size, Ordering::Relaxed);
-        <span class="self">self</span>.push(block)
+        <span class="self">self</span>.push(block);
     }
 }
 

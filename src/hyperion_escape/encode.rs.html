@@ -153,6 +153,7 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{format, sync::Arc};
 <span class="kw">use </span>core::fmt;
 
@@ -160,6 +161,7 @@
 
 <span class="comment">//
 
+</span><span class="attr">#[must_use]
 </span><span class="kw">pub fn </span>color_to_code(Color { r, g, b }: Color) -&gt; Arc&lt;str&gt; {
     <span class="macro">format!</span>(<span class="string">"\x1B[38;2;{r};{g};{b}m"</span>).into()
 }

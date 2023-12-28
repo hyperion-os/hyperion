@@ -119,6 +119,7 @@
 <a href="#118" id="118">118</a>
 <a href="#119" id="119">119</a>
 <a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="comment">//
@@ -158,10 +159,11 @@
 }
 
 <span class="kw">pub fn </span>set_interrupt_handler(irq: u8, f: <span class="kw">fn</span>(u8, usize)) {
-    handler(irq).store(f)
+    handler(irq).store(f);
 }
 
-<span class="kw">pub fn </span>handler(irq: u8) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>IntHandler {
+<span class="attr">#[must_use]
+</span><span class="kw">pub fn </span>handler(irq: u8) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>IntHandler {
     <span class="kw-2">&amp;</span>INT_HANDLERS[irq <span class="kw">as </span>usize - <span class="number">0x20</span>]
 }
 
@@ -183,7 +185,7 @@
 </span>}
 
 <span class="kw">pub fn </span>default_handler(irq: u8, _ip: usize) {
-    end_of_interrupt(irq)
+    end_of_interrupt(irq);
 }
 
 <span class="comment">//

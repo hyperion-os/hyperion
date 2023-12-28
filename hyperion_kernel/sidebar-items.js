@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["_start","init"],"mod":["panic","syscall"],"static":["ALLOCATOR"]};
+window.SIDEBAR_ITEMS = {"fn":["_start","eh_personality","init"],"mod":["panic","syscall"],"static":["ALLOCATOR"]};

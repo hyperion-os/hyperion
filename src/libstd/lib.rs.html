@@ -92,7 +92,12 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
+#![allow(internal_features)]
 #![feature(
     new_uninit,
     const_mut_refs,
@@ -100,11 +105,8 @@
     lang_items,
     never_type
 )]
-#![allow(internal_features)]
 
 </span><span class="comment">//
-
-//
 
 </span><span class="kw">use </span>core::fmt::{<span class="self">self</span>, Write};
 
@@ -126,9 +128,10 @@
 <span class="kw">pub mod </span>io;
 <span class="kw">pub mod </span>net;
 <span class="kw">pub mod </span>process;
-<span class="kw">mod </span>rt;
 <span class="kw">pub mod </span>sync;
 <span class="kw">pub mod </span>thread;
+
+<span class="kw">mod </span>rt;
 
 <span class="comment">//
 
@@ -185,4 +188,9 @@
     <span class="macro">eprintln!</span>(<span class="string">"{info}"</span>);
     exit(-<span class="number">1</span>);
 }
+
+<span class="comment">// to fix `cargo clippy` without a target
+</span><span class="attr">#[cfg(feature = <span class="string">"cargo-clippy"</span>)]
+#[lang = <span class="string">"eh_personality"</span>]
+</span><span class="kw">fn </span>eh_personality() {}
 </code></pre></div></section></main></body></html>

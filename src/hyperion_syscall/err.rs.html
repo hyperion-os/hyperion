@@ -102,6 +102,7 @@
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>core::fmt;
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T&gt; = core::result::Result&lt;T, Error&gt;;
@@ -178,7 +179,8 @@
         }
     }
 
-    <span class="kw">pub const fn </span>encode(v: <span class="prelude-ty">Result</span>&lt;usize&gt;) -&gt; usize {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>encode(v: <span class="prelude-ty">Result</span>&lt;usize&gt;) -&gt; usize {
         <span class="kw">match </span>v {
             <span class="prelude-val">Ok</span>(v) =&gt; v,
             <span class="prelude-val">Err</span>(Error(err)) =&gt; (-(err <span class="kw">as </span>isize)) <span class="kw">as </span>usize,

@@ -123,6 +123,10 @@
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
 <a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>core::mem::forget;
 
 <span class="kw">use </span>hyperion_syscall::{
@@ -159,12 +163,14 @@
     ///
     /// file i/o won't be automatically synchronized,
     /// if this `fd` gets closed by a clone,
-    /// this LocalListener won't know it and might use a random fd for socket syscalls
+    /// this `LocalListener` won't know it and might use a random fd for socket syscalls
+    </span><span class="attr">#[must_use]
     </span><span class="kw">pub unsafe fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ fd: <span class="self">self</span>.fd }
     }
 
     <span class="doccomment">/// the file descriptor won't be closed automatically
+    </span><span class="attr">#[must_use]
     </span><span class="kw">pub fn </span>leak_fd(<span class="self">self</span>) -&gt; FileDesc {
         <span class="kw">let </span>fd = <span class="self">self</span>.fd;
         forget(<span class="self">self</span>);
@@ -208,12 +214,14 @@
     ///
     /// file i/o won't be automatically synchronized,
     /// if this `fd` gets closed by a clone,
-    /// this LocalListener won't know it and might use a random fd for socket syscalls
+    /// this `LocalListener` won't know it and might use a random fd for socket syscalls
+    </span><span class="attr">#[must_use]
     </span><span class="kw">pub unsafe fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ fd: <span class="self">self</span>.fd }
     }
 
     <span class="doccomment">/// the file descriptor won't be closed automatically
+    </span><span class="attr">#[must_use]
     </span><span class="kw">pub fn </span>leak_fd(<span class="self">self</span>) -&gt; FileDesc {
         <span class="kw">let </span>fd = <span class="self">self</span>.fd;
         forget(<span class="self">self</span>);

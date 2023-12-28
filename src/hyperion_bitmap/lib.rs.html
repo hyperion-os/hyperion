@@ -297,7 +297,7 @@
     // }
 
     </span><span class="kw">pub fn </span>fill(<span class="kw-2">&amp;mut </span><span class="self">self</span>, val: bool) {
-        <span class="self">self</span>.data.fill(<span class="kw">if </span>val { <span class="number">0xFF </span>} <span class="kw">else </span>{ <span class="number">0x0 </span>})
+        <span class="self">self</span>.data.fill(<span class="kw">if </span>val { <span class="number">0xFF </span>} <span class="kw">else </span>{ <span class="number">0x0 </span>});
     }
 
     <span class="attr">#[must_use]
@@ -317,7 +317,7 @@
         </span><span class="kw-2">*</span>byte &amp;= !mask;
 
         <span class="comment">// set the bit
-        </span><span class="kw-2">*</span>byte |= (val <span class="kw">as </span>u8) &lt;&lt; bit;
+        </span><span class="kw-2">*</span>byte |= u8::from(val) &lt;&lt; bit;
 
         <span class="prelude-val">Some</span>(())
     }

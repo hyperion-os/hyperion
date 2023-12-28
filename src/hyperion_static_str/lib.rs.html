@@ -72,6 +72,8 @@
 <a href="#71" id="71">71</a>
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="comment">//
@@ -98,11 +100,13 @@
     <span class="doccomment">/// # Safety
     ///
     /// `bytes` must contain valid utf8 until the first zero byte
+    </span><span class="attr">#[must_use]
     </span><span class="kw">pub const unsafe fn </span>from_utf8_unchecked(bytes: [u8; SIZE]) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ bytes }
     }
 
-    <span class="kw">pub fn </span>as_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub fn </span>as_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[u8] {
         zero_limited(<span class="kw-2">&amp;</span><span class="self">self</span>.bytes)
     }
 
@@ -110,7 +114,8 @@
         core::str::from_utf8(zero_limited(<span class="kw-2">&amp;</span><span class="self">self</span>.bytes))
     }
 
-    <span class="kw">pub fn </span>as_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub fn </span>as_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
         <span class="kw">unsafe </span>{ core::str::from_utf8_unchecked(zero_limited(<span class="kw-2">&amp;</span><span class="self">self</span>.bytes)) }
     }
 }
@@ -140,8 +145,7 @@
         .iter()
         .enumerate()
         .find(|(<span class="kw">_</span>, b)| <span class="kw-2">**</span>b == <span class="number">0</span>)
-        .map(|(i, <span class="kw">_</span>)| i)
-        .unwrap_or(bytes.len());
+        .map_or(bytes.len(), |(i, <span class="kw">_</span>)| i);
 
     <span class="kw-2">&amp;</span>bytes[..first_zero]
 }

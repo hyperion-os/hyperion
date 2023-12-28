@@ -105,6 +105,7 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>hyperion_color::Color;
 
 <span class="doccomment">/// foreground color can be changed like this: `"\x1B[38;2;&lt;r&gt;;&lt;g&gt;;&lt;b&gt;m"`
@@ -132,7 +133,8 @@
 <span class="comment">//
 
 </span><span class="kw">impl </span>EscapeDecoder {
-    <span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             buf: [<span class="number">0</span>; LONGEST_ESCAPE],
             len: <span class="number">0</span>,

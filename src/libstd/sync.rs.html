@@ -125,6 +125,7 @@
 <a href="#124" id="124">124</a>
 <a href="#125" id="125">125</a>
 <a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>core::{
     sync::atomic::{AtomicUsize, Ordering},
     time::Duration,
@@ -195,6 +196,7 @@
 
 <span class="kw">impl </span>Condvar {
     <span class="attr">#[inline]
+    #[must_use]
     </span><span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             futex: AtomicUsize::new(<span class="number">0</span>),
@@ -206,12 +208,12 @@
 
     </span><span class="kw">pub fn </span>notify_one(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="self">self</span>.futex.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
-        futex_wake(<span class="kw-2">&amp;</span><span class="self">self</span>.futex, <span class="number">1</span>)
+        futex_wake(<span class="kw-2">&amp;</span><span class="self">self</span>.futex, <span class="number">1</span>);
     }
 
     <span class="kw">pub fn </span>notify_all(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="self">self</span>.futex.fetch_add(<span class="number">1</span>, Ordering::Relaxed);
-        futex_wake(<span class="kw-2">&amp;</span><span class="self">self</span>.futex, usize::MAX)
+        futex_wake(<span class="kw-2">&amp;</span><span class="self">self</span>.futex, usize::MAX);
     }
 
     <span class="kw">pub fn </span>wait&lt;<span class="lifetime">'a</span>, T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, mutex: MutexGuard&lt;<span class="lifetime">'a</span>, T&gt;) -&gt; MutexGuard&lt;<span class="lifetime">'a</span>, T&gt; {

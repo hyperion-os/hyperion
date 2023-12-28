@@ -173,12 +173,19 @@
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
 <a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
 </pre></div><pre class="rust"><code><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">"../../../README.md"</span>)]
 </span><span class="comment">//
 </span><span class="attr">#![no_std]
 #![no_main]
 </span><span class="comment">//
-</span><span class="attr">#![feature(custom_test_frameworks)]
+</span><span class="attr">#![allow(internal_features)]
+#![feature(custom_test_frameworks, lang_items)]
 #![test_runner(<span class="kw">crate</span>::testfw::test_runner)]
 #![reexport_test_harness_main = <span class="string">"test_main"</span>]
 #![allow(clippy::needless_return)]
@@ -293,6 +300,11 @@
     <span class="comment">// start doing kernel things
     </span>futures::executor::run_tasks();
 }
+
+<span class="comment">// to fix `cargo clippy` without a target
+</span><span class="attr">#[cfg(any(feature = <span class="string">"cargo-clippy"</span>, not(target_os = <span class="string">"none"</span>)))]
+#[lang = <span class="string">"eh_personality"</span>]
+</span><span class="kw">fn </span>eh_personality() {}
 
 <span class="comment">//
 

@@ -108,6 +108,11 @@
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
 <a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="comment">//
@@ -133,25 +138,30 @@
 </span><span class="kw">impl </span>Instant {
     <span class="kw">pub const </span>ZERO: <span class="self">Self </span>= Instant::new(<span class="number">0</span>);
 
-    <span class="kw">pub fn </span>now() -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub fn </span>now() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             nanosecond: hyperion_clock::get().nanosecond_now(),
         }
     }
 
-    <span class="kw">pub const fn </span>new(nanosecond: u128) -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>new(nanosecond: u128) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ nanosecond }
     }
 
-    <span class="kw">pub const fn </span>nanosecond(<span class="self">self</span>) -&gt; u128 {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>nanosecond(<span class="self">self</span>) -&gt; u128 {
         <span class="self">self</span>.nanosecond
     }
 
-    <span class="kw">pub fn </span>elapsed(<span class="self">self</span>) -&gt; Duration {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub fn </span>elapsed(<span class="self">self</span>) -&gt; Duration {
         <span class="self">Self</span>::now() - <span class="self">self
     </span>}
 
-    <span class="kw">pub fn </span>is_reached(<span class="self">self</span>) -&gt; bool {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub fn </span>is_reached(<span class="self">self</span>) -&gt; bool {
         <span class="self">self </span>&lt; <span class="self">Self</span>::now()
     }
 }

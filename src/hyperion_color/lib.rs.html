@@ -75,6 +75,13 @@
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
 <a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="comment">//
@@ -96,20 +103,24 @@
     <span class="kw">pub const </span>GREEN: Color = Color::new(<span class="number">0x00</span>, <span class="number">0xff</span>, <span class="number">0x00</span>);
     <span class="kw">pub const </span>BLUE: Color = Color::new(<span class="number">0x00</span>, <span class="number">0x00</span>, <span class="number">0xff</span>);
 
-    <span class="kw">pub const fn </span>new(r: u8, g: u8, b: u8) -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>new(r: u8, g: u8, b: u8) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ r, g, b }
     }
 
-    <span class="kw">pub const fn </span>from_u32(code: u32) -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>from_u32(code: u32) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>[r, g, b, <span class="kw">_</span>] = code.to_ne_bytes();
         <span class="self">Self</span>::new(r, g, b)
     }
 
-    <span class="kw">pub const fn </span>from_hex(hex_code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>from_hex(hex_code: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
         <span class="self">Self</span>::from_hex_bytes(hex_code.as_bytes())
     }
 
-    <span class="kw">pub const fn </span>from_hex_bytes(hex_code: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>from_hex_bytes(hex_code: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>&gt; {
         <span class="kw">match </span>hex_code {
             [r0, r1, g0, g1, b0, b1, <span class="kw">_</span>, <span class="kw">_</span>]
             | [r0, r1, g0, g1, b0, b1]
@@ -121,7 +132,8 @@
         }
     }
 
-    <span class="kw">pub const fn </span>from_hex_bytes_2(hex_code: [u8; <span class="number">6</span>]) -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>from_hex_bytes_2(hex_code: [u8; <span class="number">6</span>]) -&gt; <span class="self">Self </span>{
         <span class="kw">const fn </span>parse_hex_char(c: u8) -&gt; u8 {
             <span class="kw">match </span>c {
                 <span class="string">b'0'</span>..=<span class="string">b'9' </span>=&gt; c - <span class="string">b'0'</span>,
@@ -141,12 +153,14 @@
         <span class="self">Self</span>::new(r, g, b)
     }
 
-    <span class="kw">pub const fn </span>as_u32(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>as_u32(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
         <span class="comment">// self.b as u32 | (self.g as u32) &lt;&lt; 8 | (self.r as u32) &lt;&lt; 16
         </span>u32::from_le_bytes([<span class="self">self</span>.b, <span class="self">self</span>.g, <span class="self">self</span>.r, <span class="number">0</span>])
     }
 
-    <span class="kw">pub const fn </span>as_arr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; [u8; <span class="number">4</span>] {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>as_arr(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; [u8; <span class="number">4</span>] {
         <span class="self">self</span>.as_u32().to_ne_bytes()
         <span class="comment">// [self.r, self.g, self.b, 0]
     </span>}

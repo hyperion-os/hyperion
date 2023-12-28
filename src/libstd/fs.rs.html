@@ -258,6 +258,11 @@
 <a href="#257" id="257">257</a>
 <a href="#258" id="258">258</a>
 <a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>core::mem::ManuallyDrop;
 
 <span class="kw">use </span>core_alloc::{borrow::Cow, string::String};
@@ -392,6 +397,7 @@
     /// `desc` must be a valid file descriptor
     ///
     /// this transfers the ownership of `desc` and will automatically close the file when dropped
+    </span><span class="attr">#[must_use]
     </span><span class="kw">pub const unsafe fn </span>new(desc: FileDesc) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             desc,
@@ -402,6 +408,7 @@
     <span class="doccomment">/// # Safety
     ///
     /// technically not unsafe, the fd should be closed at some point
+    </span><span class="attr">#[must_use]
     </span><span class="kw">pub unsafe fn </span>into_inner(<span class="self">self</span>) -&gt; FileDesc {
         ManuallyDrop::new(<span class="self">self</span>).desc
     }
@@ -409,6 +416,7 @@
     <span class="doccomment">/// # Safety
     ///
     /// file i/o won't be automatically synchronized
+    </span><span class="attr">#[must_use]
     </span><span class="kw">pub const unsafe fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             desc: <span class="self">self</span>.desc,
@@ -416,7 +424,8 @@
         }
     }
 
-    <span class="kw">pub const fn </span>as_desc(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FileDesc {
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>as_desc(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FileDesc {
         <span class="self">self</span>.desc
     }
 
@@ -476,7 +485,8 @@
 }
 
 <span class="kw">impl </span>OpenOptions {
-    <span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
+    <span class="attr">#[must_use]
+    </span><span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             flags: FileOpenFlags::empty(),
         }
