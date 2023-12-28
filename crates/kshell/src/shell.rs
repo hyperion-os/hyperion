@@ -17,7 +17,6 @@ use hyperion_keyboard::{
 };
 use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
-use hyperion_random::Rng;
 use hyperion_scheduler::{
     idle,
     ipc::pipe::pipe,
@@ -141,7 +140,6 @@ impl Shell {
             "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
-            "rand" => self.rand_cmd(args)?,
             "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
             "lapic_id" => self.lapic_id_cmd(args)?,
@@ -426,19 +424,12 @@ impl Shell {
         Ok(())
     }
 
-    fn rand_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        let mut rng = hyperion_random::next_secure_rng().ok_or(Error::InsecurePrng)?;
-        _ = writeln!(self.term, "{}", rng.gen::<u64>());
-
-        Ok(())
-    }
-
     async fn snake_cmd(&mut self, _: Option<&str>) -> Result<()> {
         snake_game(&mut self.term).await
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, date, mem, kbl, rand, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear");
+        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, date, mem, kbl, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear");
 
         Ok(())
     }

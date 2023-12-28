@@ -7,6 +7,7 @@ extern crate alloc;
 mod cat;
 mod echo;
 mod ls;
+mod random;
 mod sleep;
 mod touch;
 
@@ -27,6 +28,7 @@ fn main() {
         "cat" => cat::cmd(args),
         "echo" => echo::cmd(args),
         "ls" => ls::cmd(args),
+        "random" => random::cmd(args),
         "sleep" => sleep::cmd(args),
         "touch" => touch::cmd(args),
         _ => crate::cmd(),
