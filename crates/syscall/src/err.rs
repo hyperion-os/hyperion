@@ -93,3 +93,11 @@ impl fmt::Display for Error {
         f.write_str(self.as_str())
     }
 }
+
+impl core::error::Error for Error {}
+
+impl From<Error> for anyhow::Error {
+    fn from(value: Error) -> Self {
+        anyhow::Error::msg(value)
+    }
+}

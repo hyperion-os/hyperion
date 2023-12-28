@@ -12,6 +12,7 @@ workspace = true
 anyhow.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
+time.workspace = true
 
 libstd.path = "../../crates/libstd"
 hyperion-num-postfix.path = "../../crates/num-postfix"

@@ -9,5 +9,6 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow.workspace = true
 bitflags = "2.4"
 # strum = { version = "0.25", default-features = false, features = ["derive"] }

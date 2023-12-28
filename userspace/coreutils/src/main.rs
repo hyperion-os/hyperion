@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod cat;
+mod date;
 mod echo;
 mod ls;
 mod random;
@@ -26,6 +27,7 @@ fn main() {
 
     let result = match cmd {
         "cat" => cat::cmd(args),
+        "date" => date::cmd(args),
         "echo" => echo::cmd(args),
         "ls" => ls::cmd(args),
         "random" => random::cmd(args),

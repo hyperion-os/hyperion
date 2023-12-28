@@ -273,6 +273,7 @@ dependencies = [
  "libstd",
  "rand",
  "rand_chacha",
+ "time",
 ]
 
 [[package]]
@@ -1002,6 +1003,7 @@ dependencies = [
 name = "hyperion-syscall"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bitflags 2.4.1",
 ]
 

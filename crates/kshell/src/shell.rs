@@ -10,7 +10,7 @@ use futures_util::stream::select;
 use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
 use hyperion_instant::Instant;
-use hyperion_kernel_impl::{FileDescData, FileDescriptor, VFS_ROOT};
+use hyperion_kernel_impl::{FileDescData, FileDescriptor};
 use hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -27,9 +27,7 @@ use hyperion_vfs::{
     self,
     path::{Path, PathBuf},
 };
-use snafu::ResultExt;
 use spin::Mutex;
-use time::OffsetDateTime;
 
 use super::{term::Term, *};
 use crate::{
@@ -137,7 +135,6 @@ impl Shell {
             "splash" => self.splash_cmd(args)?,
             "pwd" => self.pwd_cmd(args)?,
             "cd" => self.cd_cmd(args)?,
-            "date" => self.date_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
             "snake" => self.snake_cmd(args).await?,
@@ -380,25 +377,6 @@ impl Shell {
         Ok(())
     }
 
-    fn date_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        let resource = Path::from_str("/dev/rtc");
-
-        let file = VFS_ROOT
-            .find_file(resource, false, false)
-            .context(IoSnafu { resource })?;
-        let file = file.lock();
-
-        let mut timestamp = [0u8; 8];
-        file.read_exact(0, &mut timestamp)
-            .context(IoSnafu { resource })?;
-
-        let date = OffsetDateTime::from_unix_timestamp(i64::from_le_bytes(timestamp));
-
-        _ = writeln!(self.term, "{date:?}");
-
-        Ok(())
-    }
-
     fn mem_cmd(&mut self, _: Option<&str>) -> Result<()> {
         let used = pmm::PFA.used_mem().postfix_binary();
         let usable = pmm::PFA.usable_mem().postfix_binary();
@@ -429,7 +407,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, date, mem, kbl, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear");
+        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear");
 
         Ok(())
     }
