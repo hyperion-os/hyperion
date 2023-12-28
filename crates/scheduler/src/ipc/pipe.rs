@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use crate::{condvar::Condvar, lock::Mutex, process, task::Pid};
+use crate::{condvar::Condvar, lock::Mutex};
 
 //
 
@@ -289,23 +289,4 @@ where
             s_closed = self.send_wait.wait(s_closed);
         }
     }
-}
-
-//
-
-pub fn send(target_pid: Pid, data: &[u8]) -> Result<(), &'static str> {
-    target_pid
-        .find()
-        .ok_or("no such process")?
-        .simple_ipc
-        .send_slice(data)
-        .map_err(|_| "stream closed")?;
-    Ok(())
-}
-
-pub fn recv(buf: &mut [u8]) -> Result<usize, &'static str> {
-    process()
-        .simple_ipc
-        .recv_slice(buf)
-        .map_err(|_| "stream closed")
 }

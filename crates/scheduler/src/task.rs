@@ -32,7 +32,7 @@ use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
-use crate::{after, cleanup::Cleanup, ipc::pipe::Pipe, swap_current, task, tls};
+use crate::{after, cleanup::Cleanup, swap_current, task, tls};
 
 //
 
@@ -215,9 +215,6 @@ pub struct Process {
     /// process heap beginning, the end of the user process
     pub heap_bottom: AtomicUsize,
 
-    /// naïve PID based IPC
-    pub simple_ipc: Pipe,
-
     // TODO: the AddressSpace already knows these
     /// a store for all allocated (and mapped) physical pages
     pub allocs: PageAllocs,
@@ -251,7 +248,6 @@ impl Process {
             nanos: AtomicU64::new(0),
             address_space,
             heap_bottom: AtomicUsize::new(0x1000),
-            simple_ipc: Pipe::new_pipe(),
             allocs: PageAllocs::default(),
             ext: Once::new(),
             should_terminate: AtomicBool::new(false),
