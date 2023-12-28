@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Defer"]};
+window.SIDEBAR_ITEMS = {"struct":["Defer","DeferInit"]};

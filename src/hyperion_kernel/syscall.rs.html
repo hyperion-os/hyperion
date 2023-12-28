@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (bf8716f1c 2023-12-24)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/syscall.rs`."><title>syscall.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-452d19225583af2a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (89e2160c4 2023-12-27)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6902632119e002ca.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -687,25 +687,59 @@
 <a href="#686" id="686">686</a>
 <a href="#687" id="687">687</a>
 <a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
 };
 <span class="kw">use </span>core::{
-    any::type_name_of_val,
     fmt::Write,
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 <span class="kw">use </span>hyperion_arch::syscall::SyscallRegs;
+<span class="kw">use </span>hyperion_defer::DeferInit;
 <span class="kw">use </span>hyperion_drivers::acpi::hpet::HPET;
 <span class="kw">use </span>hyperion_instant::Instant;
 <span class="kw">use </span>hyperion_kernel_impl::{
-    get_file, get_socket, get_socket_locked, map_vfs_err_to_syscall_err, process_ext_with,
-    push_file, push_socket, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut,
-    read_untrusted_ref, read_untrusted_str, File, FileInner, LocalSocketConn, SocketFile, VFS_ROOT,
+    fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
+    read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
+    read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo, SocketPipe, VFS_ROOT,
 };
 <span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
 <span class="kw">use </span>hyperion_mem::vmm::PageMapImpl;
@@ -717,9 +751,9 @@
 };
 <span class="kw">use </span>hyperion_syscall::{
     err::{Error, <span class="prelude-ty">Result</span>},
-    fs::{FileDesc, FileOpenFlags, Metadata},
+    fs::{FileDesc, FileOpenFlags, Metadata, Seek},
     id,
-    net::{Protocol, SocketDesc, SocketDomain, SocketType},
+    net::{Protocol, SocketDomain, SocketType},
 };
 <span class="kw">use </span>hyperion_vfs::{path::Path, ramdisk, tree::Node};
 <span class="kw">use </span>time::Duration;
@@ -728,15 +762,15 @@
 <span class="comment">//
 
 </span><span class="kw">pub fn </span>syscall(args: <span class="kw-2">&amp;mut </span>SyscallRegs) {
-    <span class="kw">let </span>id = args.syscall_id;
-    <span class="kw">let </span>(result, name) = <span class="kw">match </span>id <span class="kw">as </span>usize {
+    <span class="kw">match </span>args.syscall_id <span class="kw">as </span>usize {
         id::LOG =&gt; call_id(log, args),
         id::EXIT =&gt; call_id(exit, args),
+        id::DONE =&gt; call_id(done, args),
         id::YIELD_NOW =&gt; call_id(yield_now, args),
         id::TIMESTAMP =&gt; call_id(timestamp, args),
         id::NANOSLEEP =&gt; call_id(nanosleep, args),
         id::NANOSLEEP_UNTIL =&gt; call_id(nanosleep_until, args),
-        id::PTHREAD_SPAWN =&gt; call_id(pthread_spawn, args),
+        id::SPAWN =&gt; call_id(spawn, args),
         id::PALLOC =&gt; call_id(palloc, args),
         id::PFREE =&gt; call_id(pfree, args),
         id::SEND =&gt; call_id(send, args),
@@ -769,30 +803,26 @@
 
         <span class="kw">_ </span>=&gt; {
             <span class="macro">debug!</span>(<span class="string">"invalid syscall"</span>);
-            hyperion_scheduler::stop();
+            hyperion_scheduler::exit();
         }
     };
+}
 
-    <span class="kw">_ </span>= (result, name);
-    <span class="comment">// if result &lt; 0 {
-    //     debug!("syscall `{name}` (id {id}) returned {result}",);
-    // }
-</span>}
-
-<span class="kw">fn </span>call_id(
-    f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt;,
-    args: <span class="kw-2">&amp;mut </span>SyscallRegs,
-) -&gt; (<span class="prelude-ty">Result</span>&lt;usize&gt;, <span class="kw-2">&amp;</span>str) {
-    <span class="kw">let </span>name = type_name_of_val(<span class="kw-2">&amp;</span>f);
-
+<span class="kw">fn </span>call_id(f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt;, args: <span class="kw-2">&amp;mut </span>SyscallRegs) {
     <span class="comment">// debug!(
-    //     "{name}&lt;{}&gt;({}, {}, {}, {}, {})",
-    //     args.syscall_id, args.arg0, args.arg1, args.arg2, args.arg3, args.arg4,
+    //     "{}&lt;{}&gt;({}, {}, {}, {}, {})",
+    //     type_name_of_val(&amp;f),
+    //     args.syscall_id,
+    //     args.arg0,
+    //     args.arg1,
+    //     args.arg2,
+    //     args.arg3,
+    //     args.arg4,
     // );
 
     </span><span class="kw">let </span>res = f(args);
-    args.syscall_id = Error::encode(res) <span class="kw">as </span>u64;
-    (res, name)
+    <span class="comment">// debug!(" \\= {res:?}");
+    </span>args.syscall_id = Error::encode(res) <span class="kw">as </span>u64;
 }
 
 <span class="doccomment">/// print a string to logs
@@ -800,62 +830,119 @@
 /// [`hyperion_syscall::log`]
 </span><span class="kw">pub fn </span>log(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>str = read_untrusted_str(args.arg0, args.arg1)<span class="question-mark">?</span>;
-    <span class="macro">hyperion_log::print!</span>(<span class="string">"{str}"</span>);
+
+    _log(str);
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_log(str: <span class="kw-2">&amp;</span>str) {
+    <span class="macro">print!</span>(<span class="string">"{str}"</span>);
 }
 
 <span class="doccomment">/// exit and kill the current process
 ///
 /// [`hyperion_syscall::exit`]
 </span><span class="kw">pub fn </span>exit(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    _exit();
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace(split)]
+</span><span class="kw">fn </span>_exit() {
     <span class="comment">// TODO: exit code
-    </span>hyperion_scheduler::stop();
+    </span>hyperion_scheduler::exit();
+}
+
+<span class="doccomment">/// exit and kill the current thread
+///
+/// [`hyperion_syscall::done`]
+</span><span class="kw">pub fn </span>done(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    _done();
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace(split)]
+</span><span class="kw">fn </span>_done() {
+    <span class="comment">// TODO: exit code
+    </span>hyperion_scheduler::done();
 }
 
 <span class="doccomment">/// give the processor back to the kernel temporarily
 ///
 /// [`hyperion_syscall::yield_now`]
 </span><span class="kw">pub fn </span>yield_now(_args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    hyperion_scheduler::yield_now();
+    _yield_now();
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_yield_now() {
+    hyperion_scheduler::yield_now();
 }
 
 <span class="doccomment">/// get the number of nanoseconds after boot
 ///
 /// [`hyperion_syscall::timestamp`]
 </span><span class="kw">pub fn </span>timestamp(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>nanos = HPET.nanos();
-
     <span class="kw">let </span>bytes = read_untrusted_bytes_mut(args.arg0, <span class="number">16</span>)<span class="question-mark">?</span>;
-    bytes.copy_from_slice(<span class="kw-2">&amp;</span>nanos.to_ne_bytes());
 
+    _timestamp(bytes);
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_timestamp(bytes: <span class="kw-2">&amp;mut </span>[u8]) {
+    <span class="kw">let </span>nanos = HPET.nanos();
+    bytes.copy_from_slice(<span class="kw-2">&amp;</span>nanos.to_ne_bytes());
 }
 
 <span class="doccomment">/// sleep at least arg0 nanoseconds
 ///
 /// [`hyperion_syscall::nanosleep`]
 </span><span class="kw">pub fn </span>nanosleep(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    hyperion_scheduler::sleep(Duration::nanoseconds((args.arg0 <span class="kw">as </span>i64).max(<span class="number">0</span>)));
+    <span class="kw">let </span>nanos = args.arg0 <span class="kw">as </span>i64;
+
+    _nanosleep(nanos);
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_nanosleep(nanos: i64) {
+    hyperion_scheduler::sleep(Duration::nanoseconds(nanos.max(<span class="number">0</span>)));
 }
 
 <span class="doccomment">/// sleep at least until the nanosecond arg0 happens
 ///
 /// [`hyperion_syscall::nanosleep_until`]
 </span><span class="kw">pub fn </span>nanosleep_until(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    hyperion_scheduler::sleep_until(Instant::new(args.arg0 <span class="kw">as </span>u128));
+    <span class="kw">let </span>nanosecond = args.arg0 <span class="kw">as </span>u128;
+
+    _nanosleep_until(nanosecond);
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_nanosleep_until(nanosecond: u128) {
+    hyperion_scheduler::sleep_until(Instant::new(nanosecond));
 }
 
 <span class="doccomment">/// spawn a new thread
 ///
 /// thread entry signature: `extern "C" fn thread_entry(stack_ptr: usize, arg1: usize) -&gt; !`
 ///
-/// [`hyperion_syscall::pthread_spawn`]
-</span><span class="kw">pub fn </span>pthread_spawn(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    hyperion_scheduler::spawn_userspace(args.arg0, args.arg1);
+/// [`hyperion_syscall::spawn`]
+</span><span class="kw">pub fn </span>spawn(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>fn_ptr = args.arg0;
+    <span class="kw">let </span>fn_arg = args.arg1;
+
+    _spawn(fn_ptr, fn_arg);
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_spawn(fn_ptr: u64, fn_arg: u64) {
+    hyperion_scheduler::spawn_userspace(fn_ptr, fn_arg);
 }
 
 <span class="doccomment">/// allocate physical pages and map them to virtual memory
@@ -865,11 +952,16 @@
 /// [`hyperion_syscall::palloc`]
 </span><span class="kw">pub fn </span>palloc(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>n_pages = args.arg0 <span class="kw">as </span>usize;
+    <span class="kw">return </span>_palloc(n_pages).map(|ptr| ptr.as_u64() <span class="kw">as _</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_palloc(n_pages: usize) -&gt; <span class="prelude-ty">Result</span>&lt;VirtAddr&gt; {
     <span class="kw">let </span>flags =
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
 
     <span class="kw">match </span>process().alloc(n_pages, flags) {
-        <span class="prelude-val">Ok</span>((ptr, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Ok</span>(ptr.as_u64() <span class="kw">as _</span>),
+        <span class="prelude-val">Ok</span>((ptr, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Ok</span>(ptr),
         <span class="prelude-val">Err</span>(AllocErr::OutOfVirtMem) =&gt; <span class="prelude-val">Err</span>(Error::OUT_OF_VIRTUAL_MEMORY),
     }
 }
@@ -883,8 +975,14 @@
     };
     <span class="kw">let </span>n_pages = args.arg1 <span class="kw">as </span>usize;
 
+    _pfree(ptr, n_pages)<span class="question-mark">?</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_pfree(ptr: VirtAddr, n_pages: usize) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">match </span>process().free(n_pages, ptr) {
-        <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(<span class="number">0</span>),
+        <span class="prelude-val">Ok</span>(()) =&gt; <span class="prelude-val">Ok</span>(()),
         <span class="prelude-val">Err</span>(FreeErr::InvalidAddr) =&gt; <span class="prelude-val">Err</span>(Error::INVALID_ADDRESS),
         <span class="prelude-val">Err</span>(FreeErr::InvalidAlloc) =&gt; <span class="prelude-val">Err</span>(Error::INVALID_ALLOC),
     }
@@ -895,8 +993,14 @@
 /// [`hyperion_syscall::rename`]
 </span><span class="kw">pub fn </span>rename(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>new_name = read_untrusted_str(args.arg0, args.arg1)<span class="question-mark">?</span>;
-    hyperion_scheduler::rename(new_name.to_string());
+
+    _rename(new_name);
     <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_rename(new_name: <span class="kw-2">&amp;</span>str) {
+    hyperion_scheduler::rename(new_name.to_string());
 }
 
 <span class="doccomment">/// open a file
@@ -904,21 +1008,26 @@
 /// [`hyperion_syscall::open`]
 </span><span class="kw">pub fn </span>open(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>path = read_untrusted_str(args.arg0, args.arg1)<span class="question-mark">?</span>;
-
     <span class="kw">let </span><span class="prelude-val">Some</span>(flags) = FileOpenFlags::from_bits(args.arg2 <span class="kw">as </span>usize) <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_FLAGS);
     };
 
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
+    <span class="kw">let </span>fd = _open(path, flags)<span class="question-mark">?</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(fd.<span class="number">0</span>);
+}
 
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_open(path: <span class="kw-2">&amp;</span>str, flags: FileOpenFlags) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
     <span class="kw">let </span>create = flags.contains(FileOpenFlags::CREATE) || flags.contains(FileOpenFlags::CREATE_NEW);
 
-    <span class="kw">if </span>flags.contains(FileOpenFlags::CREATE_NEW)
-        || flags.contains(FileOpenFlags::TRUNC)
-        || flags.contains(FileOpenFlags::APPEND)
-        || (!flags.contains(FileOpenFlags::READ) &amp;&amp; !flags.contains(FileOpenFlags::WRITE))
-    {
+    <span class="kw">if </span>!flags.intersects(FileOpenFlags::READ | FileOpenFlags::WRITE) {
+        <span class="comment">// tried to open a file with no read and no write
+        </span><span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_FLAGS);
+    }
+
+    <span class="kw">let </span>todo = FileOpenFlags::CREATE_NEW;
+    <span class="kw">if </span>flags.intersects(todo) {
+        <span class="macro">error!</span>(<span class="string">"TODO `open` flags: {:?}"</span>, flags.intersection(todo));
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::FILESYSTEM_ERROR);
     }
 
@@ -928,62 +1037,70 @@
         .find_file(path, mkdirs, create)
         .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>fd = ext.files.lock().push(File::new(Mutex::new(FileInner {
-        file_ref,
-        position: <span class="number">0</span>,
-    })));
+    <span class="comment">// let mut file_lock = file_ref.lock();
+    </span><span class="kw">let </span><span class="kw-2">mut </span>file_lock = DeferInit::new(|| file_ref.lock());
+    <span class="kw">if </span>flags.contains(FileOpenFlags::TRUNC) {
+        file_lock.set_len(<span class="number">0</span>).map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
+    }
 
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(fd);
+    <span class="kw">let </span>position = <span class="kw">if </span>flags.contains(FileOpenFlags::APPEND) {
+        file_lock.len()
+    } <span class="kw">else </span>{
+        <span class="number">0
+    </span>};
+
+    drop(file_lock);
+
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(fd_push(Arc::new(FileDescData::new(file_ref, position))));
 }
 
 <span class="doccomment">/// close a file
 ///
 /// [`hyperion_syscall::close`]
 </span><span class="kw">pub fn </span>close(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
+    <span class="kw">let </span>fd = FileDesc(args.arg0 <span class="kw">as </span>usize);
 
-    <span class="kw">if </span>ext.files.lock().remove(args.arg0 <span class="kw">as _</span>).is_none() {
+    _close(fd)<span class="question-mark">?</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_close(fd: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">if </span>fd_take(fd).is_none() {
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::BAD_FILE_DESCRIPTOR);
     }
-
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="number">0</span>);
+    <span class="prelude-val">Ok</span>(())
 }
 
 <span class="doccomment">/// read bytes from a file
 ///
 /// [`hyperion_syscall::read`]
 </span><span class="kw">pub fn </span>read(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>fd = FileDesc(args.arg0 <span class="kw">as </span>usize);
     <span class="kw">let </span>buf = read_untrusted_bytes_mut(args.arg1, args.arg2)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>file = get_file(FileDesc(args.arg0 <span class="kw">as </span>usize))<span class="question-mark">?</span>.lock_arc();
+    <span class="kw">return </span>_read(fd, buf);
+}
 
-    <span class="kw">let </span>read = file
-        .file_ref
-        .lock()
-        .read(file.position, buf)
-        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
-    file.position += read;
-
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(read);
+<span class="comment">// #[trace]
+</span><span class="kw">fn </span>_read(fd: FileDesc, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>file = fd_query(fd)<span class="question-mark">?</span>;
+    <span class="kw">return </span>file.read(buf);
 }
 
 <span class="doccomment">/// write bytes into a file
 ///
 /// [`hyperion_syscall::write`]
 </span><span class="kw">pub fn </span>write(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>fd = FileDesc(args.arg0 <span class="kw">as </span>usize);
     <span class="kw">let </span>buf = read_untrusted_bytes(args.arg1, args.arg2)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>file = get_file(FileDesc(args.arg0 <span class="kw">as </span>usize))<span class="question-mark">?</span>.lock_arc();
+    <span class="kw">return </span>_write(fd, buf);
+}
 
-    <span class="kw">let </span>written = file
-        .file_ref
-        .lock()
-        .write(file.position, buf)
-        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
-    file.position += written;
-
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(written);
+<span class="kw">fn </span>_write(fd: FileDesc, buf: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>file = fd_query(fd)<span class="question-mark">?</span>;
+    <span class="kw">return </span>file.write(buf);
 }
 
 <span class="doccomment">/// create a socket
@@ -993,50 +1110,45 @@
     <span class="kw">let </span>domain = SocketDomain(args.arg0 <span class="kw">as _</span>);
     <span class="kw">let </span>ty = SocketType(args.arg1 <span class="kw">as _</span>);
     <span class="kw">let </span>proto = Protocol(args.arg2 <span class="kw">as _</span>);
+    <span class="kw">let </span>info = SocketInfo { domain, ty, proto };
 
-    _socket(domain, ty, proto).map(|fd| fd.<span class="number">0</span>)
+    <span class="kw">return </span>_socket(info).map(|fd| fd.<span class="number">0</span>);
 }
 
-<span class="kw">fn </span>_socket(domain: SocketDomain, ty: SocketType, proto: Protocol) -&gt; <span class="prelude-ty">Result</span>&lt;SocketDesc&gt; {
-    <span class="kw">if </span>domain != SocketDomain::LOCAL {
+<span class="kw">fn </span>_socket(info: SocketInfo) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
+    <span class="kw">if </span>info.domain != SocketDomain::LOCAL {
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_DOMAIN);
     }
 
-    <span class="kw">if </span>ty != SocketType::STREAM {
+    <span class="kw">if </span>info.ty != SocketType::STREAM {
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_TYPE);
     }
 
-    <span class="kw">if </span>proto != Protocol::LOCAL {
+    <span class="kw">if </span>info.proto != Protocol::LOCAL {
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::UNKNOWN_PROTOCOL);
     }
 
-    <span class="prelude-val">Ok</span>(push_socket(SocketFile {
-        domain,
-        ty,
-        proto,
-        incoming: <span class="prelude-val">None</span>,
-        connection: <span class="prelude-val">None</span>,
-    }))
+    <span class="prelude-val">Ok</span>(fd_push(Arc::new(LocalSocket::new(info))))
 }
 
 <span class="doccomment">/// bind a socket
 ///
 /// [`hyperion_syscall::bind`]
 </span><span class="kw">fn </span>bind(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>socket = SocketDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>socket_fd = FileDesc(args.arg0 <span class="kw">as _</span>);
     <span class="kw">let </span>addr = read_untrusted_str(args.arg1, args.arg2)<span class="question-mark">?</span>;
 
-    _bind(socket, addr).map(|<span class="kw">_</span>| <span class="number">0</span>)
+    <span class="kw">return </span>_bind(socket_fd, addr).map(|<span class="kw">_</span>| <span class="number">0</span>);
 }
 
-<span class="kw">fn </span>_bind(socket: SocketDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<span class="kw">fn </span>_bind(socket_fd: FileDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="comment">// TODO: this is only for LOCAL domain sockets atm
     </span><span class="kw">let </span>path = Path::from_str(addr);
     <span class="kw">let </span><span class="prelude-val">Some</span>((dir, sock_file)) = path.split() <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(Error::NOT_FOUND);
     };
 
-    <span class="kw">let </span>socket = get_socket(socket)<span class="question-mark">?</span>;
+    <span class="kw">let </span>socket = fd_query_of::&lt;LocalSocket&gt;(socket_fd)<span class="question-mark">?</span>;
 
     VFS_ROOT
         <span class="comment">// find the directory node
@@ -1045,7 +1157,10 @@
         </span><span class="comment">// lock the directory
         </span>.lock_arc()
         <span class="comment">// create the socket file in that directory
-        </span>.create_node(sock_file, Node::File(socket))
+        </span>.create_node(
+            sock_file,
+            Node::File(Arc::new(Mutex::new(BoundSocket(socket)))),
+        )
         .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
 
     <span class="kw">return </span><span class="prelude-val">Ok</span>(());
@@ -1055,13 +1170,14 @@
 ///
 /// [`hyperion_syscall::listen`]
 </span><span class="kw">fn </span>listen(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>socket = SocketDesc(args.arg0 <span class="kw">as _</span>);
-    _listen(socket).map(|<span class="kw">_</span>| <span class="number">0</span>)
+    <span class="kw">let </span>socket_fd = FileDesc(args.arg0 <span class="kw">as _</span>);
+
+    <span class="kw">return </span>_listen(socket_fd).map(|<span class="kw">_</span>| <span class="number">0</span>);
 }
 
-<span class="kw">fn </span>_listen(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    get_socket_locked(socket)<span class="question-mark">?</span>.incoming();
-
+<span class="kw">fn </span>_listen(socket_fd: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">let </span>socket = fd_query_of::&lt;LocalSocket&gt;(socket_fd)<span class="question-mark">?</span>;
+    socket.listener()<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(())
 }
 
@@ -1069,67 +1185,57 @@
 ///
 /// [`hyperion_syscall::accept`]
 </span><span class="kw">fn </span>accept(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>socket = SocketDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>socket_fd = FileDesc(args.arg0 <span class="kw">as _</span>);
 
-    _accept(socket).map(|fd| fd.<span class="number">0</span>)
+    <span class="kw">return </span>_accept(socket_fd).map(|fd| fd.<span class="number">0</span>);
 }
 
-<span class="kw">fn </span>_accept(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;SocketDesc&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>socket = get_socket_locked(socket)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>domain = socket.domain;
-    <span class="kw">let </span>ty = socket.ty;
-    <span class="kw">let </span>proto = socket.proto;
+<span class="kw">fn </span>_accept(socket_fd: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
+    <span class="kw">let </span>socket = fd_query_of::&lt;LocalSocket&gt;(socket_fd)<span class="question-mark">?</span>;
 
     <span class="comment">// `listen` syscall is not required
-    </span><span class="kw">let </span>conn = socket.incoming();
-
-    drop(socket);
+    </span><span class="kw">let </span>incoming = socket.listener()<span class="question-mark">?</span>;
 
     <span class="comment">// blocks here
-    </span><span class="kw">let </span>conn = conn.recv().unwrap();
+    </span><span class="kw">let </span>pipe = incoming
+        .recv()
+        .expect(<span class="string">"local socket listener send end should never close"</span>);
 
-    <span class="prelude-val">Ok</span>(push_socket(SocketFile {
-        domain,
-        ty,
-        proto,
-        incoming: <span class="prelude-val">None</span>,
-        connection: <span class="prelude-val">Some</span>(conn),
-    }))
+    <span class="prelude-val">Ok</span>(fd_push(Arc::new(LocalSocket::connected(socket.info, pipe))))
 }
 
 <span class="doccomment">/// connect to a socket
 ///
 /// [`hyperion_syscall::connect`]
 </span><span class="kw">fn </span>connect(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>socket = SocketDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>socket = FileDesc(args.arg0 <span class="kw">as _</span>);
     <span class="kw">let </span>addr = read_untrusted_str(args.arg1, args.arg2)<span class="question-mark">?</span>;
 
     _connect(socket, addr).map(|<span class="kw">_</span>| <span class="number">0</span>)
 }
 
-<span class="kw">fn </span>_connect(socket: SocketDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="comment">// get the client socket early to test for errors, but lock it late
-    </span><span class="kw">let </span>client = get_socket(socket)<span class="question-mark">?</span>;
+<span class="kw">fn </span>_connect(socket_fd: FileDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+    <span class="kw">let </span>client = fd_query_of::&lt;LocalSocket&gt;(socket_fd)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>server = VFS_ROOT
-        .find_file(addr, <span class="bool-val">false</span>, <span class="bool-val">false</span>)
+        <span class="comment">// TODO: inode
+        </span>.find_file(addr, <span class="bool-val">false</span>, <span class="bool-val">false</span>)
         .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?
-        </span>.lock_arc();
-
-    <span class="comment">// TODO: inode
-    </span><span class="kw">let </span>incoming = server
+        </span>.lock_arc()
         .as_any()
-        .downcast_ref::&lt;SocketFile&gt;()
+        .downcast_ref::&lt;BoundSocket&gt;()
         .ok_or(Error::CONNECTION_REFUSED)<span class="question-mark">?
-        </span>.try_incoming()
-        .ok_or(Error::CONNECTION_REFUSED)<span class="question-mark">?</span>;
+        </span>.<span class="number">0
+        </span>.clone();
 
-    drop(server);
+    <span class="kw">if </span>!client.is_uninit() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_ARGUMENT);
+    }
+    <span class="kw">let </span>listener = server.listener()<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>(conn_client, conn_server) = LocalSocketConn::new();
-    client.lock().connection = <span class="prelude-val">Some</span>(conn_client);
-    incoming
+    <span class="kw">let </span>(conn_client, conn_server) = SocketPipe::new();
+    client.connection(conn_client)<span class="question-mark">?</span>;
+    listener
         .send(conn_server)
         .map_err(|<span class="kw">_</span>| Error::CONNECTION_REFUSED)<span class="question-mark">?</span>;
 
@@ -1140,50 +1246,34 @@
 ///
 /// [`hyperion_syscall::send`]
 </span><span class="kw">pub fn </span>send(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>socket = SocketDesc(args.arg0 <span class="kw">as _</span>);
-    <span class="kw">let </span>data = read_untrusted_bytes(args.arg1, args.arg2)<span class="question-mark">?</span>;
+    <span class="kw">let </span>socket = FileDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>buf = read_untrusted_bytes(args.arg1, args.arg2)<span class="question-mark">?</span>;
     <span class="kw">let </span>flags = args.arg3 <span class="kw">as _</span>;
 
-    _send(socket, data, flags).map(|<span class="kw">_</span>| <span class="number">0</span>)
+    _send(socket, buf, flags)
 }
 
-<span class="kw">fn </span>_send(socket: SocketDesc, data: <span class="kw-2">&amp;</span>[u8], _flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span>socket = get_socket_locked(socket)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span><span class="prelude-val">Some</span>(conn) = socket.try_connection() <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::BAD_FILE_DESCRIPTOR);
-    };
-
-    drop(socket);
-
-    conn.send.send_slice(data).map_err(|<span class="kw">_</span>| Error::CLOSED)<span class="question-mark">?</span>;
-
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+<span class="kw">fn </span>_send(socket_fd: FileDesc, buf: <span class="kw-2">&amp;</span>[u8], _flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>socket = fd_query(socket_fd)<span class="question-mark">?</span>;
+    socket.write(buf)
 }
 
 <span class="doccomment">/// recv data from a socket
 ///
+/// `read` does the exact same thing
+///
 /// [`hyperion_syscall::recv`]
 </span><span class="kw">pub fn </span>recv(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>socket = SocketDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>socket = FileDesc(args.arg0 <span class="kw">as _</span>);
     <span class="kw">let </span>buf = read_untrusted_bytes_mut(args.arg1, args.arg2)<span class="question-mark">?</span>;
     <span class="kw">let </span>flags = args.arg3 <span class="kw">as _</span>;
 
     _recv(socket, buf, flags)
 }
 
-<span class="kw">fn </span>_recv(socket: SocketDesc, buf: <span class="kw-2">&amp;mut </span>[u8], _flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>socket = get_socket_locked(socket)<span class="question-mark">?</span>;
-
-    <span class="kw">let </span><span class="prelude-val">Some</span>(conn) = socket.try_connection() <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(Error::BAD_FILE_DESCRIPTOR);
-    };
-
-    drop(socket);
-
-    <span class="kw">let </span>n_bytes = conn.recv.recv_slice(buf).map_err(|<span class="kw">_</span>| Error::CLOSED)<span class="question-mark">?</span>;
-
-    <span class="kw">return </span><span class="prelude-val">Ok</span>(n_bytes);
+<span class="kw">fn </span>_recv(socket_fd: FileDesc, buf: <span class="kw-2">&amp;mut </span>[u8], _flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+    <span class="kw">let </span>socket = fd_query(socket_fd)<span class="question-mark">?</span>;
+    socket.read(buf)
 }
 
 <span class="doccomment">/// pid of the current process
@@ -1207,15 +1297,10 @@
     <span class="kw">let </span>old = FileDesc(args.arg0 <span class="kw">as _</span>);
     <span class="kw">let </span>new = FileDesc(args.arg1 <span class="kw">as _</span>);
 
-    <span class="kw">let </span>this = process();
-    <span class="kw">let </span>ext = process_ext_with(<span class="kw-2">&amp;</span>this);
+    <span class="kw">let </span>old = fd_query(old)<span class="question-mark">?</span>;
+    fd_replace(new, old);
 
-    <span class="kw">let </span><span class="kw-2">mut </span>files = ext.files.lock();
-
-    <span class="kw">let </span>old = files.get(old.<span class="number">0</span>).ok_or(Error::BAD_FILE_DESCRIPTOR)<span class="question-mark">?</span>.clone();
-    files.replace(new.<span class="number">0</span>, old); <span class="comment">// drop =&gt; close the old one
-
-    </span><span class="prelude-val">Ok</span>(new.<span class="number">0 </span><span class="kw">as _</span>)
+    <span class="prelude-val">Ok</span>(new.<span class="number">0 </span><span class="kw">as _</span>)
 }
 
 <span class="doccomment">/// open a directory
@@ -1243,10 +1328,10 @@
         <span class="macro">writeln!</span>(<span class="kw-2">&amp;mut </span>buf, <span class="string">"{mode} {size} {name}"</span>).unwrap();
     }
 
-    <span class="kw">let </span>fd = push_file(FileInner {
+    <span class="kw">let </span>fd = fd_push(Arc::new(FileDescData {
         file_ref: Arc::new(Mutex::new(ramdisk::File::new(Vec::from(buf)))),
-        position: <span class="number">0</span>,
-    });
+        position: AtomicUsize::new(<span class="number">0</span>),
+    }));
 
     <span class="prelude-val">Ok</span>(fd.<span class="number">0</span>)
 }
@@ -1279,7 +1364,7 @@
 ///
 /// [`hyperion_syscall::map_file`]
 </span><span class="kw">pub fn </span>map_file(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>file = FileDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>fd = FileDesc(args.arg0 <span class="kw">as _</span>);
     <span class="kw">let </span>at = NonNull::new(args.arg1 <span class="kw">as </span><span class="kw-2">*mut </span>());
     <span class="kw">let </span>size = args.arg2 <span class="kw">as </span>usize;
     <span class="kw">let </span>offset = args.arg3 <span class="kw">as </span>usize;
@@ -1291,7 +1376,7 @@
         <span class="macro">error!</span>(<span class="string">"handle map_file offset {offset:?}"</span>);
     }
 
-    <span class="kw">let </span><span class="kw-2">mut </span>file = get_file(file)<span class="question-mark">?</span>.lock().file_ref.lock_arc();
+    <span class="kw">let </span><span class="kw-2">mut </span>file = fd_query_of::&lt;FileDescData&gt;(fd)<span class="question-mark">?</span>.file_ref.lock_arc();
 
     <span class="kw">let </span>phys = file.map_phys(size).map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
 
@@ -1317,18 +1402,15 @@
 ///
 /// [`hyperion_syscall::unmap_file`]
 </span><span class="kw">pub fn </span>unmap_file(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>file = FileDesc(args.arg0 <span class="kw">as _</span>);
-    <span class="kw">let </span>at = NonNull::new(args.arg1 <span class="kw">as </span><span class="kw-2">*mut </span>());
-    <span class="kw">let </span>size = args.arg2 <span class="kw">as </span>usize;
+    <span class="kw">let </span>fd = FileDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="comment">// let at = NonNull::new(args.arg1 as *mut ());
+    // let size = args.arg2 as usize;
 
-    <span class="macro">hyperion_log::debug!</span>(<span class="string">"unmap_file({file:?}, {at:?}, {size})"</span>);
+    // hyperion_log::debug!("unmap_file({file:?}, {at:?}, {size})");
 
-    <span class="kw">let </span>file = get_file(file)<span class="question-mark">?</span>.lock_arc();
+    </span><span class="kw">let </span><span class="kw-2">mut </span>file = fd_query_of::&lt;FileDescData&gt;(fd)<span class="question-mark">?</span>.file_ref.lock_arc();
 
-    file.file_ref
-        .lock()
-        .unmap_phys()
-        .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
+    file.unmap_phys().map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(<span class="number">0</span>)
 }
@@ -1338,13 +1420,12 @@
 /// [`hyperion_syscall::metadata`]
 </span><span class="kw">pub fn </span>metadata(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="comment">// hyperion_log::debug!("metadata: a0:{} a1:{:#x}", args.arg0, args.arg1);
-    </span><span class="kw">let </span>file = FileDesc(args.arg0 <span class="kw">as _</span>);
+    </span><span class="kw">let </span>fd = FileDesc(args.arg0 <span class="kw">as _</span>);
     <span class="kw">let </span>meta: <span class="kw-2">&amp;mut </span>Metadata = read_untrusted_mut(args.arg1)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>file = get_file(file)<span class="question-mark">?</span>.lock_arc();
-    <span class="kw">let </span>file_ref = file.file_ref.lock();
-    meta.len = file_ref.len();
-    meta.position = file.position;
+    <span class="kw">let </span>file = fd_query(fd)<span class="question-mark">?</span>;
+    meta.len = file.len()<span class="question-mark">?</span>;
+    meta.position = file.seek(<span class="number">0</span>, Seek::CUR)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(<span class="number">0</span>)
 }
@@ -1353,25 +1434,12 @@
 ///
 /// [`hyperion_syscall::seek`]
 </span><span class="kw">pub fn </span>seek(args: <span class="kw-2">&amp;mut </span>SyscallRegs) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
-    <span class="kw">let </span>file = FileDesc(args.arg0 <span class="kw">as _</span>);
+    <span class="kw">let </span>fd = FileDesc(args.arg0 <span class="kw">as _</span>);
     <span class="kw">let </span>offset = args.arg1 <span class="kw">as </span>isize;
-    <span class="kw">let </span>origin = args.arg2 <span class="kw">as </span>usize;
+    <span class="kw">let </span>origin = Seek(args.arg2 <span class="kw">as </span>usize);
 
-    <span class="kw">let </span><span class="kw-2">mut </span>file = get_file(file)<span class="question-mark">?</span>.lock_arc();
-    <span class="kw">let </span>len = file.file_ref.lock().len();
-
-    <span class="kw">match </span>origin {
-        hyperion_syscall::fs::SEEK_SET =&gt; {
-            file.position = offset <span class="kw">as </span>usize;
-        }
-        hyperion_syscall::fs::SEEK_CUR =&gt; {
-            file.position = (file.position <span class="kw">as </span>isize + offset) <span class="kw">as </span>usize;
-        }
-        hyperion_syscall::fs::SEEK_END =&gt; {
-            file.position = (len <span class="kw">as </span>isize + offset) <span class="kw">as </span>usize;
-        }
-        <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_FLAGS),
-    }
+    <span class="kw">let </span>file = fd_query(fd)<span class="question-mark">?</span>;
+    file.seek(offset, origin)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(<span class="number">0</span>)
 }

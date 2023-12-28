@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/libstd/src/fs.rs`."><title>fs.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libstd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (bf8716f1c 2023-12-24)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/libstd/src/fs.rs`."><title>fs.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-452d19225583af2a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libstd" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (89e2160c4 2023-12-27)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6902632119e002ca.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -245,9 +245,22 @@
 <a href="#244" id="244">244</a>
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>core::mem::ManuallyDrop;
 
-<span class="kw">use </span>core_alloc::string::String;
+<span class="kw">use </span>core_alloc::{borrow::Cow, string::String};
 <span class="kw">use </span>hyperion_syscall::{
     close,
     err::{Error, <span class="prelude-ty">Result</span>},
@@ -256,7 +269,7 @@
 };
 <span class="kw">use </span>spin::{Mutex, MutexGuard};
 
-<span class="kw">use </span><span class="kw">crate</span>::io::{<span class="self">self</span>, BufReader, BufWriter, ConstBufReader};
+<span class="kw">use </span><span class="kw">crate</span>::io::{<span class="self">self</span>, BufReader, BufWriter};
 
 <span class="comment">//
 
@@ -264,13 +277,7 @@
 // static STDOUT: File = unsafe { File::new(FileDesc(1)) };
 // static STDERR: File = unsafe { File::new(FileDesc(2)) };
 
-</span><span class="kw">pub static </span>STDIN: Stdin = {
-    <span class="kw">static </span><span class="kw-2">mut </span>STDIN_BUF: [u8; <span class="number">4096</span>] = [<span class="number">0u8</span>; <span class="number">4096</span>];
-    Stdin(Mutex::new(ConstBufReader::new(
-        <span class="kw">unsafe </span>{ File::new(Stdin::FD) },
-        <span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut </span>STDIN_BUF },
-    )))
-};
+</span><span class="kw">pub static </span>STDIN: Stdin = Stdin(Mutex::new(BufReader::new(<span class="kw">unsafe </span>{ File::new(Stdin::FD) })));
 
 <span class="kw">pub static </span>STDOUT: Stdout = Stdout(Mutex::new(BufWriter::new(<span class="kw">unsafe </span>{ File::new(Stdout::FD) })));
 
@@ -278,12 +285,12 @@
 
 <span class="comment">//
 
-</span><span class="kw">pub struct </span>Stdin(Mutex&lt;ConstBufReader&lt;<span class="lifetime">'static</span>, File&gt;&gt;);
+</span><span class="kw">pub struct </span>Stdin(Mutex&lt;BufReader&lt;File&gt;&gt;);
 
 <span class="kw">impl </span>Stdin {
     <span class="kw">pub const </span>FD: FileDesc = FileDesc(<span class="number">0</span>);
 
-    <span class="kw">pub fn </span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MutexGuard&lt;ConstBufReader&lt;<span class="lifetime">'static</span>, File&gt;&gt; {
+    <span class="kw">pub fn </span>lock(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MutexGuard&lt;BufReader&lt;File&gt;&gt; {
         <span class="self">self</span>.<span class="number">0</span>.lock()
     }
 }
@@ -334,7 +341,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>iter = <span class="self">self</span>.cur.trim().split(<span class="string">' '</span>);
         <span class="kw">let </span>is_dir = iter.next()<span class="question-mark">?</span>;
         <span class="kw">let </span>size = iter.next()<span class="question-mark">?</span>;
-        <span class="kw">let </span>file_name = iter.remainder()<span class="question-mark">?</span>;
+        <span class="kw">let </span>file_name = Cow::Borrowed(iter.remainder()<span class="question-mark">?</span>);
 
         <span class="prelude-val">Some</span>(DirEntry {
             is_dir: is_dir == <span class="string">"d"</span>,
@@ -344,13 +351,31 @@
     }
 }
 
+<span class="kw">impl </span>Iterator <span class="kw">for </span>Dir {
+    <span class="kw">type </span>Item = DirEntry&lt;<span class="lifetime">'static</span>&gt;;
+
+    <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
+        <span class="self">self</span>.next_entry().map(DirEntry::into_owned)
+    }
+}
+
 <span class="comment">//
 
 </span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>DirEntry&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">pub </span>is_dir: bool, <span class="comment">// TODO: mode flags later
     </span><span class="kw">pub </span>size: usize,
-    <span class="kw">pub </span>file_name: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str,
+    <span class="kw">pub </span>file_name: Cow&lt;<span class="lifetime">'a</span>, str&gt;,
+}
+
+<span class="kw">impl </span>DirEntry&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">fn </span>into_owned(<span class="self">self</span>) -&gt; DirEntry&lt;<span class="lifetime">'static</span>&gt; {
+        DirEntry {
+            is_dir: <span class="self">self</span>.is_dir,
+            size: <span class="self">self</span>.size,
+            file_name: Cow::Owned(<span class="self">self</span>.file_name.into_owned()),
+        }
+    }
 }
 
 <span class="comment">//
@@ -445,6 +470,7 @@
 
 <span class="comment">//
 
+</span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>OpenOptions {
     flags: FileOpenFlags,
 }

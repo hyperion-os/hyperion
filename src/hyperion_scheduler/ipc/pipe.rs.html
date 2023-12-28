@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/scheduler/src/ipc/pipe.rs`."><title>pipe.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="hyperion_scheduler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (bf8716f1c 2023-12-24)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/scheduler/src/ipc/pipe.rs`."><title>pipe.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-452d19225583af2a.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="hyperion_scheduler" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (89e2160c4 2023-12-27)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-6902632119e002ca.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -291,45 +291,26 @@
 <a href="#290" id="290">290</a>
 <a href="#291" id="291">291</a>
 <a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::sync::Arc;
 
-<span class="kw">use crate</span>::{condvar::Condvar, lock::Mutex, process, task::Pid};
+<span class="kw">use crate</span>::{condvar::Condvar, lock::Mutex};
 
 <span class="comment">//
 
-</span><span class="kw">pub fn </span>channel() -&gt; (Sender&lt;u8&gt;, Receiver&lt;u8&gt;) {
-    Pipe::new_pipe().split()
+// pub fn channel() -&gt; (Sender&lt;u8&gt;, Receiver&lt;u8&gt;) {
+//     Pipe::new_pipe().split()
+// }
+
+// pub fn channel_with(capacity: usize) -&gt; (Sender&lt;u8&gt;, Receiver&lt;u8&gt;) {
+//     Pipe::new(capacity).split()
+// }
+
+</span><span class="kw">pub fn </span>pipe() -&gt; Pipe {
+    Pipe::new_pipe()
 }
 
-<span class="kw">pub fn </span>channel_with(capacity: usize) -&gt; (Sender&lt;u8&gt;, Receiver&lt;u8&gt;) {
-    Pipe::new(capacity).split()
-}
-
-<span class="kw">pub fn </span>pipe() -&gt; Arc&lt;Channel&lt;u8&gt;&gt; {
-    Arc::new(Pipe::new_pipe())
-}
-
-<span class="kw">pub fn </span>pipe_with(capacity: usize) -&gt; Arc&lt;Channel&lt;u8&gt;&gt; {
-    Arc::new(Pipe::new(capacity))
+<span class="kw">pub fn </span>pipe_with(capacity: usize) -&gt; Pipe {
+    Pipe::new(capacity)
 }
 
 <span class="comment">//
@@ -601,24 +582,5 @@
             s_closed = <span class="self">self</span>.send_wait.wait(s_closed);
         }
     }
-}
-
-<span class="comment">//
-
-</span><span class="kw">pub fn </span>send(target_pid: Pid, data: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
-    target_pid
-        .find()
-        .ok_or(<span class="string">"no such process"</span>)<span class="question-mark">?
-        </span>.simple_ipc
-        .send_slice(data)
-        .map_err(|<span class="kw">_</span>| <span class="string">"stream closed"</span>)<span class="question-mark">?</span>;
-    <span class="prelude-val">Ok</span>(())
-}
-
-<span class="kw">pub fn </span>recv(buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;usize, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
-    process()
-        .simple_ipc
-        .recv_slice(buf)
-        .map_err(|<span class="kw">_</span>| <span class="string">"stream closed"</span>)
 }
 </code></pre></div></section></main></body></html>

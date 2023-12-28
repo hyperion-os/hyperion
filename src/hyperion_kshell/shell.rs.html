@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kshell/src/shell.rs`."><title>shell.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kshell" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (bf8716f1c 2023-12-24)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kshell/src/shell.rs`."><title>shell.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-452d19225583af2a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kshell" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (89e2160c4 2023-12-27)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6902632119e002ca.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -519,287 +519,42 @@
 <a href="#518" id="518">518</a>
 <a href="#519" id="519">519</a>
 <a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a>
-<a href="#522" id="522">522</a>
-<a href="#523" id="523">523</a>
-<a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a>
-<a href="#526" id="526">526</a>
-<a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a>
-<a href="#529" id="529">529</a>
-<a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a>
-<a href="#549" id="549">549</a>
-<a href="#550" id="550">550</a>
-<a href="#551" id="551">551</a>
-<a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
-<a href="#554" id="554">554</a>
-<a href="#555" id="555">555</a>
-<a href="#556" id="556">556</a>
-<a href="#557" id="557">557</a>
-<a href="#558" id="558">558</a>
-<a href="#559" id="559">559</a>
-<a href="#560" id="560">560</a>
-<a href="#561" id="561">561</a>
-<a href="#562" id="562">562</a>
-<a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a>
-<a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a>
-<a href="#567" id="567">567</a>
-<a href="#568" id="568">568</a>
-<a href="#569" id="569">569</a>
-<a href="#570" id="570">570</a>
-<a href="#571" id="571">571</a>
-<a href="#572" id="572">572</a>
-<a href="#573" id="573">573</a>
-<a href="#574" id="574">574</a>
-<a href="#575" id="575">575</a>
-<a href="#576" id="576">576</a>
-<a href="#577" id="577">577</a>
-<a href="#578" id="578">578</a>
-<a href="#579" id="579">579</a>
-<a href="#580" id="580">580</a>
-<a href="#581" id="581">581</a>
-<a href="#582" id="582">582</a>
-<a href="#583" id="583">583</a>
-<a href="#584" id="584">584</a>
-<a href="#585" id="585">585</a>
-<a href="#586" id="586">586</a>
-<a href="#587" id="587">587</a>
-<a href="#588" id="588">588</a>
-<a href="#589" id="589">589</a>
-<a href="#590" id="590">590</a>
-<a href="#591" id="591">591</a>
-<a href="#592" id="592">592</a>
-<a href="#593" id="593">593</a>
-<a href="#594" id="594">594</a>
-<a href="#595" id="595">595</a>
-<a href="#596" id="596">596</a>
-<a href="#597" id="597">597</a>
-<a href="#598" id="598">598</a>
-<a href="#599" id="599">599</a>
-<a href="#600" id="600">600</a>
-<a href="#601" id="601">601</a>
-<a href="#602" id="602">602</a>
-<a href="#603" id="603">603</a>
-<a href="#604" id="604">604</a>
-<a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a>
-<a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a>
-<a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a>
-<a href="#625" id="625">625</a>
-<a href="#626" id="626">626</a>
-<a href="#627" id="627">627</a>
-<a href="#628" id="628">628</a>
-<a href="#629" id="629">629</a>
-<a href="#630" id="630">630</a>
-<a href="#631" id="631">631</a>
-<a href="#632" id="632">632</a>
-<a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a>
-<a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a>
-<a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a>
-<a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a>
-<a href="#649" id="649">649</a>
-<a href="#650" id="650">650</a>
-<a href="#651" id="651">651</a>
-<a href="#652" id="652">652</a>
-<a href="#653" id="653">653</a>
-<a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a>
-<a href="#660" id="660">660</a>
-<a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a>
-<a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a>
-<a href="#668" id="668">668</a>
-<a href="#669" id="669">669</a>
-<a href="#670" id="670">670</a>
-<a href="#671" id="671">671</a>
-<a href="#672" id="672">672</a>
-<a href="#673" id="673">673</a>
-<a href="#674" id="674">674</a>
-<a href="#675" id="675">675</a>
-<a href="#676" id="676">676</a>
-<a href="#677" id="677">677</a>
-<a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a>
-<a href="#680" id="680">680</a>
-<a href="#681" id="681">681</a>
-<a href="#682" id="682">682</a>
-<a href="#683" id="683">683</a>
-<a href="#684" id="684">684</a>
-<a href="#685" id="685">685</a>
-<a href="#686" id="686">686</a>
-<a href="#687" id="687">687</a>
-<a href="#688" id="688">688</a>
-<a href="#689" id="689">689</a>
-<a href="#690" id="690">690</a>
-<a href="#691" id="691">691</a>
-<a href="#692" id="692">692</a>
-<a href="#693" id="693">693</a>
-<a href="#694" id="694">694</a>
-<a href="#695" id="695">695</a>
-<a href="#696" id="696">696</a>
-<a href="#697" id="697">697</a>
-<a href="#698" id="698">698</a>
-<a href="#699" id="699">699</a>
-<a href="#700" id="700">700</a>
-<a href="#701" id="701">701</a>
-<a href="#702" id="702">702</a>
-<a href="#703" id="703">703</a>
-<a href="#704" id="704">704</a>
-<a href="#705" id="705">705</a>
-<a href="#706" id="706">706</a>
-<a href="#707" id="707">707</a>
-<a href="#708" id="708">708</a>
-<a href="#709" id="709">709</a>
-<a href="#710" id="710">710</a>
-<a href="#711" id="711">711</a>
-<a href="#712" id="712">712</a>
-<a href="#713" id="713">713</a>
-<a href="#714" id="714">714</a>
-<a href="#715" id="715">715</a>
-<a href="#716" id="716">716</a>
-<a href="#717" id="717">717</a>
-<a href="#718" id="718">718</a>
-<a href="#719" id="719">719</a>
-<a href="#720" id="720">720</a>
-<a href="#721" id="721">721</a>
-<a href="#722" id="722">722</a>
-<a href="#723" id="723">723</a>
-<a href="#724" id="724">724</a>
-<a href="#725" id="725">725</a>
-<a href="#726" id="726">726</a>
-<a href="#727" id="727">727</a>
-<a href="#728" id="728">728</a>
-<a href="#729" id="729">729</a>
-<a href="#730" id="730">730</a>
-<a href="#731" id="731">731</a>
-<a href="#732" id="732">732</a>
-<a href="#733" id="733">733</a>
-<a href="#734" id="734">734</a>
-<a href="#735" id="735">735</a>
-<a href="#736" id="736">736</a>
-<a href="#737" id="737">737</a>
-<a href="#738" id="738">738</a>
-<a href="#739" id="739">739</a>
-<a href="#740" id="740">740</a>
-<a href="#741" id="741">741</a>
-<a href="#742" id="742">742</a>
-<a href="#743" id="743">743</a>
-<a href="#744" id="744">744</a>
-<a href="#745" id="745">745</a>
-<a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a>
-<a href="#748" id="748">748</a>
-<a href="#749" id="749">749</a>
-<a href="#750" id="750">750</a>
-<a href="#751" id="751">751</a>
-<a href="#752" id="752">752</a>
-<a href="#753" id="753">753</a>
-<a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
-    borrow::Cow,
     format,
     string::{String, ToString},
     sync::Arc,
-    vec::Vec,
 };
 <span class="kw">use </span>core::{fmt::Write, sync::atomic::Ordering};
 
+<span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>futures_util::stream::select;
-<span class="kw">use </span>hyperion_color::Color;
 <span class="kw">use </span>hyperion_cpu_id::cpu_count;
 <span class="kw">use </span>hyperion_driver_acpi::apic::ApicId;
-<span class="kw">use </span>hyperion_futures::timer::ticks;
 <span class="kw">use </span>hyperion_instant::Instant;
-<span class="kw">use </span>hyperion_kernel_impl::{PipeInput, PipeOutput, VFS_ROOT};
+<span class="kw">use </span>hyperion_kernel_impl::{FileDescData, FileDescriptor};
 <span class="kw">use </span>hyperion_keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
 <span class="kw">use </span>hyperion_mem::pmm;
 <span class="kw">use </span>hyperion_num_postfix::NumberPostfix;
-<span class="kw">use </span>hyperion_random::Rng;
 <span class="kw">use </span>hyperion_scheduler::{
     idle,
-    ipc::pipe::channel,
-    schedule, spawn,
+    ipc::pipe::pipe,
+    spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
 <span class="kw">use </span>hyperion_vfs::{
     <span class="self">self</span>,
     path::{Path, PathBuf},
 };
-<span class="kw">use </span>snafu::ResultExt;
 <span class="kw">use </span>spin::Mutex;
-<span class="kw">use </span>time::OffsetDateTime;
 
 <span class="kw">use super</span>::{term::Term, <span class="kw-2">*</span>};
-<span class="kw">use </span><span class="kw">crate</span>::snake::snake_game;
+<span class="kw">use crate</span>::{
+    cmd::{Command, NULL_DEV},
+    snake::snake_game,
+};
 
 <span class="comment">//
 
@@ -890,6 +645,8 @@
     }
 
     <span class="kw">async fn </span>run_line(<span class="kw-2">&amp;mut </span><span class="self">self</span>, line: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;()&gt;&gt; {
+        <span class="kw">let </span>line = line.trim();
+
         <span class="kw">let </span>(cmd, args) = line
             .split_once(<span class="string">' '</span>)
             .map(|(cmd, args)| (cmd, <span class="prelude-val">Some</span>(args)))
@@ -899,397 +656,121 @@
             <span class="string">"splash" </span>=&gt; <span class="self">self</span>.splash_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"pwd" </span>=&gt; <span class="self">self</span>.pwd_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"cd" </span>=&gt; <span class="self">self</span>.cd_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">"date" </span>=&gt; <span class="self">self</span>.date_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"mem" </span>=&gt; <span class="self">self</span>.mem_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">"draw" </span>=&gt; <span class="self">self</span>.draw_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"kbl" </span>=&gt; <span class="self">self</span>.kbl_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">"rand" </span>=&gt; <span class="self">self</span>.rand_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"snake" </span>=&gt; <span class="self">self</span>.snake_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
             <span class="string">"help" </span>=&gt; <span class="self">self</span>.help_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">"modeltest" </span>=&gt; <span class="self">self</span>.modeltest_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
             <span class="string">"lapic_id" </span>=&gt; <span class="self">self</span>.lapic_id_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"cpu_id" </span>=&gt; <span class="self">self</span>.cpu_id_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"ps" </span>=&gt; <span class="self">self</span>.ps_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"nproc" </span>=&gt; <span class="self">self</span>.nproc_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"top" </span>=&gt; <span class="self">self</span>.top_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">"send" </span>=&gt; <span class="self">self</span>.send_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"kill" </span>=&gt; <span class="self">self</span>.kill_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"exit" </span>=&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
-            <span class="string">"clear" </span>=&gt; {
-                <span class="self">self</span>.term.clear();
-            }
+            <span class="string">"clear" </span>=&gt; <span class="self">self</span>.term.clear(),
             <span class="string">"" </span>=&gt; <span class="self">self</span>.term.write_byte(<span class="string">b'\n'</span>),
-            other =&gt; {
-                <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">"/bin/{other}"</span>);
-                <span class="kw">let </span>elf = <span class="self">self</span>.load_elf(<span class="kw-2">&amp;</span>path)<span class="question-mark">?</span>;
-
-                <span class="self">self</span>.run_cmd_from(path.into(), elf.into(), args).<span class="kw">await</span><span class="question-mark">?</span>;
-            }
+            <span class="kw">_ </span>=&gt; <span class="self">self</span>.cmd_line(line).<span class="kw">await</span>.map_err(|err| Error::Other {
+                msg: err.to_string(),
+            })<span class="question-mark">?</span>,
         }
 
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(()))
     }
 
-    <span class="kw">fn </span>load_elf(<span class="kw-2">&amp;</span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>elf = Vec::new();
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(bin) = VFS_ROOT.find_file(path, <span class="bool-val">false</span>, <span class="bool-val">false</span>) <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="string">"unknown command {path}"</span>.into(),
-            });
-        };
+    <span class="kw">async fn </span>cmd_line(<span class="kw-2">&amp;mut </span><span class="self">self</span>, line: <span class="kw-2">&amp;</span>str) -&gt; anyhow::Result&lt;()&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>is_doom = <span class="bool-val">false</span>;
 
-        <span class="kw">let </span>bin = bin.lock_arc();
+        <span class="kw">let </span>(stdin_tx, stdin_rx) = pipe().split();
+        <span class="kw">let </span>(stderr_tx, stderr_rx) = pipe().split();
 
-        <span class="kw">loop </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; <span class="number">64</span>];
-            <span class="kw">let </span>len = bin.read(elf.len(), <span class="kw-2">&amp;mut </span>buf).unwrap();
-            elf.extend_from_slice(<span class="kw-2">&amp;</span>buf[..len]);
-            <span class="kw">if </span>len == <span class="number">0 </span>{
-                <span class="kw">break</span>;
-            }
-        }
+        <span class="kw">let </span>stderr = Arc::new(stderr_tx);
+        <span class="kw">let </span><span class="kw-2">mut </span>stdin = Arc::new(stdin_rx) <span class="kw">as _</span>;
+        <span class="kw">for </span>part <span class="kw">in </span>line.split(<span class="string">'|'</span>) {
+            <span class="kw">let </span><span class="kw-2">mut </span>redirects = part.split(<span class="string">'&gt;'</span>);
 
-        <span class="prelude-val">Ok</span>(elf)
-    }
+            <span class="kw">let </span>program = redirects.next().unwrap_or(part).trim();
+            <span class="kw">let </span>(program, args) = program
+                .split_once(<span class="string">' '</span>)
+                .map(|(cmd, args)| (cmd, <span class="prelude-val">Some</span>(args)))
+                .unwrap_or((program, <span class="prelude-val">None</span>));
 
-    <span class="kw">fn </span>splash_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">use </span>hyperion_kernel_info::{BUILD_REV, BUILD_TIME, NAME, VERSION};
-        <span class="comment">// _ = writeln!(self.term, "{SPLASH}");
-        </span><span class="kw">_ </span>= <span class="macro">writeln!</span>(
-            <span class="self">self</span>.term,
-            <span class="string">"Welcome to {NAME} - {VERSION} (built {BUILD_TIME} build [{BUILD_REV}])"
-        </span>);
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>pwd_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{}"</span>, <span class="self">self</span>.current_dir.as_str());
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>cd_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>resource = Path::from_str(args.unwrap_or(<span class="string">"/"</span>)).to_absolute(<span class="kw-2">&amp;</span><span class="self">self</span>.current_dir);
-        <span class="self">self</span>.current_dir = resource.into_owned();
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>date_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>resource = Path::from_str(<span class="string">"/dev/rtc"</span>);
-
-        <span class="kw">let </span>file = VFS_ROOT
-            .find_file(resource, <span class="bool-val">false</span>, <span class="bool-val">false</span>)
-            .context(IoSnafu { resource })<span class="question-mark">?</span>;
-        <span class="kw">let </span>file = file.lock();
-
-        <span class="kw">let </span><span class="kw-2">mut </span>timestamp = [<span class="number">0u8</span>; <span class="number">8</span>];
-        file.read_exact(<span class="number">0</span>, <span class="kw-2">&amp;mut </span>timestamp)
-            .context(IoSnafu { resource })<span class="question-mark">?</span>;
-
-        <span class="kw">let </span>date = OffsetDateTime::from_unix_timestamp(i64::from_le_bytes(timestamp));
-
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{date:?}"</span>);
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>mem_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>used = pmm::PFA.used_mem().postfix_binary();
-        <span class="kw">let </span>usable = pmm::PFA.usable_mem().postfix_binary();
-        <span class="kw">let </span>total = pmm::PFA.total_mem().postfix_binary();
-
-        <span class="kw">let </span>p = used.into_inner() <span class="kw">as </span>f64 / usable.into_inner() <span class="kw">as </span>f64 * <span class="number">100.0</span>;
-
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(
-            <span class="self">self</span>.term,
-            <span class="string">"Mem:\n - total: {total}B\n - usable: {usable}B\n - used: {used}B ({p:3.1}%)"</span>,
-        );
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>draw_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>args = args.unwrap_or(<span class="string">""</span>).split(<span class="string">' '</span>).filter(|arg| !arg.is_empty());
-        <span class="kw">let </span>mode = args.next().unwrap_or(<span class="string">""</span>);
-
-        <span class="kw">fn </span>next_int&lt;<span class="lifetime">'a</span>&gt;(
-            term: <span class="kw-2">&amp;mut </span>Term,
-            args: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt;,
-        ) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
-            <span class="kw">let </span><span class="prelude-val">Some</span>(arg) = args.next() <span class="kw">else </span>{
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">"unexpected EOF, expected number"</span>);
-                <span class="kw">return </span><span class="prelude-val">None</span>;
-            };
-
-            <span class="kw">match </span>arg.parse() {
-                <span class="prelude-val">Err</span>(err) =&gt; {
-                    <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">"failed to parse number: {err}"</span>);
-                    <span class="prelude-val">None
-                </span>}
-                <span class="prelude-val">Ok</span>(n) =&gt; <span class="prelude-val">Some</span>(n),
-            }
-        }
-
-        <span class="kw">fn </span>next_color&lt;<span class="lifetime">'a</span>&gt;(
-            term: <span class="kw-2">&amp;mut </span>Term,
-            args: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>str&gt;,
-        ) -&gt; <span class="prelude-ty">Option</span>&lt;Color&gt; {
-            <span class="kw">let </span><span class="prelude-val">Some</span>(arg) = args.next() <span class="kw">else </span>{
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">"unexpected EOF, expected color"</span>);
-                <span class="kw">return </span><span class="prelude-val">None</span>;
-            };
-
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(col) = Color::from_hex(arg) {
-                <span class="prelude-val">Some</span>(col)
+            <span class="kw">let </span>program = <span class="kw">if </span>program.starts_with(<span class="string">'/'</span>) {
+                program.to_string()
             } <span class="kw">else </span>{
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(term, <span class="string">"invalid color hex code"</span>);
-                <span class="prelude-val">None
-            </span>}
-        }
+                <span class="macro">format!</span>(<span class="string">"/bin/{program}"</span>)
+            };
 
-        <span class="kw">match </span>mode {
-            <span class="string">"rect" </span>=&gt; {
-                <span class="kw">let </span><span class="prelude-val">Some</span>(x) = next_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term, <span class="kw-2">&amp;mut </span>args) <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-                };
-                <span class="kw">let </span><span class="prelude-val">Some</span>(y) = next_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term, <span class="kw-2">&amp;mut </span>args) <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-                };
-                <span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>w) = next_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term, <span class="kw-2">&amp;mut </span>args) <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-                };
-                <span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>h) = next_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term, <span class="kw-2">&amp;mut </span>args) <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-                };
-                <span class="kw">let </span><span class="prelude-val">Some</span>(col) = next_color(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term, <span class="kw-2">&amp;mut </span>args) <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-                };
+            <span class="kw">let </span>args = args.map(|v| v.split(<span class="string">' '</span>)).into_iter().flatten();
 
-                <span class="kw">let </span><span class="kw-2">mut </span>fbo = Framebuffer::get().unwrap().lock();
-                <span class="kw">if </span>x &gt; fbo.width || y &gt; fbo.height || w == <span class="number">0 </span>|| h == <span class="number">0 </span>{
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(());
-                }
-                w = w.min(fbo.width - x);
-                h = h.min(fbo.height - y);
-                fbo.fill(x, y, w, h, col);
+            <span class="comment">// TODO: HACK:
+            </span>is_doom |= program.ends_with(<span class="string">"doom"</span>);
 
-                <span class="prelude-val">Ok</span>(())
-            }
-            <span class="string">"line" </span>=&gt; {
-                <span class="comment">// TODO:
-                </span><span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"todo"</span>);
-                <span class="prelude-val">Ok</span>(())
-            }
-            <span class="string">"" </span>=&gt; {
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"specify mode [one of: rect, line]"</span>);
-                <span class="prelude-val">Ok</span>(())
-            }
-            <span class="kw">_ </span>=&gt; {
-                <span class="kw">_ </span>= <span class="macro">writeln!</span>(
-                    <span class="self">self</span>.term,
-                    <span class="string">"invalid mode `{mode}` [should be one of: rect, line]"
-                </span>);
-                <span class="prelude-val">Ok</span>(())
-            }
-        }
-    }
+            <span class="kw">let </span><span class="kw-2">mut </span>cmd = Command::new(program);
+            cmd.args(args).stdin(stdin).stderr(stderr.clone());
 
-    <span class="kw">fn </span>kbl_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>name = args.unwrap_or(<span class="string">"us"</span>);
-        <span class="kw">if </span>set_layout(name).is_none() {
-            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"invalid layout `{name}`"</span>);
-            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available layouts(s): `{:?}`"</span>, layouts());
-        }
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(output_file) = redirects.last() {
+                <span class="kw">let </span>stdout_tx = Arc::new(
+                    FileDescData::open(output_file.trim())
+                        .map_err(|err| <span class="macro">anyhow!</span>(<span class="string">"couldn't open file `{output_file:?}`: {err}"</span>))<span class="question-mark">?</span>,
+                );
 
-        <span class="prelude-val">Ok</span>(())
-    }
+                <span class="comment">// spawn the new process
+                </span>cmd.stdout(stdout_tx).spawn()<span class="question-mark">?</span>;
 
-    <span class="kw">fn </span>rand_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = hyperion_random::next_secure_rng().ok_or(Error::InsecurePrng)<span class="question-mark">?</span>;
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{}"</span>, rng.gen::&lt;u64&gt;());
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">async fn </span>snake_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        snake_game(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term).<span class="kw">await
-    </span>}
-
-    <span class="kw">fn </span>help_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available built-in shell commands:\nsplash, pwd, cd, date, mem, draw, kbl, rand, snake, help, modeltest, run, lapic_id, cpu_id, ps, nproc, top, send, kill, exit, clear"</span>);
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">async fn </span>modeltest_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">use </span>glam::{Mat4, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
-
-        <span class="kw">fn </span>draw_line(fbo: <span class="kw-2">&amp;mut </span>Framebuffer, x0: i32, y0: i32, x1: i32, y1: i32, color: Color) {
-            <span class="kw">let </span>dx = x0.abs_diff(x1);
-            <span class="kw">let </span>dy = y0.abs_diff(y1);
-
-            <span class="kw">if </span>dx &gt; dy {
-                <span class="kw">for </span>x <span class="kw">in </span>x0.min(x1)..=x0.max(x1) {
-                    <span class="kw">let </span>t = (x - x0) <span class="kw">as </span>f32 / (x1 - x0) <span class="kw">as </span>f32;
-                    <span class="kw">let </span>y = (t * (y1 - y0) <span class="kw">as </span>f32) <span class="kw">as </span>i32 + y0;
-
-                    fbo.pixel(x <span class="kw">as _</span>, y <span class="kw">as _</span>, color);
-                }
+                stdin = NULL_DEV.clone();
             } <span class="kw">else </span>{
-                <span class="kw">for </span>y <span class="kw">in </span>y0.min(y1)..=y0.max(y1) {
-                    <span class="kw">let </span>t = (y - y0) <span class="kw">as </span>f32 / (y1 - y0) <span class="kw">as </span>f32;
-                    <span class="kw">let </span>x = (t * (x1 - x0) <span class="kw">as </span>f32) <span class="kw">as </span>i32 + x0;
+                <span class="kw">let </span>(stdout_tx, stdout_rx) = pipe().split();
 
-                    fbo.pixel(x <span class="kw">as _</span>, y <span class="kw">as _</span>, color);
-                }
-            }
-        }
+                <span class="comment">// spawn the new process
+                </span>cmd.stdout(Arc::new(stdout_tx)).spawn()<span class="question-mark">?</span>;
 
-        <span class="kw">fn </span>draw_cube(fbo: <span class="kw-2">&amp;mut </span>Framebuffer, x: i32, y: i32, model: Mat4, s: f32, color: Color) {
-            <span class="kw">let </span>mat = Mat4::perspective_rh(<span class="number">0.005</span>, <span class="number">1.0</span>, <span class="number">0.01</span>, <span class="number">600.0</span>)
-                * Mat4::look_at_rh(Vec3::new(<span class="number">0.0</span>, <span class="number">0.0</span>, <span class="number">300.0</span>), Vec3::ZERO, Vec3::NEG_Y)
-                * model;
-
-            <span class="kw">let </span><span class="kw-2">mut </span>translated_line = |a: Vec3, b: Vec3| {
-                <span class="kw">let </span>a = mat * Vec4::from((a, <span class="number">1.0</span>));
-                <span class="kw">let </span>b = mat * Vec4::from((b, <span class="number">1.0</span>));
-                <span class="kw">let </span>a = (a.xyz() / a.w).xy().as_ivec2();
-                <span class="kw">let </span>b = (b.xyz() / b.w).xy().as_ivec2();
-
-                draw_line(fbo, a.x + x, a.y + y, b.x + x, b.y + y, color);
+                stdin = Arc::new(stdout_rx);
             };
-
-            translated_line(Vec3::new(-s, -s, -s), Vec3::new(s, -s, -s));
-            translated_line(Vec3::new(-s, s, -s), Vec3::new(s, s, -s));
-            translated_line(Vec3::new(-s, -s, s), Vec3::new(s, -s, s));
-            translated_line(Vec3::new(-s, s, s), Vec3::new(s, s, s));
-
-            translated_line(Vec3::new(-s, -s, -s), Vec3::new(-s, s, -s));
-            translated_line(Vec3::new(s, -s, -s), Vec3::new(s, s, -s));
-            translated_line(Vec3::new(-s, -s, s), Vec3::new(-s, s, s));
-            translated_line(Vec3::new(s, -s, s), Vec3::new(s, s, s));
-
-            translated_line(Vec3::new(-s, -s, -s), Vec3::new(-s, -s, s));
-            translated_line(Vec3::new(s, -s, -s), Vec3::new(s, -s, s));
-            translated_line(Vec3::new(-s, s, -s), Vec3::new(-s, s, s));
-            translated_line(Vec3::new(s, s, -s), Vec3::new(s, s, s));
         }
-
-        <span class="kw">let </span>mid_x = ((<span class="self">self</span>.term.size.<span class="number">0 </span>* CHAR_SIZE.<span class="number">0 </span><span class="kw">as </span>usize) / <span class="number">2</span>) <span class="kw">as </span>i32;
-        <span class="kw">let </span>mid_y = ((<span class="self">self</span>.term.size.<span class="number">1 </span>* CHAR_SIZE.<span class="number">1 </span><span class="kw">as </span>usize) / <span class="number">2</span>) <span class="kw">as </span>i32;
-        <span class="kw">let </span><span class="kw-2">mut </span>a = <span class="number">0.0f32</span>;
-
-        <span class="kw">let </span>ticks = ticks(time::Duration::milliseconds(<span class="number">10</span>)).map(|<span class="kw">_</span>| <span class="prelude-val">None</span>);
-        <span class="kw">let </span>esc = KeyboardEvents.map(<span class="prelude-val">Some</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>events = select(ticks, esc);
-
-        <span class="kw">loop </span>{
-            <span class="kw">let </span><span class="prelude-val">Some</span>(fbo) = Framebuffer::get() <span class="kw">else </span>{
-                <span class="kw">break</span>;
-            };
-            <span class="kw">let </span><span class="kw-2">mut </span>fbo = fbo.lock();
-
-            <span class="kw">let </span>red = Mat4::from_rotation_y(a);
-            <span class="kw">let </span>blue = Mat4::from_rotation_y(a * <span class="number">2.0</span>);
-            draw_cube(<span class="kw-2">&amp;mut </span>fbo, mid_x, mid_y, red, <span class="number">100.0</span>, Color::RED);
-            draw_cube(<span class="kw-2">&amp;mut </span>fbo, mid_x, mid_y, blue, <span class="number">80.0</span>, Color::BLUE);
-
-            <span class="kw">let </span>stop = <span class="macro">matches!</span>(
-                events.next().<span class="kw">await</span>,
-                <span class="prelude-val">Some</span>(<span class="prelude-val">Some</span>(KeyboardEvent {
-                    keycode: KeyCode::Escape,
-                    ..
-                }))
-            );
-
-            <span class="kw">let </span>red = Mat4::from_rotation_y(a);
-            <span class="kw">let </span>blue = Mat4::from_rotation_y(a * <span class="number">2.0</span>);
-            draw_cube(<span class="kw-2">&amp;mut </span>fbo, mid_x, mid_y, red, <span class="number">100.0</span>, Color::BLACK);
-            draw_cube(<span class="kw-2">&amp;mut </span>fbo, mid_x, mid_y, blue, <span class="number">80.0</span>, Color::BLACK);
-            a += <span class="number">0.01</span>;
-
-            <span class="kw">if </span>stop {
-                <span class="kw">break</span>;
-            }
-        }
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">async fn </span>run_cmd_from(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        name: Cow&lt;<span class="lifetime">'static</span>, str&gt;,
-        elf: Cow&lt;<span class="lifetime">'static</span>, [u8]&gt;,
-        args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span>args = args.map(String::from);
-
-        <span class="comment">// TODO: HACK:
-        </span><span class="kw">let </span>is_doom = name.ends_with(<span class="string">"doom"</span>);
-
-        <span class="comment">// setup STDIO
-        </span><span class="kw">let </span>(stdin_tx, stdin_rx) = channel();
-        <span class="kw">let </span>(stdout_tx, stdout_rx) = channel();
-        <span class="comment">// let (stderr_tx, stderr_rx) = channel();
-        </span><span class="kw">let </span>stderr_tx = stdout_tx.clone();
 
         <span class="comment">// hacky blocking channel -&gt; async channel stuff
         </span><span class="kw">let </span>(o_tx, o_rx) = hyperion_futures::mpmc::channel();
-
-        <span class="comment">// stdout -&gt; terminal
-        </span>spawn(<span class="kw">move </span>|| {
+        <span class="comment">// last program's stdout (stdin) -&gt; terminal
+        </span><span class="kw">let </span>o_tx_2 = o_tx.clone();
+        spawn(<span class="kw">move </span>|| {
             <span class="kw">loop </span>{
                 <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; <span class="number">128</span>];
-                <span class="kw">let </span><span class="prelude-val">Ok</span>(len) = stdout_rx.recv_slice(<span class="kw-2">&amp;mut </span>buf) <span class="kw">else </span>{
-                    <span class="macro">debug!</span>(<span class="string">"end of stream"</span>);
+                <span class="kw">let </span><span class="prelude-val">Ok</span>(len) = stderr_rx.read(<span class="kw-2">&amp;mut </span>buf) <span class="kw">else </span>{
+                    <span class="macro">trace!</span>(<span class="string">"end of stream"</span>);
                     <span class="kw">break</span>;
                 };
+                <span class="kw">if </span>len == <span class="number">0 </span>{
+                    <span class="macro">trace!</span>(<span class="string">"end of stream"</span>);
+                    <span class="kw">break</span>;
+                }
                 <span class="kw">let </span><span class="prelude-val">Ok</span>(str) = core::str::from_utf8(<span class="kw-2">&amp;</span>buf[..len]) <span class="kw">else </span>{
-                    <span class="macro">debug!</span>(<span class="string">"invalid utf8"</span>);
+                    <span class="macro">trace!</span>(<span class="string">"invalid utf8"</span>);
+                    <span class="kw">break</span>;
+                };
+                o_tx_2.send(<span class="prelude-val">Some</span>(str.to_string()));
+            }
+
+            o_tx_2.send(<span class="prelude-val">None</span>);
+        });
+        spawn(<span class="kw">move </span>|| {
+            <span class="kw">loop </span>{
+                <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; <span class="number">128</span>];
+                <span class="kw">let </span><span class="prelude-val">Ok</span>(len) = stdin.read(<span class="kw-2">&amp;mut </span>buf) <span class="kw">else </span>{
+                    <span class="macro">trace!</span>(<span class="string">"end of stream"</span>);
+                    <span class="kw">break</span>;
+                };
+                <span class="kw">if </span>len == <span class="number">0 </span>{
+                    <span class="macro">trace!</span>(<span class="string">"end of stream"</span>);
+                    <span class="kw">break</span>;
+                }
+                <span class="kw">let </span><span class="prelude-val">Ok</span>(str) = core::str::from_utf8(<span class="kw-2">&amp;</span>buf[..len]) <span class="kw">else </span>{
+                    <span class="macro">trace!</span>(<span class="string">"invalid utf8"</span>);
                     <span class="kw">break</span>;
                 };
                 o_tx.send(<span class="prelude-val">Some</span>(str.to_string()));
             }
 
             o_tx.send(<span class="prelude-val">None</span>);
-        });
-
-        <span class="comment">// spawn the new process
-        </span>schedule(<span class="kw">move </span>|| {
-            <span class="comment">// set its name
-            </span><span class="kw">let </span>name = name.as_ref();
-            hyperion_scheduler::rename(name);
-
-            <span class="comment">// setup the STDIO
-            </span>hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeOutput(stdin_rx))) <span class="kw">as _</span>,
-                position: <span class="number">0</span>,
-            });
-            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stdout_tx))) <span class="kw">as _</span>,
-                position: <span class="number">0</span>,
-            });
-            hyperion_kernel_impl::push_file(hyperion_kernel_impl::FileInner {
-                file_ref: Arc::new(lock_api::Mutex::new(PipeInput(stderr_tx))) <span class="kw">as _</span>,
-                position: <span class="number">0</span>,
-            });
-
-            <span class="comment">// load and exec the binary
-            </span><span class="kw">let </span>args: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = [name] <span class="comment">// TODO: actually load binaries from vfs
-                </span>.into_iter()
-                .chain(args.as_deref().iter().flat_map(|args| args.split(<span class="string">' '</span>)))
-                .collect();
-            <span class="kw">let </span>args = <span class="kw-2">&amp;</span>args[..];
-
-            <span class="macro">hyperion_log::trace!</span>(<span class="string">"spawning \"{name}\" with args {args:?}"</span>);
-
-            <span class="kw">let </span>loader = hyperion_loader::Loader::new(elf.as_ref());
-
-            loader.load();
-
-            <span class="kw">if </span>loader.enter_userland(args).is_none() {
-                <span class="macro">hyperion_log::debug!</span>(<span class="string">"entry point missing"</span>);
-            }
         });
 
         <span class="comment">// start sending keyboard events to the process and read stdout into the terminal
@@ -1317,44 +798,56 @@
                     <span class="kw">if </span>state != ElementState::PressRelease
                         &amp;&amp; (keycode == KeyCode::C || keycode == KeyCode::D)
                         &amp;&amp; l_ctrl_held
-                    {
+                        &amp;&amp; !is_doom
+                    <span class="comment">// no ctrl+c / ctrl+d in raw mode
+                    </span>{
+                        <span class="macro">trace!</span>(<span class="string">"ctrl+C/D"</span>);
                         <span class="kw">break</span>;
                     }
 
-                    <span class="comment">// if let Some(unicode) = unicode {
-                    //     // _ = write!(self.term, "{unicode}");
-                    //     // self.term.flush();
+                    <span class="comment">// TODO: raw mode
+                    </span><span class="kw">if </span>is_doom {
+                        <span class="comment">// TODO: proper raw keyboard input
+                        </span><span class="attr">#[derive(serde::Serialize, serde::Deserialize)]
+                        </span><span class="kw">struct </span>KeyboardEventSer {
+                            <span class="comment">// pub scancode: u8,
+                            </span>state: u8,
+                            keycode: u8,
+                            unicode: <span class="prelude-ty">Option</span>&lt;char&gt;,
+                        }
 
-                    //     let mut str = [0; 4];
+                        <span class="kw">if </span>keycode == KeyCode::CapsLock {
+                            <span class="kw">if </span>stdin_tx.send_slice(<span class="string">b"\n"</span>).is_err() {
+                                <span class="macro">trace!</span>(<span class="string">"stdin closed"</span>);
+                                <span class="kw">break</span>;
+                            }
+                            <span class="kw">continue</span>;
+                        }
 
-                    //     let str = unicode.encode_utf8(&amp;mut str);
+                        <span class="kw">let </span><span class="kw-2">mut </span>ev = serde_json::to_string(<span class="kw-2">&amp;</span>KeyboardEventSer {
+                            state: state <span class="kw">as </span>u8,
+                            keycode: keycode <span class="kw">as </span>u8,
+                            unicode,
+                        })
+                        .unwrap();
+                        ev.push(<span class="string">'\n'</span>);
+                        <span class="comment">// debug!("sending: {ev:?}");
+                        </span><span class="kw">if </span>stdin_tx.send_slice(ev.as_bytes()).is_err() {
+                            <span class="macro">trace!</span>(<span class="string">"stdin closed"</span>);
+                            <span class="kw">break</span>;
+                        }
+                    } <span class="kw">else if let </span><span class="prelude-val">Some</span>(unicode) = unicode {
+                        <span class="kw">_ </span>= <span class="macro">write!</span>(<span class="self">self</span>.term, <span class="string">"{unicode}"</span>);
+                        <span class="self">self</span>.term.flush();
 
-                    //     // TODO: buffering
-                    //     if let Err(err) = stdin_tx.send_slice(str.as_bytes()) {
-                    //         break;
-                    //     }
-                    // }
+                        <span class="kw">let </span><span class="kw-2">mut </span>str = [<span class="number">0</span>; <span class="number">4</span>];
 
-                    // TODO: proper raw keyboard input
-                    </span><span class="attr">#[derive(serde::Serialize, serde::Deserialize)]
-                    </span><span class="kw">struct </span>KeyboardEventSer {
-                        <span class="comment">// pub scancode: u8,
-                        </span>state: u8,
-                        keycode: u8,
-                        unicode: <span class="prelude-ty">Option</span>&lt;char&gt;,
-                    }
+                        <span class="kw">let </span>str = unicode.encode_utf8(<span class="kw-2">&amp;mut </span>str);
 
-                    <span class="kw">let </span><span class="kw-2">mut </span>ev = serde_json::to_string(<span class="kw-2">&amp;</span>KeyboardEventSer {
-                        state: state <span class="kw">as </span>u8,
-                        keycode: keycode <span class="kw">as </span>u8,
-                        unicode,
-                    })
-                    .unwrap();
-                    ev.push(<span class="string">'\n'</span>);
-                    <span class="comment">// debug!("sending: {ev:?}");
-                    </span><span class="kw">if </span>stdin_tx.send_slice(ev.as_bytes()).is_err() {
-                        <span class="comment">// hyperion_log::debug!("stdin closed");
-                        </span><span class="kw">break</span>;
+                        <span class="comment">// TODO: buffering
+                        </span><span class="kw">if </span>stdin_tx.send_slice(str.as_bytes()).is_err() {
+                            <span class="kw">break</span>;
+                        }
                     }
                 }
                 <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="prelude-val">Some</span>(s))) =&gt; {
@@ -1370,15 +863,74 @@
                 <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="prelude-val">None</span>)) =&gt; {
                     <span class="comment">// _ = write!(self.term, "got EOI");
                     // self.term.flush();
-                    </span><span class="kw">break</span>;
+                    </span><span class="macro">trace!</span>(<span class="string">"EOI"</span>);
+                    <span class="kw">break</span>;
                 }
-                <span class="prelude-val">None </span>=&gt; <span class="kw">break</span>,
+                <span class="prelude-val">None </span>=&gt; {
+                    <span class="macro">trace!</span>(<span class="string">"NONE"</span>);
+                    <span class="kw">break</span>;
+                }
             }
         }
 
-        <span class="comment">// stdin_tx.close();
+        <span class="prelude-val">Ok</span>(())
+    }
 
-        </span><span class="prelude-val">Ok</span>(())
+    <span class="kw">fn </span>splash_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">use </span>hyperion_kernel_info::{BUILD_REV, BUILD_TIME, NAME, VERSION};
+        <span class="comment">// _ = writeln!(self.term, "{SPLASH}");
+        </span><span class="kw">_ </span>= <span class="macro">writeln!</span>(
+            <span class="self">self</span>.term,
+            <span class="string">"Welcome to {NAME} - {VERSION} (built {BUILD_TIME} build [{BUILD_REV}])"
+        </span>);
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn </span>pwd_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{}"</span>, <span class="self">self</span>.current_dir.as_str());
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn </span>cd_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>resource = Path::from_str(args.unwrap_or(<span class="string">"/"</span>)).to_absolute(<span class="kw-2">&amp;</span><span class="self">self</span>.current_dir);
+        <span class="self">self</span>.current_dir = resource.into_owned();
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn </span>mem_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>used = pmm::PFA.used_mem().postfix_binary();
+        <span class="kw">let </span>usable = pmm::PFA.usable_mem().postfix_binary();
+        <span class="kw">let </span>total = pmm::PFA.total_mem().postfix_binary();
+
+        <span class="kw">let </span>p = used.into_inner() <span class="kw">as </span>f64 / usable.into_inner() <span class="kw">as </span>f64 * <span class="number">100.0</span>;
+
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(
+            <span class="self">self</span>.term,
+            <span class="string">"Mem:\n - total: {total}B\n - usable: {usable}B\n - used: {used}B ({p:3.1}%)"</span>,
+        );
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn </span>kbl_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">let </span>name = args.unwrap_or(<span class="string">"us"</span>);
+        <span class="kw">if </span>set_layout(name).is_none() {
+            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"invalid layout `{name}`"</span>);
+            <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available layouts(s): `{:?}`"</span>, layouts());
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">async fn </span>snake_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        snake_game(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term).<span class="kw">await
+    </span>}
+
+    <span class="kw">fn </span>help_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear"</span>);
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>lapic_id_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
@@ -1461,42 +1013,6 @@
         <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term);
 
         <span class="self">self</span>.ps_cmd(<span class="prelude-val">None</span>)
-    }
-
-    <span class="kw">fn </span>send_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">let </span><span class="prelude-val">Some</span>(args) = args <span class="kw">else </span>{
-            <span class="comment">// _ = writeln!(self.term, "expected arg: PID");
-            </span><span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="string">"expected arg: PID"</span>.into(),
-            });
-        };
-
-        <span class="kw">let </span><span class="prelude-val">Some</span>((pid, data)) = args.split_once(<span class="string">' '</span>) <span class="kw">else </span>{
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="string">"expected arg: DATA"</span>.into(),
-            });
-        };
-
-        <span class="kw">let </span>pid: usize = <span class="kw">match </span>pid.parse() {
-            <span class="prelude-val">Ok</span>(pid) =&gt; pid,
-            <span class="prelude-val">Err</span>(err) =&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                    msg: <span class="macro">format!</span>(<span class="string">"failed to parse PID: {err}"</span>),
-                });
-            }
-        };
-
-        <span class="kw">let </span>data = data.replace(<span class="string">"\\n"</span>, <span class="string">"\n"</span>);
-
-        <span class="kw">if let </span><span class="prelude-val">Err</span>(err) =
-            hyperion_scheduler::send(hyperion_scheduler::task::Pid::new(pid), data.as_bytes())
-        {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(Error::Other {
-                msg: <span class="macro">format!</span>(<span class="string">"failed send data: {err}"</span>),
-            });
-        };
-
-        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>kill_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {

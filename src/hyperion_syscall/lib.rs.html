@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/syscall/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_syscall" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (bf8716f1c 2023-12-24)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/syscall/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-452d19225583af2a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_syscall" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (89e2160c4 2023-12-27)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6902632119e002ca.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -347,7 +347,21 @@
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
 <a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
+#![feature(error_in_core)]
+
+</span><span class="comment">//
 
 </span><span class="kw">use </span>core::{
     ptr::{<span class="self">self</span>, NonNull},
@@ -358,7 +372,7 @@
 
 <span class="kw">use </span><span class="self">self</span>::{
     fs::{FileDesc, FileOpenFlags, Metadata},
-    net::{Protocol, SocketDesc, SocketDomain, SocketType},
+    net::{Protocol, SocketDomain, SocketType},
 };
 
 <span class="comment">//
@@ -370,12 +384,13 @@
 <span class="kw">pub mod </span>id {
     <span class="kw">pub const </span>LOG: usize = <span class="number">1</span>;
     <span class="kw">pub const </span>EXIT: usize = <span class="number">420</span>;
+    <span class="kw">pub const </span>DONE: usize = <span class="number">421</span>;
     <span class="kw">pub const </span>YIELD_NOW: usize = <span class="number">3</span>;
     <span class="kw">pub const </span>TIMESTAMP: usize = <span class="number">4</span>;
     <span class="kw">pub const </span>NANOSLEEP: usize = <span class="number">5</span>;
     <span class="kw">pub const </span>NANOSLEEP_UNTIL: usize = <span class="number">6</span>;
 
-    <span class="kw">pub const </span>PTHREAD_SPAWN: usize = <span class="number">8</span>;
+    <span class="kw">pub const </span>SPAWN: usize = <span class="number">8</span>;
     <span class="kw">pub const </span>PALLOC: usize = <span class="number">9</span>;
     <span class="kw">pub const </span>PFREE: usize = <span class="number">10</span>;
     <span class="kw">pub const </span>SEND: usize = <span class="number">11</span>;
@@ -486,6 +501,13 @@
     <span class="macro">unreachable!</span>(<span class="string">"{result:?}"</span>);
 }
 
+<span class="doccomment">/// exit the thread with a code
+</span><span class="attr">#[inline(always)]
+</span><span class="kw">pub fn </span>done(code: i64) -&gt; ! {
+    <span class="kw">let </span>result = <span class="kw">unsafe </span>{ syscall_1(id::DONE, code <span class="kw">as </span>usize) };
+    <span class="macro">unreachable!</span>(<span class="string">"{result:?}"</span>);
+}
+
 <span class="doccomment">/// context switch from this process, no guarantees about actually switching
 </span><span class="attr">#[inline(always)]
 </span><span class="kw">pub fn </span>yield_now() {
@@ -517,8 +539,8 @@
 
 <span class="doccomment">/// spawn a new pthread for the same process
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>pthread_spawn(thread_entry: <span class="kw">extern </span><span class="string">"C" </span><span class="kw">fn</span>(usize, usize) -&gt; !, arg: usize) {
-    <span class="kw">unsafe </span>{ syscall_2(id::PTHREAD_SPAWN, thread_entry <span class="kw">as </span>usize, arg) }.unwrap();
+</span><span class="kw">pub fn </span>spawn(thread_entry: <span class="kw">extern </span><span class="string">"C" </span><span class="kw">fn</span>(usize, usize) -&gt; !, arg: usize) {
+    <span class="kw">unsafe </span>{ syscall_2(id::SPAWN, thread_entry <span class="kw">as </span>usize, arg) }.unwrap();
 }
 
 <span class="doccomment">/// allocate physical pages and map to heap
@@ -574,43 +596,43 @@
 
 <span class="doccomment">/// create a socket
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -&gt; <span class="prelude-ty">Result</span>&lt;SocketDesc&gt; {
-    <span class="kw">unsafe </span>{ syscall_3(id::SOCKET, domain.<span class="number">0</span>, ty.<span class="number">0</span>, protocol.<span class="number">0</span>) }.map(SocketDesc)
+</span><span class="kw">pub fn </span>socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
+    <span class="kw">unsafe </span>{ syscall_3(id::SOCKET, domain.<span class="number">0</span>, ty.<span class="number">0</span>, protocol.<span class="number">0</span>) }.map(FileDesc)
 }
 
 <span class="doccomment">/// bind a name to a socket
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>bind(socket: SocketDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+</span><span class="kw">pub fn </span>bind(socket: FileDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">unsafe </span>{ syscall_3(id::BIND, socket.<span class="number">0</span>, addr.as_ptr() <span class="kw">as _</span>, addr.len()) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// start listening for connections on a socket
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>listen(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+</span><span class="kw">pub fn </span>listen(socket: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">unsafe </span>{ syscall_1(id::LISTEN, socket.<span class="number">0</span>) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// accept a connection on a socket
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>accept(socket: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;SocketDesc&gt; {
-    <span class="kw">unsafe </span>{ syscall_1(id::ACCEPT, socket.<span class="number">0</span>) }.map(SocketDesc)
+</span><span class="kw">pub fn </span>accept(socket: FileDesc) -&gt; <span class="prelude-ty">Result</span>&lt;FileDesc&gt; {
+    <span class="kw">unsafe </span>{ syscall_1(id::ACCEPT, socket.<span class="number">0</span>) }.map(FileDesc)
 }
 
 <span class="doccomment">/// connect to a socket
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>connect(socket: SocketDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+</span><span class="kw">pub fn </span>connect(socket: FileDesc, addr: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">unsafe </span>{ syscall_3(id::CONNECT, socket.<span class="number">0</span>, addr.as_ptr() <span class="kw">as _</span>, addr.len()) }.map(|<span class="kw">_</span>| {})
 }
 
 <span class="doccomment">/// send data to a socket
 </span><span class="attr">#[inline(always)]
-</span><span class="kw">pub fn </span>send(socket: SocketDesc, data: <span class="kw-2">&amp;</span>[u8], flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+</span><span class="kw">pub fn </span>send(socket: FileDesc, data: <span class="kw-2">&amp;</span>[u8], flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>(data, data_len) = (data.as_ptr() <span class="kw">as </span>usize, data.len());
-    <span class="kw">unsafe </span>{ syscall_4(id::SEND, socket.<span class="number">0</span>, data, data_len, flags) }.map(|<span class="kw">_</span>| {})
+    <span class="kw">unsafe </span>{ syscall_4(id::SEND, socket.<span class="number">0</span>, data, data_len, flags) }
 }
 
 <span class="doccomment">/// read data from a socket
-</span><span class="kw">pub fn </span>recv(socket: SocketDesc, buf: <span class="kw-2">&amp;mut </span>[u8], flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
+</span><span class="kw">pub fn </span>recv(socket: FileDesc, buf: <span class="kw-2">&amp;mut </span>[u8], flags: usize) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
     <span class="kw">let </span>(buf, buf_len) = (buf.as_ptr() <span class="kw">as </span>usize, buf.len());
     <span class="kw">unsafe </span>{ syscall_4(id::RECV, socket.<span class="number">0</span>, buf, buf_len, flags) }
 }

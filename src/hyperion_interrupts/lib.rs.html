@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/interrupts/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_interrupts" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (bf8716f1c 2023-12-24)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/interrupts/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-452d19225583af2a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_interrupts" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (89e2160c4 2023-12-27)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6902632119e002ca.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -139,7 +139,7 @@
 
 <span class="comment">//
 
-</span><span class="kw">pub fn </span>set_any_interrupt_handler(can_use: <span class="kw">impl </span>Fn(u8) -&gt; bool, f: <span class="kw">fn</span>(u8)) -&gt; <span class="prelude-ty">Option</span>&lt;u8&gt; {
+</span><span class="kw">pub fn </span>set_any_interrupt_handler(can_use: <span class="kw">impl </span>Fn(u8) -&gt; bool, f: <span class="kw">fn</span>(u8, usize)) -&gt; <span class="prelude-ty">Option</span>&lt;u8&gt; {
     <span class="kw">for </span>irq <span class="kw">in </span><span class="number">0x20u8</span>..=<span class="number">0xFF </span>{
         <span class="kw">if </span>!can_use(irq) {
             <span class="kw">continue</span>;
@@ -153,11 +153,11 @@
     <span class="prelude-val">None
 </span>}
 
-<span class="kw">pub fn </span>set_interrupt_handler_if_free(irq: u8, f: <span class="kw">fn</span>(u8)) -&gt; bool {
+<span class="kw">pub fn </span>set_interrupt_handler_if_free(irq: u8, f: <span class="kw">fn</span>(u8, usize)) -&gt; bool {
     handler(irq).store_if_free(f)
 }
 
-<span class="kw">pub fn </span>set_interrupt_handler(irq: u8, f: <span class="kw">fn</span>(u8)) {
+<span class="kw">pub fn </span>set_interrupt_handler(irq: u8, f: <span class="kw">fn</span>(u8, usize)) {
     handler(irq).store(f)
 }
 
@@ -165,9 +165,9 @@
     <span class="kw-2">&amp;</span>INT_HANDLERS[irq <span class="kw">as </span>usize - <span class="number">0x20</span>]
 }
 
-<span class="kw">pub fn </span>interrupt_handler(irq: u8) {
+<span class="kw">pub fn </span>interrupt_handler(irq: u8, ip: usize) {
     <span class="comment">// debug!("interrupt {irq}");
-    </span>INT_HANDLERS[irq <span class="kw">as </span>usize - <span class="number">0x20</span>].load()(irq);
+    </span>INT_HANDLERS[irq <span class="kw">as </span>usize - <span class="number">0x20</span>].load()(irq, ip);
     <span class="comment">// end_of_interrupt(irq);
 </span>}
 
@@ -182,7 +182,7 @@
     } */
 </span>}
 
-<span class="kw">pub fn </span>default_handler(irq: u8) {
+<span class="kw">pub fn </span>default_handler(irq: u8, _ip: usize) {
     end_of_interrupt(irq)
 }
 
@@ -203,7 +203,7 @@
 
 <span class="kw">pub struct </span>IntHandler {
     free: AtomicBool,
-    f: AtomicCell&lt;<span class="kw">fn</span>(u8)&gt;,
+    f: AtomicCell&lt;<span class="kw">fn</span>(u8, usize)&gt;,
 }
 
 <span class="comment">//
@@ -216,7 +216,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>store_if_free(<span class="kw-2">&amp;</span><span class="self">self</span>, new: <span class="kw">fn</span>(u8)) -&gt; bool {
+    <span class="kw">pub fn </span>store_if_free(<span class="kw-2">&amp;</span><span class="self">self</span>, new: <span class="kw">fn</span>(u8, usize)) -&gt; bool {
         <span class="kw">let </span>stored = <span class="self">self</span>.free.swap(<span class="bool-val">false</span>, Ordering::SeqCst);
         <span class="kw">if </span>stored {
             <span class="self">self</span>.f.store(new);
@@ -224,12 +224,12 @@
         stored
     }
 
-    <span class="kw">pub fn </span>store(<span class="kw-2">&amp;</span><span class="self">self</span>, new: <span class="kw">fn</span>(u8)) {
+    <span class="kw">pub fn </span>store(<span class="kw-2">&amp;</span><span class="self">self</span>, new: <span class="kw">fn</span>(u8, usize)) {
         <span class="self">self</span>.free.store(<span class="bool-val">false</span>, Ordering::SeqCst);
         <span class="self">self</span>.f.store(new);
     }
 
-    <span class="kw">pub fn </span>load(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">fn</span>(u8) {
+    <span class="kw">pub fn </span>load(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">fn</span>(u8, usize) {
         <span class="self">self</span>.f.load()
     }
 }

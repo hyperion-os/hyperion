@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `userspace/sample-elf/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="sample_elf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (bf8716f1c 2023-12-24)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `userspace/sample-elf/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-452d19225583af2a.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="sample_elf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (89e2160c4 2023-12-27)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-6902632119e002ca.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -153,7 +153,6 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![feature(slice_as_chunks)]
 
@@ -165,14 +164,14 @@
 <span class="kw">use </span>core::str::from_utf8;
 
 <span class="kw">use </span>libstd::{
-    fs::{File, OpenOptions, Stdin, STDOUT},
+    fs::{File, Stdin, Stdout, STDOUT},
     io::{BufReader, Read, Write},
+    net::{LocalListener, LocalStream},
     println,
     sync::Mutex,
     sys::{
         err::Result,
-        fs::FileDesc,
-        net::{Protocol, SocketDesc, SocketDomain, SocketType},
+        fs::{FileDesc, FileOpenFlags},
         <span class="kw-2">*</span>,
     },
     thread::spawn,
@@ -181,76 +180,75 @@
 <span class="comment">//
 
 </span><span class="kw">fn </span>run_server() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span>server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)<span class="question-mark">?</span>;
-    bind(server, <span class="string">"/dev/server.sock"</span>)<span class="question-mark">?</span>;
+    open_dir(<span class="string">"/run"</span>).unwrap(); <span class="comment">// mkdir
 
-    close(Stdin::FD).unwrap();
+    </span><span class="kw">let </span>server = LocalListener::bind(<span class="string">"/run/server.sock"</span>)<span class="question-mark">?</span>;
+
+    <span class="comment">// close(Stdin::FD).unwrap();
+    // close(Stdout::FD).unwrap();
+    </span><span class="kw">let </span>null = open(<span class="string">"/dev/null"</span>, FileOpenFlags::READ_WRITE, <span class="number">0</span>).unwrap();
+    dup(null, Stdin::FD).unwrap();
+    dup(null, Stdout::FD).unwrap();
 
     rename(<span class="string">"local server"</span>)<span class="question-mark">?</span>;
 
     <span class="kw">let </span><span class="kw-2">mut </span>i = <span class="number">0usize</span>;
     <span class="kw">loop </span>{
-        <span class="kw">let </span>conn = accept(server)<span class="question-mark">?</span>;
+        <span class="kw">let </span>conn = server.accept()<span class="question-mark">?</span>;
         i += <span class="number">1</span>;
 
         spawn(<span class="kw">move </span>|| <span class="kw">_ </span>= handle_client(i, conn));
     }
 }
 
-<span class="kw">fn </span>handle_client(i: usize, conn: SocketDesc) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+<span class="kw">fn </span>handle_client(i: usize, <span class="kw-2">mut </span>conn: LocalStream) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
     <span class="kw">let </span>msg = <span class="macro">format!</span>(<span class="string">"Hello {i}"</span>);
 
-    send(conn, msg.as_bytes(), <span class="number">0</span>)<span class="question-mark">?</span>;
+    conn.write(msg.as_bytes())<span class="question-mark">?</span>;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">64</span>];
-    <span class="kw">let </span>len = recv(conn, <span class="kw-2">&amp;mut </span>buf, <span class="number">0</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">4u8</span>; <span class="number">4</span>];
+    <span class="kw">let </span>len = conn.read(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
     <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>buf[..len], <span class="string">b"ack"</span>);
 
-    <span class="kw">let </span><span class="kw-2">mut </span>file = OpenOptions::new()
-        .read(<span class="bool-val">true</span>)
-        .create(<span class="bool-val">false</span>)
-        .open(<span class="macro">format!</span>(<span class="string">"/tmp/{msg}"</span>))<span class="question-mark">?</span>;
+    <span class="comment">// let mut file = OpenOptions::new()
+    //     .read(true)
+    //     .create(false)
+    //     .open(format!("/tmp/{msg}"))?;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">64</span>];
-    <span class="kw">let </span>len = file.read(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
-    <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>buf[..len], <span class="string">b"testing data"</span>);
+    // let mut buf = [0u8; 13];
+    // let len = file.read(&amp;mut buf)?;
+    // assert_eq!(&amp;buf[..len], b"testing data");
 
-    <span class="prelude-val">Ok</span>(())
+    </span><span class="prelude-val">Ok</span>(())
 }
 
 <span class="kw">fn </span>run_client() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-    <span class="kw">let </span>client = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)<span class="question-mark">?</span>;
-    connect(client, <span class="string">"/dev/server.sock"</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>client = LocalStream::connect(<span class="string">"/run/server.sock"</span>)<span class="question-mark">?</span>;
 
     rename(<span class="string">"local client"</span>)<span class="question-mark">?</span>;
-
     <span class="macro">println!</span>(<span class="string">"connected"</span>);
 
     <span class="kw">loop </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">64</span>];
-        <span class="kw">let </span>len = recv(client, <span class="kw-2">&amp;mut </span>buf, <span class="number">0</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>len = client.read(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
+
+        <span class="kw">if </span>len == <span class="number">0 </span>{
+            <span class="kw">break </span><span class="prelude-val">Ok</span>(());
+        }
 
         <span class="kw">let </span>utf8 = <span class="kw-2">&amp;</span>buf[..len];
         <span class="kw">let </span>msg = from_utf8(utf8).unwrap();
         <span class="macro">println!</span>(<span class="string">"got `{msg:?}`"</span>);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>file = OpenOptions::new()
-            .write(<span class="bool-val">true</span>)
-            .create(<span class="bool-val">true</span>)
-            .open(<span class="macro">format!</span>(<span class="string">"/tmp/{msg}"</span>))<span class="question-mark">?</span>;
+        <span class="comment">// let mut file = OpenOptions::new()
+        //     .write(true)
+        //     .create(true)
+        //     .open(format!("/tmp/{msg}"))?;
 
-        file.write(<span class="string">b"testing data"</span>)<span class="question-mark">?</span>;
+        // file.write(b"testing data")?;
+        // drop(file); // drop = flush + close
 
-        drop(file); <span class="comment">// drop = flush + close
-
-        // if buf[..len].ends_with(b"2") {
-        //     println!("infinite loop");
-        //     loop {
-        //         spin_loop();
-        //     }
-        // }
-
-        </span>send(client, <span class="string">b"ack"</span>, <span class="number">0</span>)<span class="question-mark">?</span>;
+        </span>client.write(<span class="string">b"ack"</span>)<span class="question-mark">?</span>;
     }
 }
 

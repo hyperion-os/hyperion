@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Protocol","SocketDesc","SocketDomain","SocketType"]};
+window.SIDEBAR_ITEMS = {"struct":["Protocol","SocketDomain","SocketType"]};

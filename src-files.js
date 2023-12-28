@@ -1,6 +1,6 @@
 var srcIndex = new Map(JSON.parse('[\
 ["cargo_run",["",[],["main.rs"]]],\
-["coreutils",["",[],["cat.rs","ls.rs","main.rs","sleep.rs","touch.rs"]]],\
+["coreutils",["",[],["cat.rs","date.rs","echo.rs","ls.rs","main.rs","random.rs","sleep.rs","touch.rs"]]],\
 ["fbtest",["",[],["main.rs"]]],\
 ["hyperion_arch",["",[],["lib.rs"]]],\
 ["hyperion_arch_x86_64",["",[["cpu",[],["gdt.rs","idt.rs","ints.rs","mod.rs","tss.rs"]]],["context.rs","lib.rs","paging.rs","pmm.rs","stack.rs","syscall.rs","tls.rs","vmm.rs"]]],\
@@ -21,7 +21,7 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_driver_ps2",["",[],["keyboard.rs","lib.rs","mouse.rs"]]],\
 ["hyperion_driver_qemu",["",[],["lib.rs"]]],\
 ["hyperion_driver_rtc",["",[],["lib.rs"]]],\
-["hyperion_drivers",["",[],["lib.rs"]]],\
+["hyperion_drivers",["",[],["lib.rs","log.rs","null.rs","rand.rs"]]],\
 ["hyperion_escape",["",[],["decode.rs","encode.rs","lib.rs"]]],\
 ["hyperion_framebuffer",["",[],["font.rs","framebuffer.rs","lib.rs","logger.rs"]]],\
 ["hyperion_futures",["",[],["executor.rs","keyboard.rs","lib.rs","mpmc.rs","task.rs","timer.rs"]]],\
@@ -32,7 +32,7 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_kernel_impl",["",[],["lib.rs"]]],\
 ["hyperion_kernel_info",["",[],["lib.rs"]]],\
 ["hyperion_keyboard",["",[],["decode.rs","event.rs","lib.rs"]]],\
-["hyperion_kshell",["",[],["lib.rs","shell.rs","snake.rs","term.rs"]]],\
+["hyperion_kshell",["",[],["cmd.rs","lib.rs","shell.rs","snake.rs","term.rs"]]],\
 ["hyperion_loader",["",[],["lib.rs"]]],\
 ["hyperion_log",["",[],["lib.rs"]]],\
 ["hyperion_log_multi",["",[],["lib.rs"]]],\
@@ -47,7 +47,7 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_syscall",["",[],["err.rs","fs.rs","lib.rs","net.rs"]]],\
 ["hyperion_timer",["",[],["lib.rs"]]],\
 ["hyperion_vfs",["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]]],\
-["libstd",["",[],["alloc.rs","env.rs","fs.rs","io.rs","lib.rs","process.rs","rt.rs","sync.rs","thread.rs"]]],\
+["libstd",["",[],["alloc.rs","env.rs","fs.rs","io.rs","lib.rs","net.rs","process.rs","rt.rs","sync.rs","thread.rs"]]],\
 ["sample_elf",["",[],["main.rs"]]]\
 ]'));
 createSrcSidebar();

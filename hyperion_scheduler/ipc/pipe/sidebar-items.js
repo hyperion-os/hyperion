@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["channel","channel_with","pipe","pipe_with","recv","send"],"struct":["Channel","Closed","Receiver","Sender"],"type":["Pipe"]};
+window.SIDEBAR_ITEMS = {"fn":["pipe","pipe_with"],"struct":["Channel","Closed","Receiver","Sender"],"type":["Pipe"]};

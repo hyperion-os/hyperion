@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"hyperion_syscall":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"struct\" href=\"hyperion_syscall/err/struct.Error.html\" title=\"struct hyperion_syscall::err::Error\">Error</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
