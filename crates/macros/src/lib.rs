@@ -138,3 +138,120 @@ fn expect_empty(input: proc_macro::TokenStream) -> Option<proc_macro::TokenStrea
     }
     None
 }
+
+/* #[proc_macro_attribute]
+pub fn trace(
+    attr: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    // struct Input {
+    //     attrs: Vec<Attribute>,
+    //     vis: Visibility,
+    //     sig: Signature,
+    //     _block: Brace,
+    //     block_contents: TokenStream,
+    // }
+
+    // impl Parse for Input {
+    //     fn parse(input: ParseStream) -> Result<Self> {
+    //         let block_contents;
+    //         Ok(Self {
+    //             attrs: Attribute::parse_outer(input)?,
+    //             vis: input.parse()?,
+    //             sig: input.parse()?,
+    //             _block: braced!(block_contents in input),
+    //             block_contents: block_contents.parse()?,
+    //         })
+    //     }
+    // }
+
+    // let Input {
+    //     attrs,
+    //     vis,
+    //     sig,
+    //     block_contents,
+    //     ..
+    // } = parse_macro_input!(input as Input);
+
+    // (quote! {
+    //     #(#attrs)*
+    //     #vis #sig {
+    //         #block_contents
+    //     }
+    // })
+    // .into()
+
+    let mut fn_item = parse_macro_input!(input as ItemFn);
+
+    let real_vis = fn_item.vis;
+    fn_item.vis = Visibility::Inherited;
+
+    let real_sig = fn_item.sig.clone();
+    fn_item.sig.ident = Ident::new(&format!("_real_{}", fn_item.sig.ident), Span::call_site());
+
+    let real_fn = &fn_item.sig.ident;
+    let call_id = real_sig.ident.to_string();
+    let call_id = call_id.trim_start_matches('_');
+
+    let args: Vec<_> = fn_item
+        .sig
+        .inputs
+        .iter()
+        .map(|arg| match arg {
+            syn::FnArg::Receiver(_) => panic!("`self` not supported"),
+            syn::FnArg::Typed(PatType { pat, .. }) => (**pat).clone(),
+        })
+        .collect();
+
+    let call_dbg = args
+        .iter()
+        .map(|id| id.to_token_stream())
+        .fold(String::new(), |mut acc, v| {
+            use std::fmt::Write;
+            write!(acc, ", {v}: {{:?}}").unwrap();
+            acc
+        });
+    let call_dbg = format!("syscall::{call_id}({})", call_dbg.trim_start_matches(", "));
+
+    if !attr.is_empty() {
+        // split into `name(args)` and ` = result`
+        // calls like `exit` won't return and a split is necessary
+        (quote! {
+            #real_vis #real_sig {
+                #fn_item
+
+                if LOG_SYSCALLS {
+                    debug!(#call_dbg, #(&#args,)*);
+                }
+
+                let result = #real_fn(#(#args,)*);
+
+                if LOG_SYSCALLS {
+                    debug!(" = {result:?}");
+                }
+
+                result
+            }
+
+        })
+        .into()
+    } else {
+        // or don't split
+        let call_dbg = format!("{call_dbg} = {{result:?}}");
+        (quote! {
+            #real_vis #real_sig {
+                #fn_item
+
+                let result = #real_fn(#(#args,)*);
+
+                if LOG_SYSCALLS {
+                    debug!(#call_dbg, #(&#args,)*);
+                }
+
+                result
+            }
+
+        })
+        .into()
+    }
+} */
