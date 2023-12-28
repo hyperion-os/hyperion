@@ -11,12 +11,12 @@ use core::str::from_utf8;
 use libstd::{
     fs::{File, OpenOptions, Stdin, Stdout, STDOUT},
     io::{BufReader, Read, Write},
+    net::{LocalListener, LocalStream},
     println,
     sync::Mutex,
     sys::{
         err::Result,
-        fs::FileDesc,
-        net::{Protocol, SocketDomain, SocketType},
+        fs::{FileDesc, FileOpenFlags},
         *,
     },
     thread::spawn,
@@ -25,58 +25,57 @@ use libstd::{
 //
 
 fn run_server() -> Result<()> {
-    let server = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
-    open_dir("/run").unwrap();
-    bind(server, "/run/server.sock")?;
+    open_dir("/run").unwrap(); // mkdir
 
-    close(Stdin::FD).unwrap();
-    close(Stdout::FD).unwrap();
+    let server = LocalListener::bind("/run/server.sock")?;
+
+    // close(Stdin::FD).unwrap();
+    // close(Stdout::FD).unwrap();
+    let null = open("/dev/null", FileOpenFlags::READ_WRITE, 0).unwrap();
+    dup(null, Stdin::FD).unwrap();
+    dup(null, Stdout::FD).unwrap();
 
     rename("local server")?;
 
     let mut i = 0usize;
     loop {
-        let conn = accept(server)?;
+        let conn = server.accept()?;
         i += 1;
 
         spawn(move || _ = handle_client(i, conn));
     }
 }
 
-fn handle_client(i: usize, conn: FileDesc) -> Result<()> {
+fn handle_client(i: usize, mut conn: LocalStream) -> Result<()> {
     let msg = format!("Hello {i}");
 
-    send(conn, msg.as_bytes(), 0)?;
+    conn.write(msg.as_bytes())?;
 
-    let mut buf = [0u8; 64];
-    let len = recv(conn, &mut buf, 0)?;
+    let mut buf = [4u8; 4];
+    let len = conn.read(&mut buf)?;
     assert_eq!(&buf[..len], b"ack");
 
-    let mut file = OpenOptions::new()
-        .read(true)
-        .create(false)
-        .open(format!("/tmp/{msg}"))?;
+    // let mut file = OpenOptions::new()
+    //     .read(true)
+    //     .create(false)
+    //     .open(format!("/tmp/{msg}"))?;
 
-    let mut buf = [0u8; 64];
-    let len = file.read(&mut buf)?;
-    assert_eq!(&buf[..len], b"testing data");
-
-    close(conn).unwrap();
+    // let mut buf = [0u8; 13];
+    // let len = file.read(&mut buf)?;
+    // assert_eq!(&buf[..len], b"testing data");
 
     Ok(())
 }
 
 fn run_client() -> Result<()> {
-    let client = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
-    connect(client, "/run/server.sock")?;
+    let mut client = LocalStream::connect("/run/server.sock")?;
 
     rename("local client")?;
-
     println!("connected");
 
     loop {
         let mut buf = [0u8; 64];
-        let len = recv(client, &mut buf, 0)?;
+        let len = client.read(&mut buf)?;
 
         if len == 0 {
             break Ok(());
@@ -86,23 +85,15 @@ fn run_client() -> Result<()> {
         let msg = from_utf8(utf8).unwrap();
         println!("got `{msg:?}`");
 
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(format!("/tmp/{msg}"))?;
+        // let mut file = OpenOptions::new()
+        //     .write(true)
+        //     .create(true)
+        //     .open(format!("/tmp/{msg}"))?;
 
-        file.write(b"testing data")?;
+        // file.write(b"testing data")?;
+        // drop(file); // drop = flush + close
 
-        drop(file); // drop = flush + close
-
-        // if buf[..len].ends_with(b"2") {
-        //     println!("infinite loop");
-        //     loop {
-        //         spin_loop();
-        //     }
-        // }
-
-        send(client, b"ack", 0)?;
+        client.write(b"ack")?;
     }
 }
 
