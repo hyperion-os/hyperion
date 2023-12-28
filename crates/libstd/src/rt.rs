@@ -36,6 +36,7 @@ extern "C" fn _start(hyperion_cli_args_ptr: usize, _a2: usize) -> ! {
     // call `lang_start`
     // crate::println!("calling main");
     let exit_code = unsafe { main(0, ptr::null()) };
+    // crate::println!("exit:{exit_code}");
 
     ExitCode::from_i32(exit_code as _).exit_process();
 }
