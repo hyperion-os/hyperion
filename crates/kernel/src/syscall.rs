@@ -15,9 +15,10 @@ use hyperion_defer::DeferInit;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
-    fd_push, fd_query, fd_query_of, fd_take, map_vfs_err_to_syscall_err, process_ext_with,
-    read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
-    read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo, SocketPipe, VFS_ROOT,
+    fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
+    process_ext_with, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut,
+    read_untrusted_ref, read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo,
+    SocketPipe, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
@@ -40,8 +41,7 @@ use x86_64::{align_down, align_up, structures::paging::PageTableFlags, PhysAddr,
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
-    let id = args.syscall_id;
-    let (result, name) = match id as usize {
+    match args.syscall_id as usize {
         id::LOG => call_id(log, args),
         id::EXIT => call_id(exit, args),
         id::DONE => call_id(done, args),
@@ -85,27 +85,23 @@ pub fn syscall(args: &mut SyscallRegs) {
             hyperion_scheduler::exit();
         }
     };
-
-    _ = (result, name);
-    // if result < 0 {
-    //     debug!("syscall `{name}` (id {id}) returned {result}",);
-    // }
 }
 
-fn call_id(
-    f: impl FnOnce(&mut SyscallRegs) -> Result<usize>,
-    args: &mut SyscallRegs,
-) -> (Result<usize>, &str) {
-    let name = type_name_of_val(&f);
-
+fn call_id(f: impl FnOnce(&mut SyscallRegs) -> Result<usize>, args: &mut SyscallRegs) {
     // debug!(
-    //     "{name}<{}>({}, {}, {}, {}, {})",
-    //     args.syscall_id, args.arg0, args.arg1, args.arg2, args.arg3, args.arg4,
+    //     "{}<{}>({}, {}, {}, {}, {})",
+    //     type_name_of_val(&f),
+    //     args.syscall_id,
+    //     args.arg0,
+    //     args.arg1,
+    //     args.arg2,
+    //     args.arg3,
+    //     args.arg4,
     // );
 
     let res = f(args);
+    // debug!(" \\= {res:?}");
     args.syscall_id = Error::encode(res) as u64;
-    (res, name)
 }
 
 /// print a string to logs
@@ -113,14 +109,26 @@ fn call_id(
 /// [`hyperion_syscall::log`]
 pub fn log(args: &mut SyscallRegs) -> Result<usize> {
     let str = read_untrusted_str(args.arg0, args.arg1)?;
-    hyperion_log::print!("{str}");
+
+    _log(str);
     return Ok(0);
+}
+
+// #[trace]
+fn _log(str: &str) {
+    print!("{str}");
 }
 
 /// exit and kill the current process
 ///
 /// [`hyperion_syscall::exit`]
 pub fn exit(_args: &mut SyscallRegs) -> Result<usize> {
+    _exit();
+    return Ok(0);
+}
+
+// #[trace(split)]
+fn _exit() {
     // TODO: exit code
     hyperion_scheduler::exit();
 }
@@ -129,6 +137,12 @@ pub fn exit(_args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::done`]
 pub fn done(_args: &mut SyscallRegs) -> Result<usize> {
+    _done();
+    return Ok(0);
+}
+
+// #[trace(split)]
+fn _done() {
     // TODO: exit code
     hyperion_scheduler::done();
 }
@@ -137,36 +151,59 @@ pub fn done(_args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::yield_now`]
 pub fn yield_now(_args: &mut SyscallRegs) -> Result<usize> {
-    hyperion_scheduler::yield_now();
+    _yield_now();
     return Ok(0);
+}
+
+// #[trace]
+fn _yield_now() {
+    hyperion_scheduler::yield_now();
 }
 
 /// get the number of nanoseconds after boot
 ///
 /// [`hyperion_syscall::timestamp`]
 pub fn timestamp(args: &mut SyscallRegs) -> Result<usize> {
-    let nanos = HPET.nanos();
-
     let bytes = read_untrusted_bytes_mut(args.arg0, 16)?;
-    bytes.copy_from_slice(&nanos.to_ne_bytes());
 
+    _timestamp(bytes);
     return Ok(0);
+}
+
+// #[trace]
+fn _timestamp(bytes: &mut [u8]) {
+    let nanos = HPET.nanos();
+    bytes.copy_from_slice(&nanos.to_ne_bytes());
 }
 
 /// sleep at least arg0 nanoseconds
 ///
 /// [`hyperion_syscall::nanosleep`]
 pub fn nanosleep(args: &mut SyscallRegs) -> Result<usize> {
-    hyperion_scheduler::sleep(Duration::nanoseconds((args.arg0 as i64).max(0)));
+    let nanos = args.arg0 as i64;
+
+    _nanosleep(nanos);
     return Ok(0);
+}
+
+// #[trace]
+fn _nanosleep(nanos: i64) {
+    hyperion_scheduler::sleep(Duration::nanoseconds(nanos.max(0)));
 }
 
 /// sleep at least until the nanosecond arg0 happens
 ///
 /// [`hyperion_syscall::nanosleep_until`]
 pub fn nanosleep_until(args: &mut SyscallRegs) -> Result<usize> {
-    hyperion_scheduler::sleep_until(Instant::new(args.arg0 as u128));
+    let nanosecond = args.arg0 as u128;
+
+    _nanosleep_until(nanosecond);
     return Ok(0);
+}
+
+// #[trace]
+fn _nanosleep_until(nanosecond: u128) {
+    hyperion_scheduler::sleep_until(Instant::new(nanosecond));
 }
 
 /// spawn a new thread
@@ -175,8 +212,16 @@ pub fn nanosleep_until(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::spawn`]
 pub fn spawn(args: &mut SyscallRegs) -> Result<usize> {
-    hyperion_scheduler::spawn_userspace(args.arg0, args.arg1);
+    let fn_ptr = args.arg0;
+    let fn_arg = args.arg1;
+
+    _spawn(fn_ptr, fn_arg);
     return Ok(0);
+}
+
+// #[trace]
+fn _spawn(fn_ptr: u64, fn_arg: u64) {
+    hyperion_scheduler::spawn_userspace(fn_ptr, fn_arg);
 }
 
 /// allocate physical pages and map them to virtual memory
@@ -186,11 +231,16 @@ pub fn spawn(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::palloc`]
 pub fn palloc(args: &mut SyscallRegs) -> Result<usize> {
     let n_pages = args.arg0 as usize;
+    return _palloc(n_pages).map(|ptr| ptr.as_u64() as _);
+}
+
+// #[trace]
+fn _palloc(n_pages: usize) -> Result<VirtAddr> {
     let flags =
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
 
     match process().alloc(n_pages, flags) {
-        Ok((ptr, _)) => Ok(ptr.as_u64() as _),
+        Ok((ptr, _)) => Ok(ptr),
         Err(AllocErr::OutOfVirtMem) => Err(Error::OUT_OF_VIRTUAL_MEMORY),
     }
 }
@@ -204,8 +254,14 @@ pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
     };
     let n_pages = args.arg1 as usize;
 
+    _pfree(ptr, n_pages)?;
+    return Ok(0);
+}
+
+// #[trace]
+fn _pfree(ptr: VirtAddr, n_pages: usize) -> Result<()> {
     match process().free(n_pages, ptr) {
-        Ok(()) => Ok(0),
+        Ok(()) => Ok(()),
         Err(FreeErr::InvalidAddr) => Err(Error::INVALID_ADDRESS),
         Err(FreeErr::InvalidAlloc) => Err(Error::INVALID_ALLOC),
     }
@@ -216,8 +272,14 @@ pub fn pfree(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::rename`]
 pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
     let new_name = read_untrusted_str(args.arg0, args.arg1)?;
-    hyperion_scheduler::rename(new_name.to_string());
+
+    _rename(new_name);
     return Ok(0);
+}
+
+// #[trace]
+fn _rename(new_name: &str) {
+    hyperion_scheduler::rename(new_name.to_string());
 }
 
 /// open a file
@@ -225,11 +287,16 @@ pub fn rename(args: &mut SyscallRegs) -> Result<usize> {
 /// [`hyperion_syscall::open`]
 pub fn open(args: &mut SyscallRegs) -> Result<usize> {
     let path = read_untrusted_str(args.arg0, args.arg1)?;
-
     let Some(flags) = FileOpenFlags::from_bits(args.arg2 as usize) else {
         return Err(Error::INVALID_FLAGS);
     };
 
+    let fd = _open(path, flags)?;
+    return Ok(fd.0);
+}
+
+// #[trace]
+fn _open(path: &str, flags: FileOpenFlags) -> Result<FileDesc> {
     let create = flags.contains(FileOpenFlags::CREATE) || flags.contains(FileOpenFlags::CREATE_NEW);
 
     if !flags.intersects(FileOpenFlags::READ | FileOpenFlags::WRITE) {
@@ -263,9 +330,7 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 
     drop(file_lock);
 
-    let fd = fd_push(Arc::new(FileDescData::new(file_ref, position)));
-
-    return Ok(fd.0);
+    return Ok(fd_push(Arc::new(FileDescData::new(file_ref, position))));
 }
 
 /// close a file
@@ -274,20 +339,30 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 pub fn close(args: &mut SyscallRegs) -> Result<usize> {
     let fd = FileDesc(args.arg0 as usize);
 
+    _close(fd)?;
+    return Ok(0);
+}
+
+// #[trace]
+fn _close(fd: FileDesc) -> Result<()> {
     if fd_take(fd).is_none() {
         return Err(Error::BAD_FILE_DESCRIPTOR);
     }
-
-    return Ok(0);
+    Ok(())
 }
 
 /// read bytes from a file
 ///
 /// [`hyperion_syscall::read`]
 pub fn read(args: &mut SyscallRegs) -> Result<usize> {
-    let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
     let fd = FileDesc(args.arg0 as usize);
+    let buf = read_untrusted_bytes_mut(args.arg1, args.arg2)?;
 
+    return _read(fd, buf);
+}
+
+// #[trace]
+fn _read(fd: FileDesc, buf: &mut [u8]) -> Result<usize> {
     let file = fd_query(fd)?;
     return file.read(buf);
 }
@@ -296,9 +371,13 @@ pub fn read(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::write`]
 pub fn write(args: &mut SyscallRegs) -> Result<usize> {
-    let buf = read_untrusted_bytes(args.arg1, args.arg2)?;
     let fd = FileDesc(args.arg0 as usize);
+    let buf = read_untrusted_bytes(args.arg1, args.arg2)?;
 
+    return _write(fd, buf);
+}
+
+fn _write(fd: FileDesc, buf: &[u8]) -> Result<usize> {
     let file = fd_query(fd)?;
     return file.write(buf);
 }
@@ -312,7 +391,7 @@ fn socket(args: &mut SyscallRegs) -> Result<usize> {
     let proto = Protocol(args.arg2 as _);
     let info = SocketInfo { domain, ty, proto };
 
-    _socket(info).map(|fd| fd.0)
+    return _socket(info).map(|fd| fd.0);
 }
 
 fn _socket(info: SocketInfo) -> Result<FileDesc> {
@@ -338,7 +417,7 @@ fn bind(args: &mut SyscallRegs) -> Result<usize> {
     let socket_fd = FileDesc(args.arg0 as _);
     let addr = read_untrusted_str(args.arg1, args.arg2)?;
 
-    _bind(socket_fd, addr).map(|_| 0)
+    return _bind(socket_fd, addr).map(|_| 0);
 }
 
 fn _bind(socket_fd: FileDesc, addr: &str) -> Result<()> {
@@ -371,7 +450,8 @@ fn _bind(socket_fd: FileDesc, addr: &str) -> Result<()> {
 /// [`hyperion_syscall::listen`]
 fn listen(args: &mut SyscallRegs) -> Result<usize> {
     let socket_fd = FileDesc(args.arg0 as _);
-    _listen(socket_fd).map(|_| 0)
+
+    return _listen(socket_fd).map(|_| 0);
 }
 
 fn _listen(socket_fd: FileDesc) -> Result<()> {
@@ -386,7 +466,7 @@ fn _listen(socket_fd: FileDesc) -> Result<()> {
 fn accept(args: &mut SyscallRegs) -> Result<usize> {
     let socket_fd = FileDesc(args.arg0 as _);
 
-    _accept(socket_fd).map(|fd| fd.0)
+    return _accept(socket_fd).map(|fd| fd.0);
 }
 
 fn _accept(socket_fd: FileDesc) -> Result<FileDesc> {
@@ -496,13 +576,8 @@ pub fn dup(args: &mut SyscallRegs) -> Result<usize> {
     let old = FileDesc(args.arg0 as _);
     let new = FileDesc(args.arg1 as _);
 
-    let this = process();
-    let ext = process_ext_with(&this);
-
-    let mut files = ext.files.lock();
-
-    let old = files.get(old.0).ok_or(Error::BAD_FILE_DESCRIPTOR)?.clone();
-    files.replace(new.0, old); // drop => close the old one
+    let old = fd_query(old)?;
+    fd_replace(new, old);
 
     Ok(new.0 as _)
 }
@@ -580,13 +655,7 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
         error!("handle map_file offset {offset:?}");
     }
 
-    let file = fd_query(fd)?;
-
-    let file = file
-        .as_any()
-        .downcast_ref::<FileDescData>()
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?;
-    let mut file = file.file_ref.lock();
+    let mut file = fd_query_of::<FileDescData>(fd)?.file_ref.lock_arc();
 
     let phys = file.map_phys(size).map_err(map_vfs_err_to_syscall_err)?;
 
@@ -618,17 +687,9 @@ pub fn unmap_file(args: &mut SyscallRegs) -> Result<usize> {
 
     // hyperion_log::debug!("unmap_file({file:?}, {at:?}, {size})");
 
-    let file = fd_query(fd)?;
+    let mut file = fd_query_of::<FileDescData>(fd)?.file_ref.lock_arc();
 
-    let file = file
-        .as_any()
-        .downcast_ref::<FileDescData>()
-        .ok_or(Error::BAD_FILE_DESCRIPTOR)?;
-
-    file.file_ref
-        .lock()
-        .unmap_phys()
-        .map_err(map_vfs_err_to_syscall_err)?;
+    file.unmap_phys().map_err(map_vfs_err_to_syscall_err)?;
 
     Ok(0)
 }
