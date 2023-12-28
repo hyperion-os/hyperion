@@ -30,6 +30,7 @@ pub mod alloc;
 pub mod env;
 pub mod fs;
 pub mod io;
+pub mod net;
 pub mod process;
 mod rt;
 pub mod sync;
