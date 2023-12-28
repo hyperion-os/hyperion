@@ -9,7 +9,7 @@ use alloc::{format, string::String, sync::Arc};
 use core::str::from_utf8;
 
 use libstd::{
-    fs::{File, OpenOptions, Stdin, Stdout, STDOUT},
+    fs::{File, Stdin, Stdout, STDOUT},
     io::{BufReader, Read, Write},
     net::{LocalListener, LocalStream},
     println,

@@ -4,7 +4,6 @@ use alloc::{
     vec::Vec,
 };
 use core::{
-    any::type_name_of_val,
     fmt::Write,
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
@@ -16,9 +15,8 @@ use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
-    process_ext_with, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut,
-    read_untrusted_ref, read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo,
-    SocketPipe, VFS_ROOT,
+    read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
+    read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo, SocketPipe, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;

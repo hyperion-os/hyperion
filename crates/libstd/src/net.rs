@@ -8,10 +8,7 @@ use hyperion_syscall::{
     recv, send, socket,
 };
 
-use crate::{
-    eprintln,
-    io::{Read, Write},
-};
+use crate::io::{Read, Write};
 
 //
 
@@ -29,7 +26,6 @@ impl LocalListener {
     pub fn bind(addr: &str) -> Result<Self> {
         let fd = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
         bind(fd, addr)?;
-        // eprintln!("LocalListener fd:{fd:?}");
 
         Ok(Self { fd })
     }
@@ -52,12 +48,10 @@ impl LocalListener {
 
     pub fn accept(&self) -> Result<LocalStream> {
         let fd = accept(self.fd)?;
-        // eprintln!("LocalStream (accept) fd:{fd:?}");
         Ok(LocalStream { fd })
     }
 
     pub fn close(self) -> Result<()> {
-        // eprintln!("LocalListener close({:?})", self.fd);
         close(self.leak_fd())?;
         Ok(())
     }
@@ -81,7 +75,6 @@ impl LocalStream {
     pub fn connect(addr: &str) -> Result<Self> {
         let fd = socket(SocketDomain::LOCAL, SocketType::STREAM, Protocol::LOCAL)?;
         connect(fd, addr)?;
-        // eprintln!("LocalStream (connect) fd:{fd:?}");
 
         Ok(Self { fd })
     }
@@ -103,7 +96,6 @@ impl LocalStream {
     }
 
     pub fn close(self) -> Result<()> {
-        // eprintln!("LocalStream close({:?})", self.fd);
         close(self.leak_fd())?;
         Ok(())
     }
@@ -111,14 +103,12 @@ impl LocalStream {
 
 impl Read for LocalStream {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        // eprintln!("recv({:?}, [ .. ], 0)", self.fd);
         recv(self.fd, buf, 0)
     }
 }
 
 impl Write for LocalStream {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        // eprintln!("send({:?}, [ .. ], 0)", self.fd);
         send(self.fd, buf, 0)
     }
 
