@@ -147,7 +147,7 @@ pub fn done(code: i64) -> ! {
 
 /// context switch from this process, no guarantees about actually switching
 pub fn yield_now() {
-    unsafe { syscall_0(id::YIELD_NOW) }.unwrap();
+    _ = unsafe { syscall_0(id::YIELD_NOW) };
 }
 
 /// u128 nanoseconds since boot
@@ -260,13 +260,15 @@ pub fn recv(socket: FileDesc, buf: &mut [u8], flags: usize) -> Result<usize> {
 /// get the current process id
 #[must_use]
 pub fn get_pid() -> usize {
-    unsafe { syscall_0(id::GET_PID) }.unwrap()
+    // SAFETY: this syscall cannot fail, look at the source
+    unsafe { syscall_0(id::GET_PID).unwrap_unchecked() }
 }
 
 /// get the current thread id
 #[must_use]
 pub fn get_tid() -> usize {
-    unsafe { syscall_0(id::GET_TID) }.unwrap()
+    // SAFETY: this syscall cannot fail, look at the source
+    unsafe { syscall_0(id::GET_TID).unwrap_unchecked() }
 }
 
 /// duplicate a file descriptor
