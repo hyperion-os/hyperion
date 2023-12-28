@@ -56,7 +56,7 @@ impl<T: 'static> Deref for ApicTls<T> {
 
 // enable APIC for this processor
 pub fn enable() {
-    hyperion_interrupts::set_interrupt_handler(IRQ_APIC_SPURIOUS, |irq| {
+    hyperion_interrupts::set_interrupt_handler(IRQ_APIC_SPURIOUS, |irq, _| {
         // apic spurious interrupt
         // spurdo spärde keskeytys
         end_of_interrupt(irq);
@@ -98,7 +98,7 @@ pub fn enable() {
 pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
     let timer_irq = hyperion_interrupts::set_any_interrupt_handler(
         |irq| (0x30..=0xFF).contains(&irq),
-        |irq| {
+        |irq, _| {
             // hyperion_log::debug!("APIC timer");
 
             /* unsafe {

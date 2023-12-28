@@ -18,7 +18,7 @@ pub static INT_HANDLERS: [IntHandler; INT_COUNT] = array![IntHandler::new(); 224
 
 //
 
-pub fn set_any_interrupt_handler(can_use: impl Fn(u8) -> bool, f: fn(u8)) -> Option<u8> {
+pub fn set_any_interrupt_handler(can_use: impl Fn(u8) -> bool, f: fn(u8, usize)) -> Option<u8> {
     for irq in 0x20u8..=0xFF {
         if !can_use(irq) {
             continue;
@@ -32,11 +32,11 @@ pub fn set_any_interrupt_handler(can_use: impl Fn(u8) -> bool, f: fn(u8)) -> Opt
     None
 }
 
-pub fn set_interrupt_handler_if_free(irq: u8, f: fn(u8)) -> bool {
+pub fn set_interrupt_handler_if_free(irq: u8, f: fn(u8, usize)) -> bool {
     handler(irq).store_if_free(f)
 }
 
-pub fn set_interrupt_handler(irq: u8, f: fn(u8)) {
+pub fn set_interrupt_handler(irq: u8, f: fn(u8, usize)) {
     handler(irq).store(f)
 }
 
@@ -44,9 +44,9 @@ pub fn handler(irq: u8) -> &'static IntHandler {
     &INT_HANDLERS[irq as usize - 0x20]
 }
 
-pub fn interrupt_handler(irq: u8) {
+pub fn interrupt_handler(irq: u8, ip: usize) {
     // debug!("interrupt {irq}");
-    INT_HANDLERS[irq as usize - 0x20].load()(irq);
+    INT_HANDLERS[irq as usize - 0x20].load()(irq, ip);
     // end_of_interrupt(irq);
 }
 
@@ -61,7 +61,7 @@ pub fn end_of_interrupt(irq: u8) {
     } */
 }
 
-pub fn default_handler(irq: u8) {
+pub fn default_handler(irq: u8, _ip: usize) {
     end_of_interrupt(irq)
 }
 
@@ -82,7 +82,7 @@ pub enum IntController {
 
 pub struct IntHandler {
     free: AtomicBool,
-    f: AtomicCell<fn(u8)>,
+    f: AtomicCell<fn(u8, usize)>,
 }
 
 //
@@ -95,7 +95,7 @@ impl IntHandler {
         }
     }
 
-    pub fn store_if_free(&self, new: fn(u8)) -> bool {
+    pub fn store_if_free(&self, new: fn(u8, usize)) -> bool {
         let stored = self.free.swap(false, Ordering::SeqCst);
         if stored {
             self.f.store(new);
@@ -103,12 +103,12 @@ impl IntHandler {
         stored
     }
 
-    pub fn store(&self, new: fn(u8)) {
+    pub fn store(&self, new: fn(u8, usize)) {
         self.free.store(false, Ordering::SeqCst);
         self.f.store(new);
     }
 
-    pub fn load(&self) -> fn(u8) {
+    pub fn load(&self) -> fn(u8, usize) {
         self.f.load()
     }
 }

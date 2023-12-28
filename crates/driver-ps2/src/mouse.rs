@@ -15,7 +15,7 @@ pub fn init() {
         if let Some(mut io_apic) = IoApic::any() {
             let irq = hyperion_interrupts::set_any_interrupt_handler(
                 |irq| irq >= 0x20,
-                |irq| {
+                |irq, _| {
                     /* hyperion_log::debug!(
                         "avail?: {}",
                         unsafe { Port::<u8>::new(0x64).read() } & 0b1

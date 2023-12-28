@@ -9,8 +9,10 @@ use crossbeam_queue::ArrayQueue;
 use futures_util::task::AtomicWaker;
 use hyperion_int_safe_lazy::IntSafeLazy;
 use hyperion_log::warn;
+use pc_keyboard::KeyCode;
 
 use self::event::KeyboardEvent;
+use crate::event::ElementState;
 
 //
 
@@ -23,10 +25,15 @@ pub static LAZY: AtomicCell<fn()> = AtomicCell::new(noop);
 
 //
 
-pub fn provide_raw_keyboard_event(ps2_byte: u8) {
+pub fn provide_raw_keyboard_event(ps2_byte: u8, ip: usize) {
     let Some(event) = decode::process(ps2_byte) else {
         return;
     };
+
+    // if event.keycode == KeyCode::SysRq && event.state == ElementState::Release {
+    if event.keycode == KeyCode::End && event.state == ElementState::Release {
+        hyperion_log::error!("SysRq IP: {ip:#x}");
+    }
 
     provide_keyboard_event(event);
 }

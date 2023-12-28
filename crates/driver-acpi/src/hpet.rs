@@ -335,7 +335,7 @@ impl TimerN {
         if let Some(mut ioapic) = IoApic::any() {
             let hpet_irq = hyperion_interrupts::set_any_interrupt_handler(
                 |irq| (0x30..=0xFF).contains(&irq),
-                |irq| {
+                |irq, _| {
                     // HPET interrupt
                     HPET.int_ack();
                     end_of_interrupt(irq);
