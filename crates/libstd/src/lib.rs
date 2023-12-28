@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(internal_features)]
 #![feature(
     new_uninit,
     const_mut_refs,
@@ -6,7 +7,6 @@
     lang_items,
     never_type
 )]
-#![allow(internal_features)]
 
 //
 
@@ -32,9 +32,10 @@ pub mod fs;
 pub mod io;
 pub mod net;
 pub mod process;
-mod rt;
 pub mod sync;
 pub mod thread;
+
+mod rt;
 
 //
 
@@ -91,3 +92,8 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     eprintln!("{info}");
     exit(-1);
 }
+
+// to fix `cargo clippy` without a target
+#[cfg(feature = "cargo-clippy")]
+#[lang = "eh_personality"]
+fn eh_personality() {}

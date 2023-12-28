@@ -105,9 +105,6 @@ build: ${KERNEL}
 # bootable iso alias
 iso: ${HYPERION}
 
-clippy:
-	${CARGO} clippy ${CLIPPY_FLAGS} ${CARGO_FLAGS} -- -D warnings
-
 # connect gdb to qemu
 gdb:
 	gdb ${GDB_FLAGS}

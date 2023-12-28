@@ -3,7 +3,8 @@
 #![no_std]
 #![no_main]
 //
-#![feature(custom_test_frameworks)]
+#![allow(internal_features)]
+#![feature(custom_test_frameworks, lang_items)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![allow(clippy::needless_return)]
@@ -118,6 +119,11 @@ fn init(boot_stack: Range<VirtAddr>, mut boot_vmm: PageMap) {
     // start doing kernel things
     futures::executor::run_tasks();
 }
+
+// to fix `cargo clippy` without a target
+#[cfg(any(feature = "cargo-clippy", not(target_os = "none")))]
+#[lang = "eh_personality"]
+fn eh_personality() {}
 
 //
 
