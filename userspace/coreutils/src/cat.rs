@@ -21,11 +21,17 @@ pub fn cmd<'a>(args: impl Iterator<Item = &'a str>) -> Result<()> {
                 .map_err(|err| anyhow!("`{path}`: {err}"))
         })
         .collect::<Result<Vec<_>>>()?;
+    let argc = files.len();
 
-    for (path, file) in [("<stdin>", stdin)]
+    let mut file_iter = [("<stdin>", stdin)]
         .into_iter()
-        .chain(files.iter_mut().map(|(path, file)| (*path, file)))
-    {
+        .chain(files.iter_mut().map(|(path, file)| (*path, file)));
+
+    if argc != 0 {
+        file_iter.next(); // skip stdio
+    }
+
+    for (path, file) in file_iter {
         let mut buf = [0u8; 512];
         loop {
             let len = file
