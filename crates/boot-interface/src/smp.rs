@@ -9,6 +9,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
+    #[must_use]
     pub const fn new(processor_id: u32, local_apic_id: u32) -> Self {
         Self {
             processor_id,
@@ -16,6 +17,7 @@ impl Cpu {
         }
     }
 
+    #[must_use]
     pub const fn is_boot(&self) -> bool {
         self.processor_id == 0
     }

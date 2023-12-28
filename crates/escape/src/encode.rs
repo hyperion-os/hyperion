@@ -5,6 +5,7 @@ use hyperion_color::Color;
 
 //
 
+#[must_use]
 pub fn color_to_code(Color { r, g, b }: Color) -> Arc<str> {
     format!("\x1B[38;2;{r};{g};{b}m").into()
 }

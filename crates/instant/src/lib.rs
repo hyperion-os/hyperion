@@ -23,24 +23,29 @@ pub struct Instant {
 impl Instant {
     pub const ZERO: Self = Instant::new(0);
 
+    #[must_use]
     pub fn now() -> Self {
         Self {
             nanosecond: hyperion_clock::get().nanosecond_now(),
         }
     }
 
+    #[must_use]
     pub const fn new(nanosecond: u128) -> Self {
         Self { nanosecond }
     }
 
+    #[must_use]
     pub const fn nanosecond(self) -> u128 {
         self.nanosecond
     }
 
+    #[must_use]
     pub fn elapsed(self) -> Duration {
         Self::now() - self
     }
 
+    #[must_use]
     pub fn is_reached(self) -> bool {
         self < Self::now()
     }

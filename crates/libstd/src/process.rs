@@ -56,22 +56,24 @@ impl ExitCode {
 
     pub const FAILURE: Self = Self(-1);
 
+    #[must_use]
     pub fn from_raw(i: i32) -> Self {
         Self(i)
     }
 
+    #[must_use]
     pub fn to_i32(self) -> i32 {
         self.0
     }
 
     pub fn exit_process(self) -> ! {
-        exit(self.to_i32() as _);
+        exit(i64::from(self.to_i32()));
     }
 }
 
 impl From<u8> for ExitCode {
     fn from(value: u8) -> Self {
-        ExitCode(value as _)
+        ExitCode(i32::from(value))
     }
 }
 

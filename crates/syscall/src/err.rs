@@ -74,6 +74,7 @@ impl Error {
         }
     }
 
+    #[must_use]
     pub const fn encode(v: Result<usize>) -> usize {
         match v {
             Ok(v) => v,

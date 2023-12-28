@@ -24,9 +24,9 @@ fn main() {
             .for_each(|(i, s)| {
                 s.iter().enumerate().for_each(|(j, b)| {
                     if *b != 255 {
-                        byte.0[i] |= 1 << j
+                        byte.0[i] |= 1 << j;
                     }
-                })
+                });
             });
 
         // set the flag if the character is 16 wide instead of 8 wide

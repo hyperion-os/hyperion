@@ -10,8 +10,6 @@
 
 //
 
-//
-
 use core::fmt::{self, Write};
 
 use hyperion_syscall::exit;

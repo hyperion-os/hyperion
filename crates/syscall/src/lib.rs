@@ -126,7 +126,6 @@ syscall! {
 //
 
 /// print a string into kernel logs
-#[inline(always)]
 pub fn log(str: &str) -> Result<()> {
     // TODO: should null terminated strings be used instead to save registers?
     // decide later™
@@ -135,34 +134,30 @@ pub fn log(str: &str) -> Result<()> {
 }
 
 /// exit the process with a code
-#[inline(always)]
 pub fn exit(code: i64) -> ! {
     let result = unsafe { syscall_1(id::EXIT, code as usize) };
     unreachable!("{result:?}");
 }
 
 /// exit the thread with a code
-#[inline(always)]
 pub fn done(code: i64) -> ! {
     let result = unsafe { syscall_1(id::DONE, code as usize) };
     unreachable!("{result:?}");
 }
 
 /// context switch from this process, no guarantees about actually switching
-#[inline(always)]
 pub fn yield_now() {
     unsafe { syscall_0(id::YIELD_NOW) }.unwrap();
 }
 
 /// u128 nanoseconds since boot
-#[inline(always)]
 pub fn timestamp() -> Result<u128> {
     let mut result: u128 = 0;
-    unsafe { syscall_1(id::TIMESTAMP, &mut result as *mut u128 as usize) }.map(move |_| result)
+    unsafe { syscall_1(id::TIMESTAMP, core::ptr::addr_of_mut!(result) as usize) }
+        .map(move |_| result)
 }
 
 /// context switch from this process and switch back when `nanos` nanoseconds have passed
-#[inline(always)]
 pub fn nanosleep(nanos: u64) {
     // TODO: u128
     unsafe { syscall_1(id::NANOSLEEP, nanos as usize) }.unwrap();
@@ -171,38 +166,32 @@ pub fn nanosleep(nanos: u64) {
 /// context switch from this process and switch back when [`timestamp()`] > `deadline_nanos`
 ///
 /// might not happen immediately when it is true
-#[inline(always)]
 pub fn nanosleep_until(deadline_nanos: u64) {
     // TODO: u128
     unsafe { syscall_1(id::NANOSLEEP_UNTIL, deadline_nanos as usize) }.unwrap();
 }
 
 /// spawn a new pthread for the same process
-#[inline(always)]
 pub fn spawn(thread_entry: extern "C" fn(usize, usize) -> !, arg: usize) {
     unsafe { syscall_2(id::SPAWN, thread_entry as usize, arg) }.unwrap();
 }
 
 /// allocate physical pages and map to heap
-#[inline(always)]
 pub fn palloc(pages: usize) -> Result<Option<NonNull<u8>>> {
     unsafe { syscall_1(id::PALLOC, pages) }.map(|ptr| NonNull::new(ptr as _))
 }
 
 /// deallocate physical pages and unmap from heap
-#[inline(always)]
 pub fn pfree(ptr: NonNull<u8>, pages: usize) -> Result<()> {
     unsafe { syscall_2(id::PFREE, ptr.as_ptr() as usize, pages) }.map(|_| {})
 }
 
 /// rename the current process
-#[inline(always)]
 pub fn rename(new_name: &str) -> Result<()> {
     unsafe { syscall_2(id::RENAME, new_name.as_ptr() as usize, new_name.len()) }.map(|_| {})
 }
 
 /// open a file
-#[inline(always)]
 pub fn open(path: &str, flags: FileOpenFlags, mode: usize) -> Result<FileDesc> {
     unsafe {
         syscall_4(
@@ -217,55 +206,46 @@ pub fn open(path: &str, flags: FileOpenFlags, mode: usize) -> Result<FileDesc> {
 }
 
 /// close a file
-#[inline(always)]
 pub fn close(file: FileDesc) -> Result<()> {
     unsafe { syscall_1(id::CLOSE, file.0) }.map(|_| {})
 }
 
 /// read from a file
-#[inline(always)]
 pub fn read(file: FileDesc, buf: &mut [u8]) -> Result<usize> {
     unsafe { syscall_3(id::READ, file.0, buf.as_mut_ptr() as usize, buf.len()) }
 }
 
 /// write into a file
-#[inline(always)]
 pub fn write(file: FileDesc, buf: &[u8]) -> Result<usize> {
     unsafe { syscall_3(id::WRITE, file.0, buf.as_ptr() as usize, buf.len()) }
 }
 
 /// create a socket
-#[inline(always)]
 pub fn socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -> Result<FileDesc> {
     unsafe { syscall_3(id::SOCKET, domain.0, ty.0, protocol.0) }.map(FileDesc)
 }
 
 /// bind a name to a socket
-#[inline(always)]
 pub fn bind(socket: FileDesc, addr: &str) -> Result<()> {
     unsafe { syscall_3(id::BIND, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
 }
 
 /// start listening for connections on a socket
-#[inline(always)]
 pub fn listen(socket: FileDesc) -> Result<()> {
     unsafe { syscall_1(id::LISTEN, socket.0) }.map(|_| {})
 }
 
 /// accept a connection on a socket
-#[inline(always)]
 pub fn accept(socket: FileDesc) -> Result<FileDesc> {
     unsafe { syscall_1(id::ACCEPT, socket.0) }.map(FileDesc)
 }
 
 /// connect to a socket
-#[inline(always)]
 pub fn connect(socket: FileDesc, addr: &str) -> Result<()> {
     unsafe { syscall_3(id::CONNECT, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
 }
 
 /// send data to a socket
-#[inline(always)]
 pub fn send(socket: FileDesc, data: &[u8], flags: usize) -> Result<usize> {
     let (data, data_len) = (data.as_ptr() as usize, data.len());
     unsafe { syscall_4(id::SEND, socket.0, data, data_len, flags) }
@@ -278,25 +258,23 @@ pub fn recv(socket: FileDesc, buf: &mut [u8], flags: usize) -> Result<usize> {
 }
 
 /// get the current process id
-#[inline(always)]
+#[must_use]
 pub fn get_pid() -> usize {
     unsafe { syscall_0(id::GET_PID) }.unwrap()
 }
 
 /// get the current thread id
-#[inline(always)]
+#[must_use]
 pub fn get_tid() -> usize {
     unsafe { syscall_0(id::GET_TID) }.unwrap()
 }
 
 /// duplicate a file descriptor
-#[inline(always)]
 pub fn dup(old: FileDesc, new: FileDesc) -> Result<FileDesc> {
     unsafe { syscall_2(id::DUP, old.0, new.0) }.map(FileDesc)
 }
 
 /// open a directory
-#[inline(always)]
 pub fn open_dir(path: &str) -> Result<FileDesc> {
     unsafe { syscall_2(id::OPEN_DIR, path.as_ptr() as _, path.len()) }.map(FileDesc)
 }
@@ -306,7 +284,6 @@ pub fn open_dir(path: &str) -> Result<FileDesc> {
 /// wakes up when some other thread calls `futex_wake` on the same `addr`
 ///
 /// the addr is translated so futexes in inter-process shmem should still work
-#[inline(always)]
 pub fn futex_wait(addr: &AtomicUsize, val: usize) {
     unsafe { syscall_2(id::FUTEX_WAIT, addr as *const _ as usize, val) }.unwrap();
 }
@@ -314,7 +291,6 @@ pub fn futex_wait(addr: &AtomicUsize, val: usize) {
 /// wake `num` threads that are sleeping on this `addr`
 ///
 /// see [`futex_wait`]
-#[inline(always)]
 pub fn futex_wake(addr: &AtomicUsize, num: usize) {
     unsafe { syscall_2(id::FUTEX_WAKE, addr as *const _ as usize, num) }.unwrap();
 }
@@ -325,14 +301,13 @@ pub fn futex_wake(addr: &AtomicUsize, num: usize) {
 /// to the virtual address space at `align_down(at, 0x1000)`, or anywhere if `at` is None
 ///
 /// `at` should point to unmapped memory that has room for the pages
-#[inline(always)]
 pub fn map_file(
     file: FileDesc,
     at: Option<NonNull<()>>,
     size: usize,
     offset: usize,
 ) -> Result<NonNull<()>> {
-    let at = at.map(NonNull::as_ptr).unwrap_or(ptr::null_mut()) as usize;
+    let at = at.map_or(ptr::null_mut(), NonNull::as_ptr) as usize;
     unsafe { syscall_4(id::MAP_FILE, file.0, at, size, offset) }
         .map(|ptr| NonNull::new(ptr as _).unwrap())
 }
@@ -340,20 +315,17 @@ pub fn map_file(
 /// unmap device/file mapped memory (munmap)
 ///
 /// see [`unmap_file`]
-#[inline(always)]
 pub fn unmap_file(file: FileDesc, at: NonNull<()>, size: usize) -> Result<()> {
     let at = at.as_ptr() as usize;
     unsafe { syscall_3(id::UNMAP_FILE, file.0, at, size) }.map(|_| {})
 }
 
 /// file metadata (stat)
-#[inline(always)]
 pub fn metadata(file: FileDesc, metadata: &mut Metadata) -> Result<()> {
     unsafe { syscall_2(id::METADATA, file.0, metadata as *mut _ as usize) }.map(|_| {})
 }
 
 /// file position seek (fseek)
-#[inline(always)]
 pub fn seek(file: FileDesc, offset: isize, origin: usize) -> Result<()> {
     unsafe { syscall_3(id::SEEK, file.0, offset as _, origin) }.map(|_| {})
 }

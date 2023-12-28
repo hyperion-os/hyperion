@@ -25,6 +25,7 @@ pub enum DecodedPart {
 //
 
 impl EscapeDecoder {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             buf: [0; LONGEST_ESCAPE],

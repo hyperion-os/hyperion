@@ -172,9 +172,7 @@ impl<T> BufWriter<T> {
 
 impl<T: Write> Write for BufWriter<T> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        if self.broken {
-            panic!("BufWriter broken");
-        }
+        assert!(!self.broken, "BufWriter broken");
 
         self.buf.extend_from_slice(buf);
         Ok(buf.len())

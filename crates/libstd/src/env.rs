@@ -4,6 +4,7 @@ use core_alloc::{string::String, vec::Vec};
 
 //
 
+#[must_use]
 pub fn args() -> Args {
     Args {
         top: unsafe { ARGS }.iter(),

@@ -34,12 +34,14 @@ impl LocalListener {
     ///
     /// file i/o won't be automatically synchronized,
     /// if this `fd` gets closed by a clone,
-    /// this LocalListener won't know it and might use a random fd for socket syscalls
+    /// this `LocalListener` won't know it and might use a random fd for socket syscalls
+    #[must_use]
     pub unsafe fn clone(&self) -> Self {
         Self { fd: self.fd }
     }
 
     /// the file descriptor won't be closed automatically
+    #[must_use]
     pub fn leak_fd(self) -> FileDesc {
         let fd = self.fd;
         forget(self);
@@ -83,12 +85,14 @@ impl LocalStream {
     ///
     /// file i/o won't be automatically synchronized,
     /// if this `fd` gets closed by a clone,
-    /// this LocalListener won't know it and might use a random fd for socket syscalls
+    /// this `LocalListener` won't know it and might use a random fd for socket syscalls
+    #[must_use]
     pub unsafe fn clone(&self) -> Self {
         Self { fd: self.fd }
     }
 
     /// the file descriptor won't be closed automatically
+    #[must_use]
     pub fn leak_fd(self) -> FileDesc {
         let fd = self.fd;
         forget(self);

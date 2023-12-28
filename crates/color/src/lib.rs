@@ -19,19 +19,23 @@ impl Color {
     pub const GREEN: Color = Color::new(0x00, 0xff, 0x00);
     pub const BLUE: Color = Color::new(0x00, 0x00, 0xff);
 
+    #[must_use]
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
     }
 
+    #[must_use]
     pub const fn from_u32(code: u32) -> Self {
         let [r, g, b, _] = code.to_ne_bytes();
         Self::new(r, g, b)
     }
 
+    #[must_use]
     pub const fn from_hex(hex_code: &str) -> Option<Self> {
         Self::from_hex_bytes(hex_code.as_bytes())
     }
 
+    #[must_use]
     pub const fn from_hex_bytes(hex_code: &[u8]) -> Option<Self> {
         match hex_code {
             [r0, r1, g0, g1, b0, b1, _, _]
@@ -44,6 +48,7 @@ impl Color {
         }
     }
 
+    #[must_use]
     pub const fn from_hex_bytes_2(hex_code: [u8; 6]) -> Self {
         const fn parse_hex_char(c: u8) -> u8 {
             match c {
@@ -64,11 +69,13 @@ impl Color {
         Self::new(r, g, b)
     }
 
+    #[must_use]
     pub const fn as_u32(&self) -> u32 {
         // self.b as u32 | (self.g as u32) << 8 | (self.r as u32) << 16
         u32::from_le_bytes([self.b, self.g, self.r, 0])
     }
 
+    #[must_use]
     pub const fn as_arr(&self) -> [u8; 4] {
         self.as_u32().to_ne_bytes()
         // [self.r, self.g, self.b, 0]

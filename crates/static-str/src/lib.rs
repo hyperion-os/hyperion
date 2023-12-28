@@ -24,10 +24,12 @@ impl<const SIZE: usize> StaticStr<SIZE> {
     /// # Safety
     ///
     /// `bytes` must contain valid utf8 until the first zero byte
+    #[must_use]
     pub const unsafe fn from_utf8_unchecked(bytes: [u8; SIZE]) -> Self {
         Self { bytes }
     }
 
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         zero_limited(&self.bytes)
     }
@@ -36,6 +38,7 @@ impl<const SIZE: usize> StaticStr<SIZE> {
         core::str::from_utf8(zero_limited(&self.bytes))
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         unsafe { core::str::from_utf8_unchecked(zero_limited(&self.bytes)) }
     }
@@ -66,8 +69,7 @@ fn zero_limited(bytes: &[u8]) -> &[u8] {
         .iter()
         .enumerate()
         .find(|(_, b)| **b == 0)
-        .map(|(i, _)| i)
-        .unwrap_or(bytes.len());
+        .map_or(bytes.len(), |(i, _)| i);
 
     &bytes[..first_zero]
 }

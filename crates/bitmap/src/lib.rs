@@ -34,7 +34,7 @@ impl<'a> Bitmap<'a> {
     // }
 
     pub fn fill(&mut self, val: bool) {
-        self.data.fill(if val { 0xFF } else { 0x0 })
+        self.data.fill(if val { 0xFF } else { 0x0 });
     }
 
     #[must_use]
@@ -54,7 +54,7 @@ impl<'a> Bitmap<'a> {
         *byte &= !mask;
 
         // set the bit
-        *byte |= (val as u8) << bit;
+        *byte |= u8::from(val) << bit;
 
         Some(())
     }

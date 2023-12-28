@@ -98,6 +98,7 @@ impl LogLevel {
         Self::Trace,
     ];
 
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         // TODO: match any case
         Some(match s {
@@ -157,12 +158,12 @@ pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args:
             module,
             ']'.reset_after(),
         ),
-    )
+    );
 }
 
 #[doc(hidden)]
 pub fn _print(level: LogLevel, args: Arguments) {
-    LOGGER.read().print(level, args)
+    LOGGER.read().print(level, args);
 }
 
 #[doc(hidden)]
@@ -176,7 +177,7 @@ pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
         LogLevel::Trace => " TRACE ".true_magenta(),
     }
     .with_reset(false);
-    _print_log_custom(level, pre, module, args)
+    _print_log_custom(level, pre, module, args);
 }
 
 #[doc(hidden)]

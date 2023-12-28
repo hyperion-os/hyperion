@@ -132,6 +132,7 @@ impl File {
     /// `desc` must be a valid file descriptor
     ///
     /// this transfers the ownership of `desc` and will automatically close the file when dropped
+    #[must_use]
     pub const unsafe fn new(desc: FileDesc) -> Self {
         Self {
             desc,
@@ -142,6 +143,7 @@ impl File {
     /// # Safety
     ///
     /// technically not unsafe, the fd should be closed at some point
+    #[must_use]
     pub unsafe fn into_inner(self) -> FileDesc {
         ManuallyDrop::new(self).desc
     }
@@ -149,6 +151,7 @@ impl File {
     /// # Safety
     ///
     /// file i/o won't be automatically synchronized
+    #[must_use]
     pub const unsafe fn clone(&self) -> Self {
         Self {
             desc: self.desc,
@@ -156,6 +159,7 @@ impl File {
         }
     }
 
+    #[must_use]
     pub const fn as_desc(&self) -> FileDesc {
         self.desc
     }
@@ -216,6 +220,7 @@ pub struct OpenOptions {
 }
 
 impl OpenOptions {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             flags: FileOpenFlags::empty(),

@@ -52,6 +52,7 @@ impl PageFrames {
         Self { first, len }
     }
 
+    #[must_use]
     pub const fn len(&self) -> usize {
         self.len
     }
@@ -61,18 +62,21 @@ impl PageFrames {
         self.len() == 0
     }
 
+    #[must_use]
     pub const fn byte_len(&self) -> usize {
         self.len() * PAGE_SIZE
     }
 
+    #[must_use]
     pub const fn as_bytes(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.first as *const u8, self.byte_len()) }
+        unsafe { slice::from_raw_parts(self.first.cast_const(), self.byte_len()) }
     }
 
     pub fn as_bytes_mut(&mut self) -> &mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.first, self.byte_len()) }
     }
 
+    #[must_use]
     pub const fn as_ptr(&self) -> *mut u8 {
         self.first
     }
@@ -136,6 +140,7 @@ impl<P, Lock> SlabAllocator<P, Lock>
 where
     Lock: RawMutex,
 {
+    #[must_use]
     pub const fn new() -> Self {
         let slabs = [
             Slab::new(8),
@@ -221,7 +226,7 @@ where
     fn slab_of(&self, alloc: NonNull<u8>) -> &Slab<P, Lock> {
         // align down to 0x1000
         // the first bytes in the page tells the slab size
-        let page_alloc = ((alloc.as_ptr() as u64) & 0xFFFFFFFFFFFFF000) as *mut u8;
+        let page_alloc = ((alloc.as_ptr() as u64) & 0xFFFF_FFFF_FFFF_F000) as *mut u8;
 
         let header: AllocMetadata = unsafe { *(page_alloc as *const AllocMetadata) };
 
@@ -272,7 +277,7 @@ where
 
         // trace!("BigFree     {:#x} {size}", pages.addr().as_u64());
 
-        P::free(pages)
+        P::free(pages);
     }
 
     unsafe fn big_pages(&self, alloc: NonNull<u8>) -> (*mut u8, usize) {
@@ -298,6 +303,7 @@ impl<P, Lock> Slab<P, Lock>
 where
     Lock: RawMutex,
 {
+    #[must_use]
     pub const fn new(size: usize) -> Self {
         assert!(
             size >= size_of::<u64>() && size % size_of::<u64>() == 0,
@@ -330,7 +336,7 @@ where
         };
 
         let block_data: &mut [u64] =
-            unsafe { slice::from_raw_parts_mut(block as *mut u64, self.size / 8) };
+            unsafe { slice::from_raw_parts_mut(block.cast::<u64>(), self.size / 8) };
         *next = block_data[0] as _;
         block_data[0] = 0; // zero out the first u64 that was used as the 'next' pointer
 
@@ -379,7 +385,7 @@ where
 
     pub fn push(&self, block: NonNull<u8>) {
         let block_data: &mut [u64] =
-            unsafe { slice::from_raw_parts_mut(block.as_ptr() as *mut u64, self.size / 8) };
+            unsafe { slice::from_raw_parts_mut(block.as_ptr().cast::<u64>(), self.size / 8) };
         block_data.fill(0);
 
         let mut next = self.next.lock();
@@ -397,7 +403,7 @@ where
     /// with this specific [`Slab`]
     pub unsafe fn free(&self, stats: &SlabAllocatorStats, block: NonNull<u8>) {
         stats.used.fetch_sub(self.size, Ordering::Relaxed);
-        self.push(block)
+        self.push(block);
     }
 }
 

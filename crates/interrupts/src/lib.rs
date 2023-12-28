@@ -37,9 +37,10 @@ pub fn set_interrupt_handler_if_free(irq: u8, f: fn(u8, usize)) -> bool {
 }
 
 pub fn set_interrupt_handler(irq: u8, f: fn(u8, usize)) {
-    handler(irq).store(f)
+    handler(irq).store(f);
 }
 
+#[must_use]
 pub fn handler(irq: u8) -> &'static IntHandler {
     &INT_HANDLERS[irq as usize - 0x20]
 }
@@ -62,7 +63,7 @@ pub fn end_of_interrupt(irq: u8) {
 }
 
 pub fn default_handler(irq: u8, _ip: usize) {
-    end_of_interrupt(irq)
+    end_of_interrupt(irq);
 }
 
 //

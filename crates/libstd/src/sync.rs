@@ -68,6 +68,7 @@ pub struct Condvar {
 
 impl Condvar {
     #[inline]
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             futex: AtomicUsize::new(0),
@@ -79,12 +80,12 @@ impl Condvar {
 
     pub fn notify_one(&self) {
         self.futex.fetch_add(1, Ordering::Relaxed);
-        futex_wake(&self.futex, 1)
+        futex_wake(&self.futex, 1);
     }
 
     pub fn notify_all(&self) {
         self.futex.fetch_add(1, Ordering::Relaxed);
-        futex_wake(&self.futex, usize::MAX)
+        futex_wake(&self.futex, usize::MAX);
     }
 
     pub fn wait<'a, T>(&self, mutex: MutexGuard<'a, T>) -> MutexGuard<'a, T> {
