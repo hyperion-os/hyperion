@@ -122,7 +122,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
         RESULTS.push((name, None));
     }
 
-    hyperion_scheduler::stop();
+    hyperion_scheduler::done();
 }
 
 //
