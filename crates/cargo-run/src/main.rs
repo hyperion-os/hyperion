@@ -36,6 +36,10 @@ struct Args {
     /// build the kernel with optimizations
     #[arg(long)]
     release: bool,
+
+    /// run unit tests in QEMU
+    #[arg(short, long)]
+    test: bool,
 }
 
 //
@@ -46,7 +50,12 @@ fn main() {
     find_makefile();
 
     let mut cmd = Command::new("make");
-    cmd.arg("run");
+
+    if args.test {
+        cmd.arg("test");
+    } else {
+        cmd.arg("run");
+    }
 
     if let Some(cpus) = args.cpus {
         cmd.arg(format!("CPUS={cpus}"));

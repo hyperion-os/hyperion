@@ -161,11 +161,7 @@ impl<Mut: AnyMutex> Node<Mut> {
     }
 
     pub fn install_dev_with(&self, path: impl AsRef<Path>, dev: impl FileDevice + 'static) {
-        let path = path.as_ref();
-        debug!("installing VFS device at {path:?}");
-        if let Err(err) = self.insert_file(path, true, Arc::new(Mutex::new(dev)) as _) {
-            error!("failed to install VFS device at {path:?} : {err:?}");
-        }
+        self.install_dev_ref(path, Arc::new(Mutex::new(dev)) as _);
     }
 
     pub fn insert_file(
@@ -202,7 +198,7 @@ impl<Mut: AnyMutex> Node<Mut> {
 
     pub fn install_dev_ref(&self, path: impl AsRef<Path>, dev: FileRef<Mut>) {
         let path = path.as_ref();
-        debug!("installing VFS device at {path:?}");
+        trace!("installing VFS device at {path:?}");
         if let Err(err) = self.insert_file(path, true, dev) {
             error!("failed to install VFS device at {path:?} : {err:?}");
         }

@@ -35,7 +35,7 @@ macro_rules! load_elf {
 macro_rules! load_elf_from {
     ($($t:tt)*) => {{
         const FILE: &[u8] = include_bytes!($($t)*);
-        debug!("ELF from {}", $($t)*);
+        trace!("ELF from {}", $($t)*);
         FILE
     }};
 }
