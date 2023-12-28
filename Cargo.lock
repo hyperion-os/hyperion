@@ -389,6 +389,7 @@ dependencies = [
 name = "fbtest"
 version = "0.1.0"
 dependencies = [
+ "glam",
  "hyperion-color",
  "libm",
  "libstd",
@@ -834,7 +835,6 @@ dependencies = [
  "coreutils",
  "fbtest",
  "futures-util",
- "glam",
  "hyperion-arch",
  "hyperion-color",
  "hyperion-cpu-id",
@@ -856,7 +856,6 @@ dependencies = [
  "hyperion-syscall",
  "hyperion-vfs",
  "itertools",
- "libm",
  "lock_api",
  "sample-elf",
  "serde",

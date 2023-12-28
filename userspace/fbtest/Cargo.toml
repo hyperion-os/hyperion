@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 x86_64.workspace = true    
 libm = "0.2"
+glam = { version = "0.24", default-features = false, features = ["libm"] }
 
 libstd.path = "../../crates/libstd"
 hyperion-color.path = "../../crates/color"

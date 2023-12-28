@@ -8,7 +8,6 @@ use alloc::{string::String, sync::Arc};
 use core::num::ParseIntError;
 
 use futures_util::StreamExt;
-use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_futures::keyboard::KeyboardEvents;
 use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_log::*;

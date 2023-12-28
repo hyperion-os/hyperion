@@ -7,10 +7,8 @@ use core::{fmt::Write, sync::atomic::Ordering};
 
 use anyhow::anyhow;
 use futures_util::stream::select;
-use hyperion_color::Color;
 use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
-use hyperion_futures::timer::ticks;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{FileDescData, FileDescriptor, VFS_ROOT};
 use hyperion_keyboard::{
@@ -146,7 +144,6 @@ impl Shell {
             "rand" => self.rand_cmd(args)?,
             "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
-            "modeltest" => self.modeltest_cmd(args).await?,
             "lapic_id" => self.lapic_id_cmd(args)?,
             "cpu_id" => self.cpu_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
@@ -441,102 +438,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, date, mem, kbl, rand, snake, help, modeltest, run, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear");
-
-        Ok(())
-    }
-
-    async fn modeltest_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        use glam::{Mat4, Vec3, Vec3Swizzles, Vec4, Vec4Swizzles};
-
-        fn draw_line(fbo: &mut Framebuffer, x0: i32, y0: i32, x1: i32, y1: i32, color: Color) {
-            let dx = x0.abs_diff(x1);
-            let dy = y0.abs_diff(y1);
-
-            if dx > dy {
-                for x in x0.min(x1)..=x0.max(x1) {
-                    let t = (x - x0) as f32 / (x1 - x0) as f32;
-                    let y = (t * (y1 - y0) as f32) as i32 + y0;
-
-                    fbo.pixel(x as _, y as _, color);
-                }
-            } else {
-                for y in y0.min(y1)..=y0.max(y1) {
-                    let t = (y - y0) as f32 / (y1 - y0) as f32;
-                    let x = (t * (x1 - x0) as f32) as i32 + x0;
-
-                    fbo.pixel(x as _, y as _, color);
-                }
-            }
-        }
-
-        fn draw_cube(fbo: &mut Framebuffer, x: i32, y: i32, model: Mat4, s: f32, color: Color) {
-            let mat = Mat4::perspective_rh(0.005, 1.0, 0.01, 600.0)
-                * Mat4::look_at_rh(Vec3::new(0.0, 0.0, 300.0), Vec3::ZERO, Vec3::NEG_Y)
-                * model;
-
-            let mut translated_line = |a: Vec3, b: Vec3| {
-                let a = mat * Vec4::from((a, 1.0));
-                let b = mat * Vec4::from((b, 1.0));
-                let a = (a.xyz() / a.w).xy().as_ivec2();
-                let b = (b.xyz() / b.w).xy().as_ivec2();
-
-                draw_line(fbo, a.x + x, a.y + y, b.x + x, b.y + y, color);
-            };
-
-            translated_line(Vec3::new(-s, -s, -s), Vec3::new(s, -s, -s));
-            translated_line(Vec3::new(-s, s, -s), Vec3::new(s, s, -s));
-            translated_line(Vec3::new(-s, -s, s), Vec3::new(s, -s, s));
-            translated_line(Vec3::new(-s, s, s), Vec3::new(s, s, s));
-
-            translated_line(Vec3::new(-s, -s, -s), Vec3::new(-s, s, -s));
-            translated_line(Vec3::new(s, -s, -s), Vec3::new(s, s, -s));
-            translated_line(Vec3::new(-s, -s, s), Vec3::new(-s, s, s));
-            translated_line(Vec3::new(s, -s, s), Vec3::new(s, s, s));
-
-            translated_line(Vec3::new(-s, -s, -s), Vec3::new(-s, -s, s));
-            translated_line(Vec3::new(s, -s, -s), Vec3::new(s, -s, s));
-            translated_line(Vec3::new(-s, s, -s), Vec3::new(-s, s, s));
-            translated_line(Vec3::new(s, s, -s), Vec3::new(s, s, s));
-        }
-
-        let mid_x = ((self.term.size.0 * CHAR_SIZE.0 as usize) / 2) as i32;
-        let mid_y = ((self.term.size.1 * CHAR_SIZE.1 as usize) / 2) as i32;
-        let mut a = 0.0f32;
-
-        let ticks = ticks(time::Duration::milliseconds(10)).map(|_| None);
-        let esc = KeyboardEvents.map(Some);
-        let mut events = select(ticks, esc);
-
-        loop {
-            let Some(fbo) = Framebuffer::get() else {
-                break;
-            };
-            let mut fbo = fbo.lock();
-
-            let red = Mat4::from_rotation_y(a);
-            let blue = Mat4::from_rotation_y(a * 2.0);
-            draw_cube(&mut fbo, mid_x, mid_y, red, 100.0, Color::RED);
-            draw_cube(&mut fbo, mid_x, mid_y, blue, 80.0, Color::BLUE);
-
-            let stop = matches!(
-                events.next().await,
-                Some(Some(KeyboardEvent {
-                    keycode: KeyCode::Escape,
-                    ..
-                }))
-            );
-
-            let red = Mat4::from_rotation_y(a);
-            let blue = Mat4::from_rotation_y(a * 2.0);
-            draw_cube(&mut fbo, mid_x, mid_y, red, 100.0, Color::BLACK);
-            draw_cube(&mut fbo, mid_x, mid_y, blue, 80.0, Color::BLACK);
-            a += 0.01;
-
-            if stop {
-                break;
-            }
-        }
+        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, date, mem, kbl, rand, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear");
 
         Ok(())
     }
