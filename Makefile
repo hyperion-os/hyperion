@@ -89,15 +89,11 @@ include ./${BOOT_DIR}/Makefile
 include ./qemu.mk
 
 # nextest doesn't support excluding packages
-EXCLUDED_UNITS   := fbtest sample-elf coreutils libstd hyperion-kernel
+EXCLUDED_UNITS   := fbtest sample-elf coreutils libstd hyperion-kernel hyperion-macros
 unittest:
-	${CARGO} test \
-		--no-fail-fast \
-		--workspace $(patsubst %, --exclude %, ${EXCLUDED_UNITS}) \
-		-- --test-threads=$(shell nproc --all) \
-		2>&1 | rg --pcre2 --multiline --multiline-dotall -e '^test' -e 'failures:.+?(?=\n\n\n)\n\n\n' \
-		2>&1 | rg -v '^test result: '
-# a crazy hack that I somehow came up with to debloat the cargo test --workspace output ^^^
+	${CARGO} nextest run \
+		--no-fail-fast --workspace \
+		$(patsubst %, --exclude %, ${EXCLUDED_UNITS})
 
 # build alias
 build: ${KERNEL}

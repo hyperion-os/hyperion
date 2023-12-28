@@ -166,7 +166,7 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "cargo-run"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
 ]
@@ -266,7 +266,7 @@ checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
 
 [[package]]
 name = "coreutils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "hyperion-num-postfix",
@@ -390,7 +390,7 @@ dependencies = [
 
 [[package]]
 name = "fbtest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "glam",
  "hyperion-color",
@@ -487,14 +487,14 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "hyperion-arch"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-arch-x86_64",
 ]
 
 [[package]]
 name = "hyperion-arch-x86_64"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "hyperion-boot",
@@ -513,7 +513,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-backtrace"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "elf",
  "hyperion-boot",
@@ -526,11 +526,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-bitmap"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "hyperion-boot"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-boot-limine",
  "hyperion-log",
@@ -539,11 +539,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-boot-interface"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "hyperion-boot-limine"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "hyperion-boot-interface",
@@ -554,11 +554,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-checked"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "hyperion-clock"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "spin",
@@ -566,11 +566,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-color"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "hyperion-cpu-id"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-boot",
  "x86_64",
@@ -578,11 +578,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-defer"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "hyperion-driver-acpi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bit_field",
  "crossbeam",
@@ -606,7 +606,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-framebuffer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-framebuffer",
  "hyperion-log",
@@ -618,7 +618,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-pic"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-interrupts",
  "hyperion-log",
@@ -628,7 +628,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-pit"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-clock",
  "hyperion-driver-pic",
@@ -638,7 +638,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-ps2"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "hyperion-driver-acpi",
@@ -650,7 +650,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-qemu"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "spin",
  "uart_16550",
@@ -659,7 +659,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-rtc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-log",
  "hyperion-macros",
@@ -671,7 +671,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-drivers"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-clock",
  "hyperion-driver-acpi",
@@ -687,14 +687,14 @@ dependencies = [
 
 [[package]]
 name = "hyperion-escape"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-color",
 ]
 
 [[package]]
 name = "hyperion-framebuffer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-boot",
  "hyperion-boot-interface",
@@ -709,7 +709,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-futures"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "crossbeam-queue",
@@ -734,7 +734,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-instant"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-checked",
  "hyperion-clock",
@@ -743,14 +743,14 @@ dependencies = [
 
 [[package]]
 name = "hyperion-int-safe-lazy"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "spin",
 ]
 
 [[package]]
 name = "hyperion-interrupts"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "hyperion-macros",
@@ -758,7 +758,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-kernel"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arcstr",
  "crossbeam",
@@ -795,7 +795,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-kernel-impl"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-arch",
  "hyperion-log",
@@ -811,14 +811,14 @@ dependencies = [
 
 [[package]]
 name = "hyperion-kernel-info"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-macros",
 ]
 
 [[package]]
 name = "hyperion-keyboard"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "crossbeam-queue",
@@ -831,7 +831,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-kshell"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "arcstr",
@@ -870,7 +870,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-loader"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "elf",
  "hyperion-arch",
@@ -883,7 +883,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-log"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arcstr",
  "hyperion-escape",
@@ -892,7 +892,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-log-multi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arcstr",
  "crossbeam",
@@ -905,7 +905,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "proc-macro2",
@@ -915,7 +915,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-mem"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bytemuck",
  "hyperion-bitmap",
@@ -933,11 +933,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-num-postfix"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "hyperion-random"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "blake3",
  "hyperion-log",
@@ -949,7 +949,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-scheduler"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arcstr",
  "crossbeam",
@@ -978,7 +978,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-slab-alloc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bytemuck",
  "lock_api",
@@ -987,11 +987,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-static-str"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "hyperion-sync"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "hyperion-cpu-id",
@@ -1001,7 +1001,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-syscall"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bitflags 2.4.1",
@@ -1009,7 +1009,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-timer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "futures-util",
@@ -1022,7 +1022,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-vfs"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam",
  "hyperion-log",
@@ -1127,7 +1127,7 @@ checksum = "4ec2a862134d2a7d32d7983ddcdd1c4923530833c9f2ea1a44fc5fa473989058"
 
 [[package]]
 name = "libstd"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hyperion-slab-alloc",
  "hyperion-syscall",
@@ -1371,7 +1371,7 @@ checksum = "f98d2aa92eebf49b69786be48e4477826b256916e84a57ff2a4f21923b48eb4c"
 
 [[package]]
 name = "sample-elf"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "libstd",
 ]

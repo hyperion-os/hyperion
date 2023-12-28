@@ -29,14 +29,12 @@ jobs:
       with:
         targets: x86_64-unknown-none, x86_64-unknown-linux-gnu
         components: rustfmt, clippy
-      
-    #- run: rustup target add x86_64-unknown-none
+
+    - name: Install nextest
+      uses: taiki-e/install-action@nextest
 
     #- name: Cache Build
     #  uses: Swatinem/rust-cache@v2.5.0
-
-    - name: Build
-      run: make build
 
     - name: Run tests
       run: make unittest
@@ -45,7 +43,7 @@ jobs:
       run: make KVM=false test
 
     - name: Run Clippy
-      run: make clippy
+      run: cargo clippy
 
     - name: Run Rustfmt
       run: cargo fmt --all -- --check
