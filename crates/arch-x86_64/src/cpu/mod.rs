@@ -5,7 +5,6 @@ use core::{
 };
 
 use gdt::Gdt;
-use hyperion_log::trace;
 use idt::Idt;
 use tss::Tss;
 
@@ -24,7 +23,6 @@ pub mod tss;
 //
 
 pub fn init() {
-    trace!("Loading CpuState for CPU-{cpu_id}");
     tls::init(CpuState::new_tls());
 }
 
