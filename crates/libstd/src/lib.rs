@@ -10,9 +10,9 @@
 
 //
 
-use core::fmt::{self, Write};
+use core::fmt;
 
-use self::io::{stderr, stdout};
+use self::io::{stderr, stdout, Write};
 
 //
 

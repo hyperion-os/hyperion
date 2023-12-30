@@ -4,8 +4,6 @@ use core_alloc::{boxed::Box, string::String, vec::Vec};
 use hyperion_syscall::err::{Error, Result};
 pub use stdio::*;
 
-use crate::fs::File;
-
 //
 
 mod stdio;
@@ -48,14 +46,11 @@ impl<T: Read> Read for &mut T {
 pub trait Write {
     fn write(&mut self, buf: &[u8]) -> Result<usize>;
 
-    fn write_exact(&mut self, mut buf: &[u8], bytes_written: &mut usize) -> Result<()> {
+    fn write_all(&mut self, mut buf: &[u8]) -> Result<()> {
         while !buf.is_empty() {
             match self.write(buf) {
                 Ok(0) => return Err(Error::WRITE_ZERO),
-                Ok(n) => {
-                    buf = &buf[n..];
-                    *bytes_written += n;
-                }
+                Ok(n) => buf = &buf[n..],
                 Err(Error::INTERRUPTED) => {}
                 Err(err) => return Err(err),
             }
@@ -64,6 +59,32 @@ pub trait Write {
     }
 
     fn flush(&mut self) -> Result<()>;
+
+    fn write_fmt(&mut self, args: fmt::Arguments) -> Result<()> {
+        struct FmtWrite<'a, T: ?Sized> {
+            inner: &'a mut T,
+            err: Result<()>,
+        }
+
+        impl<T: ?Sized + Write> fmt::Write for FmtWrite<'_, T> {
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                self.err = self.inner.write_all(s.as_bytes());
+
+                if self.err.is_err() {
+                    Err(fmt::Error)
+                } else {
+                    Ok(())
+                }
+            }
+        }
+
+        let mut writer = FmtWrite {
+            inner: self,
+            err: Ok(()),
+        };
+        _ = fmt::write(&mut writer, args);
+        writer.err
+    }
 }
 
 impl<T: Write> Write for &mut T {
@@ -73,29 +94,6 @@ impl<T: Write> Write for &mut T {
 
     fn flush(&mut self) -> Result<()> {
         (**self).flush()
-    }
-}
-
-impl fmt::Write for File {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.write(s.as_bytes()).map_err(|_| fmt::Error)?;
-        Ok(())
-    }
-}
-
-impl<T: Write> fmt::Write for BufWriter<T> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.write(s.as_bytes()).map_err(|_| fmt::Error)?;
-        if s.contains('\n') {
-            self.flush().map_err(|_| fmt::Error)?;
-        }
-        Ok(())
-    }
-
-    fn write_fmt(mut self: &mut Self, args: fmt::Arguments) -> fmt::Result {
-        fmt::write(&mut self, args)?;
-        // self.flush().map_err(|_| fmt::Error)?;
-        Ok(())
     }
 }
 
