@@ -52,10 +52,7 @@ pub fn processes() -> Vec<Arc<Process>> {
     let processes = PROCESSES.lock();
     // processes.retain(|_, proc| proc.upgrade().is_some());
 
-    processes
-        .values()
-        .filter_map(|proc| proc.upgrade())
-        .collect()
+    processes.values().filter_map(Weak::upgrade).collect()
 }
 
 #[track_caller]
