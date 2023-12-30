@@ -2,8 +2,13 @@ use core::fmt;
 
 use core_alloc::{boxed::Box, string::String, vec::Vec};
 use hyperion_syscall::err::{Error, Result};
+pub use stdio::*;
 
 use crate::fs::File;
+
+//
+
+mod stdio;
 
 //
 
@@ -151,6 +156,12 @@ impl<T: Read> BufReader<T> {
         self.end -= used;
     }
 }
+
+// impl<T: Read> Read for BufReader<T> {
+//     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+//         todo!()
+//     }
+// }
 
 //
 

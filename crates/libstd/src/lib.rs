@@ -12,9 +12,7 @@
 
 use core::fmt::{self, Write};
 
-use hyperion_syscall::exit;
-
-use crate::fs::{STDERR, STDOUT};
+use self::io::{stderr, stdout};
 
 //
 
@@ -75,12 +73,12 @@ macro_rules! eprintln {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    _ = STDOUT.lock().write_fmt(args);
+    _ = stdout().lock().write_fmt(args);
 }
 
 #[doc(hidden)]
 pub fn _eprint(args: fmt::Arguments) {
-    _ = STDERR.lock().write_fmt(args);
+    _ = stderr().lock().write_fmt(args);
 }
 
 //
@@ -88,7 +86,7 @@ pub fn _eprint(args: fmt::Arguments) {
 #[panic_handler]
 fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     eprintln!("{info}");
-    exit(-1);
+    hyperion_syscall::exit(-1);
 }
 
 // to fix `cargo clippy` without a target

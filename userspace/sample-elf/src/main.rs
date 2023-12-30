@@ -9,8 +9,8 @@ use alloc::{format, string::String, sync::Arc};
 use core::str::from_utf8;
 
 use libstd::{
-    fs::{File, Stdin, Stdout, STDOUT},
-    io::{BufReader, Read, Write},
+    fs::File,
+    io::{stdout, BufReader, Read, Stdin, Stdout, Write},
     net::{LocalListener, LocalStream},
     println,
     sync::Mutex,
@@ -138,8 +138,7 @@ fn _repeat_stdin_to_stdout() {
             break;
         }
 
-        let stdout = &STDOUT;
-        stdout.lock().write(buf.as_bytes()).unwrap();
+        stdout().lock().write(buf.as_bytes()).unwrap();
     }
 }
 

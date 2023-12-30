@@ -3,16 +3,16 @@ use core::fmt;
 
 use anyhow::{anyhow, Result};
 use libstd::{
-    fs::{File, STDIN},
-    io::Read,
+    fs::File,
+    io::{stdin, Read},
     print, println,
 };
 
 //
 
 pub fn cmd<'a>(args: impl Iterator<Item = &'a str>) -> Result<()> {
-    let mut stdin = STDIN.lock();
-    let stdin = stdin.get_mut();
+    let mut stdin = stdin().lock();
+    let stdin = stdin.get_mut() as &mut dyn Read;
 
     let mut files = args
         .map(|path| {
@@ -23,9 +23,11 @@ pub fn cmd<'a>(args: impl Iterator<Item = &'a str>) -> Result<()> {
         .collect::<Result<Vec<_>>>()?;
     let argc = files.len();
 
-    let mut file_iter = [("<stdin>", stdin)]
-        .into_iter()
-        .chain(files.iter_mut().map(|(path, file)| (*path, file)));
+    let mut file_iter = [("<stdin>", stdin)].into_iter().chain(
+        files
+            .iter_mut()
+            .map(|(path, file)| (*path, file as &mut dyn Read)),
+    );
 
     if argc != 0 {
         file_iter.next(); // skip stdio

@@ -7,57 +7,8 @@ use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags, Metadata},
     metadata, open, open_dir, read, write,
 };
-use spin::{Mutex, MutexGuard};
 
-use crate::io::{self, BufReader, BufWriter};
-
-//
-
-// static STDIN: File = unsafe { File::new(FileDesc(0)) };
-// static STDOUT: File = unsafe { File::new(FileDesc(1)) };
-// static STDERR: File = unsafe { File::new(FileDesc(2)) };
-
-pub static STDIN: Stdin = Stdin(Mutex::new(BufReader::new(unsafe { File::new(Stdin::FD) })));
-
-pub static STDOUT: Stdout = Stdout(Mutex::new(BufWriter::new(unsafe { File::new(Stdout::FD) })));
-
-pub static STDERR: Stderr = Stderr(Mutex::new(BufWriter::new(unsafe { File::new(Stderr::FD) })));
-
-//
-
-pub struct Stdin(Mutex<BufReader<File>>);
-
-impl Stdin {
-    pub const FD: FileDesc = FileDesc(0);
-
-    pub fn lock(&self) -> MutexGuard<BufReader<File>> {
-        self.0.lock()
-    }
-}
-
-//
-
-pub struct Stdout(Mutex<BufWriter<File>>);
-
-impl Stdout {
-    pub const FD: FileDesc = FileDesc(1);
-
-    pub fn lock(&self) -> MutexGuard<BufWriter<File>> {
-        self.0.lock()
-    }
-}
-
-//
-
-pub struct Stderr(Mutex<BufWriter<File>>);
-
-impl Stderr {
-    pub const FD: FileDesc = FileDesc(2);
-
-    pub fn lock(&self) -> MutexGuard<BufWriter<File>> {
-        self.0.lock()
-    }
-}
+use crate::io::{self, BufReader};
 
 //
 
