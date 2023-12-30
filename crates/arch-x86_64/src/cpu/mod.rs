@@ -24,17 +24,8 @@ pub mod tss;
 //
 
 pub fn init() {
-    let cpu_id = cpu_id();
     trace!("Loading CpuState for CPU-{cpu_id}");
-    let tls = if cpu_id == 0 {
-        // boot cpu doesn't need to allocate
-        CpuState::new_boot_tls()
-    } else {
-        // other cpus have to allocate theirs
-        CpuState::new_tls()
-    };
-
-    tls::init(tls);
+    tls::init(CpuState::new_tls());
 }
 
 //
@@ -54,17 +45,23 @@ type CpuDataAlloc = (
 );
 
 impl CpuState {
-    fn new_boot_tls() -> &'static ThreadLocalStorage {
-        static BOOT_DATA: BspCell<CpuDataAlloc> = BspCell::new(CpuState::new_uninit());
-
-        let lock = BOOT_DATA
-            .get()
-            .expect("boot cpu structures already initialized");
-
-        Self::from_uninit(RefMut::leak(lock))
+    fn new_tls() -> &'static ThreadLocalStorage {
+        if let Some(tls) = Self::new_boot_tls() {
+            // BSP
+            tls
+        } else {
+            // other processors later
+            Self::new_alloc_tls()
+        }
     }
 
-    fn new_tls() -> &'static ThreadLocalStorage {
+    fn new_boot_tls() -> Option<&'static ThreadLocalStorage> {
+        static BOOT_DATA: BspCell<CpuDataAlloc> = BspCell::new(CpuState::new_uninit());
+        let lock = BOOT_DATA.get()?;
+        Some(Self::from_uninit(RefMut::leak(lock)))
+    }
+
+    fn new_alloc_tls() -> &'static ThreadLocalStorage {
         // SAFETY: assume_init is safe, because each CpuDataAlloc field is MaybeUninit
         let data = unsafe { Box::<CpuDataAlloc>::new_uninit().assume_init() };
 
