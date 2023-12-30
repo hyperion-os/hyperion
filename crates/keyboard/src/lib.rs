@@ -11,8 +11,7 @@ use hyperion_int_safe_lazy::IntSafeLazy;
 use hyperion_log::warn;
 use pc_keyboard::KeyCode;
 
-use crate::event::KeyboardEvent;
-use crate::event::ElementState;
+use crate::event::{ElementState, KeyboardEvent};
 
 //
 

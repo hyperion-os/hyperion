@@ -29,9 +29,8 @@ use x86_64::VirtAddr;
 
 use crate::{
     cleanup::{Cleanup, CleanupTask},
-    task::{Pid, Process, Task, TaskState},
+    task::{switch_because, Pid, Process, Task, TaskInner, TaskState},
 };
-use crate::task::{switch_because, TaskInner};
 
 //
 
