@@ -7,7 +7,7 @@ extern crate alloc;
 
 use lock_api::RawMutex;
 
-use self::device::FileDevice;
+use crate::device::FileDevice;
 
 //
 

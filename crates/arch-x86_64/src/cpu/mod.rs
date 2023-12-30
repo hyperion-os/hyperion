@@ -4,9 +4,11 @@ use core::{
     mem::MaybeUninit,
 };
 
+use gdt::Gdt;
 use hyperion_log::trace;
+use idt::Idt;
+use tss::Tss;
 
-use self::{gdt::Gdt, idt::Idt, tss::Tss};
 use crate::{
     cpu_id,
     tls::{self, ThreadLocalStorage},

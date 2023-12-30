@@ -15,7 +15,7 @@ use hyperion_scheduler::lock::Mutex;
 use hyperion_vfs::{error::IoError, path::PathBuf, ramdisk::StaticRoFile};
 use snafu::Snafu;
 
-use self::{shell::Shell, term::Term};
+use crate::{shell::Shell, term::Term};
 
 //
 

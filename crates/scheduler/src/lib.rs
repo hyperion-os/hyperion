@@ -27,7 +27,7 @@ use spin::{Mutex, Once};
 use time::Duration;
 use x86_64::VirtAddr;
 
-use self::{
+use crate::{
     cleanup::{Cleanup, CleanupTask},
     task::{Pid, Process, Task, TaskState},
 };

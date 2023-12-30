@@ -10,7 +10,7 @@ use core::{
 
 use err::Result;
 
-use self::{
+use crate::{
     fs::{FileDesc, FileOpenFlags, Metadata},
     net::{Protocol, SocketDomain, SocketType},
 };

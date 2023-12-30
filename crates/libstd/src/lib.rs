@@ -14,7 +14,7 @@ use core::fmt::{self, Write};
 
 use hyperion_syscall::exit;
 
-use self::fs::{STDERR, STDOUT};
+use crate::fs::{STDERR, STDOUT};
 
 //
 
