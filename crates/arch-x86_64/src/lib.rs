@@ -15,8 +15,12 @@ extern crate alloc;
 use core::ops::Range;
 
 use hyperion_cpu_id::{self as cpu_id, cpu_id};
-use hyperion_log::error;
-use x86_64::{instructions::random::RdRand, VirtAddr};
+use hyperion_log::{debug, error};
+use x86_64::{
+    instructions::random::RdRand,
+    registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags},
+    VirtAddr,
+};
 
 //
 
@@ -39,6 +43,24 @@ pub fn init() {
 
     // init TSS, IDT, GDT
     cpu::init();
+
+    init_sse();
+}
+
+fn init_sse() {
+    let res = unsafe { core::arch::x86_64::__cpuid(0x1) };
+    if res.edx & 1 << 25 == 0 {
+        panic!("No SSE HW support");
+    }
+
+    let mut cr0 = Cr0::read();
+    cr0.remove(Cr0Flags::EMULATE_COPROCESSOR);
+    cr0.insert(Cr0Flags::MONITOR_COPROCESSOR);
+    unsafe { Cr0::write(cr0) };
+
+    let mut cr4 = Cr4::read();
+    cr4.insert(Cr4Flags::OSFXSR | Cr4Flags::OSXMMEXCPT_ENABLE);
+    unsafe { Cr4::write(cr4) };
 }
 
 pub fn wake_cpus() {
