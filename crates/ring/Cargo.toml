@@ -1,0 +1,15 @@
+[package]
+name = "hyperion-ring"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crossbeam.workspace = true
+
+[target.'cfg(all(loom, not(target_os = "none")))'.dependencies]
+loom = "0.5"
+
+[lints]
+workspace = true
