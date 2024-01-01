@@ -20,5 +20,5 @@ hyperion-boot-interface.path = "../boot-interface"
 hyperion-bitmap.path = "../bitmap"
 hyperion-num-postfix.path = "../num-postfix"
 hyperion-log.path = "../log"
-hyperion-slab-alloc.path = "../slab-alloc"
+hyperion-slab-alloc = { path = "../slab-alloc", features = ["log"] }
 hyperion-sync.path = "../sync"

@@ -3,6 +3,9 @@ name = "hyperion-slab-alloc"
 version.workspace = true
 edition.workspace = true
 
+[features]
+log = ["hyperion-log"]
+
 [lints]
 workspace = true
 
@@ -12,3 +15,8 @@ workspace = true
 bytemuck.workspace = true
 lock_api.workspace = true
 spin.workspace = true
+
+hyperion-log = { path = "../log", optional = true }
+
+[target.'cfg(all(loom, not(target_os = "none")))'.dependencies]
+loom = "0.5"
