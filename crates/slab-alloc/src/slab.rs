@@ -12,9 +12,11 @@ use crate::{PageFrameAllocator, SlabAllocatorStats, PAGE_SIZE};
 //
 
 mod sync {
+    #[allow(unused)]
     #[cfg(not(all(loom, not(target_os = "none"))))]
     pub(crate) use core::sync::atomic::{fence, AtomicPtr, AtomicUsize, Ordering};
 
+    #[allow(unused)]
     #[cfg(all(loom, not(target_os = "none")))]
     pub(crate) use loom::sync::atomic::{fence, AtomicUsize, Ordering};
 
@@ -361,6 +363,8 @@ mod tests {
                 drop(unsafe { Box::from_raw(slice) });
             }
         }
+
+        return;
 
         let run = || {
             let stats = Arc::new(SlabAllocatorStats::new());

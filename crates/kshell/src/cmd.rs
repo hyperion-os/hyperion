@@ -75,6 +75,7 @@ impl Command {
         schedule(move || {
             // set its name
             hyperion_scheduler::rename(program.as_str());
+            debug!("running");
 
             // setup the STDIO
             hyperion_kernel_impl::fd_replace(FileDesc(0), stdin);

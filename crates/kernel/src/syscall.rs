@@ -86,6 +86,8 @@ pub fn syscall(args: &mut SyscallRegs) {
 }
 
 fn call_id(f: impl FnOnce(&mut SyscallRegs) -> Result<usize>, args: &mut SyscallRegs) {
+    // debug!("{}", core::any::type_name_of_val(&f));
+
     // debug!(
     //     "{}<{}>({}, {}, {}, {}, {})",
     //     core::any::type_name_of_val(&f),

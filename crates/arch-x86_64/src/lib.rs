@@ -15,7 +15,7 @@ extern crate alloc;
 use core::ops::Range;
 
 use hyperion_cpu_id::{self as cpu_id, cpu_id};
-use hyperion_log::{debug, error};
+use hyperion_log::*;
 use x86_64::{
     instructions::random::RdRand,
     registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags},

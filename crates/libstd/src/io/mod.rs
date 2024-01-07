@@ -83,6 +83,7 @@ pub trait Write {
             err: Ok(()),
         };
         _ = fmt::write(&mut writer, args);
+        writer.inner.flush()?;
         writer.err
     }
 }

@@ -226,6 +226,7 @@ impl Shell {
                     trace!("invalid utf8");
                     break;
                 };
+                // debug!("stderr:{str}");
                 o_tx_2.send(Some(str.to_string()));
             }
 
@@ -246,6 +247,7 @@ impl Shell {
                     trace!("invalid utf8");
                     break;
                 };
+                // debug!("stdout:{str}");
                 o_tx.send(Some(str.to_string()));
             }
 
