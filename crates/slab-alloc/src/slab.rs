@@ -198,7 +198,12 @@ where
         let block_next_ptr = unsafe { addr_of_mut!((*block.as_ptr()).next) };
 
         loop {
-            let old_head = self.head.load(Ordering::SeqCst);
+            // TODO: load linked , store conditional on RISC-V and ARM
+            // and cmpxchg16g on x86_64
+
+            // this is a spinlock basically
+            let old_head = self.head.fetch_or(0b1, Ordering::SeqCst);
+            const _: () = assert!(align_of::<Block>() != 1);
 
             if !old_head.is_aligned() {
                 // unaligned ptr means that another thread is currently removing an element
@@ -208,12 +213,15 @@ where
                 continue;
             }
 
+            // aligned ptr means that the self.head is 'locked' now
+
             // atomic store would be illegal because `next` is technically uninitialized
             unsafe { block_next_ptr.write(AtomicPtr::new(old_head)) };
 
+            let current = unsafe { old_head.byte_add(1) };
             if self
                 .head
-                .compare_exchange(old_head, block.as_ptr(), Ordering::SeqCst, Ordering::SeqCst)
+                .compare_exchange(current, block.as_ptr(), Ordering::SeqCst, Ordering::SeqCst)
                 .is_ok()
             {
                 break;
