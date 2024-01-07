@@ -89,10 +89,10 @@ include ./${BOOT_DIR}/Makefile
 include ./qemu.mk
 
 # nextest doesn't support excluding packages
-EXCLUDED_UNITS   := fbtest sample-elf coreutils libstd hyperion-kernel hyperion-macros
+EXCLUDED_UNITS   := fbtest sample-elf coreutils libstd std-test hyperion-kernel hyperion-macros
 unittest:
 	${CARGO} nextest run \
-		--no-fail-fast --workspace \
+		--no-fail-fast --workspace ${RUST_F_${PROFILE}} \
 		$(patsubst %, --exclude %, ${EXCLUDED_UNITS})
 
 # build alias

@@ -9,9 +9,8 @@ pub fn cmd<'a>(_: impl Iterator<Item = &'a str>) -> Result<()> {
         .map_err(|err| anyhow!("couldn't read the clock `/dev/rtc`: {err}"))?;
 
     let mut timestamp = [0u8; 8];
-    let mut n = 0;
-    rtc.read_exact(&mut timestamp, &mut n)?;
-    assert_eq!(n, timestamp.len());
+    rtc.read_exact(&mut timestamp)
+        .map_err(|err| anyhow!("couldn't read timestamp: {err}"))?;
 
     let date = OffsetDateTime::from_unix_timestamp(i64::from_le_bytes(timestamp))
         .map_err(|err| anyhow!("invalid timestamp: {err}"))?;

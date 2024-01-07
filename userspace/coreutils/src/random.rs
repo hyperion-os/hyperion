@@ -53,14 +53,11 @@ fn random(seed: Option<u64>, start: isize, step: isize, end: isize) {
 fn rng(seed: Option<u64>) -> ChaCha8Rng {
     let seed = seed.unwrap_or_else(|| {
         let mut seed_bytes = [0u8; 8];
-        let mut n = 0;
 
         File::open("/dev/urandom")
             .unwrap()
-            .read_exact(&mut seed_bytes, &mut n)
+            .read_exact(&mut seed_bytes)
             .unwrap();
-
-        assert_eq!(n, seed_bytes.len());
 
         u64::from_ne_bytes(seed_bytes)
     });

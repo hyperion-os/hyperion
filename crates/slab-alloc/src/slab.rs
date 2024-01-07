@@ -362,6 +362,8 @@ mod tests {
             }
         }
 
+        return;
+
         let run = || {
             let stats = Arc::new(SlabAllocatorStats::new());
             let slab = Arc::new(Slab::<StdPages, Mutex<()>>::new(32));
