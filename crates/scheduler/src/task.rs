@@ -344,6 +344,8 @@ impl Process {
 
 impl Drop for Process {
     fn drop(&mut self) {
+        // hyperion_log::debug!("dropping process '{}'", self.name.get_mut());
+
         PROCESSES.lock().remove(&self.pid);
 
         let Some(bitmap) = self.allocs.bitmap.get_mut() else {
@@ -355,8 +357,6 @@ impl Drop for Process {
             let phys_page = unsafe { PageFrame::new(PhysAddr::new(page as u64 * 0x1000), 1) };
             pmm::PFA.free(phys_page);
         }
-
-        // debug!("process `{}` died", self.name.get_mut());
 
         // the page map is dropped, so unmapping pages isn't needed
     }
@@ -424,6 +424,8 @@ impl Drop for TaskInner {
             "{}",
             self.name.read().clone(),
         );
+
+        // hyperion_log::debug!("dropping task {:?} of '{}'", self.tid, self.name.read());
 
         self.threads.fetch_sub(1, Ordering::Relaxed);
 

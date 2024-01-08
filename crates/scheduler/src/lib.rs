@@ -204,6 +204,7 @@ pub fn done() -> ! {
     {
         ext.close();
     }
+    drop(proc);
 
     let next = wait_next_task::<Infallible>(|| None).unwrap();
     switch_because(next, TaskState::Dropping, Cleanup::Drop);
