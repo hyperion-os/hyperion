@@ -1,13 +1,20 @@
+use core::future::IntoFuture;
+
 use crossbeam_queue::SegQueue;
 use hyperion_scheduler::{condvar::Condvar, lock::Mutex};
 
-use crate::task::{IntoTask, Task};
+use crate::task::{IntoTask, JoinHandle, Task};
 
 //
 
 // spawn a new task
-pub fn spawn(task: impl IntoTask) {
-    push_task(task.into_task())
+pub fn spawn<F>(fut: F) -> JoinHandle<F::Output>
+where
+    F: IntoFuture,
+    F::IntoFuture: Send + 'static,
+    F::Output: Send + 'static,
+{
+    JoinHandle::spawn(fut)
 }
 
 // execute tasks forever
@@ -28,14 +35,14 @@ pub fn run_once() -> Option<()> {
     Some(())
 }
 
-fn push_task(task: Task) {
+pub(crate) fn push_task(task: Task) {
     TASK_QUEUE.push(task);
 
     *EMPTY.0.lock() = false;
     EMPTY.1.notify_one();
 }
 
-fn pop_task() -> Option<Task> {
+pub(crate) fn pop_task() -> Option<Task> {
     TASK_QUEUE.pop()
 }
 

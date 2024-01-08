@@ -6,10 +6,11 @@ use core::{
 };
 
 use futures_util::{
-    task::{waker, ArcWake},
+    future::{BoxFuture, FusedFuture},
+    task::{waker, ArcWake, AtomicWaker},
     Future,
 };
-use spin::Mutex;
+use spin::{Mutex, Once};
 
 use crate::executor;
 
@@ -37,25 +38,30 @@ impl Task {
     }
 
     pub fn wake(self) {
-        executor::spawn(self)
+        executor::push_task(self);
     }
 
-    pub fn poll(self) {
+    pub fn poll(self) -> Poll<()> {
         let Some(mut future) = self.0.future.try_lock() else {
             // another CPU is already working on this task
-            return;
+            return Poll::Pending;
         };
 
         let TaskFuture::Future(fut) = &mut *future else {
             // this future is already completed
-            return;
+            return Poll::Ready(());
         };
 
         let waker = self.clone().waker();
         let mut cx = Context::from_waker(&waker);
 
-        if let Poll::Ready(result) = fut.as_mut().poll(&mut cx) {
-            *future = TaskFuture::Result(result);
+        if fut.as_mut().poll(&mut cx).is_ready() {
+            *future = TaskFuture::Done;
+            self.0.join.wake();
+
+            Poll::Ready(())
+        } else {
+            Poll::Pending
         }
     }
 }
@@ -70,12 +76,14 @@ impl Clone for Task {
 
 pub struct TaskInner {
     future: Mutex<TaskFuture>,
+    join: AtomicWaker,
 }
 
 impl TaskInner {
     pub fn new(fut: Pin<Box<dyn Future<Output = ()> + Send>>) -> Self {
         Self {
             future: Mutex::new(TaskFuture::Future(fut)),
+            join: AtomicWaker::new(),
         }
     }
 }
@@ -91,8 +99,66 @@ impl ArcWake for TaskInner {
 pub enum TaskFuture {
     /// A kernel task
     Future(Pin<Box<dyn Future<Output = ()> + Send>>),
-    Result(()),
-    // None,
+    Done,
+}
+
+//
+
+pub struct JoinHandle<T: Send> {
+    task: Task,
+    result: Arc<Mutex<Option<T>>>,
+}
+
+impl<T: Send> JoinHandle<T> {
+    pub fn spawn<F>(fut: F) -> Self
+    where
+        F: IntoFuture<Output = T>,
+        F::IntoFuture: Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let result_tx = Arc::new(Mutex::new(None));
+        let result_rx = result_tx.clone();
+
+        let fut = fut.into_future();
+        let task = async move {
+            *result_tx.try_lock().unwrap() = Some(fut.await);
+        }
+        .into_task();
+        executor::push_task(task.clone());
+
+        JoinHandle {
+            task: task.clone(),
+            result: result_rx,
+        }
+    }
+
+    fn take_result(&self) -> T {
+        self.result.try_lock().unwrap().take().unwrap()
+    }
+}
+
+impl<T: Send> Future for JoinHandle<T> {
+    type Output = T;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.task.clone().poll().is_ready() {
+            return Poll::Ready(self.take_result());
+        }
+
+        // if matches!(&*future, TaskFuture::Done) {
+        //     return Poll::Ready(());
+        // }
+
+        self.task.0.join.register(cx.waker());
+
+        // if matches!(&*future, TaskFuture::Done) {
+        if self.task.clone().poll().is_ready() {
+            self.task.0.join.take();
+            Poll::Ready(self.take_result())
+        } else {
+            Poll::Pending
+        }
+    }
 }
 
 //

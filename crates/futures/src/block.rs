@@ -35,6 +35,7 @@ where
         }
 
         // run other tasks while this task is waiting
+        continue;
         loop {
             while run_once().is_some() {}
 
