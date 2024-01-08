@@ -56,7 +56,7 @@ pub struct SyscallRegs {
     _r14: u64,
     _r13: u64,
     _r12: u64,
-    _r11: u64,
+    pub rflags: u64, // r11
     _r10: u64,
     pub arg4: u64, // r9
     pub arg3: u64, // r8
