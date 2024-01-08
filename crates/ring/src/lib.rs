@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(inline_const)]
+#![feature(inline_const, new_uninit)]
 
 //
 
@@ -7,7 +7,12 @@ extern crate alloc;
 
 //
 
-use core::sync::atomic::{AtomicUsize, Ordering};
+use alloc::boxed::Box;
+use core::{
+    cell::UnsafeCell,
+    mem::{ManuallyDrop, MaybeUninit},
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use crossbeam::utils::CachePadded;
 
@@ -198,6 +203,164 @@ impl RingBufMarker {
         assert_eq!(old, consume.first);
     }
 }
+
+//
+
+/* #[repr(C)]
+pub struct Ring<T> {
+    marker: RingBufMarker,
+    items: Box<[UnsafeCell<MaybeUninit<T>>]>,
+}
+
+impl<T> Ring<T> {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            marker: RingBufMarker::new(capacity),
+            items: (0..capacity)
+                .map(|_| UnsafeCell::new(MaybeUninit::uninit()))
+                .collect(),
+        }
+    }
+
+    pub fn push(&mut self, val: T) -> Result<(), T> {
+        match self.push_iter(1, [val]) {
+            Ok(()) => Ok(()),
+            Err([val]) => Err(val),
+        }
+    }
+
+    pub fn push_arr<const LEN: usize>(&mut self, val: [T; LEN]) -> Result<(), [T; LEN]> {
+        match self.push_iter(val.len(), val) {
+            Ok(()) => Ok(()),
+            Err(val) => Err(val),
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        // Self::release(&mut self.marker, 1, |slot| {
+        //     let (beg, end) = slot.slices(&self.items);
+        //     debug_assert!(beg.len() == 1 && end.is_empty());
+
+        //     let slot = unsafe { beg[0].get().as_mut() }.unwrap();
+        //     unsafe { slot.assume_init_read() }
+        // })
+        todo!()
+    }
+
+    pub fn pop_slice(&mut self, _buf: &mut [T]) -> Option<()> {
+        // if let Some(slot) = unsafe { marker.acquire(buf.len()) } {
+        //     // f should write the items
+        //     f(&slot, val);
+
+        //     // mark it as readable
+        //     unsafe { marker.produce(slot) };
+        //     Ok(())
+        // } else {
+        //     Err(val)
+        // }
+        todo!()
+    }
+
+    pub fn push_iter<I>(&mut self, count: usize, iter: I) -> Result<(), I>
+    where
+        I: IntoIterator<Item = T>,
+        I::IntoIter: ExactSizeIterator,
+    {
+        if let Some(slot) = unsafe { self.marker.consume(count) } {
+            let (beg, end) = slot.slices(&self.items);
+            debug_assert_eq!(beg.len() + end.len(), count);
+
+            let iter = iter.into_iter();
+            debug_assert_eq!(count, iter.len());
+            for (to, from) in beg.iter().chain(end).zip(iter) {
+                unsafe { to.get().as_mut() }.unwrap().write(from);
+            }
+
+            // mark it as writeable
+            unsafe { self.marker.release(slot) };
+            Ok(())
+        } else {
+            Err(iter)
+        }
+    }
+
+    fn release(&mut self, count: usize) -> Result<ReleaseSlot<UnsafeCell<MaybeUninit<T>>>, ()> {
+        if let Some(slot) = unsafe { self.marker.consume(count) } {
+            Ok(ReleaseSlot {
+                marker: &self.marker,
+                items: &self.items,
+                consume: ManuallyDrop::new(slot),
+            })
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl<T: Copy> Ring<T> {
+    pub fn push_slice(&mut self, val: &[T]) -> Option<()> {
+        let s = self.release(val.len()).ok()?;
+
+        s.slices();
+
+        self.push_iter(val.len(), val.iter().copied()).ok()
+    }
+}
+
+//
+
+struct ReleaseSlot<'a, T> {
+    marker: &'a RingBufMarker,
+    items: &'a [UnsafeCell<MaybeUninit<T>>],
+    consume: ManuallyDrop<Slot>,
+}
+
+impl<'a, T> ReleaseSlot<'a, T> {
+    // pub fn slices(&self) -> (&'a [T], &'a [T]) {
+    //     self.consume.slices(self.items)
+    // }
+
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &mut MaybeUninit<T>> {
+        let (beg, end) = self.consume.slices(self.items);
+        beg.iter()
+            .chain(end)
+            .map(|cell| unsafe { cell.get().as_mut() })
+    }
+}
+
+impl<'a, T> Drop for ReleaseSlot<'a, T> {
+    fn drop(&mut self) {
+        // mark it as writeable
+        let slot = unsafe { ManuallyDrop::take(&mut self.consume) };
+        unsafe { self.marker.release(slot) };
+    }
+}
+
+struct SliceTuple<'a, T>(&'a [T], &'a [T]);
+
+impl<'a, T> Iterator for SliceTuple<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.split_first()?;
+    }
+}
+
+impl<'a, T> ExactSizeIterator for SliceTuple<'a, T> {
+    fn len(&self) -> usize {
+        let (lower, upper) = self.size_hint();
+        // Note: This assertion is overly defensive, but it checks the invariant
+        // guaranteed by the trait. If this trait were rust-internal,
+        // we could use debug_assert!; assert_eq! will check all Rust user
+        // implementations too.
+        assert_eq!(upper, Some(lower));
+        lower
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+} */
 
 //
 
