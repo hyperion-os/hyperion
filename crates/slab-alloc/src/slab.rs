@@ -1,75 +1,14 @@
 use core::{
+    hint::spin_loop,
     marker::PhantomData,
     mem::{align_of, size_of},
     ptr::{addr_of_mut, null_mut, NonNull},
+    sync::atomic::{AtomicPtr, Ordering},
 };
 
 use bytemuck::{Pod, Zeroable};
-use sync::*;
 
 use crate::{PageFrameAllocator, SlabAllocatorStats, PAGE_SIZE};
-
-//
-
-mod sync {
-    #[allow(unused)]
-    #[cfg(not(all(loom, not(target_os = "none"))))]
-    pub(crate) use core::sync::atomic::{fence, AtomicPtr, AtomicUsize, Ordering};
-
-    #[allow(unused)]
-    #[cfg(all(loom, not(target_os = "none")))]
-    pub(crate) use loom::sync::atomic::{fence, AtomicUsize, Ordering};
-
-    #[cfg(not(all(loom, not(target_os = "none"))))]
-    pub fn relax() {}
-
-    #[cfg(all(loom, not(target_os = "none")))]
-    pub fn relax() {
-        loom::thread::yield_now();
-    }
-
-    #[cfg(all(loom, not(target_os = "none")))]
-    pub(crate) struct AtomicPtr<T> {
-        ptr: AtomicUsize,
-        _p: core::marker::PhantomData<T>,
-    }
-
-    #[cfg(all(loom, not(target_os = "none")))]
-    impl<T> AtomicPtr<T> {
-        pub(crate) fn new(ptr: *mut T) -> Self {
-            Self {
-                ptr: AtomicUsize::new(ptr as usize),
-                _p: core::marker::PhantomData,
-            }
-        }
-
-        // loom doesn't have this for whatever reason
-        pub(crate) fn fetch_or(&self, val: usize, order: Ordering) -> *mut T {
-            self.ptr.fetch_or(val, order) as *mut T
-        }
-
-        pub(crate) fn load(&self, order: Ordering) -> *mut T {
-            self.ptr.load(order) as *mut T
-        }
-
-        pub(crate) fn store(&self, val: *mut T, order: Ordering) {
-            self.ptr.store(val as usize, order);
-        }
-
-        pub(crate) fn compare_exchange(
-            &self,
-            current: *mut T,
-            new: *mut T,
-            success: Ordering,
-            failure: Ordering,
-        ) -> Result<*mut T, *mut T> {
-            self.ptr
-                .compare_exchange(current as usize, new as usize, success, failure)
-                .map(|v| v as *mut T)
-                .map_err(|e| e as *mut T)
-        }
-    }
-}
 
 //
 
@@ -166,7 +105,7 @@ where
             if !head.is_aligned() {
                 // unaligned ptr means that another thread is currently removing an element
                 while self.head.load(Ordering::SeqCst) == head {
-                    relax();
+                    spin_loop();
                 }
                 continue;
             }
@@ -208,7 +147,7 @@ where
             if !old_head.is_aligned() {
                 // unaligned ptr means that another thread is currently removing an element
                 while self.head.load(Ordering::SeqCst) == old_head {
-                    relax();
+                    spin_loop();
                 }
                 continue;
             }
@@ -337,80 +276,3 @@ impl AllocMetadata {
 }
 
 const _: () = assert!(core::mem::size_of::<AllocMetadata>() == 8);
-
-//
-
-#[cfg(test)]
-mod tests {
-    extern crate std;
-
-    use core::ptr::NonNull;
-    use std::boxed::Box;
-    #[cfg(not(all(loom, not(target_os = "none"))))]
-    pub(crate) use std::{sync::Arc, thread};
-
-    #[cfg(all(loom, not(target_os = "none")))]
-    pub(crate) use loom::{sync::Arc, thread};
-    use spin::Mutex;
-
-    use super::*;
-    use crate::PageFrames;
-
-    #[test]
-    fn test_stack() {
-        struct StdPages;
-
-        impl PageFrameAllocator for StdPages {
-            fn alloc(pages: usize) -> PageFrames {
-                let first = Box::into_raw(Box::<[u8]>::new_uninit_slice(pages * 0x1000)).cast();
-                PageFrames { first, len: pages }
-            }
-
-            fn free(frames: PageFrames) {
-                let slice = core::ptr::slice_from_raw_parts_mut(frames.first, frames.len * 0x1000);
-                drop(unsafe { Box::from_raw(slice) });
-            }
-        }
-
-        return;
-
-        let run = || {
-            let stats = Arc::new(SlabAllocatorStats::new());
-            let slab = Arc::new(Slab::<StdPages, Mutex<()>>::new(32));
-
-            let a = slab.alloc(0, &stats);
-            fence(Ordering::SeqCst);
-
-            let stats_2 = stats.clone();
-            let slab_2 = slab.clone();
-            thread::spawn(move || {
-                let a = slab_2.alloc(0, &stats_2);
-                // let b = slab_2.alloc(0, &stats_2);
-                // let c = slab_2.alloc(0, &stats_2);
-                // let d = slab_2.alloc(0, &stats_2);
-                unsafe {
-                    // slab_2.free(&stats_2, NonNull::new(d).unwrap());
-                    // slab_2.free(&stats_2, NonNull::new(b).unwrap()); // the shuffle is intentional
-                    // slab_2.free(&stats_2, NonNull::new(a).unwrap());
-                    // slab_2.free(&stats_2, NonNull::new(c).unwrap());
-                }
-            });
-
-            let a = slab.alloc(0, &stats);
-            // let b = slab.alloc(0, &stats);
-            // let c = slab.alloc(0, &stats);
-            // let d = slab.alloc(0, &stats);
-            unsafe {
-                // slab.free(&stats, NonNull::new(d).unwrap());
-                // slab.free(&stats, NonNull::new(b).unwrap()); // the shuffle is intentional
-                // slab.free(&stats, NonNull::new(a).unwrap());
-                // slab.free(&stats, NonNull::new(c).unwrap());
-            }
-        };
-
-        #[cfg(not(all(loom, not(target_os = "none"))))]
-        run();
-        #[cfg(all(loom, not(target_os = "none")))]
-        loom::model(run);
-    }
-}
