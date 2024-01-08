@@ -40,14 +40,15 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_mem",["",[],["lib.rs","pmm.rs","vmm.rs"]]],\
 ["hyperion_num_postfix",["",[],["lib.rs"]]],\
 ["hyperion_random",["",[],["lib.rs"]]],\
+["hyperion_ring",["",[],["lib.rs"]]],\
 ["hyperion_scheduler",["",[["ipc",[],["mod.rs","pipe.rs"]]],["cleanup.rs","condvar.rs","futex.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]]],\
-["hyperion_slab_alloc",["",[],["lib.rs"]]],\
+["hyperion_slab_alloc",["",[],["alloc.rs","lib.rs","slab.rs"]]],\
 ["hyperion_static_str",["",[],["lib.rs"]]],\
 ["hyperion_sync",["",[],["lib.rs"]]],\
 ["hyperion_syscall",["",[],["err.rs","fs.rs","lib.rs","net.rs"]]],\
 ["hyperion_timer",["",[],["lib.rs"]]],\
 ["hyperion_vfs",["",[],["device.rs","error.rs","lib.rs","path.rs","ramdisk.rs","tree.rs"]]],\
-["libstd",["",[],["alloc.rs","env.rs","fs.rs","io.rs","lib.rs","net.rs","process.rs","rt.rs","sync.rs","thread.rs"]]],\
+["libstd",["",[["io",[],["mod.rs","stdio.rs"]]],["alloc.rs","env.rs","fs.rs","lib.rs","net.rs","process.rs","rt.rs","sync.rs","thread.rs"]]],\
 ["sample_elf",["",[],["main.rs"]]]\
 ]'));
 createSrcSidebar();
