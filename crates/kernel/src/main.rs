@@ -68,11 +68,6 @@ extern "C" fn _start() -> ! {
     // wake up all cpus
     arch::wake_cpus();
 
-    let join = hyperion_futures::spawn(async { 42 });
-    hyperion_futures::block_on(async {
-        debug!("block on debug returned: {}", join.await);
-    });
-
     let boot_vmm = PageMap::current();
 
     // init task per cpu

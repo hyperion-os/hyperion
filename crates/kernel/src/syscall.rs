@@ -39,11 +39,21 @@ use x86_64::{align_down, align_up, structures::paging::PageTableFlags, PhysAddr,
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
+    // static SYSCALL_RESULTS: hyperion_futures::mpmc::Channel<()> =
+    //     hyperion_futures::mpmc::Channel::new();
+
     // process syscall args
 
     // dispatch / run the syscall
 
-    // block on it
+    // hyperion_futures::spawn(async { SYSCALL_RESULTS.send(()) });
+
+    // block on syscall futures
+
+    // hyperion_futures::block_on(async {
+    //     let task = SYSCALL_RESULTS.recv().await;
+    //     debug!("recv: {task:?}");
+    // });
 
     // return
 
