@@ -1,5 +1,5 @@
 use crossbeam::atomic::AtomicCell;
-use hyperion_log::{error, info, trace};
+use hyperion_log::*;
 use hyperion_mem::vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use x86_64::{
     registers::control::Cr2,
@@ -114,7 +114,7 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
             panic!();
         }
         Err(Handled) => {
-            trace!("page fault handled");
+            // debug!("page fault handled");
         }
     };
 }
