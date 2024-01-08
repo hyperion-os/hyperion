@@ -70,6 +70,9 @@
 <a href="#68" id="68">68</a>
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>core::{fmt::Debug, sync::atomic::Ordering};
 
 <span class="kw">use </span>hyperion_arch::{
@@ -87,9 +90,12 @@
 <span class="comment">//
 
 </span><span class="kw">pub fn </span>page_fault_handler(instr: usize, addr: usize, user: Privilege) -&gt; PageFaultResult {
-    <span class="macro">trace!</span>(<span class="string">"scheduler page fault (from {user:?}) (cpu: {})"</span>, cpu_id());
+    <span class="comment">// debug!(
+    //     "scheduler page fault at {instr:#x} (from {user:?}) (cpu: {})",
+    //     cpu_id()
+    // );
 
-    <span class="kw">let </span>actual_current = tls().switch_last_active.load(Ordering::SeqCst);
+    </span><span class="kw">let </span>actual_current = tls().switch_last_active.load(Ordering::SeqCst);
     <span class="kw">if </span>!actual_current.is_null() {
         <span class="kw">let </span>current: <span class="kw-2">&amp;</span>TaskInner = <span class="kw">unsafe </span>{ <span class="kw-2">&amp;*</span>actual_current };
 

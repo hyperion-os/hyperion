@@ -272,7 +272,7 @@
         </span>test_main();
         <span class="comment">// kshell (kernel-space shell) UI task(s)
         </span><span class="attr">#[cfg(not(test))]
-        </span>futures::executor::spawn(hyperion_kshell::kshell());
+        </span>futures::spawn(hyperion_kshell::kshell());
     }
 
     <span class="comment">// The bootloader provided vmm is shared between CPUs
@@ -299,7 +299,7 @@
     hyperion_mem::pmm::PFA.free(frames);
 
     <span class="comment">// start doing kernel things
-    </span>futures::executor::run_tasks();
+    </span>futures::run_tasks();
 }
 
 <span class="comment">// to fix `cargo clippy` without a target

@@ -166,7 +166,7 @@
 <a href="#164" id="164">164</a>
 <a href="#165" id="165">165</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>crossbeam::atomic::AtomicCell;
-<span class="kw">use </span>hyperion_log::{error, info, trace};
+<span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
 <span class="kw">use </span>hyperion_mem::vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege};
 <span class="kw">use </span>x86_64::{
     registers::control::Cr2,
@@ -281,8 +281,8 @@
             <span class="macro">panic!</span>();
         }
         <span class="prelude-val">Err</span>(Handled) =&gt; {
-            <span class="macro">trace!</span>(<span class="string">"page fault handled"</span>);
-        }
+            <span class="comment">// debug!("page fault handled");
+        </span>}
     };
 }
 

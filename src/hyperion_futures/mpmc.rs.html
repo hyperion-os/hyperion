@@ -142,6 +142,80 @@
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::sync::Arc;
 <span class="kw">use </span>core::{
     future::Future,
@@ -156,7 +230,7 @@
 <span class="comment">//
 
 </span><span class="kw">pub fn </span>channel&lt;T&gt;() -&gt; (Sender&lt;T&gt;, Receiver&lt;T&gt;) {
-    <span class="kw">let </span>inner = Arc::new(Channel::new());
+    <span class="kw">let </span>inner = Arc::new(SplitChannel::new());
     (
         Sender {
             inner: inner.clone(),
@@ -169,25 +243,20 @@
 
 </span><span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>Sender&lt;T&gt; {
-    inner: Arc&lt;Channel&lt;T&gt;&gt;,
+    inner: Arc&lt;SplitChannel&lt;T&gt;&gt;,
 }
 
 <span class="kw">impl</span>&lt;T&gt; Sender&lt;T&gt; {
     <span class="kw">pub fn </span>send(<span class="kw-2">&amp;</span><span class="self">self</span>, data: T) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; {
-        <span class="kw">if </span><span class="self">self</span>.inner.readers.load(Ordering::SeqCst) == <span class="number">0 </span>{
-            <span class="kw">return </span><span class="prelude-val">None</span>;
-        }
-
-        <span class="self">self</span>.inner.queue.push(data);
-        <span class="self">self</span>.inner.waker.wake();
-
-        <span class="prelude-val">Some</span>(())
+        <span class="self">self</span>.inner.send(data)
     }
 }
 
 <span class="kw">impl</span>&lt;T&gt; Drop <span class="kw">for </span>Sender&lt;T&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.inner.writers.fetch_sub(<span class="number">1</span>, Ordering::SeqCst);
+        <span class="kw">if </span><span class="self">self</span>.inner.writers.fetch_sub(<span class="number">1</span>, Ordering::SeqCst) == <span class="number">1 </span>{
+            <span class="self">self</span>.inner.channel.waker.wake();
+        }
     }
 }
 
@@ -195,33 +264,103 @@
 
 </span><span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>Receiver&lt;T&gt; {
-    inner: Arc&lt;Channel&lt;T&gt;&gt;,
+    inner: Arc&lt;SplitChannel&lt;T&gt;&gt;,
 }
 
 <span class="kw">impl</span>&lt;T&gt; Receiver&lt;T&gt; {
     <span class="kw">pub fn </span>recv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Recv&lt;T&gt; {
-        Recv { inner: <span class="kw-2">&amp;</span><span class="self">self</span>.inner }
+        <span class="self">self</span>.inner.recv()
     }
 
     <span class="kw">pub fn </span>try_recv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt; {
-        <span class="self">self</span>.inner.queue.pop()
+        <span class="self">self</span>.inner.try_recv()
     }
 
     <span class="kw">pub fn </span>race_stream(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RecvStream&lt;T&gt; {
-        RecvStream { inner: <span class="kw-2">&amp;</span><span class="self">self</span>.inner }
+        <span class="self">self</span>.inner.race_stream()
     }
 }
 
 <span class="kw">impl</span>&lt;T&gt; Drop <span class="kw">for </span>Receiver&lt;T&gt; {
     <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="self">self</span>.inner.readers.fetch_sub(<span class="number">1</span>, Ordering::SeqCst);
+        <span class="kw">if </span><span class="self">self</span>.inner.readers.fetch_sub(<span class="number">1</span>, Ordering::SeqCst) == <span class="number">1 </span>{
+            <span class="self">self</span>.inner.channel.waker.wake();
+        }
     }
 }
 
 <span class="comment">//
 
-</span><span class="kw">pub struct </span>Recv&lt;<span class="lifetime">'a</span>, T&gt; {
+</span><span class="kw">pub struct </span>Channel&lt;T&gt; {
+    queue: SegQueue&lt;T&gt;,
+    waker: AtomicWaker,
+}
+
+<span class="kw">impl</span>&lt;T&gt; Channel&lt;T&gt; {
+    <span class="kw">pub const fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            queue: SegQueue::new(),
+            waker: AtomicWaker::new(),
+        }
+    }
+
+    <span class="kw">pub fn </span>send(<span class="kw-2">&amp;</span><span class="self">self</span>, val: T) {
+        <span class="self">self</span>.queue.push(val);
+        <span class="self">self</span>.waker.wake();
+    }
+
+    <span class="kw">pub fn </span>recv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ChannelRecv&lt;T&gt; {
+        ChannelRecv { inner: <span class="self">self </span>}
+    }
+
+    <span class="kw">pub fn </span>try_recv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt; {
+        <span class="self">self</span>.queue.pop()
+    }
+
+    <span class="kw">pub fn </span>race_stream(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ChannelRecvStream&lt;T&gt; {
+        ChannelRecvStream { inner: <span class="self">self </span>}
+    }
+}
+
+<span class="comment">//
+
+</span><span class="kw">pub struct </span>ChannelRecv&lt;<span class="lifetime">'a</span>, T&gt; {
     inner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Channel&lt;T&gt;,
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, T&gt; Future <span class="kw">for </span>ChannelRecv&lt;<span class="lifetime">'a</span>, T&gt; {
+    <span class="kw">type </span>Output = <span class="prelude-ty">Option</span>&lt;T&gt;;
+
+    <span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(v) = <span class="self">self</span>.inner.try_recv() {
+            <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Some</span>(v));
+        }
+
+        <span class="self">self</span>.inner.waker.register(cx.waker());
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(v) = <span class="self">self</span>.inner.try_recv() {
+            <span class="self">self</span>.inner.waker.take();
+            <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Some</span>(v));
+        }
+
+        Poll::Pending
+    }
+}
+
+<span class="kw">pub struct </span>ChannelRecvStream&lt;<span class="lifetime">'a</span>, T&gt; {
+    inner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Channel&lt;T&gt;,
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, T&gt; Stream <span class="kw">for </span>ChannelRecvStream&lt;<span class="lifetime">'a</span>, T&gt; {
+    <span class="kw">type </span>Item = T;
+
+    <span class="kw">fn </span>poll_next(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt;&gt; {
+        <span class="self">self</span>.inner.recv().poll_unpin(cx)
+    }
+}
+
+<span class="kw">pub struct </span>Recv&lt;<span class="lifetime">'a</span>, T&gt; {
+    inner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>SplitChannel&lt;T&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, T&gt; Future <span class="kw">for </span>Recv&lt;<span class="lifetime">'a</span>, T&gt; {
@@ -230,58 +369,67 @@
     <span class="kw">fn </span>poll(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context) -&gt; Poll&lt;<span class="self">Self</span>::Output&gt; {
         <span class="kw">let </span>closed = <span class="self">self</span>.inner.writers.load(Ordering::SeqCst) == <span class="number">0</span>;
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(v) = <span class="self">self</span>.inner.queue.pop() {
-            <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Some</span>(v));
+        <span class="kw">if let </span>Poll::Ready(val) = <span class="self">self</span>.inner.channel.recv().poll_unpin(cx) {
+            <span class="kw">return </span>Poll::Ready(val);
         }
 
         <span class="kw">if </span>closed {
-            <span class="kw">return </span>Poll::Ready(<span class="prelude-val">None</span>);
+            <span class="self">self</span>.inner.channel.waker.take();
+            Poll::Ready(<span class="prelude-val">None</span>)
+        } <span class="kw">else </span>{
+            Poll::Pending
         }
-
-        <span class="self">self</span>.inner.waker.register(cx.waker());
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(v) = <span class="self">self</span>.inner.queue.pop() {
-            <span class="self">self</span>.inner.waker.take();
-            <span class="kw">return </span>Poll::Ready(<span class="prelude-val">Some</span>(v));
-        }
-
-        <span class="kw">if </span>closed {
-            <span class="kw">return </span>Poll::Ready(<span class="prelude-val">None</span>);
-        }
-
-        Poll::Pending
     }
 }
 
 <span class="kw">pub struct </span>RecvStream&lt;<span class="lifetime">'a</span>, T&gt; {
-    inner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Channel&lt;T&gt;,
+    inner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>SplitChannel&lt;T&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, T&gt; Stream <span class="kw">for </span>RecvStream&lt;<span class="lifetime">'a</span>, T&gt; {
     <span class="kw">type </span>Item = T;
 
     <span class="kw">fn </span>poll_next(<span class="self">self</span>: Pin&lt;<span class="kw-2">&amp;mut </span><span class="self">Self</span>&gt;, cx: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) -&gt; Poll&lt;<span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt;&gt; {
-        Recv { inner: <span class="self">self</span>.inner }.poll_unpin(cx)
+        <span class="self">self</span>.inner.recv().poll_unpin(cx)
     }
 }
 
 <span class="comment">//
 
-</span><span class="kw">struct </span>Channel&lt;T&gt; {
+</span><span class="kw">struct </span>SplitChannel&lt;T&gt; {
     readers: AtomicUsize,
     writers: AtomicUsize,
-    queue: SegQueue&lt;T&gt;,
-    waker: AtomicWaker,
+    channel: Channel&lt;T&gt;,
 }
 
-<span class="kw">impl</span>&lt;T&gt; Channel&lt;T&gt; {
+<span class="kw">impl</span>&lt;T&gt; SplitChannel&lt;T&gt; {
     <span class="kw">const fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             readers: AtomicUsize::new(<span class="number">1</span>),
             writers: AtomicUsize::new(<span class="number">1</span>),
-            queue: SegQueue::new(),
-            waker: AtomicWaker::new(),
+            channel: Channel::new(),
         }
+    }
+
+    <span class="kw">fn </span>send(<span class="kw-2">&amp;</span><span class="self">self</span>, val: T) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; {
+        <span class="kw">if </span><span class="self">self</span>.readers.load(Ordering::SeqCst) == <span class="number">0 </span>{
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="self">self</span>.channel.send(val);
+        <span class="prelude-val">Some</span>(())
+    }
+
+    <span class="kw">pub fn </span>recv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Recv&lt;T&gt; {
+        Recv { inner: <span class="self">self </span>}
+    }
+
+    <span class="kw">pub fn </span>try_recv(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt; {
+        <span class="self">self</span>.channel.try_recv()
+    }
+
+    <span class="kw">pub fn </span>race_stream(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; RecvStream&lt;T&gt; {
+        RecvStream { inner: <span class="self">self </span>}
     }
 }
 </code></pre></div></section></main></body></html>

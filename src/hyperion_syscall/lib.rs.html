@@ -366,9 +366,9 @@
     <span class="kw">pub const </span>NANOSLEEP_UNTIL: usize = <span class="number">6</span>;
 
     <span class="kw">pub const </span>SPAWN: usize = <span class="number">8</span>;
-    <span class="kw">pub const </span>PALLOC: usize = <span class="number">9</span>;
-    <span class="kw">pub const </span>PFREE: usize = <span class="number">10</span>;
-    <span class="kw">pub const </span>SEND: usize = <span class="number">11</span>;
+    <span class="kw">pub const </span>PALLOC: usize = <span class="number">9</span>; <span class="comment">// TODO: merge into map
+    </span><span class="kw">pub const </span>PFREE: usize = <span class="number">10</span>; <span class="comment">// TODO: merge into unmap
+    </span><span class="kw">pub const </span>SEND: usize = <span class="number">11</span>;
     <span class="kw">pub const </span>RECV: usize = <span class="number">12</span>;
     <span class="kw">pub const </span>RENAME: usize = <span class="number">13</span>;
 
@@ -391,9 +391,9 @@
     <span class="kw">pub const </span>FUTEX_WAIT: usize = <span class="number">27</span>;
     <span class="kw">pub const </span>FUTEX_WAKE: usize = <span class="number">28</span>;
 
-    <span class="kw">pub const </span>MAP_FILE: usize = <span class="number">29</span>;
-    <span class="kw">pub const </span>UNMAP_FILE: usize = <span class="number">30</span>;
-    <span class="kw">pub const </span>METADATA: usize = <span class="number">31</span>;
+    <span class="kw">pub const </span>MAP_FILE: usize = <span class="number">29</span>; <span class="comment">// TODO: merge into map
+    </span><span class="kw">pub const </span>UNMAP_FILE: usize = <span class="number">30</span>; <span class="comment">// TODO: merge into unmap
+    </span><span class="kw">pub const </span>METADATA: usize = <span class="number">31</span>;
     <span class="kw">pub const </span>SEEK: usize = <span class="number">32</span>;
 }
 

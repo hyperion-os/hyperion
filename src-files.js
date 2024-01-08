@@ -24,7 +24,7 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_drivers",["",[],["lib.rs","log.rs","null.rs","rand.rs"]]],\
 ["hyperion_escape",["",[],["decode.rs","encode.rs","lib.rs"]]],\
 ["hyperion_framebuffer",["",[],["font.rs","framebuffer.rs","lib.rs","logger.rs"]]],\
-["hyperion_futures",["",[],["executor.rs","keyboard.rs","lib.rs","mpmc.rs","task.rs","timer.rs"]]],\
+["hyperion_futures",["",[],["block.rs","executor.rs","keyboard.rs","lib.rs","mpmc.rs","task.rs","timer.rs"]]],\
 ["hyperion_instant",["",[],["lib.rs"]]],\
 ["hyperion_int_safe_lazy",["",[],["lib.rs"]]],\
 ["hyperion_interrupts",["",[],["lib.rs"]]],\
