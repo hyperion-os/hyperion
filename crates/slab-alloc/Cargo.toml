@@ -17,6 +17,3 @@ lock_api.workspace = true
 spin.workspace = true
 
 hyperion-log = { path = "../log", optional = true }
-
-[target.'cfg(all(loom, not(target_os = "none")))'.dependencies]
-loom = "0.5"

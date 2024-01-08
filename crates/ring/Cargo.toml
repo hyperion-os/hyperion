@@ -8,8 +8,5 @@ edition.workspace = true
 [dependencies]
 crossbeam.workspace = true
 
-[target.'cfg(all(loom, not(target_os = "none")))'.dependencies]
-loom = "0.5"
-
 [lints]
 workspace = true
