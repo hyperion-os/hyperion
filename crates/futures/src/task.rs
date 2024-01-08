@@ -6,11 +6,10 @@ use core::{
 };
 
 use futures_util::{
-    future::{BoxFuture, FusedFuture},
     task::{waker, ArcWake, AtomicWaker},
     Future,
 };
-use spin::{Mutex, Once};
+use spin::Mutex;
 
 use crate::executor;
 

@@ -15,10 +15,7 @@ use crate::run_once;
 //
 
 // run a task to completion
-pub fn block_on<F>(f: F) -> F::Output
-where
-    F: IntoFuture<Output = ()>,
-{
+pub fn block_on<F: IntoFuture>(f: F) -> F::Output {
     let fut = f.into_future();
     pin_mut!(fut);
 
@@ -35,7 +32,6 @@ where
         }
 
         // run other tasks while this task is waiting
-        continue;
         loop {
             while run_once().is_some() {}
 

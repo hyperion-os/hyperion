@@ -3,7 +3,7 @@ use core::future::IntoFuture;
 use crossbeam_queue::SegQueue;
 use hyperion_scheduler::{condvar::Condvar, lock::Mutex};
 
-use crate::task::{IntoTask, JoinHandle, Task};
+use crate::task::{JoinHandle, Task};
 
 //
 
@@ -31,7 +31,7 @@ pub fn run_tasks() -> ! {
 }
 
 pub fn run_once() -> Option<()> {
-    pop_task()?.poll();
+    _ = pop_task()?.poll();
     Some(())
 }
 
