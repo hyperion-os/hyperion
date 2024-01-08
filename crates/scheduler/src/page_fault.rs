@@ -15,7 +15,10 @@ use crate::{exit, task, task::TaskInner, tls};
 //
 
 pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFaultResult {
-    trace!("scheduler page fault (from {user:?}) (cpu: {})", cpu_id());
+    // debug!(
+    //     "scheduler page fault at {instr:#x} (from {user:?}) (cpu: {})",
+    //     cpu_id()
+    // );
 
     let actual_current = tls().switch_last_active.load(Ordering::SeqCst);
     if !actual_current.is_null() {
