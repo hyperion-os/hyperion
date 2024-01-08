@@ -49,8 +49,8 @@ pub fn block_on<F: IntoFuture>(f: F) -> F::Output {
             //
             // TODO: inter-processor interrupts to wake up one block_on task
             // that is waitnig here, but another CPU sends some data and wakes this up
-            // currently the block_on task would wake up
-            // (later) from the next APIC timer interrupt
+            // currently the block_on task would eventually wake up
+            // from the next APIC timer interrupt
             hyperion_arch::int::wait();
 
             if wake
