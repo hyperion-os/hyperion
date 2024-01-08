@@ -12,7 +12,6 @@ workspace = true
 spin.workspace = true
 futures-util.workspace = true
 time.workspace = true
-crossbeam.workspace = true
 crossbeam-queue.workspace = true
 x86_64.workspace = true
 

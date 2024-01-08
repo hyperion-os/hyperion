@@ -1,0 +1,80 @@
+use alloc::sync::Arc;
+use core::{
+    future::{Future, IntoFuture},
+    sync::atomic::{AtomicBool, Ordering},
+    task::{Context, Poll},
+};
+
+use futures_util::{
+    pin_mut,
+    task::{waker, ArcWake},
+};
+
+use crate::run_once;
+
+//
+
+// run a task to completion
+pub fn block_on<F>(f: F) -> F::Output
+where
+    F: IntoFuture<Output = ()>,
+{
+    let fut = f.into_future();
+    pin_mut!(fut);
+
+    let wake = Arc::new(BlockOn {
+        wake: AtomicBool::new(false),
+    });
+    let waker = waker(wake.clone());
+    let mut cx = Context::from_waker(&waker);
+
+    loop {
+        debug_assert!(!wake.wake.load(Ordering::SeqCst));
+        if let Poll::Ready(res) = fut.as_mut().poll(&mut cx) {
+            return res;
+        }
+
+        // run other tasks while this task is waiting
+        loop {
+            while run_once().is_some() {}
+
+            if wake
+                .wake
+                .compare_exchange(true, false, Ordering::Acquire, Ordering::Relaxed)
+                .is_ok()
+            {
+                break;
+            }
+
+            // no tasks and the block_on future is not ready
+            // disable interrupts and wait for the next interrupt
+            // (interrupts are the only way any task can become ready to poll)
+            //
+            // TODO: inter-processor interrupts to wake up one block_on task
+            // that is waitnig here, but another CPU sends some data and wakes this up
+            // currently the block_on task would wake up
+            // (later) from the next APIC timer interrupt
+            hyperion_arch::int::wait();
+
+            if wake
+                .wake
+                .compare_exchange(true, false, Ordering::Acquire, Ordering::Relaxed)
+                .is_ok()
+            {
+                break;
+            }
+        }
+    }
+}
+
+//
+
+struct BlockOn {
+    wake: AtomicBool,
+}
+
+impl ArcWake for BlockOn {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
+        arc_self.wake.store(true, Ordering::Release);
+    }
+}

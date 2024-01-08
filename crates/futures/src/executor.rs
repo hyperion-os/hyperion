@@ -1,17 +1,16 @@
-use alloc::sync::Arc;
-use core::future::Future;
-
 use crossbeam_queue::SegQueue;
 use hyperion_scheduler::{condvar::Condvar, lock::Mutex};
 
-use super::task::Task;
+use crate::task::{IntoTask, Task};
 
 //
 
-pub fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
-    push_task(Arc::new(Task::from_future(fut)))
+// spawn a new task
+pub fn spawn(task: impl IntoTask) {
+    push_task(task.into_task())
 }
 
+// execute tasks forever
 pub fn run_tasks() -> ! {
     loop {
         while run_once().is_some() {}
@@ -29,18 +28,18 @@ pub fn run_once() -> Option<()> {
     Some(())
 }
 
-pub fn push_task(task: Arc<Task>) {
+fn push_task(task: Task) {
     TASK_QUEUE.push(task);
 
     *EMPTY.0.lock() = false;
     EMPTY.1.notify_one();
 }
 
-pub fn pop_task() -> Option<Arc<Task>> {
+fn pop_task() -> Option<Task> {
     TASK_QUEUE.pop()
 }
 
 //
 
-static TASK_QUEUE: SegQueue<Arc<Task>> = SegQueue::new();
+static TASK_QUEUE: SegQueue<Task> = SegQueue::new();
 static EMPTY: (Mutex<bool>, Condvar) = (Mutex::new(true), Condvar::new());

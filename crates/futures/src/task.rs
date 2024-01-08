@@ -1,89 +1,124 @@
 use alloc::{boxed::Box, sync::Arc};
 use core::{
+    future::IntoFuture,
     pin::Pin,
-    sync::atomic::{AtomicBool, Ordering},
-    task::Context,
+    task::{Context, Poll, Waker},
 };
 
 use futures_util::{
     task::{waker, ArcWake},
     Future,
 };
-use hyperion_log::warn;
 use spin::Mutex;
 
 use crate::executor;
 
 //
 
-pub struct Task {
-    complete: AtomicBool,
-    ctx: Mutex<TaskContext>,
-}
-
-pub enum TaskContext {
-    /// A kernel task
-    Future {
-        inner: Pin<Box<dyn Future<Output = ()> + Send>>,
-    },
-
-    Process {},
-
-    None,
-}
+pub struct Task(Arc<TaskInner>);
 
 //
 
 impl Task {
-    pub fn from_future(fut: impl Future<Output = ()> + Send + 'static) -> Self {
-        Self {
-            complete: AtomicBool::new(false),
-            ctx: Mutex::new(TaskContext::Future {
-                inner: Box::pin(fut),
-            }),
-        }
+    pub fn new<F>(fut: F) -> Self
+    where
+        F: IntoFuture<Output = ()>,
+        F::IntoFuture: Send + 'static,
+    {
+        Self::from_inner(TaskInner::new(Box::pin(fut.into_future())))
     }
 
-    pub fn from_process() {}
+    fn from_inner(inner: TaskInner) -> Self {
+        Self(Arc::new(inner))
+    }
 
-    pub fn poll(self: Arc<Self>) {
-        if self.complete.load(Ordering::Acquire) {
-            warn!("already complete");
-            return;
-        }
+    pub fn waker(self) -> Waker {
+        waker(self.0)
+    }
 
-        let Some(mut ctx) = self.ctx.try_lock() else {
+    pub fn wake(self) {
+        executor::spawn(self)
+    }
+
+    pub fn poll(self) {
+        let Some(mut future) = self.0.future.try_lock() else {
             // another CPU is already working on this task
             return;
         };
 
-        match &mut *ctx {
-            TaskContext::Future { inner } => {
-                let waker = waker(self.clone());
+        let TaskFuture::Future(fut) = &mut *future else {
+            // this future is already completed
+            return;
+        };
 
-                if inner
-                    .as_mut()
-                    .poll(&mut Context::from_waker(&waker))
-                    .is_ready()
-                {
-                    self.complete.store(true, Ordering::Release);
-                    *ctx = TaskContext::None;
-                }
-            }
-            TaskContext::Process {} => todo!(),
-            TaskContext::None => {
-                self.complete.store(true, Ordering::Release);
-            }
+        let waker = self.clone().waker();
+        let mut cx = Context::from_waker(&waker);
+
+        if let Poll::Ready(result) = fut.as_mut().poll(&mut cx) {
+            *future = TaskFuture::Result(result);
         }
-    }
-
-    pub fn schedule(self: &Arc<Self>) {
-        executor::push_task(self.clone())
     }
 }
 
-impl ArcWake for Task {
+impl Clone for Task {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+//
+
+pub struct TaskInner {
+    future: Mutex<TaskFuture>,
+}
+
+impl TaskInner {
+    pub fn new(fut: Pin<Box<dyn Future<Output = ()> + Send>>) -> Self {
+        Self {
+            future: Mutex::new(TaskFuture::Future(fut)),
+        }
+    }
+}
+
+impl ArcWake for TaskInner {
     fn wake_by_ref(arc_self: &Arc<Self>) {
-        arc_self.schedule();
+        Task(arc_self.clone()).wake();
+    }
+}
+
+//
+
+pub enum TaskFuture {
+    /// A kernel task
+    Future(Pin<Box<dyn Future<Output = ()> + Send>>),
+    Result(()),
+    // None,
+}
+
+//
+
+pub trait IntoTask {
+    fn into_task(self) -> Task;
+}
+
+// impl IntoTask for TaskInner {
+//     fn into_task(self) -> Task {
+//         Task::from_inner(self)
+//     }
+// }
+
+impl IntoTask for Task {
+    fn into_task(self) -> Task {
+        self
+    }
+}
+
+impl<F> IntoTask for F
+where
+    F: IntoFuture<Output = ()>,
+    F::IntoFuture: Send + 'static,
+{
+    fn into_task(self) -> Task {
+        Task::new(self)
     }
 }

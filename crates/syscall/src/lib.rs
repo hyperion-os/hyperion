@@ -31,8 +31,8 @@ pub mod id {
     pub const NANOSLEEP_UNTIL: usize = 6;
 
     pub const SPAWN: usize = 8;
-    pub const PALLOC: usize = 9;
-    pub const PFREE: usize = 10;
+    pub const PALLOC: usize = 9; // TODO: merge into map
+    pub const PFREE: usize = 10; // TODO: merge into unmap
     pub const SEND: usize = 11;
     pub const RECV: usize = 12;
     pub const RENAME: usize = 13;
@@ -56,8 +56,8 @@ pub mod id {
     pub const FUTEX_WAIT: usize = 27;
     pub const FUTEX_WAKE: usize = 28;
 
-    pub const MAP_FILE: usize = 29;
-    pub const UNMAP_FILE: usize = 30;
+    pub const MAP_FILE: usize = 29; // TODO: merge into map
+    pub const UNMAP_FILE: usize = 30; // TODO: merge into unmap
     pub const METADATA: usize = 31;
     pub const SEEK: usize = 32;
 }

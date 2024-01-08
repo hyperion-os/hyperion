@@ -39,6 +39,14 @@ use x86_64::{align_down, align_up, structures::paging::PageTableFlags, PhysAddr,
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
+    // process syscall args
+
+    // dispatch / run the syscall
+
+    // block on it
+
+    // return
+
     match args.syscall_id as usize {
         id::LOG => call_id(log, args),
         id::EXIT => call_id(exit, args),

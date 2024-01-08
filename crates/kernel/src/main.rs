@@ -68,6 +68,11 @@ extern "C" fn _start() -> ! {
     // wake up all cpus
     arch::wake_cpus();
 
+    hyperion_futures::block_on(async {
+        // core::future::pending::<()>().await;
+        debug!("block on debug");
+    });
+
     let boot_vmm = PageMap::current();
 
     // init task per cpu
@@ -90,7 +95,7 @@ fn init(boot_stack: Range<VirtAddr>, mut boot_vmm: PageMap) {
         test_main();
         // kshell (kernel-space shell) UI task(s)
         #[cfg(not(test))]
-        futures::executor::spawn(hyperion_kshell::kshell());
+        futures::spawn(hyperion_kshell::kshell());
     }
 
     // The bootloader provided vmm is shared between CPUs
@@ -117,7 +122,7 @@ fn init(boot_stack: Range<VirtAddr>, mut boot_vmm: PageMap) {
     hyperion_mem::pmm::PFA.free(frames);
 
     // start doing kernel things
-    futures::executor::run_tasks();
+    futures::run_tasks();
 }
 
 // to fix `cargo clippy` without a target

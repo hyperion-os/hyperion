@@ -711,7 +711,6 @@ dependencies = [
 name = "hyperion-futures"
 version = "0.2.0"
 dependencies = [
- "crossbeam",
  "crossbeam-queue",
  "futures-util",
  "hyperion-arch",
