@@ -3,12 +3,13 @@ use alloc::{
     string::{String, ToString},
     sync::Arc,
 };
-use core::{fmt::Write, sync::atomic::Ordering};
+use core::{fmt::Write, str, sync::atomic::Ordering};
 
 use anyhow::anyhow;
 use futures_util::stream::select;
 use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
+use hyperion_futures::mpmc;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{FileDescData, FileDescriptor};
 use hyperion_keyboard::{
@@ -19,7 +20,7 @@ use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_scheduler::{
     idle,
-    ipc::pipe::pipe,
+    ipc::pipe::{self, pipe},
     spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
@@ -211,48 +212,30 @@ impl Shell {
         let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
         // last program's stdout (stdin) -> terminal
         let o_tx_2 = o_tx.clone();
-        spawn(move || {
-            loop {
-                let mut buf = [0; 128];
-                let Ok(len) = stderr_rx.read(&mut buf) else {
-                    trace!("end of stream");
-                    break;
-                };
-                if len == 0 {
-                    trace!("end of stream");
-                    break;
-                }
-                let Ok(str) = core::str::from_utf8(&buf[..len]) else {
-                    trace!("invalid utf8");
-                    break;
-                };
-                // debug!("stderr:{str}");
-                o_tx_2.send(Some(str.to_string()));
-            }
 
-            o_tx_2.send(None);
-        });
-        spawn(move || {
+        fn try_forward(from: &dyn FileDescriptor, to: &mpmc::Sender<Option<String>>) -> Option<()> {
             loop {
-                let mut buf = [0; 128];
-                let Ok(len) = stdin.read(&mut buf) else {
-                    trace!("end of stream");
-                    break;
-                };
-                if len == 0 {
-                    trace!("end of stream");
-                    break;
-                }
-                let Ok(str) = core::str::from_utf8(&buf[..len]) else {
-                    trace!("invalid utf8");
-                    break;
-                };
-                // debug!("stdout:{str}");
-                o_tx.send(Some(str.to_string()));
-            }
+                // TODO: if the buffer is full, the result might not be UTF-8
+                let mut buf = [0u8; 512];
+                let len = from.read(&mut buf).ok()?;
 
-            o_tx.send(None);
-        });
+                if len == 0 {
+                    return None;
+                }
+
+                let str = str::from_utf8(&buf[..len]).ok()?.to_string();
+
+                to.send(Some(str)).ok()?;
+            }
+        }
+
+        fn forward(from: &dyn FileDescriptor, to: mpmc::Sender<Option<String>>) {
+            _ = try_forward(from, &to);
+            _ = to.send(None);
+        }
+
+        spawn(move || _ = forward(&stderr_rx, o_tx_2));
+        spawn(move || _ = forward(&*stdin, o_tx));
 
         // start sending keyboard events to the process and read stdout into the terminal
         let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
@@ -342,9 +325,6 @@ impl Shell {
                     self.term.flush();
                 }
                 Some(Err(None)) => {
-                    // _ = write!(self.term, "got EOI");
-                    // self.term.flush();
-                    trace!("EOI");
                     break;
                 }
                 None => {
