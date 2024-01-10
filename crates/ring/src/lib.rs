@@ -1,5 +1,10 @@
 #![no_std]
-#![feature(inline_const, new_uninit)]
+#![feature(
+    inline_const,
+    new_uninit,
+    maybe_uninit_uninit_array,
+    maybe_uninit_array_assume_init
+)]
 
 //
 
@@ -7,10 +12,12 @@ extern crate alloc;
 
 //
 
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc};
 use core::{
     cell::UnsafeCell,
+    marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
+    ops::Deref,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -37,6 +44,11 @@ impl Slot {
         } else {
             Some(Self::new(self.first(), n))
         }
+    }
+
+    #[must_use]
+    pub fn min(self, n: usize) -> Self {
+        Self::new(self.first(), self.len().min(n))
     }
 
     #[must_use]
@@ -166,7 +178,7 @@ impl RingBufMarker {
     }
 
     /// # Safety
-    /// this is a write operation, see [`Self`]
+    /// this is a **write** operation, see [`Self`]
     pub unsafe fn acquire(&self, count: usize) -> Option<Slot> {
         if self.capacity < count {
             return None;
@@ -176,7 +188,13 @@ impl RingBufMarker {
     }
 
     /// # Safety
-    /// this is a write operation, see [`Self`]
+    /// this is a **write** operation, see [`Self`]
+    pub unsafe fn acquire_up_to(&self, count: usize) -> Slot {
+        self.uninit_slot().min(count)
+    }
+
+    /// # Safety
+    /// this is a **write** operation, see [`Self`]
     pub unsafe fn produce(&self, acquire: Slot) {
         let new_write_end = (acquire.first + acquire.len) % self.capacity;
         let old = self.write.swap(new_write_end, Ordering::Release);
@@ -185,7 +203,7 @@ impl RingBufMarker {
     }
 
     /// # Safety
-    /// this is a read operation, see [`Self`]
+    /// this is a **read** operation, see [`Self`]
     pub unsafe fn consume(&self, count: usize) -> Option<Slot> {
         if self.capacity < count {
             return None;
@@ -195,172 +213,404 @@ impl RingBufMarker {
     }
 
     /// # Safety
-    /// this is a read operation, see [`Self`]
+    /// this is a **read** operation, see [`Self`]
+    pub unsafe fn consume_up_to(&self, count: usize) -> Slot {
+        self.init_slot().min(count)
+    }
+
+    /// # Safety
+    /// this is a **read** operation, see [`Self`]
     pub unsafe fn release(&self, consume: Slot) {
         // self.len.fetch_sub(consume.len, Ordering::Release);
         let new_read_end = (consume.first + consume.len) % self.capacity;
         let old = self.read.swap(new_read_end, Ordering::Release);
         assert_eq!(old, consume.first);
     }
+
+    /// # Safety
+    /// this is both **write** operations combined into one, see [`Self`]
+    pub unsafe fn write_guard(&self, count: usize) -> Option<impl Deref<Target = Slot> + '_> {
+        unsafe { self.acquire(count) }.map(|slot| WriteGuard::new(slot, self))
+    }
+
+    /// # Safety
+    /// this is both **write** operations combined into one, see [`Self`]
+    pub unsafe fn write_guard_up_to(&self, count: usize) -> impl Deref<Target = Slot> + '_ {
+        let slot = unsafe { self.acquire_up_to(count) };
+        WriteGuard::new(slot, self)
+    }
+
+    /// # Safety
+    /// this is both **read** operations combined into one, see [`Self`]
+    pub unsafe fn read_guard(&self, count: usize) -> Option<impl Deref<Target = Slot> + '_> {
+        unsafe { self.consume(count) }.map(|slot| ReadGuard::new(slot, self))
+    }
+
+    /// # Safety
+    /// this is both **read** operations combined into one, see [`Self`]
+    pub unsafe fn read_guard_up_to(&self, count: usize) -> impl Deref<Target = Slot> + '_ {
+        let slot = unsafe { self.consume_up_to(count) };
+        ReadGuard::new(slot, self)
+    }
 }
 
 //
 
-/* #[repr(C)]
-pub struct Ring<T> {
-    marker: RingBufMarker,
-    items: Box<[UnsafeCell<MaybeUninit<T>>]>,
+struct WriteGuard<'a> {
+    slot: ManuallyDrop<Slot>,
+    marker: &'a RingBufMarker,
 }
 
-impl<T> Ring<T> {
-    pub fn new(capacity: usize) -> Self {
+impl<'a> WriteGuard<'a> {
+    fn new(slot: Slot, marker: &'a RingBufMarker) -> Self {
+        Self {
+            slot: ManuallyDrop::new(slot),
+            marker,
+        }
+    }
+}
+
+impl Deref for WriteGuard<'_> {
+    type Target = Slot;
+
+    fn deref(&self) -> &Self::Target {
+        &self.slot
+    }
+}
+
+impl Drop for WriteGuard<'_> {
+    fn drop(&mut self) {
+        // mark it as readable
+        unsafe { self.marker.produce(ManuallyDrop::take(&mut self.slot)) };
+    }
+}
+
+//
+
+struct ReadGuard<'a> {
+    slot: ManuallyDrop<Slot>,
+    marker: &'a RingBufMarker,
+}
+
+impl<'a> ReadGuard<'a> {
+    fn new(slot: Slot, marker: &'a RingBufMarker) -> Self {
+        Self {
+            slot: ManuallyDrop::new(slot),
+            marker,
+        }
+    }
+}
+
+impl Deref for ReadGuard<'_> {
+    type Target = Slot;
+
+    fn deref(&self) -> &Self::Target {
+        &self.slot
+    }
+}
+
+impl Drop for ReadGuard<'_> {
+    fn drop(&mut self) {
+        // mark it as writeable
+        unsafe { self.marker.release(ManuallyDrop::take(&mut self.slot)) };
+    }
+}
+
+//
+
+pub trait Storage<T>: Deref<Target = [UnsafeCell<MaybeUninit<T>>]> {}
+
+impl<T> Storage<T> for T where T: Deref<Target = [UnsafeCell<MaybeUninit<T>>]> {}
+
+//
+
+// pub struct Sender<T, C> {
+//     inner: Arc<RingBuf<T, C>>,
+// }
+
+// impl<T, C> Sender<T, C> where C: Storage<T> {}
+
+//
+
+// pub struct Receiver<T, C> {
+//     inner: Arc<RingBuf<T, C>>,
+// }
+
+//
+
+pub type StaticRingBuf<T, const N: usize> = RingBuf<T, Static<T, N>>;
+
+// pub type RefRingBuf<'a, T> = RingBuf<T, &'a [UnsafeCell<MaybeUninit<T>>]>;
+
+// pub type OwnedRingBuf<T> = RingBuf<T, Box<[UnsafeCell<MaybeUninit<T>>]>>;
+
+// pub struct StaticRingBuf<T, const N: usize> {
+//     inner: RingBuf<T, [UnsafeCell<MaybeUninit<T>>; N]>,
+//     read:
+// }
+
+pub struct Static<T, const N: usize>([UnsafeCell<MaybeUninit<T>>; N]);
+
+impl<T, const N: usize> Static<T, N> {
+    pub const fn new() -> Self {
+        // this `const {}` shit is just amazing
+        Self([const { UnsafeCell::new(MaybeUninit::uninit()) }; N])
+    }
+}
+
+impl<T, const N: usize> Deref for Static<T, N> {
+    type Target = [UnsafeCell<MaybeUninit<T>>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0[..]
+    }
+}
+
+//
+
+#[macro_export]
+macro_rules! static_ringbuf {
+    ($t:ty, $len:expr) => {{
+        static RINGBUF: $crate::RingBuf<$t, $crate::Static<$t, $len>> =
+            $crate::RingBuf::<$t, $crate::Static<$t, $len>>::new();
+        let tx = unsafe { $crate::RefSender::from_inner(&RINGBUF) };
+        let rx = unsafe { $crate::RefReceiver::from_inner(&RINGBUF) };
+        (tx, rx)
+    }};
+}
+
+//
+
+pub struct RefSender<'a, T: 'a, C> {
+    inner: &'a RingBuf<T, C>,
+}
+
+impl<'a, T, C> RefSender<'a, T, C> {
+    /// # Safety
+    /// not safe
+    pub const unsafe fn from_inner(inner: &'a RingBuf<T, C>) -> Self {
+        Self { inner }
+    }
+}
+
+impl<'a, T, C> RefSender<'a, T, C>
+where
+    T: 'a,
+    C: Storage<T>,
+{
+    pub fn push(&mut self, val: T) -> Result<(), T> {
+        unsafe { self.inner.push(val) }
+    }
+
+    pub fn push_arr<const LEN: usize>(&self, val: [T; LEN]) -> Result<(), [T; LEN]> {
+        unsafe { self.inner.push_arr(val) }
+    }
+}
+
+impl<'a, T, C> RefSender<'a, T, C>
+where
+    T: Copy + 'a,
+    C: Storage<T>,
+{
+    pub fn push_slice(&mut self, buf: &[T]) -> usize {
+        unsafe { self.inner.push_slice(buf) }
+    }
+}
+
+//
+
+pub struct RefReceiver<'a, T: 'a, C> {
+    inner: &'a RingBuf<T, C>,
+}
+
+impl<'a, T, C> RefReceiver<'a, T, C>
+where
+    T: 'a,
+    C: Storage<T>,
+{
+    pub fn pop(&self) -> Option<T> {
+        unsafe { self.inner.pop() }
+    }
+
+    pub fn pop_arr<const LEN: usize>(&self) -> Option<[T; LEN]> {
+        unsafe { self.inner.pop_arr() }
+    }
+}
+
+impl<'a, T, C> RefReceiver<'a, T, C>
+where
+    T: Copy + 'a,
+    C: Storage<T>,
+{
+    pub fn pop_slice(&mut self, buf: &mut [T]) -> usize {
+        unsafe { self.inner.pop_slice(buf) }
+    }
+}
+
+//
+
+#[repr(C)]
+pub struct RingBuf<T, C> {
+    marker: RingBufMarker,
+    items: C,
+    _p: PhantomData<T>,
+}
+
+unsafe impl<T: Send, C> Sync for RingBuf<T, C> {}
+
+impl<T, C> RingBuf<T, C> {
+    pub const fn from(items: C, capacity: usize) -> Self {
         Self {
             marker: RingBufMarker::new(capacity),
-            items: (0..capacity)
+            items,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<T, const N: usize> RingBuf<T, Static<T, N>> {
+    pub const fn new() -> Self {
+        Self::from(Static::new(), N)
+    }
+}
+
+impl<T> RingBuf<T, Box<[UnsafeCell<MaybeUninit<T>>]>> {
+    pub fn new(capacity: usize) -> Self {
+        Self::from(
+            (0..capacity)
                 .map(|_| UnsafeCell::new(MaybeUninit::uninit()))
                 .collect(),
+            capacity,
+        )
+    }
+}
+
+impl<T, C> RingBuf<T, C>
+where
+    C: Storage<T>,
+{
+    /// # Safety
+    /// this is a **write** operation, see [`Self`]
+    pub unsafe fn push(&self, val: T) -> Result<(), T> {
+        if let Some(slot) = unsafe { self.marker.write_guard(1) } {
+            unsafe { self.write(&slot, [val]) };
+            Ok(())
+        } else {
+            Err(val)
         }
     }
 
-    pub fn push(&mut self, val: T) -> Result<(), T> {
-        match self.push_iter(1, [val]) {
-            Ok(()) => Ok(()),
-            Err([val]) => Err(val),
+    /// # Safety
+    /// this is a **write** operation, see [`Self`]
+    pub unsafe fn push_arr<const LEN: usize>(&self, val: [T; LEN]) -> Result<(), [T; LEN]> {
+        if let Some(slot) = unsafe { self.marker.write_guard(1) } {
+            unsafe { self.write(&slot, val) };
+            Ok(())
+        } else {
+            Err(val)
         }
     }
 
-    pub fn push_arr<const LEN: usize>(&mut self, val: [T; LEN]) -> Result<(), [T; LEN]> {
-        match self.push_iter(val.len(), val) {
-            Ok(()) => Ok(()),
-            Err(val) => Err(val),
+    /// # Safety
+    /// this is a **read** operation, see [`Self`]
+    pub unsafe fn pop(&self) -> Option<T> {
+        if let Some(slot) = unsafe { self.marker.read_guard(1) } {
+            let item = unsafe { self.read(&slot) }.next().unwrap();
+            Some(item)
+        } else {
+            None
         }
     }
 
-    pub fn pop(&mut self) -> Option<T> {
-        // Self::release(&mut self.marker, 1, |slot| {
-        //     let (beg, end) = slot.slices(&self.items);
-        //     debug_assert!(beg.len() == 1 && end.is_empty());
-
-        //     let slot = unsafe { beg[0].get().as_mut() }.unwrap();
-        //     unsafe { slot.assume_init_read() }
-        // })
-        todo!()
+    /// # Safety
+    /// this is a **read** operation, see [`Self`]
+    pub unsafe fn pop_arr<const LEN: usize>(&self) -> Option<[T; LEN]> {
+        if let Some(slot) = unsafe { self.marker.read_guard(LEN) } {
+            let mut buf = MaybeUninit::uninit_array();
+            for (from, to) in unsafe { self.read(&slot) }.zip(buf.iter_mut()) {
+                to.write(from);
+            }
+            Some(unsafe { MaybeUninit::array_assume_init(buf) })
+        } else {
+            None
+        }
     }
 
-    pub fn pop_slice(&mut self, _buf: &mut [T]) -> Option<()> {
-        // if let Some(slot) = unsafe { marker.acquire(buf.len()) } {
-        //     // f should write the items
-        //     f(&slot, val);
-
-        //     // mark it as readable
-        //     unsafe { marker.produce(slot) };
-        //     Ok(())
-        // } else {
-        //     Err(val)
-        // }
-        todo!()
-    }
-
-    pub fn push_iter<I>(&mut self, count: usize, iter: I) -> Result<(), I>
+    unsafe fn write<I>(&self, slot: &Slot, iter: I)
     where
         I: IntoIterator<Item = T>,
         I::IntoIter: ExactSizeIterator,
     {
-        if let Some(slot) = unsafe { self.marker.consume(count) } {
-            let (beg, end) = slot.slices(&self.items);
-            debug_assert_eq!(beg.len() + end.len(), count);
+        let iter = iter.into_iter();
+        let (beg, end) = slot.slices(&self.items);
+        debug_assert_eq!(beg.len() + end.len(), iter.len());
 
-            let iter = iter.into_iter();
-            debug_assert_eq!(count, iter.len());
-            for (to, from) in beg.iter().chain(end).zip(iter) {
-                unsafe { to.get().as_mut() }.unwrap().write(from);
-            }
-
-            // mark it as writeable
-            unsafe { self.marker.release(slot) };
-            Ok(())
-        } else {
-            Err(iter)
+        for (to, from) in beg.iter().chain(end).zip(iter) {
+            unsafe { to.get().as_mut() }.unwrap().write(from);
         }
     }
 
-    fn release(&mut self, count: usize) -> Result<ReleaseSlot<UnsafeCell<MaybeUninit<T>>>, ()> {
-        if let Some(slot) = unsafe { self.marker.consume(count) } {
-            Ok(ReleaseSlot {
-                marker: &self.marker,
-                items: &self.items,
-                consume: ManuallyDrop::new(slot),
-            })
-        } else {
-            Err(())
-        }
+    unsafe fn read(&self, slot: &Slot) -> impl ExactSizeIterator<Item = T> + '_ {
+        let (beg, end) = slot.slices(&self.items);
+
+        ExactSizeChain(beg.iter(), end.iter())
+            .map(|cell| unsafe { (&*cell.get()).assume_init_read() })
     }
 }
 
-impl<T: Copy> Ring<T> {
-    pub fn push_slice(&mut self, val: &[T]) -> Option<()> {
-        let s = self.release(val.len()).ok()?;
+impl<T, C> RingBuf<T, C>
+where
+    T: Copy,
+    C: Storage<T>,
+{
+    /// # Safety
+    /// this is a **write** operation, see [`Self`]
+    pub unsafe fn push_slice(&self, buf: &[T]) -> usize {
+        let slot = unsafe { self.marker.write_guard_up_to(buf.len()) };
 
-        s.slices();
+        unsafe { self.write(&slot, buf.iter().copied()) };
 
-        self.push_iter(val.len(), val.iter().copied()).ok()
+        slot.len
+    }
+
+    /// # Safety
+    /// this is a **read** operation, see [`Self`]
+    pub unsafe fn pop_slice(&self, buf: &mut [T]) -> usize {
+        let slot = unsafe { self.marker.read_guard_up_to(buf.len()) };
+
+        for (from, to) in unsafe { self.read(&slot) }.zip(buf) {
+            *to = from;
+        }
+
+        slot.len
     }
 }
 
 //
 
-struct ReleaseSlot<'a, T> {
-    marker: &'a RingBufMarker,
-    items: &'a [UnsafeCell<MaybeUninit<T>>],
-    consume: ManuallyDrop<Slot>,
-}
+struct ExactSizeChain<A, B>(A, B);
 
-impl<'a, T> ReleaseSlot<'a, T> {
-    // pub fn slices(&self) -> (&'a [T], &'a [T]) {
-    //     self.consume.slices(self.items)
-    // }
-
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = &mut MaybeUninit<T>> {
-        let (beg, end) = self.consume.slices(self.items);
-        beg.iter()
-            .chain(end)
-            .map(|cell| unsafe { cell.get().as_mut() })
-    }
-}
-
-impl<'a, T> Drop for ReleaseSlot<'a, T> {
-    fn drop(&mut self) {
-        // mark it as writeable
-        let slot = unsafe { ManuallyDrop::take(&mut self.consume) };
-        unsafe { self.marker.release(slot) };
-    }
-}
-
-struct SliceTuple<'a, T>(&'a [T], &'a [T]);
-
-impl<'a, T> Iterator for SliceTuple<'a, T> {
-    type Item = &'a T;
+impl<A, B> Iterator for ExactSizeChain<A, B>
+where
+    A: Iterator,
+    B: Iterator<Item = A::Item>,
+{
+    type Item = A::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.split_first()?;
+        self.0.next().or_else(|| self.1.next())
     }
 }
 
-impl<'a, T> ExactSizeIterator for SliceTuple<'a, T> {
+impl<A, B> ExactSizeIterator for ExactSizeChain<A, B>
+where
+    A: ExactSizeIterator,
+    B: ExactSizeIterator<Item = A::Item>,
+{
     fn len(&self) -> usize {
-        let (lower, upper) = self.size_hint();
-        // Note: This assertion is overly defensive, but it checks the invariant
-        // guaranteed by the trait. If this trait were rust-internal,
-        // we could use debug_assert!; assert_eq! will check all Rust user
-        // implementations too.
-        assert_eq!(upper, Some(lower));
-        lower
+        self.0.len() + self.1.len()
     }
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-} */
+}
 
 //
 
