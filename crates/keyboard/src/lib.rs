@@ -4,7 +4,6 @@
 
 use core::task::{Context, Poll};
 
-use crossbeam::atomic::AtomicCell;
 use crossbeam_queue::ArrayQueue;
 use futures_util::task::AtomicWaker;
 use hyperion_int_safe_lazy::IntSafeLazy;
@@ -17,10 +16,6 @@ use crate::event::{ElementState, KeyboardEvent};
 
 mod decode;
 pub mod event;
-
-//
-
-pub static LAZY: AtomicCell<fn()> = AtomicCell::new(noop);
 
 //
 
@@ -87,11 +82,3 @@ pub use decode::{layouts, set_layout};
 static KEYBOARD_EVENT_QUEUE: IntSafeLazy<ArrayQueue<KeyboardEvent>> =
     IntSafeLazy::new(|| ArrayQueue::new(512));
 static KEYBOARD_EVENT_WAKER: AtomicWaker = AtomicWaker::new();
-
-//
-
-fn noop() {}
-
-fn run_lazy() {
-    LAZY.swap(noop)();
-}
