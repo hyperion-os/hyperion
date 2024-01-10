@@ -32,6 +32,10 @@ impl<T: ?Sized> Mutex<T> {
         self.value.get_mut()
     }
 
+    pub fn is_locked(&self) -> bool {
+        self.lock.is_locked()
+    }
+
     pub fn try_lock(&self) -> Option<MutexGuard<T>> {
         if self.lock.try_lock() {
             Some(unsafe { self.guard() })
@@ -109,6 +113,10 @@ impl Lock {
         }
     }
 
+    pub fn is_locked(&self) -> bool {
+        self.state.load(Ordering::Acquire) == LOCKED
+    }
+
     pub fn try_lock(&self) -> bool {
         self.state
             .compare_exchange(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
@@ -121,7 +129,7 @@ impl Lock {
             .compare_exchange(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
             .is_err()
         {
-            while self.state.load(Ordering::Acquire) == LOCKED {
+            while self.is_locked() {
                 core::hint::spin_loop();
             }
         }
