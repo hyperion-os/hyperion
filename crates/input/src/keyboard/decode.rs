@@ -4,25 +4,23 @@ use pc_keyboard::{
 };
 use spin::Mutex;
 
-use crate::event::{ElementState, KeyboardEvent};
+use super::event::{ElementState, KeyboardEvent};
 
 //
 
-pub(super) fn process(ps2_byte: u8) -> Option<KeyboardEvent> {
+pub(crate) fn process(ps2_byte: u8) -> impl Iterator<Item = KeyboardEvent> {
     let mut kb = KEYBOARD.lock();
 
-    let mut event = kb.add_byte(ps2_byte).ok().flatten()?;
+    let Some(mut event) = kb.add_byte(ps2_byte).ok().flatten() else {
+        return [KeyboardEvent::empty(); 2].into_iter().take(2);
+    };
+
     if event.code == KeyCode::Oem7 {
         event.code = KeyCode::Oem5; // idk, '\' / '|' key isn't working
     };
 
-    let state = match event.state {
-        KeyState::Up => ElementState::Release,
-        KeyState::Down => ElementState::PressHold,
-        KeyState::SingleShot => ElementState::PressRelease,
-    };
     let keycode = event.code;
-
+    let state = event.state;
     let key = kb.process_keyevent(event);
 
     let unicode = match key {
@@ -30,11 +28,42 @@ pub(super) fn process(ps2_byte: u8) -> Option<KeyboardEvent> {
         _ => None,
     };
 
-    Some(KeyboardEvent {
-        state,
-        keycode,
-        unicode,
-    })
+    match state {
+        KeyState::Up => [
+            KeyboardEvent {
+                state: ElementState::Released,
+                keycode,
+                unicode,
+            },
+            KeyboardEvent::empty(),
+        ]
+        .into_iter()
+        .take(1),
+        KeyState::Down => [
+            KeyboardEvent {
+                state: ElementState::Pressed,
+                keycode,
+                unicode,
+            },
+            KeyboardEvent::empty(),
+        ]
+        .into_iter()
+        .take(1),
+        KeyState::SingleShot => [
+            KeyboardEvent {
+                state: ElementState::Pressed,
+                keycode,
+                unicode,
+            },
+            KeyboardEvent {
+                state: ElementState::Released,
+                keycode,
+                unicode: None,
+            },
+        ]
+        .into_iter()
+        .take(2),
+    }
 }
 
 pub fn set_layout(name: &str) -> Option<()> {

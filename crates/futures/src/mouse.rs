@@ -7,27 +7,27 @@ use core::{
 
 use futures_util::{ready, Stream};
 use hyperion_input::{
-    keyboard::{buffer::recv, event::KeyboardEvent},
+    mouse::{buffer::recv, event::MouseEvent},
     Recv,
 };
 
 //
 
-pub const fn keyboard_events() -> KeyboardEvents {
-    KeyboardEvents { inner: None }
+pub const fn mouse_events() -> MouseEvents {
+    MouseEvents { inner: None }
 }
 
 //
 
 #[must_use]
-pub struct KeyboardEvents {
-    inner: Option<Pin<Box<Recv<'static, KeyboardEvent>>>>,
+pub struct MouseEvents {
+    inner: Option<Pin<Box<Recv<'static, MouseEvent>>>>,
 }
 
 //
 
-impl Stream for KeyboardEvents {
-    type Item = KeyboardEvent;
+impl Stream for MouseEvents {
+    type Item = MouseEvent;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         let inner = self.get_mut().inner.get_or_insert_with(|| Box::pin(recv()));

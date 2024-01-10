@@ -1,6 +1,5 @@
-use core::sync::atomic::{AtomicBool, AtomicI16, AtomicI8, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 
-use crossbeam::atomic::AtomicCell;
 use hyperion_driver_acpi::ioapic::IoApic;
 use hyperion_interrupts::end_of_interrupt;
 use x86_64::instructions::port::Port;
@@ -15,34 +14,11 @@ pub fn init() {
         if let Some(mut io_apic) = IoApic::any() {
             let irq = hyperion_interrupts::set_any_interrupt_handler(
                 |irq| irq >= 0x20,
-                |irq, _| {
-                    /* hyperion_log::debug!(
-                        "avail?: {}",
-                        unsafe { Port::<u8>::new(0x64).read() } & 0b1
-                    ); */
-                    let data: u8 = unsafe { Port::new(0x60).read() };
-                    let data: i8 = data as _;
+                |irq, ip| {
+                    let ps2_byte: u8 = unsafe { Port::new(0x60).read() };
 
-                    match NEXT.load() {
-                        MouseData::SomethingIdk => {
-                            DATA.0.store(data, Ordering::Release);
-                            NEXT.store(MouseData::X);
-                        }
-                        MouseData::X => {
-                            DATA.1.store(data, Ordering::Release);
-                            NEXT.store(MouseData::Y);
-                        }
-                        MouseData::Y => {
-                            let _cmd: i16 = DATA.0.load(Ordering::Acquire) as _;
-                            let x: i16 = DATA.1.load(Ordering::Acquire) as _;
-                            let y: i16 = data as _;
-                            let _x = MOUSE.0.fetch_add(x, Ordering::Release);
-                            let _y = MOUSE.1.fetch_add(y, Ordering::Release);
-                            NEXT.store(MouseData::SomethingIdk);
+                    hyperion_input::mouse::buffer::send_raw(ps2_byte, ip);
 
-                            // TODO: provide mouse event
-                        }
-                    }
                     end_of_interrupt(irq);
                 },
             )
@@ -126,25 +102,6 @@ pub fn init() {
             }
         }
     }
-}
-
-//
-
-// these shouldn't be touched from multiple threads or interrupts inside interrupts
-static NEXT: AtomicCell<MouseData> = AtomicCell::new(MouseData::X);
-static DATA: (AtomicI8, AtomicI8) = (AtomicI8::new(0), AtomicI8::new(0));
-static MOUSE: (AtomicI16, AtomicI16) = (AtomicI16::new(0), AtomicI16::new(0));
-
-const _: () = assert!(AtomicCell::<MouseData>::is_lock_free());
-
-//
-
-#[derive(Debug, Clone, Copy)]
-#[repr(u8)]
-enum MouseData {
-    SomethingIdk,
-    X,
-    Y,
 }
 
 //

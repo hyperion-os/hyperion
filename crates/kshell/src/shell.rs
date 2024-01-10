@@ -9,18 +9,18 @@ use anyhow::anyhow;
 use futures_util::stream::select;
 use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
-use hyperion_futures::mpmc;
-use hyperion_instant::Instant;
-use hyperion_kernel_impl::{FileDescData, FileDescriptor};
-use hyperion_keyboard::{
+use hyperion_futures::{keyboard::keyboard_events, mpmc};
+use hyperion_input::keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
+use hyperion_instant::Instant;
+use hyperion_kernel_impl::{FileDescData, FileDescriptor};
 use hyperion_mem::pmm;
 use hyperion_num_postfix::NumberPostfix;
 use hyperion_scheduler::{
     idle,
-    ipc::pipe::{self, pipe},
+    ipc::pipe::pipe,
     spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
@@ -238,7 +238,7 @@ impl Shell {
         spawn(move || _ = forward(&*stdin, o_tx));
 
         // start sending keyboard events to the process and read stdout into the terminal
-        let mut events = select(KeyboardEvents.map(Ok), o_rx.race_stream().map(Err));
+        let mut events = select(keyboard_events().map(Ok), o_rx.race_stream().map(Err));
 
         let mut l_ctrl_held = false;
         loop {
@@ -252,14 +252,14 @@ impl Shell {
                     keycode,
                     unicode,
                 })) => {
-                    if state == ElementState::PressHold && keycode == KeyCode::LControl {
+                    if state == ElementState::Pressed && keycode == KeyCode::LControl {
                         l_ctrl_held = true;
                     }
-                    if state == ElementState::PressRelease && keycode == KeyCode::LControl {
+                    if state == ElementState::Released && keycode == KeyCode::LControl {
                         l_ctrl_held = false;
                     }
 
-                    if state != ElementState::PressRelease
+                    if state == ElementState::Pressed
                         && (keycode == KeyCode::C || keycode == KeyCode::D)
                         && l_ctrl_held
                         && !is_doom

@@ -2,8 +2,8 @@ use alloc::collections::VecDeque;
 use core::fmt::Write;
 
 use futures_util::{stream::select, StreamExt};
-use hyperion_futures::{keyboard::KeyboardEvents, timer::ticks};
-use hyperion_keyboard::event::{ElementState, KeyCode, KeyboardEvent};
+use hyperion_futures::{keyboard::keyboard_events, timer::ticks};
+use hyperion_input::keyboard::event::{ElementState, KeyCode, KeyboardEvent};
 use hyperion_random::Rng;
 use time::Duration;
 
@@ -21,7 +21,7 @@ pub async fn snake_game(term: &mut Term) -> Result<()> {
     // let color_back = color_to_code(Color::BLACK);
 
     let mut last_dir = Direction::Up;
-    let mut events = KeyboardEvents.map(Some);
+    let mut events = keyboard_events().map(Some);
     let mut pieces = VecDeque::from_iter([term.cursor]);
     let mut rng = hyperion_random::next_fast_rng();
 
@@ -107,7 +107,7 @@ async fn snake_next_dir(
     let dir = loop {
         break match events.next().await {
             Some(Some(KeyboardEvent {
-                state: ElementState::Release,
+                state: ElementState::Released,
                 ..
             })) => continue,
             Some(Some(KeyboardEvent { keycode, .. })) => {

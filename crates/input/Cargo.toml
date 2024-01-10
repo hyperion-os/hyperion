@@ -1,19 +1,24 @@
 [package]
-name = "hyperion-keyboard"
+name = "hyperion-input"
 version.workspace = true
 edition.workspace = true
 
-[lints]
-workspace = true
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-crossbeam-queue.workspace = true
-crossbeam.workspace = true
-futures-util.workspace = true
-pc-keyboard.workspace = true
-spin.workspace = true
+[features]
+default = ["input-buffer"]
+input-buffer = []
 
-hyperion-int-safe-lazy.path = "../int-safe-lazy"
+[dependencies]
+event-listener.workspace = true
+futures-util.workspace = true
+heapless.workspace = true
+pc-keyboard.workspace = true
+pin-project.workspace = true
+spin.workspace = true
+bitflags.workspace = true
+
 hyperion-log.path = "../log"
+
+[lints]
+workspace = true

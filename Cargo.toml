@@ -41,6 +41,9 @@ lock_api = { version = "0.4", features = ["arc_lock"] }
 ringbuf = { version = "0.3", default-features = false, features = ["alloc"] }
 rand = { version = "0.8", default-features = false, features = ["rand_chacha"] }
 rand_chacha = { version = "0.3", default-features = false }
+heapless = { version = "0.8", features = ["mpmc_large"] }
+pin-project = "1.1"
+bitflags = "2.4"
 # rpds = { version = "1.1", default-features = false }
 # image = "0.24"
 # bitvec = "1.0.1"

@@ -34,6 +34,7 @@ QEMU_FLAGS      += -bios ${QEMU_OVMF}
 endif
 # QEMU_FLAGS      += -vga virtio
 QEMU_FLAGS      += -vga std
+QEMU_FLAGS      += -display gtk,show-cursor=on
 
 QEMU_RUN_FLAGS  ?=
 QEMU_RUN_FLAGS  += ${QEMU_FLAGS}

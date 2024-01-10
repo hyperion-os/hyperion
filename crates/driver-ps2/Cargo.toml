@@ -9,10 +9,9 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossbeam.workspace = true
 x86_64.workspace = true
 
 hyperion-driver-acpi.path = "../driver-acpi"
-hyperion-keyboard.path = "../keyboard"
+hyperion-input.path = "../input"
 hyperion-interrupts.path = "../interrupts"
 hyperion-log.path = "../log"

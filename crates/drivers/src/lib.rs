@@ -39,7 +39,6 @@ pub fn lazy_install_early(root: impl IntoNode) {
         // Some(&*pit::PIT)
     });
 
-    hyperion_keyboard::force_init_queue();
     hyperion_driver_ps2::keyboard::init();
     hyperion_driver_ps2::mouse::init();
 }

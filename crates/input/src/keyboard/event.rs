@@ -1,5 +1,3 @@
-//
-
 pub use pc_keyboard::KeyCode;
 
 //
@@ -12,9 +10,20 @@ pub struct KeyboardEvent {
     pub unicode: Option<char>,
 }
 
+impl KeyboardEvent {
+    pub(crate) const fn empty() -> Self {
+        Self {
+            state: ElementState::Pressed,
+            keycode: KeyCode::Escape,
+            unicode: None,
+        }
+    }
+}
+
+//
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ElementState {
-    PressHold,
-    PressRelease,
-    Release,
+    Pressed,
+    Released,
 }

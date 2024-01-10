@@ -536,6 +536,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
+name = "heapless"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
+dependencies = [
+ "hash32",
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -696,10 +715,9 @@ dependencies = [
 name = "hyperion-driver-ps2"
 version = "0.2.0"
 dependencies = [
- "crossbeam",
  "hyperion-driver-acpi",
+ "hyperion-input",
  "hyperion-interrupts",
- "hyperion-keyboard",
  "hyperion-log",
  "x86_64",
 ]
@@ -734,7 +752,6 @@ dependencies = [
  "hyperion-driver-framebuffer",
  "hyperion-driver-ps2",
  "hyperion-driver-rtc",
- "hyperion-keyboard",
  "hyperion-log",
  "hyperion-random",
  "hyperion-sync",
@@ -776,17 +793,32 @@ dependencies = [
  "hyperion-clock",
  "hyperion-color",
  "hyperion-driver-acpi",
+ "hyperion-input",
  "hyperion-instant",
  "hyperion-int-safe-lazy",
- "hyperion-keyboard",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-random",
  "hyperion-scheduler",
  "hyperion-timer",
+ "pin-project",
  "spin",
  "time",
  "x86_64",
+]
+
+[[package]]
+name = "hyperion-input"
+version = "0.2.0"
+dependencies = [
+ "bitflags 2.4.1",
+ "event-listener",
+ "futures-util",
+ "heapless",
+ "hyperion-log",
+ "pc-keyboard",
+ "pin-project",
+ "spin",
 ]
 
 [[package]]
@@ -873,19 +905,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperion-keyboard"
-version = "0.2.0"
-dependencies = [
- "crossbeam",
- "crossbeam-queue",
- "futures-util",
- "hyperion-int-safe-lazy",
- "hyperion-log",
- "pc-keyboard",
- "spin",
-]
-
-[[package]]
 name = "hyperion-kshell"
 version = "0.2.0"
 dependencies = [
@@ -901,10 +920,10 @@ dependencies = [
  "hyperion-escape",
  "hyperion-framebuffer",
  "hyperion-futures",
+ "hyperion-input",
  "hyperion-instant",
  "hyperion-kernel-impl",
  "hyperion-kernel-info",
- "hyperion-keyboard",
  "hyperion-loader",
  "hyperion-log",
  "hyperion-log-multi",
@@ -1026,7 +1045,6 @@ dependencies = [
  "hyperion-driver-acpi",
  "hyperion-instant",
  "hyperion-int-safe-lazy",
- "hyperion-keyboard",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-random",
@@ -1288,6 +1306,26 @@ version = "0.7.0"
 source = "git+https://github.com/rust-embedded-community/pc-keyboard?rev=4aa5ef6d41fead096c96879ca53497c9ec4ffc30#4aa5ef6d41fead096c96879ca53497c9ec4ffc30"
 
 [[package]]
+name = "pin-project"
+version = "1.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fda4ed1c6c173e3fc7a83629421152e01d7b1f9b7f65fb301e490e8cfc656422"
+dependencies = [
+ "pin-project-internal",
+]
+
+[[package]]
+name = "pin-project-internal"
+version = "1.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4359fd9c9171ec6e8c62926d6faaf553a8dc3f64e1507e76da7911b4f6a04405"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.39",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1519,6 +1557,12 @@ checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 dependencies = [
  "lock_api",
 ]
+
+[[package]]
+name = "stable_deref_trait"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "strsim"
