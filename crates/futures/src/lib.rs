@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(const_mut_refs, const_unsafecell_get_mut)]
 
 //
 
@@ -7,6 +8,7 @@ extern crate alloc;
 //
 
 pub mod keyboard;
+pub mod lock;
 pub mod mpmc;
 pub mod timer;
 
@@ -16,5 +18,5 @@ mod task;
 
 //
 
-pub use block::*;
-pub use executor::*;
+pub use block::block_on;
+pub use executor::{run_tasks, spawn};

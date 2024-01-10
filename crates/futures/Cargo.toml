@@ -10,10 +10,12 @@ workspace = true
 
 [dependencies]
 spin.workspace = true
+futures.workspace = true
 futures-util.workspace = true
 time.workspace = true
 crossbeam-queue.workspace = true
 x86_64.workspace = true
+event-listener.workspace = true
 
 hyperion-arch.path = "../arch"
 hyperion-bitmap.path = "../bitmap"

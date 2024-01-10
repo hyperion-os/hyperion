@@ -23,6 +23,8 @@ codegen-units = 4
 lto = true
 strip = true
 
+# keep all dependencies here to keep the version same and make it easier to keep them up to date
+
 [workspace.dependencies]
 anyhow = { version = "1", default-features = false }
 arcstr = "1.1"
@@ -43,6 +45,8 @@ rand_chacha = { version = "0.3", default-features = false }
 # image = "0.24"
 # bitvec = "1.0.1"
 # tracing = { version = "0.1.37", default-features = false }
+
+event-listener = { version = "4.0", default-features = false }
 
 # backtrace symbol lookup
 [workspace.dependencies.elf]
@@ -65,6 +69,11 @@ features = ["alloc"]
 
 [workspace.dependencies.crossbeam]
 version = "0.8"
+default-features = false
+features = ["alloc"]
+
+[workspace.dependencies.futures]
+version = "0.3"
 default-features = false
 features = ["alloc"]
 

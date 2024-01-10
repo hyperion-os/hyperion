@@ -55,7 +55,7 @@ pub fn syscall(args: &mut SyscallRegs) {
     //     debug!("recv: {task:?}");
     // });
 
-    // return
+    // return to the same or another task
 
     match args.syscall_id as usize {
         id::LOG => call_id(log, args),
