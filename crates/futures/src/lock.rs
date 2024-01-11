@@ -168,6 +168,9 @@ impl Lock {
         }
     }
 
+    /// # Safety
+    /// unlocking is only safe when the MutexGuard is lost
+    /// and its drop never ran, like with mem::forget
     pub unsafe fn unlock(&self) {
         self.state.store(UNLOCKED, Ordering::Release);
         self.wakers.notify(1);

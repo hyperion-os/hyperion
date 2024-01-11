@@ -234,8 +234,8 @@ impl Shell {
             _ = to.send(None);
         }
 
-        spawn(move || _ = forward(&stderr_rx, o_tx_2));
-        spawn(move || _ = forward(&*stdin, o_tx));
+        spawn(move || forward(&stderr_rx, o_tx_2));
+        spawn(move || forward(&*stdin, o_tx));
 
         // start sending keyboard events to the process and read stdout into the terminal
         let mut events = select(keyboard_events().map(Ok), o_rx.race_stream().map(Err));

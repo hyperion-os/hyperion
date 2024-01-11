@@ -12,7 +12,7 @@ extern crate alloc;
 
 //
 
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 use core::{
     cell::UnsafeCell,
     marker::PhantomData,
@@ -554,7 +554,7 @@ where
         let (beg, end) = slot.slices(&self.items);
 
         ExactSizeChain(beg.iter(), end.iter())
-            .map(|cell| unsafe { (&*cell.get()).assume_init_read() })
+            .map(|cell| unsafe { (*cell.get()).assume_init_read() })
     }
 }
 
