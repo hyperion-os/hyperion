@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["channel"],"struct":["Channel","ChannelRecv","ChannelRecvStream","Receiver","Recv","RecvStream","Sender"]};
+window.SIDEBAR_ITEMS = {"enum":["TryRecvError"],"fn":["channel"],"struct":["Channel","Receiver","RecvError","SendError","Sender"]};

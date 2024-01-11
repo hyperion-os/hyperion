@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["block_on","run_once","run_tasks","spawn"],"mod":["keyboard","mpmc","timer"]};
+window.SIDEBAR_ITEMS = {"fn":["block_on","run_tasks","spawn"],"mod":["keyboard","lock","mouse","mpmc","timer"]};

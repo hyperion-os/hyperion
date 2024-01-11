@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["force_init_queue","layouts","next_keyboard_event","provide_keyboard_event","provide_raw_keyboard_event","set_layout","wait_keyboard_event"],"mod":["event"],"static":["LAZY"]};

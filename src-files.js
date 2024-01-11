@@ -24,14 +24,14 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_drivers",["",[],["lib.rs","log.rs","null.rs","rand.rs"]]],\
 ["hyperion_escape",["",[],["decode.rs","encode.rs","lib.rs"]]],\
 ["hyperion_framebuffer",["",[],["font.rs","framebuffer.rs","lib.rs","logger.rs"]]],\
-["hyperion_futures",["",[],["block.rs","executor.rs","keyboard.rs","lib.rs","mpmc.rs","task.rs","timer.rs"]]],\
+["hyperion_futures",["",[],["block.rs","executor.rs","keyboard.rs","lib.rs","lock.rs","mouse.rs","mpmc.rs","task.rs","timer.rs"]]],\
+["hyperion_input",["",[["keyboard",[],["buffer.rs","decode.rs","event.rs","mod.rs"]],["mouse",[],["buffer.rs","decode.rs","event.rs","mod.rs"]]],["lib.rs","mpmc.rs"]]],\
 ["hyperion_instant",["",[],["lib.rs"]]],\
 ["hyperion_int_safe_lazy",["",[],["lib.rs"]]],\
 ["hyperion_interrupts",["",[],["lib.rs"]]],\
 ["hyperion_kernel",["",[],["main.rs","panic.rs","syscall.rs"]]],\
 ["hyperion_kernel_impl",["",[],["lib.rs"]]],\
 ["hyperion_kernel_info",["",[],["lib.rs"]]],\
-["hyperion_keyboard",["",[],["decode.rs","event.rs","lib.rs"]]],\
 ["hyperion_kshell",["",[],["cmd.rs","lib.rs","shell.rs","snake.rs","term.rs"]]],\
 ["hyperion_loader",["",[],["lib.rs"]]],\
 ["hyperion_log",["",[],["lib.rs"]]],\

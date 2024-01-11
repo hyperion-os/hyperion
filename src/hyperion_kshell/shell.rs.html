@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kshell/src/shell.rs`."><title>shell.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-4e54bb2b497cc83f.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kshell" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (75c68cfd2 2024-01-07)" data-channel="nightly" data-search-js="search-1cefe72944ee87e6.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-0b2e2def73e61cbe.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kshell/src/shell.rs`."><title>shell.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-4e54bb2b497cc83f.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kshell" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (190f4c961 2024-01-09)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-0b2e2def73e61cbe.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
             <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../hyperion_kshell/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
@@ -502,43 +502,24 @@
 <a href="#500" id="500">500</a>
 <a href="#501" id="501">501</a>
 <a href="#502" id="502">502</a>
-<a href="#503" id="503">503</a>
-<a href="#504" id="504">504</a>
-<a href="#505" id="505">505</a>
-<a href="#506" id="506">506</a>
-<a href="#507" id="507">507</a>
-<a href="#508" id="508">508</a>
-<a href="#509" id="509">509</a>
-<a href="#510" id="510">510</a>
-<a href="#511" id="511">511</a>
-<a href="#512" id="512">512</a>
-<a href="#513" id="513">513</a>
-<a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a>
-<a href="#516" id="516">516</a>
-<a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a>
-<a href="#519" id="519">519</a>
-<a href="#520" id="520">520</a>
-<a href="#521" id="521">521</a>
-<a href="#522" id="522">522</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     format,
     string::{String, ToString},
     sync::Arc,
 };
-<span class="kw">use </span>core::{fmt::Write, sync::atomic::Ordering};
+<span class="kw">use </span>core::{fmt::Write, str, sync::atomic::Ordering};
 
 <span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>futures_util::stream::select;
 <span class="kw">use </span>hyperion_cpu_id::cpu_count;
 <span class="kw">use </span>hyperion_driver_acpi::apic::ApicId;
-<span class="kw">use </span>hyperion_instant::Instant;
-<span class="kw">use </span>hyperion_kernel_impl::{FileDescData, FileDescriptor};
-<span class="kw">use </span>hyperion_keyboard::{
+<span class="kw">use </span>hyperion_futures::{keyboard::keyboard_events, mpmc};
+<span class="kw">use </span>hyperion_input::keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
+<span class="kw">use </span>hyperion_instant::Instant;
+<span class="kw">use </span>hyperion_kernel_impl::{FileDescData, FileDescriptor};
 <span class="kw">use </span>hyperion_mem::pmm;
 <span class="kw">use </span>hyperion_num_postfix::NumberPostfix;
 <span class="kw">use </span>hyperion_scheduler::{
@@ -735,51 +716,33 @@
         </span><span class="kw">let </span>(o_tx, o_rx) = hyperion_futures::mpmc::channel();
         <span class="comment">// last program's stdout (stdin) -&gt; terminal
         </span><span class="kw">let </span>o_tx_2 = o_tx.clone();
-        spawn(<span class="kw">move </span>|| {
-            <span class="kw">loop </span>{
-                <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; <span class="number">128</span>];
-                <span class="kw">let </span><span class="prelude-val">Ok</span>(len) = stderr_rx.read(<span class="kw-2">&amp;mut </span>buf) <span class="kw">else </span>{
-                    <span class="macro">trace!</span>(<span class="string">"end of stream"</span>);
-                    <span class="kw">break</span>;
-                };
-                <span class="kw">if </span>len == <span class="number">0 </span>{
-                    <span class="macro">trace!</span>(<span class="string">"end of stream"</span>);
-                    <span class="kw">break</span>;
-                }
-                <span class="kw">let </span><span class="prelude-val">Ok</span>(str) = core::str::from_utf8(<span class="kw-2">&amp;</span>buf[..len]) <span class="kw">else </span>{
-                    <span class="macro">trace!</span>(<span class="string">"invalid utf8"</span>);
-                    <span class="kw">break</span>;
-                };
-                <span class="comment">// debug!("stderr:{str}");
-                </span>o_tx_2.send(<span class="prelude-val">Some</span>(str.to_string()));
-            }
 
-            o_tx_2.send(<span class="prelude-val">None</span>);
-        });
-        spawn(<span class="kw">move </span>|| {
+        <span class="kw">fn </span>try_forward(from: <span class="kw-2">&amp;</span><span class="kw">dyn </span>FileDescriptor, to: <span class="kw-2">&amp;</span>mpmc::Sender&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; {
             <span class="kw">loop </span>{
-                <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; <span class="number">128</span>];
-                <span class="kw">let </span><span class="prelude-val">Ok</span>(len) = stdin.read(<span class="kw-2">&amp;mut </span>buf) <span class="kw">else </span>{
-                    <span class="macro">trace!</span>(<span class="string">"end of stream"</span>);
-                    <span class="kw">break</span>;
-                };
-                <span class="kw">if </span>len == <span class="number">0 </span>{
-                    <span class="macro">trace!</span>(<span class="string">"end of stream"</span>);
-                    <span class="kw">break</span>;
-                }
-                <span class="kw">let </span><span class="prelude-val">Ok</span>(str) = core::str::from_utf8(<span class="kw-2">&amp;</span>buf[..len]) <span class="kw">else </span>{
-                    <span class="macro">trace!</span>(<span class="string">"invalid utf8"</span>);
-                    <span class="kw">break</span>;
-                };
-                <span class="comment">// debug!("stdout:{str}");
-                </span>o_tx.send(<span class="prelude-val">Some</span>(str.to_string()));
-            }
+                <span class="comment">// TODO: if the buffer is full, the result might not be UTF-8
+                </span><span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0u8</span>; <span class="number">512</span>];
+                <span class="kw">let </span>len = from.read(<span class="kw-2">&amp;mut </span>buf).ok()<span class="question-mark">?</span>;
 
-            o_tx.send(<span class="prelude-val">None</span>);
-        });
+                <span class="kw">if </span>len == <span class="number">0 </span>{
+                    <span class="kw">return </span><span class="prelude-val">None</span>;
+                }
+
+                <span class="kw">let </span>str = str::from_utf8(<span class="kw-2">&amp;</span>buf[..len]).ok()<span class="question-mark">?</span>.to_string();
+
+                to.send(<span class="prelude-val">Some</span>(str)).ok()<span class="question-mark">?</span>;
+            }
+        }
+
+        <span class="kw">fn </span>forward(from: <span class="kw-2">&amp;</span><span class="kw">dyn </span>FileDescriptor, to: mpmc::Sender&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt;) {
+            <span class="kw">_ </span>= try_forward(from, <span class="kw-2">&amp;</span>to);
+            <span class="kw">_ </span>= to.send(<span class="prelude-val">None</span>);
+        }
+
+        spawn(<span class="kw">move </span>|| forward(<span class="kw-2">&amp;</span>stderr_rx, o_tx_2));
+        spawn(<span class="kw">move </span>|| forward(<span class="kw-2">&amp;*</span>stdin, o_tx));
 
         <span class="comment">// start sending keyboard events to the process and read stdout into the terminal
-        </span><span class="kw">let </span><span class="kw-2">mut </span>events = select(KeyboardEvents.map(<span class="prelude-val">Ok</span>), o_rx.race_stream().map(<span class="prelude-val">Err</span>));
+        </span><span class="kw">let </span><span class="kw-2">mut </span>events = select(keyboard_events().map(<span class="prelude-val">Ok</span>), o_rx.race_stream().map(<span class="prelude-val">Err</span>));
 
         <span class="kw">let </span><span class="kw-2">mut </span>l_ctrl_held = <span class="bool-val">false</span>;
         <span class="kw">loop </span>{
@@ -793,14 +756,14 @@
                     keycode,
                     unicode,
                 })) =&gt; {
-                    <span class="kw">if </span>state == ElementState::PressHold &amp;&amp; keycode == KeyCode::LControl {
+                    <span class="kw">if </span>state == ElementState::Pressed &amp;&amp; keycode == KeyCode::LControl {
                         l_ctrl_held = <span class="bool-val">true</span>;
                     }
-                    <span class="kw">if </span>state == ElementState::PressRelease &amp;&amp; keycode == KeyCode::LControl {
+                    <span class="kw">if </span>state == ElementState::Released &amp;&amp; keycode == KeyCode::LControl {
                         l_ctrl_held = <span class="bool-val">false</span>;
                     }
 
-                    <span class="kw">if </span>state != ElementState::PressRelease
+                    <span class="kw">if </span>state == ElementState::Pressed
                         &amp;&amp; (keycode == KeyCode::C || keycode == KeyCode::D)
                         &amp;&amp; l_ctrl_held
                         &amp;&amp; !is_doom
@@ -866,9 +829,6 @@
                     <span class="self">self</span>.term.flush();
                 }
                 <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(<span class="prelude-val">None</span>)) =&gt; {
-                    <span class="comment">// _ = write!(self.term, "got EOI");
-                    // self.term.flush();
-                    </span><span class="macro">trace!</span>(<span class="string">"EOI"</span>);
                     <span class="kw">break</span>;
                 }
                 <span class="prelude-val">None </span>=&gt; {

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["layouts","set_layout"],"mod":["buffer","event"]};

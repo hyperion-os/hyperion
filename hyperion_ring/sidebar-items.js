@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["RingBufMarker","Slot"]};
+window.SIDEBAR_ITEMS = {"macro":["static_ringbuf"],"struct":["RefReceiver","RefSender","RingBuf","RingBufMarker","Slot","Static"],"trait":["Storage"],"type":["StaticRingBuf"]};
