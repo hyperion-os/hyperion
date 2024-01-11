@@ -1,5 +1,5 @@
 [package]
-name = "hyperion-input"
+name = "hyperion-events"
 version.workspace = true
 edition.workspace = true
 
@@ -19,6 +19,7 @@ spin.workspace = true
 bitflags.workspace = true
 
 hyperion-log.path = "../log"
+hyperion-instant.path = "../instant"
 
 [lints]
 workspace = true

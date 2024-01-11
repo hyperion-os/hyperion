@@ -12,10 +12,10 @@ use core::{
 
 use bit_field::BitField;
 use hyperion_clock::ClockSource;
+use hyperion_events::timer::wake;
 use hyperion_interrupts::end_of_interrupt;
 use hyperion_log::{debug, trace, warn};
 use hyperion_mem::to_higher_half;
-use hyperion_timer::{provide_sleep_wake, TIMER_HANDLER};
 use hyperion_vfs::{
     device::FileDevice,
     error::{IoError, IoResult},
@@ -120,8 +120,7 @@ impl Hpet {
             timer.update(now);
         }
 
-        (TIMER_HANDLER.load())();
-        provide_sleep_wake();
+        wake();
     }
 
     //

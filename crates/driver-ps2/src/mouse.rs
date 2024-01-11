@@ -17,7 +17,7 @@ pub fn init() {
                 |irq, ip| {
                     let ps2_byte: u8 = unsafe { Port::new(0x60).read() };
 
-                    hyperion_input::mouse::buffer::send_raw(ps2_byte, ip);
+                    hyperion_events::mouse::buffer::send_raw(ps2_byte, ip);
 
                     end_of_interrupt(irq);
                 },

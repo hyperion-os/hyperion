@@ -2,8 +2,8 @@ use alloc::collections::VecDeque;
 use core::fmt::Write;
 
 use futures_util::{stream::select, StreamExt};
+use hyperion_events::keyboard::event::{ElementState, KeyCode, KeyboardEvent};
 use hyperion_futures::{keyboard::keyboard_events, timer::ticks};
-use hyperion_input::keyboard::event::{ElementState, KeyCode, KeyboardEvent};
 use hyperion_random::Rng;
 use time::Duration;
 

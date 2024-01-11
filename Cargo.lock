@@ -666,11 +666,11 @@ dependencies = [
  "hyperion-clock",
  "hyperion-cpu-id",
  "hyperion-driver-pic",
+ "hyperion-events",
  "hyperion-interrupts",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-static-str",
- "hyperion-timer",
  "hyperion-vfs",
  "paste",
  "smallvec",
@@ -716,7 +716,7 @@ name = "hyperion-driver-ps2"
 version = "0.2.0"
 dependencies = [
  "hyperion-driver-acpi",
- "hyperion-input",
+ "hyperion-events",
  "hyperion-interrupts",
  "hyperion-log",
  "x86_64",
@@ -766,6 +766,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-events"
+version = "0.2.0"
+dependencies = [
+ "bitflags 2.4.1",
+ "event-listener",
+ "futures-util",
+ "heapless",
+ "hyperion-instant",
+ "hyperion-log",
+ "pc-keyboard",
+ "pin-project",
+ "spin",
+]
+
+[[package]]
 name = "hyperion-framebuffer"
 version = "0.2.0"
 dependencies = [
@@ -793,32 +808,17 @@ dependencies = [
  "hyperion-clock",
  "hyperion-color",
  "hyperion-driver-acpi",
- "hyperion-input",
+ "hyperion-events",
  "hyperion-instant",
  "hyperion-int-safe-lazy",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-random",
  "hyperion-scheduler",
- "hyperion-timer",
  "pin-project",
  "spin",
  "time",
  "x86_64",
-]
-
-[[package]]
-name = "hyperion-input"
-version = "0.2.0"
-dependencies = [
- "bitflags 2.4.1",
- "event-listener",
- "futures-util",
- "heapless",
- "hyperion-log",
- "pc-keyboard",
- "pin-project",
- "spin",
 ]
 
 [[package]]
@@ -918,9 +918,9 @@ dependencies = [
  "hyperion-cpu-id",
  "hyperion-driver-acpi",
  "hyperion-escape",
+ "hyperion-events",
  "hyperion-framebuffer",
  "hyperion-futures",
- "hyperion-input",
  "hyperion-instant",
  "hyperion-kernel-impl",
  "hyperion-kernel-info",
@@ -1043,13 +1043,13 @@ dependencies = [
  "hyperion-color",
  "hyperion-cpu-id",
  "hyperion-driver-acpi",
+ "hyperion-events",
  "hyperion-instant",
  "hyperion-int-safe-lazy",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-random",
  "hyperion-sync",
- "hyperion-timer",
  "lock_api",
  "ringbuf",
  "spin",
@@ -1087,19 +1087,6 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "bitflags 2.4.1",
-]
-
-[[package]]
-name = "hyperion-timer"
-version = "0.2.0"
-dependencies = [
- "crossbeam",
- "futures-util",
- "hyperion-instant",
- "hyperion-int-safe-lazy",
- "hyperion-log",
- "spin",
- "time",
 ]
 
 [[package]]

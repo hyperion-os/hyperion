@@ -9,11 +9,11 @@ use anyhow::anyhow;
 use futures_util::stream::select;
 use hyperion_cpu_id::cpu_count;
 use hyperion_driver_acpi::apic::ApicId;
-use hyperion_futures::{keyboard::keyboard_events, mpmc};
-use hyperion_input::keyboard::{
+use hyperion_events::keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
 };
+use hyperion_futures::{keyboard::keyboard_events, mpmc};
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{FileDescData, FileDescriptor};
 use hyperion_mem::pmm;

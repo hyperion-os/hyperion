@@ -1,12 +1,11 @@
-use alloc::sync::Arc;
 use core::{
     pin::Pin,
     task::{Context, Poll},
 };
 
-use futures_util::{task::AtomicWaker, Future, FutureExt, Stream};
+use futures_util::{Future, FutureExt, Stream};
+use hyperion_events::timer::SleepUntil;
 use hyperion_instant::Instant;
-use hyperion_timer::{TimerWaker, TIMER_DEADLINES};
 use time::Duration;
 
 //
@@ -35,13 +34,6 @@ pub fn ticks(interval: Duration) -> Ticks {
 
 #[derive(Debug, Clone, Copy)]
 #[must_use]
-pub struct SleepUntil {
-    deadline: Instant,
-    sleeping: bool,
-}
-
-#[derive(Debug, Clone, Copy)]
-#[must_use]
 pub struct Sleep {
     inner: SleepUntil,
 }
@@ -55,55 +47,10 @@ pub struct Ticks {
 
 //
 
-impl SleepUntil {
-    pub const fn new(deadline: Instant) -> Self {
-        Self {
-            deadline,
-            sleeping: false,
-        }
-    }
-}
-
 impl Sleep {
     pub fn new(dur: Duration) -> Self {
         Self {
             inner: SleepUntil::new(Instant::now() + dur),
-        }
-    }
-}
-
-impl Future for SleepUntil {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        let deadline = self.deadline;
-
-        if Instant::now() >= deadline {
-            return Poll::Ready(());
-        }
-
-        if self.sleeping {
-            return Poll::Pending;
-        }
-        self.sleeping = true;
-
-        // insert the new deadline before invoking sleep,
-        // so that the waker is there before the interrupt happens
-        let waker = Arc::new(AtomicWaker::new());
-        let waker2 = waker.clone();
-        waker.register(cx.waker());
-        TIMER_DEADLINES
-            .get_force()
-            .lock()
-            .push(TimerWaker { deadline, waker });
-
-        hyperion_clock::get().trigger_interrupt_at(deadline.nanosecond());
-
-        if Instant::now() >= deadline {
-            waker2.take();
-            Poll::Ready(())
-        } else {
-            Poll::Pending
         }
     }
 }
@@ -121,7 +68,7 @@ impl Stream for Ticks {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.next.poll_unpin(cx).map(|_| {
-            self.next = sleep_until(self.next.deadline + self.interval);
+            self.next = sleep_until(self.next.deadline() + self.interval);
             Some(())
         })
     }

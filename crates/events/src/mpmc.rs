@@ -48,6 +48,7 @@ impl<T: Debug> EventQueue<T> {
 
 //
 
+#[must_use]
 #[pin_project]
 pub struct Recv<'a, T> {
     queue: &'a EventQueue<T>,
@@ -77,6 +78,7 @@ impl<'a, T: Debug> Future for Recv<'a, T> {
     }
 }
 
+#[must_use]
 #[pin_project]
 struct RecvSlow {
     #[pin]

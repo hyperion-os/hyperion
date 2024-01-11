@@ -6,7 +6,7 @@ use core::{
 };
 
 use futures_util::{ready, Stream};
-use hyperion_input::{
+use hyperion_events::{
     keyboard::{buffer::recv, event::KeyboardEvent},
     Recv,
 };

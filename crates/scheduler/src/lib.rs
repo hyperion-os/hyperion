@@ -22,7 +22,6 @@ use hyperion_driver_acpi::{apic, hpet::HPET};
 use hyperion_instant::Instant;
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
-use hyperion_timer as timer;
 use spin::{Mutex, Once};
 use time::Duration;
 use x86_64::VirtAddr;
@@ -108,12 +107,9 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
         exit();
     });
 
-    // init HPET timer interrupts for sleep events
-    timer::TIMER_HANDLER.store(|| sleep::wake_up_completed(None));
-
     // init periodic APIC timer interrutpts (optionally for RR-scheduling)
     apic::APIC_TIMER_HANDLER.store(|| {
-        sleep::wake_up_completed(None);
+        hyperion_events::timer::wake();
 
         let tls = tls();
         if !tls.initialized.load(Ordering::SeqCst) || tls.idle.load(Ordering::SeqCst) {

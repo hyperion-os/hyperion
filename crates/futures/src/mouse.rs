@@ -6,7 +6,7 @@ use core::{
 };
 
 use futures_util::{ready, Stream};
-use hyperion_input::{
+use hyperion_events::{
     mouse::{buffer::recv, event::MouseEvent},
     Recv,
 };
