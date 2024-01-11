@@ -4,12 +4,7 @@
 
 use core::ops::{Add, Sub};
 
-use hyperion_checked::{CheckedAdd, CheckedSub};
 use time::Duration;
-
-//
-
-// const NANOS_PER_FEMTOS: u64 = 1_000_000;
 
 //
 
@@ -49,6 +44,20 @@ impl Instant {
     pub fn is_reached(self) -> bool {
         self < Self::now()
     }
+}
+
+//
+
+pub trait CheckedAdd<Rhs = Self> {
+    type Output;
+
+    fn checked_add(self, rhs: Rhs) -> Option<Self::Output>;
+}
+
+pub trait CheckedSub<Rhs = Self> {
+    type Output;
+
+    fn checked_sub(self, rhs: Rhs) -> Option<Self::Output>;
 }
 
 impl CheckedAdd<Duration> for Instant {

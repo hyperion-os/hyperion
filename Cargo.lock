@@ -628,10 +628,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperion-checked"
-version = "0.2.0"
-
-[[package]]
 name = "hyperion-clock"
 version = "0.2.0"
 dependencies = [
@@ -825,7 +821,6 @@ dependencies = [
 name = "hyperion-instant"
 version = "0.2.0"
 dependencies = [
- "hyperion-checked",
  "hyperion-clock",
  "time",
 ]

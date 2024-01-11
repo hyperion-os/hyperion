@@ -11,5 +11,4 @@ workspace = true
 [dependencies]
 time.workspace = true
 
-hyperion-checked.path = "../checked"
 hyperion-clock.path = "../clock"
