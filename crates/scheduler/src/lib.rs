@@ -92,8 +92,6 @@ pub fn rename(new_name: impl Into<ArcStr>) {
 /// init this processors scheduling and
 /// immediately switch to the provided task
 pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
-    hyperion_arch::int::disable();
-
     // init the TLS struct before the apic timer handler tries to
     _ = tls();
 
@@ -102,7 +100,6 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
 
     // init scheduler's custom general protection fault handler
     ints::GP_FAULT_HANDLER.store(|| {
-        process().should_terminate.store(true, Ordering::Relaxed);
         debug!("GPF self term");
         exit();
     });
@@ -111,19 +108,18 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
     apic::APIC_TIMER_HANDLER.store(|| {
         hyperion_events::timer::wake();
 
-        let tls = tls();
-        if !tls.initialized.load(Ordering::SeqCst) || tls.idle.load(Ordering::SeqCst) {
+        if tls().idle.load(Ordering::Acquire) {
+            // don't task switch while waiting for tasks
             return;
         }
 
-        if process().should_terminate.swap(false, Ordering::Relaxed) {
+        // inter-processor interrupts instead
+        if process().should_terminate.load(Ordering::Relaxed) {
             exit();
         }
 
         // yield_now();
     });
-
-    // hyperion_sync::init_futex(futex::wait, futex::wake);
 
     // init `Once` in TLS
     _ = crate::task();
@@ -136,7 +132,7 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
                 type_name_of_val(&thread).into(),
                 AddressSpace::new(PageMap::new()),
             );
-            process.threads.store(0, Ordering::Relaxed);
+            process.threads.store(0, Ordering::Release);
             process
         })
         .clone();
