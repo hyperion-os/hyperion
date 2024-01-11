@@ -805,7 +805,6 @@ dependencies = [
  "hyperion-driver-acpi",
  "hyperion-events",
  "hyperion-instant",
- "hyperion-int-safe-lazy",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-random",
@@ -822,13 +821,6 @@ version = "0.2.0"
 dependencies = [
  "hyperion-clock",
  "time",
-]
-
-[[package]]
-name = "hyperion-int-safe-lazy"
-version = "0.2.0"
-dependencies = [
- "spin",
 ]
 
 [[package]]
@@ -1038,7 +1030,7 @@ dependencies = [
  "hyperion-cpu-id",
  "hyperion-driver-acpi",
  "hyperion-events",
- "hyperion-int-safe-lazy",
+ "hyperion-instant",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-random",
