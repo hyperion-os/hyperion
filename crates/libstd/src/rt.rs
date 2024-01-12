@@ -22,7 +22,13 @@ fn lang_start<T: Termination>(
 }
 
 #[no_mangle]
-extern "C" fn _start(hyperion_cli_args_ptr: usize, _a2: usize) -> ! {
+#[naked]
+extern "C" fn _start() -> ! {
+    unsafe { core::arch::asm!("jmp rust_start", options(noreturn)) }
+}
+
+#[no_mangle]
+extern "C" fn rust_start(hyperion_cli_args_ptr: usize, _a2: usize) -> ! {
     // rustc generates the real `main` function, that fn
     // simply calls `lang_start` with the correct args
     extern "Rust" {

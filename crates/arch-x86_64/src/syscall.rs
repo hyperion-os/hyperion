@@ -83,15 +83,14 @@ impl fmt::Display for SyscallRegs {
 
 //
 
-/// # Safety
-/// the `_instr_ptr` (RIP) and `_stack_ptr` (RSP) arguments must be valid user space
-/// application virtual addresses
+/// jump into the instruction pointer with a given stack and arguments
 ///
-/// syscalls must also be initialized before calling this
-///
-/// this call won't return
-#[no_mangle]
-pub unsafe extern "C" fn userland(
+/// the processor switches into user privileges so it is safe to call with garbage args
+pub fn userland(instr_ptr: VirtAddr, stack_ptr: VirtAddr, argc: u64, argv: u64) -> ! {
+    jump_userland(instr_ptr, stack_ptr, argc, argv)
+}
+
+extern "C" fn jump_userland(
     _instr_ptr: VirtAddr,
     _stack_ptr: VirtAddr,
     _argc: u64,
@@ -101,6 +100,10 @@ pub unsafe extern "C" fn userland(
     // rsi = _stack_ptr
     // rdx = _argc
     // rcx = _argv
+    /// # Safety
+    /// the processor jumps into user space with user privileges so it can't hurt the kernel
+    ///
+    /// this call won't return
     unsafe {
         asm!(
             // "cli",
@@ -208,7 +211,6 @@ unsafe extern "C" fn syscall_wrapper() {
 }
 
 #[inline(always)]
-#[no_mangle]
 unsafe extern "C" fn syscall(regs: *mut SyscallRegs) {
     SYSCALL_HANDLER.load()(unsafe { &mut *regs });
 }

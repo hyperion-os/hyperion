@@ -147,7 +147,7 @@ impl<'a> Loader<'a> {
 
         push(&mut stack_top, args.len() as u64);
 
-        (stack_top.align_down(0x8u64), stack_top)
+        (stack_top.align_down(0x80u64) - 0x8u64, stack_top)
     }
 
     // TODO: impl args
@@ -165,7 +165,7 @@ impl<'a> Loader<'a> {
 
         let (stack_top, arg) = Self::init_stack(args);
 
-        trace!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}");
+        debug!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}");
         trace!("cli args init with: {:#x} {:#x}", arg.as_u64(), 69);
         unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, arg.as_u64(), 69) };
     }

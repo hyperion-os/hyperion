@@ -5,7 +5,8 @@
     const_mut_refs,
     str_split_remainder,
     lang_items,
-    never_type
+    never_type,
+    naked_functions
 )]
 
 //
