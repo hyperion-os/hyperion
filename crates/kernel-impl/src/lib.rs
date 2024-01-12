@@ -201,21 +201,27 @@ impl FileDescriptor for FileDescData {
     fn seek(&self, offset: isize, origin: Seek) -> Result<usize> {
         let pos = match origin {
             Seek::SET => {
-                let _lock = self.file_ref.lock();
+                let lock = self.file_ref.lock();
                 let offset = offset.abs_diff(0);
                 self.position.store(offset, Ordering::SeqCst);
+                drop(lock);
                 offset
             }
             Seek::CUR => match offset.signum() {
                 1 => {
-                    let _lock = self.file_ref.lock();
-                    self.position.fetch_add(offset as usize, Ordering::SeqCst)
+                    let lock = self.file_ref.lock();
+                    let pos = self.position.fetch_add(offset as usize, Ordering::SeqCst);
+                    drop(lock);
+                    pos
                 }
                 0 => self.position.load(Ordering::SeqCst),
                 -1 => {
-                    let _lock = self.file_ref.lock();
-                    self.position
-                        .fetch_sub((-offset) as usize, Ordering::SeqCst)
+                    let lock = self.file_ref.lock();
+                    let pos = self
+                        .position
+                        .fetch_sub((-offset) as usize, Ordering::SeqCst);
+                    drop(lock);
+                    pos
                 }
                 _ => unreachable!(),
             },
@@ -223,6 +229,7 @@ impl FileDescriptor for FileDescData {
                 let lock = self.file_ref.lock();
                 let pos = (lock.len() as isize + offset) as usize;
                 self.position.store(pos, Ordering::SeqCst);
+                drop(lock);
                 pos
             }
             _ => return Err(Error::INVALID_FLAGS),
@@ -237,6 +244,7 @@ impl FileDescriptor for FileDescData {
             .read(self.position.load(Ordering::SeqCst), buf)
             .map_err(map_vfs_err_to_syscall_err)?;
         self.position.fetch_add(bytes, Ordering::SeqCst);
+        drop(lock);
         Ok(bytes)
     }
 
@@ -246,6 +254,7 @@ impl FileDescriptor for FileDescData {
             .write(self.position.load(Ordering::SeqCst), buf)
             .map_err(map_vfs_err_to_syscall_err)?;
         self.position.fetch_add(bytes, Ordering::SeqCst);
+        drop(lock);
         Ok(bytes)
     }
 }

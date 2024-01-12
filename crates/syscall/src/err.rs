@@ -84,21 +84,21 @@ impl Error {
 }
 
 impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
 
 impl core::error::Error for Error {}
 
-impl From<Error> for anyhow::Error {
-    fn from(value: Error) -> Self {
-        anyhow::Error::msg(value)
-    }
-}
+// impl From<Error> for anyhow::Error {
+//     fn from(value: Error) -> Self {
+//         anyhow::Error::msg(value)
+//     }
+// }

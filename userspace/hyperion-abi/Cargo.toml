@@ -1,0 +1,13 @@
+[package]
+name = "hyperion-abi"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hyperion-syscall.path = "../../crates/syscall"
+hyperion-slab-alloc.path = "../../crates/slab-alloc"
+
+[lints]
+workspace = true

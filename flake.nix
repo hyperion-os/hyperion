@@ -21,10 +21,10 @@
           buildInputs = with pkgs; [
             pkg-config
             openssl
-            (rust-bin.nightly.latest.default.override {
-              extensions = [ "rust-src" ];
-              targets = [ "x86_64-unknown-none" ];
-            })
+            # (rust-bin.nightly.latest.default.override {
+            #   extensions = [ "rust-src" ];
+            #   targets = [ "x86_64-unknown-none" ];
+            # })
             rust-analyzer
             rustup
             lldb
@@ -32,6 +32,7 @@
             cargo-nextest
             cargo-expand
             cargo-make
+            cargo-fuzz
             act
             lld_16
             clang_16

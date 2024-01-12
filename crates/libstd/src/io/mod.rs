@@ -13,14 +13,22 @@ mod stdio;
 pub trait Read {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
 
-    fn read_exact(&mut self, mut buf: &mut [u8], bytes_read: &mut usize) -> Result<()> {
+    // fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize> {
+    //     std::io::Read::read_to_end;
+    //     default_read_to_end(self, buf, None)
+    // }
+
+    // fn read_to_string(&mut self, buf: &mut String) -> Result<usize> {
+    //     default_read_to_string(self, buf, None)
+    // }
+
+    fn read_exact(&mut self, mut buf: &mut [u8]) -> Result<()> {
         while !buf.is_empty() {
             match self.read(buf) {
                 Ok(0) => break,
                 Ok(n) => {
                     let tmp = buf;
                     buf = &mut tmp[n..];
-                    *bytes_read += n;
                 }
                 Err(Error::INTERRUPTED) => {}
                 Err(err) => return Err(err),
@@ -83,8 +91,9 @@ pub trait Write {
             err: Ok(()),
         };
         _ = fmt::write(&mut writer, args);
+        writer.err?;
         writer.inner.flush()?;
-        writer.err
+        Ok(())
     }
 }
 
