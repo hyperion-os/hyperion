@@ -10,7 +10,7 @@ use lock_api::RawMutex;
 
 use crate::{
     slab::{AllocMetadata, BigAllocMetadata},
-    PageFrameAllocator, PageFrames, Slab,
+    AllocBackend, PageFrames, Slab,
 };
 
 //
@@ -35,7 +35,6 @@ impl SlabAllocatorStats {
 //
 
 pub struct SlabAllocator<P, Lock> {
-    // TODO: lock-free
     slabs: [Slab<P, Lock>; 13],
     stats: SlabAllocatorStats,
 
@@ -46,7 +45,7 @@ pub struct SlabAllocator<P, Lock> {
 
 unsafe impl<P, Lock> GlobalAlloc for SlabAllocator<P, Lock>
 where
-    P: PageFrameAllocator,
+    P: AllocBackend,
     Lock: RawMutex,
 {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -116,7 +115,7 @@ where
 
 impl<P, Lock> SlabAllocator<P, Lock>
 where
-    P: PageFrameAllocator,
+    P: AllocBackend,
     Lock: RawMutex,
 {
     pub fn alloc(&self, size: usize) -> *mut u8 {

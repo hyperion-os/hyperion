@@ -50,7 +50,48 @@ rustup target add x86_64-unknown-none
 rustup toolchain install nightly
 ```
 
-## Example image(s)
+## Compiling Rust programs for hyperion (with the std library)
+
+### Building x86_64-unknown-hyperion toolchain
+```bash
+# clone my rust fork
+git clone git@github.com:xor-bits/rust.git
+cd rust
+
+# configure ./x for building the hyperion cross-compile target
+echo "
+profile = "dist"
+
+[build]
+target = ["x86_64-unknown-linux-gnu", "x86_64-unknown-hyperion"]
+
+[rust]
+incremental = true
+" > config.toml
+
+# compile the Rust compiler + std library for hyperion
+./x build --stage 2 library --target x86_64-unknown-hyperion
+
+# link the toolchain, so that the installed rustc can use it
+rustup toolchain link dev-x86_64-unknown-hyperion ./build/x86_64-unknown-linux-gnu/stage2
+```
+
+### Compiling with x86_64-unknown-hyperion
+```bash
+# remove the target dir, if the std library has been recompiled
+# (rust doesn't detect that automatically for some reason)
+rm -rf ./target/x86_64-unknown-hyperion
+# I prefer keeping all build artefacts in one location to speed up compilation and reduce disk use:
+#rm -rf $CARGO_HOME/target/x86_64-unknown-hyperion
+
+# compile the package using x86_64-unknown-hyperion
+cargo +dev-x86_64-unknown-hyperion build --target=x86_64-unknown-hyperion --package=std-test
+
+# copy the binary to the asset directory (building the kernel will automatically embed it)
+cp $CARGO_HOME/target/x86_64-unknown-hyperion/debug/std-test asset/bin/std-test
+```
+
+## Demo(s)
 
 ![image](https://github.com/xor-bits/hyperion/assets/42496863/cde71ecf-825f-4e5b-9a32-f204ffbef6e7)
 

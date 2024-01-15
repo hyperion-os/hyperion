@@ -1,38 +1,22 @@
-#![feature(c_size_t)]
+use std::{collections::HashMap, fs::OpenOptions, io::Read, path::Path};
 
-use core::ffi;
-
-// void* memcpy( void *dest, const void *src, size_t count );
-#[no_mangle]
-pub extern "C" fn memcpy(dest: *mut ffi::c_void, src: *const ffi::c_void, count: usize) {
-    panic!("memcpy {dest:?} {src:?} {count}");
-}
-
-// int memcmp( const void* lhs, const void* rhs, size_t count );
-#[no_mangle]
-pub extern "C" fn memcmp(
-    lhs: *const ffi::c_void,
-    rhs: *const ffi::c_void,
-    count: ffi::c_size_t,
-) -> std::ffi::c_int {
-    panic!("memcmp {lhs:?} {rhs:?} {count}");
-}
-
-// void* memmove( void* dest, const void* src, size_t count );
-#[no_mangle]
-pub extern "C" fn memmove(
-    dest: *mut ffi::c_void,
-    src: *const ffi::c_void,
-    count: usize,
-) -> *mut ffi::c_void {
-    panic!("memmove {dest:?} {src:?} {count}");
-}
-
-#[no_mangle]
-pub extern "C" fn __libc_start_main() -> ! {
-    panic!();
-}
+//
 
 fn main() {
-    println!("Hello, world!");
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::level_filters::LevelFilter::TRACE)
+        .init();
+
+    let path = Path::new("splash");
+    let mut file = OpenOptions::new().read(true).open(path).unwrap();
+    let mut buf = String::new();
+    file.read_to_string(&mut buf).unwrap();
+
+    let mut map = HashMap::<i32, i32>::new();
+    map.insert(53, 35);
+    map.insert(0, 1);
+
+    println!("{map:?}");
+
+    println!("{buf}");
 }

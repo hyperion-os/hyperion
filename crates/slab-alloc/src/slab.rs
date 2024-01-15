@@ -8,7 +8,7 @@ use core::{
 
 use bytemuck::{Pod, Zeroable};
 
-use crate::{PageFrameAllocator, SlabAllocatorStats, PAGE_SIZE};
+use crate::{AllocBackend, SlabAllocatorStats, PAGE_SIZE};
 
 //
 
@@ -75,7 +75,7 @@ impl<P, Lock> Slab<P, Lock> {
 
 impl<P, Lock> Slab<P, Lock>
 where
-    P: PageFrameAllocator,
+    P: AllocBackend,
 {
     pub fn alloc(&self, idx: u8, stats: &SlabAllocatorStats) -> *mut u8 {
         #[cfg(feature = "log")]

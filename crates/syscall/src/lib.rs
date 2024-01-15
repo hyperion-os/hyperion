@@ -4,6 +4,7 @@
 //
 
 use core::{
+    mem::MaybeUninit,
     ptr::{self, NonNull},
     sync::atomic::AtomicUsize,
 };
@@ -212,6 +213,11 @@ pub fn close(file: FileDesc) -> Result<()> {
 
 /// read from a file
 pub fn read(file: FileDesc, buf: &mut [u8]) -> Result<usize> {
+    unsafe { syscall_3(id::READ, file.0, buf.as_mut_ptr() as usize, buf.len()) }
+}
+
+/// read from a file
+pub fn read_uninit(file: FileDesc, buf: &mut [MaybeUninit<u8>]) -> Result<usize> {
     unsafe { syscall_3(id::READ, file.0, buf.as_mut_ptr() as usize, buf.len()) }
 }
 

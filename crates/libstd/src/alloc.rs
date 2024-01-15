@@ -1,6 +1,6 @@
 use core::{alloc::GlobalAlloc, ptr::NonNull};
 
-use hyperion_slab_alloc::{PageFrameAllocator, PageFrames, SlabAllocator};
+use hyperion_slab_alloc::{AllocBackend, PageFrames, SlabAllocator};
 use hyperion_syscall::{palloc, pfree};
 
 //
@@ -22,7 +22,7 @@ unsafe impl GlobalAlloc for PageAlloc {
     }
 }
 
-impl PageFrameAllocator for PageAlloc {
+impl AllocBackend for PageAlloc {
     fn alloc(pages: usize) -> PageFrames {
         let alloc = palloc(pages).unwrap().unwrap();
         unsafe { PageFrames::new(alloc.as_ptr(), pages) }

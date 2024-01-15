@@ -6,6 +6,7 @@ use alloc::{
     vec::Vec,
 };
 use core::{
+    alloc::Layout,
     any::{type_name_of_val, Any},
     cell::UnsafeCell,
     fmt, mem,
@@ -215,6 +216,10 @@ pub struct Process {
     /// a store for all allocated (and mapped) physical pages
     pub allocs: PageAllocs,
 
+    /// TLS object data, each thread allocates one into the userspace
+    /// and the $fs segment register should be set to point to it
+    pub master_tls: Once<(VirtAddr, Layout)>,
+
     /// extra process info added by the kernel (like file descriptors)
     pub ext: Once<Box<dyn ProcessExt + 'static>>,
 
@@ -245,6 +250,7 @@ impl Process {
             address_space,
             heap_bottom: AtomicUsize::new(0x1000),
             allocs: PageAllocs::default(),
+            master_tls: Once::new(),
             ext: Once::new(),
             should_terminate: AtomicBool::new(false),
         });

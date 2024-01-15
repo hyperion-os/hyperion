@@ -14,7 +14,9 @@
     const_pointer_is_aligned,
     strict_provenance_atomic_ptr,
     new_uninit,
-    const_ptr_is_null
+    const_ptr_is_null,
+    allocator_api,
+    inline_const
 )]
 
 //
@@ -27,6 +29,7 @@ pub use slab::Slab;
 //
 
 mod alloc;
+mod local;
 mod slab;
 // mod stack;
 
@@ -37,7 +40,7 @@ const PAGE_SIZE: usize = 0x1000; // 4KiB pages
 //
 
 /// a backend allocator, allocates whole pages (4KiB blocks)
-pub trait PageFrameAllocator {
+pub trait AllocBackend {
     fn alloc(pages: usize) -> PageFrames;
 
     fn free(frames: PageFrames);
@@ -87,5 +90,3 @@ impl PageFrames {
         self.first
     }
 }
-
-//

@@ -13,6 +13,7 @@ use crate::{tls::ThreadLocalStorage, vmm::PageMap};
 pub struct Context {
     pub rsp: VirtAddr,
     pub cr3: PhysAddr,
+    pub fs: VirtAddr,
     pub syscall_stack: VirtAddr,
 }
 
@@ -57,6 +58,7 @@ impl Context {
         Self {
             cr3: page_map.cr3().start_address(),
             rsp,
+            fs: VirtAddr::new_truncate(0),
             syscall_stack: stack_top,
         }
     }
@@ -68,6 +70,7 @@ impl Context {
         Self {
             cr3: page_map.cr3().start_address(),
             rsp: VirtAddr::new_truncate(0),
+            fs: VirtAddr::new_truncate(0),
             syscall_stack: VirtAddr::new_truncate(0),
         }
     }
@@ -121,8 +124,10 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
 
             // save prev task
             "mov [rdi+{rsp}], rsp", // save prev stack
+            "mov [rdi+{fs}], fs",   // save thread local pointer
 
             // load next task
+            "mov fs, [rsi+{fs}]",   // load thread local pointer
             "mov rsp, [rsi+{rsp}]", // load next stack
             "mov rax, [rsi+{cr3}]", // rax = next virtual address space
 
@@ -145,6 +150,7 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
 
             rsp = const(offset_of!(Context, rsp)),
             cr3 = const(offset_of!(Context, cr3)),
+            fs = const(offset_of!(Context, fs)),
             options(noreturn)
         );
     }

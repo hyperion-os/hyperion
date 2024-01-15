@@ -327,7 +327,8 @@ impl<T: StackType + Debug> Stack<T> {
 
         // TODO: configurable grow_by_rate
         if let Err(StackLimitHit) = self.grow(page_map, 1) {
-            panic!("stack overflow");
+            return Ok(NotHandled);
+            // panic!("stack overflow");
         }
 
         trace!(

@@ -5,10 +5,10 @@
 
 extern crate alloc;
 
-use core::{mem::MaybeUninit, slice};
+use core::{alloc::Layout, mem::MaybeUninit, slice};
 
 use elf::{
-    abi::{PF_R, PF_W, PF_X, PT_LOAD},
+    abi::{PF_R, PF_W, PF_X, PT_LOAD, PT_TLS},
     endian::AnyEndian,
     segment::ProgramHeader,
     ElfBytes,
@@ -17,7 +17,7 @@ use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_log::*;
 use hyperion_mem::{is_higher_half, to_higher_half, vmm::PageMapImpl};
 use hyperion_scheduler::process;
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{align_up, structures::paging::PageTableFlags, VirtAddr};
 
 //
 
@@ -39,10 +39,26 @@ impl<'a> Loader<'a> {
     pub fn load(&self) {
         // TODO: at least some safety with malicious ELFs
 
+        for section in self.parser.section_headers().unwrap().into_iter() {}
+
         let segments = self.parser.segments().expect("TODO:");
 
+        // let mut master_tls_copy: Option<Layout> = None;
+        // for header in segments.iter().filter(|h| h.p_type == PT_TLS) {
+        //     let master_tls_copy = master_tls_copy.get_or_insert_default();
+
+        //     if !header.p_align.is_power_of_two() {
+        //         panic!("align should be power of 2");
+        //     }
+
+        //     let size = align_up(header.p_memsz, header.p_align);
+        //     let align = header.p_align;
+
+        //     master_tls_copy.extend(Layout::from_size_align(size, align));
+        // }
+
         // TODO: max segments
-        for segment in segments.iter().filter(|segment| segment.p_type == PT_LOAD) {
+        for segment in segments.iter() {
             self.load_segment(segment);
         }
 
@@ -50,7 +66,16 @@ impl<'a> Loader<'a> {
     }
 
     pub fn load_segment(&self, segment: ProgramHeader) {
-        /* debug!("Loading segment {segment:#?}"); */
+        debug!("Loading segment {segment:#?}");
+        let flags = Self::flags(segment.p_flags);
+
+        if segment.p_type == PT_TLS {
+            debug!("TLS {flags:?}");
+        }
+
+        if segment.p_type != PT_LOAD {
+            return;
+        }
 
         let align = segment.p_align;
         let v_addr = VirtAddr::new(segment.p_vaddr)
@@ -146,8 +171,19 @@ impl<'a> Loader<'a> {
         }
 
         push(&mut stack_top, args.len() as u64);
+        let argv = stack_top;
 
-        (stack_top.align_down(0x80u64) - 0x8u64, stack_top)
+        stack_top = stack_top.align_down(0x10u64); // align the stack to 16
+
+        // push a return address 0 (8-byte) because the _start function expects
+        // that the stack was 16-byte aligned when jumping into it,
+        // but jumping pushes the return address (8-bytes) to effectively unalign it
+        //
+        // we jump into user space with sysretq, which does not push anything to the stack
+        // so this has to be 'emulated'
+        push(&mut stack_top, 0u64);
+
+        (stack_top, argv)
     }
 
     // TODO: impl args
@@ -163,11 +199,11 @@ impl<'a> Loader<'a> {
             return None;
         }
 
-        let (stack_top, arg) = Self::init_stack(args);
+        let (stack_top, argv) = Self::init_stack(args);
 
         debug!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}");
-        trace!("cli args init with: {:#x} {:#x}", arg.as_u64(), 69);
-        unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, arg.as_u64(), 69) };
+        trace!("cli args init with: {:#x} {:#x}", argv.as_u64(), 69);
+        unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, argv.as_u64(), 69) };
     }
 }
 

@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use hyperion_boot::hhdm_offset;
-use hyperion_slab_alloc::{PageFrameAllocator, PageFrames, SlabAllocator};
+use hyperion_slab_alloc::{AllocBackend, PageFrames, SlabAllocator};
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::pmm::{PageFrame, PFA};
@@ -24,7 +24,7 @@ pub type KernelSlabAlloc<Lock> = SlabAllocator<Pfa, Lock>;
 
 pub struct Pfa;
 
-impl PageFrameAllocator for Pfa {
+impl AllocBackend for Pfa {
     fn alloc(pages: usize) -> PageFrames {
         let pages = PFA.alloc(pages);
 
