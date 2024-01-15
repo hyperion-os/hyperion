@@ -59,7 +59,7 @@ git clone git@github.com:xor-bits/rust.git
 cd rust
 
 # configure ./x for building the hyperion cross-compile target
-echo "
+echo '
 profile = "dist"
 
 [build]
@@ -67,7 +67,7 @@ target = ["x86_64-unknown-linux-gnu", "x86_64-unknown-hyperion"]
 
 [rust]
 incremental = true
-" > config.toml
+' > config.toml
 
 # compile the Rust compiler + std library for hyperion
 ./x build --stage 2 library --target x86_64-unknown-hyperion
@@ -88,7 +88,8 @@ rm -rf ./target/x86_64-unknown-hyperion
 cargo +dev-x86_64-unknown-hyperion build --target=x86_64-unknown-hyperion --package=std-test
 
 # copy the binary to the asset directory (building the kernel will automatically embed it)
-cp $CARGO_HOME/target/x86_64-unknown-hyperion/debug/std-test asset/bin/std-test
+cp ./target/x86_64-unknown-hyperion/debug/std-test asset/bin/std-test
+#cp $CARGO_HOME/target/x86_64-unknown-hyperion/debug/std-test asset/bin/std-test
 ```
 
 ## Demo(s)
