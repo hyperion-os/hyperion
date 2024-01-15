@@ -1,4 +1,4 @@
-use core::fmt;
+use core::{fmt, mem};
 
 use core_alloc::{boxed::Box, string::String, vec::Vec};
 use hyperion_syscall::err::{Error, Result};
@@ -104,6 +104,41 @@ impl<T: Write> Write for &mut T {
 
     fn flush(&mut self) -> Result<()> {
         (**self).flush()
+    }
+}
+
+//
+
+pub trait WriteExt {
+    fn fmt(&mut self) -> &mut FmtWrite<Self>;
+}
+
+impl<T: Write> WriteExt for T {
+    fn fmt(&mut self) -> &mut FmtWrite<Self> {
+        unsafe { mem::transmute::<&mut T, &mut FmtWrite<T>>(self) }
+    }
+}
+
+//
+
+#[repr(transparent)]
+pub struct FmtWrite<T: ?Sized>(T);
+
+impl<T: ?Sized + Write> fmt::Write for FmtWrite<T> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        if self.0.write_all(s.as_bytes()).is_err() {
+            Err(fmt::Error)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn write_fmt(&mut self, args: fmt::Arguments) -> fmt::Result {
+        if Write::write_fmt(&mut self.0, args).is_err() {
+            Err(fmt::Error)
+        } else {
+            Ok(())
+        }
     }
 }
 
