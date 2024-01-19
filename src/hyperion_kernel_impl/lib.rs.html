@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel-impl/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-4e54bb2b497cc83f.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel_impl" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (190f4c961 2024-01-09)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-0b2e2def73e61cbe.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel-impl/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-4e54bb2b497cc83f.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel_impl" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (25f8d01fd 2024-01-18)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-0b2e2def73e61cbe.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
             <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../hyperion_kernel_impl/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
@@ -649,6 +649,15 @@
 <a href="#647" id="647">647</a>
 <a href="#648" id="648">648</a>
 <a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 #![feature(pointer_is_aligned)]
 
@@ -852,21 +861,27 @@
     <span class="kw">fn </span>seek(<span class="kw-2">&amp;</span><span class="self">self</span>, offset: isize, origin: Seek) -&gt; <span class="prelude-ty">Result</span>&lt;usize&gt; {
         <span class="kw">let </span>pos = <span class="kw">match </span>origin {
             Seek::SET =&gt; {
-                <span class="kw">let </span>_lock = <span class="self">self</span>.file_ref.lock();
+                <span class="kw">let </span>lock = <span class="self">self</span>.file_ref.lock();
                 <span class="kw">let </span>offset = offset.abs_diff(<span class="number">0</span>);
                 <span class="self">self</span>.position.store(offset, Ordering::SeqCst);
+                drop(lock);
                 offset
             }
             Seek::CUR =&gt; <span class="kw">match </span>offset.signum() {
                 <span class="number">1 </span>=&gt; {
-                    <span class="kw">let </span>_lock = <span class="self">self</span>.file_ref.lock();
-                    <span class="self">self</span>.position.fetch_add(offset <span class="kw">as </span>usize, Ordering::SeqCst)
+                    <span class="kw">let </span>lock = <span class="self">self</span>.file_ref.lock();
+                    <span class="kw">let </span>pos = <span class="self">self</span>.position.fetch_add(offset <span class="kw">as </span>usize, Ordering::SeqCst);
+                    drop(lock);
+                    pos
                 }
                 <span class="number">0 </span>=&gt; <span class="self">self</span>.position.load(Ordering::SeqCst),
                 -<span class="number">1 </span>=&gt; {
-                    <span class="kw">let </span>_lock = <span class="self">self</span>.file_ref.lock();
-                    <span class="self">self</span>.position
-                        .fetch_sub((-offset) <span class="kw">as </span>usize, Ordering::SeqCst)
+                    <span class="kw">let </span>lock = <span class="self">self</span>.file_ref.lock();
+                    <span class="kw">let </span>pos = <span class="self">self
+                        </span>.position
+                        .fetch_sub((-offset) <span class="kw">as </span>usize, Ordering::SeqCst);
+                    drop(lock);
+                    pos
                 }
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
             },
@@ -874,6 +889,7 @@
                 <span class="kw">let </span>lock = <span class="self">self</span>.file_ref.lock();
                 <span class="kw">let </span>pos = (lock.len() <span class="kw">as </span>isize + offset) <span class="kw">as </span>usize;
                 <span class="self">self</span>.position.store(pos, Ordering::SeqCst);
+                drop(lock);
                 pos
             }
             <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(Error::INVALID_FLAGS),
@@ -888,6 +904,7 @@
             .read(<span class="self">self</span>.position.load(Ordering::SeqCst), buf)
             .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
         <span class="self">self</span>.position.fetch_add(bytes, Ordering::SeqCst);
+        drop(lock);
         <span class="prelude-val">Ok</span>(bytes)
     }
 
@@ -897,6 +914,7 @@
             .write(<span class="self">self</span>.position.load(Ordering::SeqCst), buf)
             .map_err(map_vfs_err_to_syscall_err)<span class="question-mark">?</span>;
         <span class="self">self</span>.position.fetch_add(bytes, Ordering::SeqCst);
+        drop(lock);
         <span class="prelude-val">Ok</span>(bytes)
     }
 }

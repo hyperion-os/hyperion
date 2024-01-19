@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Instant"]};
+window.SIDEBAR_ITEMS = {"struct":["Instant"],"trait":["CheckedAdd","CheckedSub"]};

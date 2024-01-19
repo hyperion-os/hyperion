@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["push"],"struct":["Loader"]};
+window.SIDEBAR_ITEMS = {"fn":["push"],"struct":["Loader","NoEntryPoint"]};
