@@ -218,14 +218,12 @@ pub fn spawn_userspace(fn_ptr: u64, fn_arg: u64) {
     spawn(move || {
         let stack_top = task().user_stack.lock().top;
 
-        unsafe {
-            hyperion_arch::syscall::userland(
-                VirtAddr::new(fn_ptr),
-                stack_top,
-                stack_top.as_u64(),
-                fn_arg,
-            )
-        };
+        hyperion_arch::syscall::userland(
+            VirtAddr::new(fn_ptr),
+            stack_top,
+            stack_top.as_u64(),
+            fn_arg,
+        );
     });
 }
 

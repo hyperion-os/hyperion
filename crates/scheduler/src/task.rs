@@ -30,7 +30,10 @@ use hyperion_mem::{
 };
 use hyperion_sync::TakeOnce;
 use spin::{Mutex, MutexGuard, Once, RwLock};
-use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
+use x86_64::{
+    align_up, registers::model_specific::FsBase, structures::paging::PageTableFlags, PhysAddr,
+    VirtAddr,
+};
 
 use crate::{after, cleanup::Cleanup, done, swap_current, task, tls};
 
@@ -68,6 +71,11 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
         panic!("this task is already running");
     }
 
+    if let Some(tls) = next.tls.get().copied() {
+        FsBase::write(tls);
+        // unsafe { FS::write_base(tls) };
+    }
+
     // tell the page fault handler that the actual current task is still this one
     let task = task();
     let task_inner: &TaskInner = &task;
@@ -103,12 +111,16 @@ fn post_ctx_switch() {
         .store(ptr::null_mut(), Ordering::SeqCst);
 
     crate::cleanup();
+
+    // hyperion_arch::
 }
 
 extern "C" fn thread_entry() -> ! {
     post_ctx_switch();
 
-    let job = task().job.take().expect("no active jobs");
+    let task = task();
+
+    let job = task.job.take().expect("no active jobs");
     job();
 
     done();
@@ -403,6 +415,9 @@ pub struct TaskInner {
     /// thread_entry runs this function once, and stops the process after returning
     pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>, Mutex<()>>,
 
+    /// a copy of the master TLS for specifically this task
+    pub tls: Once<VirtAddr>,
+
     // context is used 'unsafely' only in the switch
     // TaskInner is pinned in heap using a Box to make sure a pointer to this (`context`)
     // is valid after switching task before switching context
@@ -410,6 +425,50 @@ pub struct TaskInner {
 
     // context is valid to switch to only if this is true
     is_valid: bool,
+}
+
+impl TaskInner {
+    pub fn init_tls(&self) {
+        _ = self.tls.try_call_once(|| {
+            let Some((addr, layout)) = self.master_tls.get().copied() else {
+                // master tls doesn't exist, so don't copy it
+                return Err(());
+            };
+
+            // TODO: deallocate it when the thread quits
+
+            // the alloc is align_up(TLS) + TCB
+            let tls_alloc = align_up(layout.size() as u64, 0x10u64) + 0x8u64;
+            let (tls_copy, _) = self
+                .alloc(
+                    tls_alloc.div_ceil(0x1000) as usize,
+                    PageTableFlags::USER_ACCESSIBLE
+                        | PageTableFlags::WRITABLE
+                        | PageTableFlags::PRESENT,
+                )
+                .unwrap();
+
+            // copy the master TLS
+            unsafe {
+                ptr::copy_nonoverlapping::<u8>(addr.as_ptr(), tls_copy.as_mut_ptr(), layout.size());
+            }
+
+            // %fs register value, it points to a pointer to itself, TLS items are right before it
+            let fs = (tls_copy + layout.size()).align_up(0x8u64);
+
+            // %fs:0x0 should point to fsbase
+            unsafe { *fs.as_mut_ptr() = fs.as_u64() };
+
+            // TODO: a more robust is_active fn
+            let active = task();
+            if self.tid == active.tid && self.pid == active.pid {
+                FsBase::write(fs);
+                // unsafe { FS::write_base(tls_copy) };
+            }
+
+            Ok(tls_copy)
+        });
+    }
 }
 
 impl Deref for TaskInner {
@@ -483,6 +542,7 @@ impl Task {
             user_stack: Mutex::new(user_stack),
             kernel_stack: Mutex::new(kernel_stack),
             job: TakeOnce::new(f),
+            tls: Once::new(),
             context,
             is_valid: true,
         }))
@@ -518,6 +578,7 @@ impl Task {
             user_stack: Mutex::new(user_stack),
             kernel_stack: Mutex::new(kernel_stack),
             job: TakeOnce::new(f),
+            tls: Once::new(),
             context,
             is_valid: true,
         }))
@@ -559,6 +620,7 @@ impl Task {
             user_stack: Mutex::new(user_stack),
             kernel_stack: Mutex::new(kernel_stack),
             job: TakeOnce::none(),
+            tls: Once::new(),
             context,
             is_valid: false,
         }))

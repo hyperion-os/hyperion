@@ -100,10 +100,11 @@ extern "C" fn jump_userland(
     // rsi = _stack_ptr
     // rdx = _argc
     // rcx = _argv
-    /// # Safety
-    /// the processor jumps into user space with user privileges so it can't hurt the kernel
-    ///
-    /// this call won't return
+
+    // SAFETY:
+    // the processor jumps into user space with user privileges so it can't hurt the kernel
+    //
+    // this call won't return
     unsafe {
         asm!(
             // "cli",

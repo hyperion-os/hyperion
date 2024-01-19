@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(maybe_uninit_write_slice)]
+#![feature(maybe_uninit_write_slice, never_type)]
 
 //
 
@@ -13,11 +13,16 @@ use elf::{
     segment::ProgramHeader,
     ElfBytes,
 };
+use elf_wrap::*;
 use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_log::*;
 use hyperion_mem::{is_higher_half, to_higher_half, vmm::PageMapImpl};
-use hyperion_scheduler::process;
-use x86_64::{align_up, structures::paging::PageTableFlags, VirtAddr};
+use hyperion_scheduler::{process, task};
+use x86_64::{registers::model_specific::FsBase, structures::paging::PageTableFlags, VirtAddr};
+
+//
+
+mod elf_wrap;
 
 //
 
@@ -25,6 +30,10 @@ pub struct Loader<'a> {
     parser: ElfBytes<'a, AnyEndian>,
     page_map: PageMap,
 }
+
+//
+
+pub struct NoEntryPoint;
 
 //
 
@@ -39,7 +48,33 @@ impl<'a> Loader<'a> {
     pub fn load(&self) {
         // TODO: at least some safety with malicious ELFs
 
-        for section in self.parser.section_headers().unwrap().into_iter() {}
+        let (sections, sections_strtab) = self.parser.section_headers_with_strtab().unwrap();
+
+        let sections = sections.unwrap();
+        let sections_strtab = sections_strtab.unwrap();
+
+        for section in sections
+            .into_iter()
+            .filter_map(|sh| SectionHeader::parse(&self.parser, sh, &sections_strtab))
+        {
+            if section.ty == SectionHeaderType::NOBITS
+                && section.flags.contains(
+                    SectionHeaderFlags::ALLOC | SectionHeaderFlags::WRITE | SectionHeaderFlags::TLS,
+                )
+            {
+                debug!("FOUND .tbss named `{}`", section.name);
+                debug!("{section:?}");
+            }
+
+            if section.ty == SectionHeaderType::PROGBITS
+                && section.flags.contains(
+                    SectionHeaderFlags::ALLOC | SectionHeaderFlags::WRITE | SectionHeaderFlags::TLS,
+                )
+            {
+                debug!("FOUND .tdata named `{}`", section.name);
+                debug!("{section:?}");
+            }
+        }
 
         let segments = self.parser.segments().expect("TODO:");
 
@@ -65,15 +100,10 @@ impl<'a> Loader<'a> {
         // TODO: reloactions
     }
 
+    // pub fn load_tls(&self) {}
+
     pub fn load_segment(&self, segment: ProgramHeader) {
-        debug!("Loading segment {segment:#?}");
-        let flags = Self::flags(segment.p_flags);
-
-        if segment.p_type == PT_TLS {
-            debug!("TLS {flags:?}");
-        }
-
-        if segment.p_type != PT_LOAD {
+        if segment.p_type != PT_LOAD && segment.p_type != PT_TLS {
             return;
         }
 
@@ -121,6 +151,21 @@ impl<'a> Loader<'a> {
         segment_alloc_align_pad.fill(MaybeUninit::zeroed());
         MaybeUninit::write_slice(segment_alloc_data, segment_data);
         segment_alloc_zeros.fill(MaybeUninit::zeroed());
+
+        // if it is the TLS segment, save the master TLS copy location + size
+        // the scheduler will create copies for each thread
+        if segment.p_type == PT_TLS {
+            debug!("TLS {flags:?} {segment:?}");
+            let master_tls = (
+                VirtAddr::new(segment.p_vaddr),
+                Layout::from_size_align(align as _, v_size as _).unwrap(),
+            );
+            let mut loaded = false;
+            process.master_tls.call_once(|| {
+                loaded = true;
+                master_tls
+            });
+        }
     }
 
     fn flags(p_flags: u32) -> PageTableFlags {
@@ -187,7 +232,7 @@ impl<'a> Loader<'a> {
     }
 
     // TODO: impl args
-    pub fn enter_userland(&self, args: &[&str]) -> Option<()> {
+    pub fn enter_userland(&self, args: &[&str]) -> Result<!, NoEntryPoint> {
         self.page_map.activate();
 
         // TODO: this is HIGHLY unsafe atm.
@@ -195,15 +240,16 @@ impl<'a> Loader<'a> {
         let entrypoint = self.parser.ehdr.e_entry;
 
         if entrypoint == 0 {
-            error!("No entrypoint");
-            return None;
+            return Err(NoEntryPoint);
         }
 
         let (stack_top, argv) = Self::init_stack(args);
 
-        debug!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x}");
+        task().init_tls();
+
+        debug!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x} and fs:{:#016x}", FsBase::read());
         trace!("cli args init with: {:#x} {:#x}", argv.as_u64(), 69);
-        unsafe { syscall::userland(VirtAddr::new(entrypoint), stack_top, argv.as_u64(), 69) };
+        syscall::userland(VirtAddr::new(entrypoint), stack_top, argv.as_u64(), 69);
     }
 }
 

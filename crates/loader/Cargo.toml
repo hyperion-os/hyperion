@@ -9,8 +9,9 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-elf.workspace = true
 # goblin = "0.8"
+bitflags.workspace = true
+elf.workspace = true
 x86_64.workspace = true
 
 hyperion-arch.path = "../arch"

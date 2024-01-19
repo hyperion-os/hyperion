@@ -50,9 +50,6 @@ extern "C" fn _start() -> ! {
     // save the bootloader stack range so it can be freed later
     let boot_stack = arch::stack_pages();
 
-    // init GDT, IDT, TSS, TLS and cpu_id
-    arch::init();
-
     if sync::once!() {
         // enable logging and and outputs based on the kernel args,
         // any logging before won't be shown
@@ -64,6 +61,9 @@ extern "C" fn _start() -> ! {
         // user-space syscall handler
         arch::syscall::set_handler(syscall::syscall);
     }
+
+    // init GDT, IDT, TSS, TLS and cpu_id
+    arch::init();
 
     // wake up all cpus
     arch::wake_cpus();

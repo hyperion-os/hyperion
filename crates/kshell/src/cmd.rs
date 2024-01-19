@@ -96,7 +96,8 @@ impl Command {
             loader.load();
 
             // .. and exec the binary
-            if loader.enter_userland(args).is_none() {
+            if loader.enter_userland(args).is_err() {
+                error!("no ELF entrypoint");
                 let stderr = fd_query(FileDesc(2)).unwrap();
                 stderr.write(b"invalid ELF: entry point missing").unwrap();
             }

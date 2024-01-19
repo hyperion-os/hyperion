@@ -942,6 +942,7 @@ dependencies = [
 name = "hyperion-loader"
 version = "0.2.0"
 dependencies = [
+ "bitflags 2.4.1",
  "elf",
  "hyperion-arch",
  "hyperion-boot",

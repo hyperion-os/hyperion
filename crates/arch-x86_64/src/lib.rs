@@ -44,10 +44,10 @@ pub fn init() {
     // init TSS, IDT, GDT
     cpu::init();
 
-    init_sse();
+    init_features();
 }
 
-fn init_sse() {
+fn init_features() {
     let res = unsafe { core::arch::x86_64::__cpuid(0x1) };
     if res.edx & 1 << 25 == 0 {
         panic!("No SSE HW support");
@@ -60,6 +60,7 @@ fn init_sse() {
 
     let mut cr4 = Cr4::read();
     cr4.insert(Cr4Flags::OSFXSR | Cr4Flags::OSXMMEXCPT_ENABLE);
+    // cr4.insert(Cr4Flags::FSGSBASE);
     unsafe { Cr4::write(cr4) };
 }
 

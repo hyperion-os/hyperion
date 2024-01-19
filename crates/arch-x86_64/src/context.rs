@@ -124,10 +124,10 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
 
             // save prev task
             "mov [rdi+{rsp}], rsp", // save prev stack
-            "mov [rdi+{fs}], fs",   // save thread local pointer
+            // "mov [rdi+{fs}], fs",   // save thread local pointer
 
             // load next task
-            "mov fs, [rsi+{fs}]",   // load thread local pointer
+            // "wrfsbase [rsi+{fs}]",   // load thread local pointer
             "mov rsp, [rsi+{rsp}]", // load next stack
             "mov rax, [rsi+{cr3}]", // rax = next virtual address space
 
@@ -150,7 +150,7 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
 
             rsp = const(offset_of!(Context, rsp)),
             cr3 = const(offset_of!(Context, cr3)),
-            fs = const(offset_of!(Context, fs)),
+            // fs = const(offset_of!(Context, fs)),
             options(noreturn)
         );
     }
