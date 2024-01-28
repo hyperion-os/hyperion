@@ -29,7 +29,7 @@ pub use slab::Slab;
 //
 
 mod alloc;
-mod local;
+// mod local;
 mod slab;
 // mod stack;
 
