@@ -179,7 +179,7 @@ pub fn sleep(duration: Duration) {
 pub fn sleep_until(deadline: Instant) {
     update_cpu_usage();
 
-    let Ok(next) = wait_next_task(|| deadline.is_reached().then_some(())) else {
+    let Ok(next) = wait_next_task_while(|| deadline.is_reached().then_some(())) else {
         return;
     };
     switch_because(next, TaskState::Sleeping, Cleanup::Sleep { deadline });
@@ -190,25 +190,24 @@ pub fn sleep_until(deadline: Instant) {
 pub fn done() -> ! {
     update_cpu_usage();
 
-    let proc = process();
-    if let Some(ext) = proc.ext.get()
-        && proc.threads.load(Ordering::SeqCst) == 1
-    {
-        ext.close();
-    }
-    drop(proc);
+    early_close_last_thread();
 
-    let next = wait_next_task::<Infallible>(|| None).unwrap();
-    switch_because(next, TaskState::Dropping, Cleanup::Drop);
-
+    switch_because(wait_next_task(), TaskState::Dropping, Cleanup::Drop);
     unreachable!("a destroyed thread cannot continue executing");
 }
 
 /// destroy the current process
 /// and switch to another
 pub fn exit() -> ! {
+    update_cpu_usage();
+
+    // FIXME: trigger an IPI on all cpu's running for this process
     process().should_terminate.store(true, Ordering::Release);
-    done();
+
+    early_close_last_thread();
+
+    switch_because(wait_next_task(), TaskState::Dropping, Cleanup::Drop);
+    unreachable!("a destroyed thread cannot continue executing");
 }
 
 /// spawn a new thread in the currently running process
@@ -238,6 +237,15 @@ pub fn schedule(new: impl Into<Task>) -> Pid {
 /// spawn a new thread on the same process
 pub fn spawn(new: impl FnOnce() + Send + 'static) {
     READY.push(Task::thread(process(), new));
+}
+
+fn early_close_last_thread() {
+    let proc = process();
+    if let Some(ext) = proc.ext.get()
+        && proc.threads.load(Ordering::SeqCst) == 1
+    {
+        ext.close();
+    }
 }
 
 fn swap_current(mut new: Task) -> Task {
@@ -270,7 +278,21 @@ fn update_cpu_idle() {
     idle_time().fetch_add(elapsed, Ordering::Relaxed);
 }
 
-fn wait_next_task<E>(mut should_abort: impl FnMut() -> Option<E>) -> Result<Task, E> {
+// take the next ready task
+//
+// if no tasks are available, start sleeping
+//
+// won't give up
+fn wait_next_task() -> Task {
+    wait_next_task_while::<Infallible>(|| None).unwrap_or_else(|e| match e {})
+}
+
+// take the next ready task
+//
+// if no tasks are available, start sleeping
+//
+// gives up if `should_abort` returns true
+fn wait_next_task_while<E>(mut should_abort: impl FnMut() -> Option<E>) -> Result<Task, E> {
     update_cpu_usage();
 
     loop {

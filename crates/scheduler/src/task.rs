@@ -77,13 +77,15 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     }
 
     // tell the page fault handler that the actual current task is still this one
-    let task = task();
-    let task_inner: &TaskInner = &task;
-    tls().switch_last_active.store(
-        task_inner as *const TaskInner as *mut TaskInner,
-        Ordering::SeqCst,
-    );
-    drop(task);
+    {
+        let task = task();
+        let task_inner: &TaskInner = &task;
+        tls().switch_last_active.store(
+            task_inner as *const TaskInner as *mut TaskInner,
+            Ordering::SeqCst,
+        );
+        drop(task);
+    }
 
     let prev = swap_current(next);
     let prev_ctx = prev.context.get();
@@ -118,9 +120,7 @@ fn post_ctx_switch() {
 extern "C" fn thread_entry() -> ! {
     post_ctx_switch();
 
-    let task = task();
-
-    let job = task.job.take().expect("no active jobs");
+    let job = task().job.take().expect("no active jobs");
     job();
 
     done();
@@ -413,7 +413,7 @@ pub struct TaskInner {
     pub kernel_stack: Mutex<Stack<KernelStack>>,
 
     /// thread_entry runs this function once, and stops the process after returning
-    pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>, Mutex<()>>,
+    pub job: TakeOnce<Box<dyn FnOnce() + Send + 'static>>,
 
     /// a copy of the master TLS for specifically this task
     pub tls: Once<VirtAddr>,
@@ -482,6 +482,7 @@ impl Deref for TaskInner {
 unsafe impl Sync for TaskInner {}
 
 impl Drop for TaskInner {
+    #[track_caller]
     fn drop(&mut self) {
         assert_eq!(
             self.state.load(),

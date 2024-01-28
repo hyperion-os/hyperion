@@ -2,43 +2,49 @@
 
 //
 
-use core::sync::atomic::{AtomicBool, Ordering};
-
-use lock_api::{Mutex, RawMutex};
+use core::{
+    cell::UnsafeCell,
+    mem::MaybeUninit,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 //
 
-pub struct TakeOnce<T, Lock> {
-    val: Mutex<Lock, Option<T>>,
+pub struct TakeOnce<T> {
     taken: AtomicBool,
+    val: UnsafeCell<MaybeUninit<T>>,
 }
 
-impl<T, Lock: RawMutex> TakeOnce<T, Lock> {
+unsafe impl<T: Send> Send for TakeOnce<T> {}
+unsafe impl<T: Send> Sync for TakeOnce<T> {}
+
+impl<T> TakeOnce<T> {
     pub const fn new(val: T) -> Self {
         Self {
-            val: Mutex::new(Some(val)),
+            val: UnsafeCell::new(MaybeUninit::new(val)),
             taken: AtomicBool::new(false),
         }
     }
 
     pub const fn none() -> Self {
         Self {
-            val: Mutex::new(None),
+            val: UnsafeCell::new(MaybeUninit::uninit()),
             taken: AtomicBool::new(true),
         }
     }
 
     pub fn take(&self) -> Option<T> {
-        if self.taken.swap(true, Ordering::AcqRel) {
+        if self.taken.swap(true, Ordering::Acquire) {
             None
         } else {
-            self.take_lock()
-        }
-    }
+            // SAFETY: exclusive access taken, the `swap` will return `false` only once
+            let val_ref = unsafe { &mut *self.val.get() };
 
-    #[cold]
-    fn take_lock(&self) -> Option<T> {
-        self.val.lock().take()
+            // SAFETY: the value won't be taken after this
+            let val = unsafe { val_ref.assume_init_read() };
+
+            Some(val)
+        }
     }
 }
 

@@ -17,6 +17,7 @@ pub fn init() {
                 |irq, ip| {
                     let ps2_byte: u8 = unsafe { Port::new(0x60).read() };
                     hyperion_events::keyboard::buffer::send_raw(ps2_byte, ip);
+                    // hyperion_log::println!("K@{ip:#018x}");
                     end_of_interrupt(irq);
                 },
             )

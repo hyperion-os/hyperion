@@ -12,7 +12,7 @@ use crate::{
     cleanup::Cleanup,
     process,
     task::{switch_because, Task, TaskState},
-    wait_next_task, READY,
+    wait_next_task_while, READY,
 };
 
 //
@@ -23,7 +23,7 @@ pub fn wait(addr: &AtomicUsize, val: usize) {
         return;
     }
 
-    let next = wait_next_task(|| should_cancel(addr, val).then_some(()));
+    let next = wait_next_task_while(|| should_cancel(addr, val).then_some(()));
 
     if let Ok(next) = next {
         let addr: NonNull<AtomicUsize> = addr.into();

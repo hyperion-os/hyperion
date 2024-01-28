@@ -778,6 +778,7 @@ dependencies = [
  "event-listener",
  "futures-util",
  "heapless",
+ "hyperion-clock",
  "hyperion-instant",
  "hyperion-log",
  "pc-keyboard",
