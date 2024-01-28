@@ -6,7 +6,6 @@ use futures_util::{
     FutureExt,
 };
 use hyperion_instant::Instant;
-use hyperion_log::println;
 use hyperion_sync::TakeOnce;
 
 use crate::{Task, READY};
