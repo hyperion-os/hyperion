@@ -18,8 +18,9 @@ pin-project.workspace = true
 spin.workspace = true
 bitflags.workspace = true
 
-hyperion-log.path = "../log"
+hyperion-clock.path = "../clock"
 hyperion-instant.path = "../instant"
+hyperion-log.path = "../log"
 
 [lints]
 workspace = true

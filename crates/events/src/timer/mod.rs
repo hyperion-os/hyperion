@@ -66,6 +66,7 @@ impl Future for SleepUntil {
                 return Poll::Ready(());
             }
 
+            hyperion_clock::get().trigger_interrupt_at(deadline.nanosecond());
             let waker = cx.waker().clone();
             TIMER_DEADLINES.lock().push(TimerWaker { deadline, waker });
 
