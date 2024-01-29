@@ -258,5 +258,5 @@ impl<'a> Loader<'a> {
 /// push items to the stack
 pub fn push<T: Sized>(top: &mut VirtAddr, v: T) {
     *top -= core::mem::size_of::<T>();
-    unsafe { top.as_mut_ptr::<T>().write(v) };
+    unsafe { top.as_mut_ptr::<T>().write_volatile(v) };
 }
