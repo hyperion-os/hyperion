@@ -204,7 +204,7 @@ pub fn exit() -> ! {
     // FIXME: trigger an IPI on all cpu's running for this process
     process().should_terminate.store(true, Ordering::Release);
 
-    early_close_last_thread();
+    force_close_thread();
 
     switch_because(wait_next_task(), TaskState::Dropping, Cleanup::Drop);
     unreachable!("a destroyed thread cannot continue executing");
@@ -237,6 +237,12 @@ pub fn schedule(new: impl Into<Task>) -> Pid {
 /// spawn a new thread on the same process
 pub fn spawn(new: impl FnOnce() + Send + 'static) {
     READY.push(Task::thread(process(), new));
+}
+
+fn force_close_thread() {
+    if let Some(ext) = process().ext.get() {
+        ext.close();
+    }
 }
 
 fn early_close_last_thread() {
