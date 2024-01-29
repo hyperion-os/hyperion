@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/driver-acpi/src/apic.rs`."><title>apic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-4e54bb2b497cc83f.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_driver_acpi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (25f8d01fd 2024-01-18)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-0b2e2def73e61cbe.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/driver-acpi/src/apic.rs`."><title>apic.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b1a3e7f8283b8434.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_driver_acpi" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (635124704 2024-01-27)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
             <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../hyperion_driver_acpi/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
@@ -333,6 +333,23 @@
 <a href="#331" id="331">331</a>
 <a href="#332" id="332">332</a>
 <a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::boxed::Box;
 <span class="kw">use </span>core::{
     ops::Deref,
@@ -340,6 +357,7 @@
 };
 
 <span class="kw">use </span>crossbeam::atomic::AtomicCell;
+<span class="kw">use </span>hyperion_clock::ClockSource;
 <span class="kw">use </span>hyperion_cpu_id::Tls;
 <span class="kw">use </span>hyperion_interrupts::{end_of_interrupt, IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 <span class="kw">use </span>hyperion_log::trace;
@@ -348,16 +366,17 @@
 <span class="kw">use </span>x86_64::PhysAddr;
 
 <span class="kw">use super</span>::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
+<span class="kw">use </span><span class="kw">crate</span>::hpet::HPET;
 
 <span class="comment">//
 
 </span><span class="kw">pub static </span>APIC_TIMER_HANDLER: AtomicCell&lt;<span class="kw">fn</span>()&gt; = AtomicCell::new(|| {});
 
 <span class="kw">pub const </span>IRQ_APIC_SPURIOUS: u8 = <span class="number">0xFF</span>;
-<span class="kw">pub const </span>APIC_CALIBRATION_MICROS: u16 = <span class="number">1_000</span>;
-<span class="kw">pub const </span>APIC_PERIOD_MULT: u32 = <span class="number">100</span>; <span class="comment">// 1kµs × 100 = 100ms
+<span class="comment">// APIC timer interval is 100ms
+</span><span class="kw">pub const </span>APIC_PERIOD_MULT: u32 = <span class="number">100</span>;
 
-//
+<span class="comment">//
 
 </span><span class="kw">pub struct </span>ApicTls&lt;T: <span class="lifetime">'static</span>&gt; {
     inner: Box&lt;[(ApicId, T)]&gt;,
@@ -402,11 +421,6 @@
     });
     INT_CONTROLLER.store(IntController::Apic);
 
-    write_msr(
-        IA32_APIC_BASE,
-        read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
-    );
-
     <span class="comment">// enable apic only once per cpu
     </span><span class="kw">static </span>ONCE: Lazy&lt;Tls&lt;AtomicBool&gt;&gt; = Lazy::new(|| Tls::new(|| AtomicBool::new(<span class="bool-val">false</span>)));
     <span class="kw">if </span>ONCE.swap(<span class="bool-val">true</span>, Ordering::SeqCst) {
@@ -434,7 +448,7 @@
     <span class="kw">let </span>timer_irq = hyperion_interrupts::set_any_interrupt_handler(
         |irq| (<span class="number">0x30</span>..=<span class="number">0xFF</span>).contains(<span class="kw-2">&amp;</span>irq),
         |irq, <span class="kw">_</span>| {
-            <span class="comment">// hyperion_log::debug!("APIC timer");
+            <span class="comment">// hyperion_log::println!("AT@{ip:#018x}");
 
             /* unsafe {
                 core::arch::asm!(
@@ -459,8 +473,17 @@
 
     <span class="comment">// let mut lapic = Lapic::current_mut();
 
+    // reset APIC to a known state
     </span>reset(lapic.regs);
-    init_lvt_timer(timer_irq, lapic.regs);
+
+    <span class="comment">// .. then enable it
+    </span>write_msr(
+        IA32_APIC_BASE,
+        read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
+    );
+
+    <span class="comment">// .. and then enable the timer interrupts
+    </span>init_lvt_timer(timer_irq, lapic.regs);
 }
 
 <span class="doccomment">/// # Safety
@@ -552,17 +575,17 @@
 <span class="kw">const </span>APIC_TIMER_MODE_PERIODIC: u32 = <span class="number">0b01 </span>&lt;&lt; <span class="number">17</span>;
 <span class="kw">const </span>_APIC_TIMER_MODE_TSC_DEADLINE: u32 = <span class="number">0b10 </span>&lt;&lt; <span class="number">17</span>;
 
-<span class="kw">const </span>_APIC_TIMER_DIV_BY_1: u32 = <span class="number">0b1011</span>;
-<span class="kw">const </span>_APIC_TIMER_DIV_BY_2: u32 = <span class="number">0b0000</span>;
-<span class="kw">const </span>_APIC_TIMER_DIV_BY_4: u32 = <span class="number">0b0001</span>;
-<span class="kw">const </span>_APIC_TIMER_DIV_BY_8: u32 = <span class="number">0b0010</span>;
-<span class="kw">const </span>APIC_TIMER_DIV_BY_16: u32 = <span class="number">0b0011</span>;
-<span class="kw">const </span>_APIC_TIMER_DIV_BY_32: u32 = <span class="number">0b1000</span>;
-<span class="kw">const </span>_APIC_TIMER_DIV_BY_64: u32 = <span class="number">0b1001</span>;
-<span class="kw">const </span>_APIC_TIMER_DIV_BY_128: u32 = <span class="number">0b1010</span>;
-<span class="kw">const </span>APIC_TIMER_DIV: u32 = APIC_TIMER_DIV_BY_16;
+<span class="comment">// const APIC_TIMER_DIV: u32 = 0b1011; // div by 1
+// const APIC_TIMER_DIV: u32 = 0b0000; // div by 2
+// const APIC_TIMER_DIV: u32 = 0b0001; // div by 4
+</span><span class="kw">const </span>APIC_TIMER_DIV: u32 = <span class="number">0b0010</span>; <span class="comment">// div by 8
 
-<span class="comment">//
+// const APIC_TIMER_DIV: u32 = 0b0011; // div by 16
+// const APIC_TIMER_DIV: u32 = 0b1000; // div by 32
+// const APIC_TIMER_DIV: u32 = 0b1001; // div by 64
+// const APIC_TIMER_DIV: u32 = 0b1010; // div by 128
+
+//
 
 </span><span class="kw">fn </span>reset(regs: <span class="kw-2">&amp;mut </span>ApicRegs) {
     <span class="comment">// reset to well-known state
@@ -584,7 +607,9 @@
 
 <span class="kw">fn </span>init_lvt_timer(timer_irq: u8, regs: <span class="kw-2">&amp;mut </span>ApicRegs) {
     <span class="comment">// let apic_period = 1_000_000;
-    </span><span class="kw">let </span>apic_period = calibrate(regs);
+    // only the first CPU has to use the PIC to find the bus speed
+    </span><span class="kw">static </span>APIC_PERIOD: Once&lt;u32&gt; = Once::new();
+    <span class="kw">let </span>apic_period = <span class="kw-2">*</span>APIC_PERIOD.call_once(|| calibrate(regs));
 
     regs.timer_divide.write(APIC_TIMER_DIV);
     regs.lvt_timer
@@ -602,15 +627,24 @@
     <span class="kw">const </span>INITIAL_COUNT: u32 = <span class="number">0xFFFF_FFFF</span>;
 
     regs.timer_divide.write(APIC_TIMER_DIV);
+    <span class="macro">hyperion_log::debug!</span>(<span class="string">"calibrating APIC timer ..."</span>);
 
-    <span class="macro">hyperion_log::trace!</span>(<span class="string">"apic timer calibration"</span>);
-    hyperion_clock::get()._apic_sleep_simple_blocking(APIC_CALIBRATION_MICROS, <span class="kw-2">&amp;mut </span>|| {
-        <span class="comment">// reset right before PIT sleeping
+    <span class="comment">// calibrate APIC with HPET by waiting 1ms
+    </span>HPET._apic_sleep_simple_blocking(<span class="number">1_000</span>, <span class="kw-2">&amp;mut </span>|| {
+        <span class="comment">// reset right before spinning on the HPET counter value
         </span>regs.timer_init.write(INITIAL_COUNT);
     });
 
-    regs.lvt_timer.write(APIC_DISABLE);
+    <span class="comment">// calibrate APIC with PIC by waiting 1ms
+    // hyperion_clock::get()._apic_sleep_simple_blocking(APIC_CALIBRATION_MICROS, &amp;mut || {
+    //     // reset right before PIT sleeping
+    //     regs.timer_init.write(INITIAL_COUNT);
+    // });
+
+    </span>regs.lvt_timer.write(APIC_DISABLE);
     <span class="kw">let </span>count = INITIAL_COUNT - regs.timer_current.read();
+
+    <span class="macro">hyperion_log::debug!</span>(<span class="string">"calibrating APIC timer done"</span>);
 
     count * APIC_PERIOD_MULT
 }

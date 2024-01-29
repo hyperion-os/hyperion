@@ -17,7 +17,6 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_driver_acpi",["",[],["apic.rs","hpet.rs","ioapic.rs","lib.rs","madt.rs","rsdp.rs","rsdt.rs"]]],\
 ["hyperion_driver_framebuffer",["",[],["lib.rs"]]],\
 ["hyperion_driver_pic",["",[],["lib.rs"]]],\
-["hyperion_driver_pit",["",[],["lib.rs"]]],\
 ["hyperion_driver_ps2",["",[],["keyboard.rs","lib.rs","mouse.rs"]]],\
 ["hyperion_driver_qemu",["",[],["lib.rs"]]],\
 ["hyperion_driver_rtc",["",[],["lib.rs"]]],\
@@ -41,7 +40,7 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_random",["",[],["lib.rs"]]],\
 ["hyperion_ring",["",[],["lib.rs"]]],\
 ["hyperion_scheduler",["",[["ipc",[],["mod.rs","pipe.rs"]]],["cleanup.rs","condvar.rs","futex.rs","lib.rs","lock.rs","page_fault.rs","sleep.rs","task.rs"]]],\
-["hyperion_slab_alloc",["",[],["alloc.rs","lib.rs","local.rs","slab.rs"]]],\
+["hyperion_slab_alloc",["",[],["alloc.rs","lib.rs","slab.rs"]]],\
 ["hyperion_static_str",["",[],["lib.rs"]]],\
 ["hyperion_sync",["",[],["lib.rs"]]],\
 ["hyperion_syscall",["",[],["err.rs","fs.rs","lib.rs","net.rs"]]],\
