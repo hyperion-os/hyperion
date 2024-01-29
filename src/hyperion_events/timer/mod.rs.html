@@ -113,12 +113,6 @@
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::collections::BinaryHeap;
 <span class="kw">use </span>core::{
     future::Future,
@@ -190,19 +184,13 @@
             hyperion_clock::get().trigger_interrupt_at(deadline.nanosecond());
             <span class="kw">let </span>waker = cx.waker().clone();
             TIMER_DEADLINES.lock().push(TimerWaker { deadline, waker });
-
-            <span class="kw">if </span>deadline.is_reached() {
-                <span class="kw">return </span>Poll::Ready(());
-            }
-
-            Poll::Pending
-        } <span class="kw">else </span>{
-            <span class="kw">if </span>deadline.is_reached() {
-                <span class="kw">return </span>Poll::Ready(());
-            }
-
-            <span class="macro">unreachable!</span>()
         }
+
+        <span class="kw">if </span>deadline.is_reached() {
+            <span class="kw">return </span>Poll::Ready(());
+        }
+
+        Poll::Pending
     }
 }
 

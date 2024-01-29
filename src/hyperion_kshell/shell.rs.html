@@ -481,27 +481,6 @@
 <a href="#479" id="479">479</a>
 <a href="#480" id="480">480</a>
 <a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a>
-<a href="#483" id="483">483</a>
-<a href="#484" id="484">484</a>
-<a href="#485" id="485">485</a>
-<a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a>
-<a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a>
-<a href="#492" id="492">492</a>
-<a href="#493" id="493">493</a>
-<a href="#494" id="494">494</a>
-<a href="#495" id="495">495</a>
-<a href="#496" id="496">496</a>
-<a href="#497" id="497">497</a>
-<a href="#498" id="498">498</a>
-<a href="#499" id="499">499</a>
-<a href="#500" id="500">500</a>
-<a href="#501" id="501">501</a>
-<a href="#502" id="502">502</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>alloc::{
     format,
     string::{String, ToString},
@@ -512,7 +491,6 @@
 <span class="kw">use </span>anyhow::anyhow;
 <span class="kw">use </span>futures_util::stream::select;
 <span class="kw">use </span>hyperion_cpu_id::cpu_count;
-<span class="kw">use </span>hyperion_driver_acpi::apic::ApicId;
 <span class="kw">use </span>hyperion_events::keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -535,10 +513,7 @@
 <span class="kw">use </span>spin::Mutex;
 
 <span class="kw">use super</span>::{term::Term, <span class="kw-2">*</span>};
-<span class="kw">use crate</span>::{
-    cmd::{Command, NULL_DEV},
-    snake::snake_game,
-};
+<span class="kw">use </span><span class="kw">crate</span>::cmd::{Command, NULL_DEV};
 
 <span class="comment">//
 
@@ -642,10 +617,7 @@
             <span class="string">"cd" </span>=&gt; <span class="self">self</span>.cd_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"mem" </span>=&gt; <span class="self">self</span>.mem_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"kbl" </span>=&gt; <span class="self">self</span>.kbl_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">"snake" </span>=&gt; <span class="self">self</span>.snake_cmd(args).<span class="kw">await</span><span class="question-mark">?</span>,
             <span class="string">"help" </span>=&gt; <span class="self">self</span>.help_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">"lapic_id" </span>=&gt; <span class="self">self</span>.lapic_id_cmd(args)<span class="question-mark">?</span>,
-            <span class="string">"cpu_id" </span>=&gt; <span class="self">self</span>.cpu_id_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"ps" </span>=&gt; <span class="self">self</span>.ps_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"nproc" </span>=&gt; <span class="self">self</span>.nproc_cmd(args)<span class="question-mark">?</span>,
             <span class="string">"top" </span>=&gt; <span class="self">self</span>.top_cmd(args)<span class="question-mark">?</span>,
@@ -888,23 +860,9 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">async fn </span>snake_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        snake_game(<span class="kw-2">&amp;mut </span><span class="self">self</span>.term).<span class="kw">await
-    </span>}
-
     <span class="kw">fn </span>help_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear"</span>);
+        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, ps, nproc, top, kill, exit, clear"</span>);
 
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>lapic_id_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{:?}"</span>, ApicId::current());
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>cpu_id_cmd(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _args: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
-        <span class="kw">_ </span>= <span class="macro">writeln!</span>(<span class="self">self</span>.term, <span class="string">"{:?}"</span>, hyperion_cpu_id::cpu_id());
         <span class="prelude-val">Ok</span>(())
     }
 

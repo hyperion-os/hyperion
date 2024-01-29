@@ -1,6 +1,6 @@
 var srcIndex = new Map(JSON.parse('[\
 ["cargo_run",["",[],["main.rs"]]],\
-["coreutils",["",[],["cat.rs","date.rs","echo.rs","ls.rs","main.rs","random.rs","sleep.rs","touch.rs"]]],\
+["coreutils",["",[],["cat.rs","cp.rs","date.rs","echo.rs","ls.rs","main.rs","random.rs","sleep.rs","touch.rs"]]],\
 ["fbtest",["",[],["main.rs"]]],\
 ["hyperion_abi",["",[],["lib.rs"]]],\
 ["hyperion_arch",["",[],["lib.rs"]]],\
@@ -30,7 +30,7 @@ var srcIndex = new Map(JSON.parse('[\
 ["hyperion_kernel",["",[],["main.rs","panic.rs","syscall.rs"]]],\
 ["hyperion_kernel_impl",["",[],["lib.rs"]]],\
 ["hyperion_kernel_info",["",[],["lib.rs"]]],\
-["hyperion_kshell",["",[],["cmd.rs","lib.rs","shell.rs","snake.rs","term.rs"]]],\
+["hyperion_kshell",["",[],["cmd.rs","lib.rs","shell.rs","term.rs"]]],\
 ["hyperion_loader",["",[],["elf_wrap.rs","lib.rs"]]],\
 ["hyperion_log",["",[],["lib.rs"]]],\
 ["hyperion_log_multi",["",[],["lib.rs"]]],\

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["cmd","main"],"mod":["cat","date","echo","ls","random","sleep","touch"]};
+window.SIDEBAR_ITEMS = {"fn":["cmd","main"],"mod":["cat","cp","date","echo","ls","random","sleep","touch"]};
