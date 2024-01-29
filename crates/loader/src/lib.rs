@@ -18,7 +18,7 @@ use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_log::*;
 use hyperion_mem::{is_higher_half, to_higher_half, vmm::PageMapImpl};
 use hyperion_scheduler::{process, task};
-use x86_64::{registers::model_specific::FsBase, structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
@@ -260,9 +260,8 @@ impl<'a> Loader<'a> {
 
         task().init_tls();
 
-        debug!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x} and fs:{:#016x}", FsBase::read());
-        trace!("cli args init with: {:#x} {:#x}", argv.as_u64(), 69);
-        syscall::userland(VirtAddr::new(entrypoint), stack_top, argv.as_u64(), 69);
+        debug!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x} and argv:{argv:#016x}");
+        syscall::userland(VirtAddr::new(entrypoint), stack_top, argv.as_u64(), 0);
     }
 }
 

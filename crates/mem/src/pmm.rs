@@ -78,12 +78,18 @@ impl PageFrameAllocator {
     }
 
     /// Free up pages
+    // #[track_caller]
     pub fn free(&self, mut frame: PageFrame) {
         if frame.first.as_u64() == 0 || frame.count == 0 {
             return;
         }
 
         let page = frame.first.as_u64() as usize / PAGE_SIZE;
+        // debug!(
+        //     "freeing pages first={page} count={} from={}",
+        //     frame.count,
+        //     core::panic::Location::caller()
+        // );
         for page in page..page + frame.count {
             assert_eq!(
                 self.bitmap.swap(page, false, Ordering::Release),
@@ -91,7 +97,6 @@ impl PageFrameAllocator {
                 "trying to free pages that were already free"
             );
         }
-        // trace!("freeing pages first={page} count={}", frame.count);
 
         frame.as_bytes_mut().fill(0);
 
@@ -111,10 +116,10 @@ impl PageFrameAllocator {
             };
         };
 
-        /* hyperion_log::debug!(
-            "allocating {count} pages (from {})",
-            core::panic::Location::caller()
-        ); */
+        // hyperion_log::debug!(
+        //     "allocating {count} pages (from {})",
+        //     core::panic::Location::caller()
+        // );
 
         // TODO: lock-less page alloc
         let from = self.last_alloc_index.load(Ordering::SeqCst);

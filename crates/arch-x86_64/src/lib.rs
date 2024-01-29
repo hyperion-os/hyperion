@@ -12,14 +12,13 @@
 
 extern crate alloc;
 
-use core::ops::Range;
+use core::arch::asm;
 
 use hyperion_cpu_id::{self as cpu_id, cpu_id};
 use hyperion_log::*;
 use x86_64::{
     instructions::random::RdRand,
     registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags},
-    VirtAddr,
 };
 
 //
@@ -32,6 +31,17 @@ pub mod stack;
 pub mod syscall;
 pub mod tls;
 pub mod vmm;
+
+//
+
+#[naked]
+#[no_mangle]
+extern "C" fn _start() -> ! {
+    unsafe {
+        // save the stack pointer before rust touches it
+        asm!("mov rsi, rsp", "jmp rust_start", options(noreturn));
+    }
+}
 
 //
 
@@ -70,20 +80,6 @@ pub fn wake_cpus() {
     }
 
     hyperion_drivers::acpi::init();
-}
-
-pub fn stack_pages() -> Range<VirtAddr> {
-    let rsp: u64;
-    unsafe {
-        core::arch::asm!("mov {rsp}, rsp", rsp = lateout(reg) rsp);
-    }
-
-    let top = VirtAddr::new(rsp).align_up(0x1000u64);
-    let bottom = top - hyperion_boot::BOOT_STACK_SIZE;
-
-    debug_assert!(bottom.is_aligned(0x1000u64));
-
-    bottom..top
 }
 
 pub fn rng_seed() -> u64 {

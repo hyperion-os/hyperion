@@ -89,7 +89,7 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
     let addr = Cr2::read();
 
-    trace!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
+    // debug!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
 
     let privilege = if ec.contains(PageFaultErrorCode::USER_MODE) {
         Privilege::User
@@ -114,7 +114,7 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
             panic!();
         }
         Err(Handled) => {
-            // debug!("page fault handled");
+            // debug!("page fault handled {stack:#?}");
         }
     };
 }

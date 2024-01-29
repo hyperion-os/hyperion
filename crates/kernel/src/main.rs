@@ -13,9 +13,8 @@
 
 extern crate alloc;
 
-use core::ops::Range;
-
 use arch::vmm::PageMap;
+use boot::BOOT_STACK_SIZE;
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
@@ -46,10 +45,7 @@ static ALLOCATOR: KernelSlabAlloc<spin::Mutex<()>> = KernelSlabAlloc::new();
 //
 
 #[no_mangle]
-extern "C" fn _start() -> ! {
-    // save the bootloader stack range so it can be freed later
-    let boot_stack = arch::stack_pages();
-
+extern "C" fn rust_start(sp: usize) -> ! {
     if sync::once!() {
         // enable logging and and outputs based on the kernel args,
         // any logging before won't be shown
@@ -72,10 +68,10 @@ extern "C" fn _start() -> ! {
 
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
-    scheduler::init(move || init(boot_stack, boot_vmm));
+    scheduler::init(move || init(sp, boot_vmm));
 }
 
-fn init(boot_stack: Range<VirtAddr>, mut boot_vmm: PageMap) {
+fn init(boot_sp: usize, mut boot_vmm: PageMap) {
     scheduler::rename("<kernel async>");
 
     // init task once
@@ -107,13 +103,13 @@ fn init(boot_stack: Range<VirtAddr>, mut boot_vmm: PageMap) {
         drop(boot_vmm);
     }
 
-    let first = from_higher_half(boot_stack.start);
-    let count = ((boot_stack.end - boot_stack.start) / 0x1000) as usize;
+    let first = from_higher_half(VirtAddr::new(boot_sp as _));
+    let count = (BOOT_STACK_SIZE >> 12) as usize;
 
     // Bootloader provided stack can be freed after switching away from
     // the bootloader task.
     let frames = unsafe { hyperion_mem::pmm::PageFrame::new(first, count) };
-    trace!("deallocating bootloader provided stack {boot_stack:?}");
+    trace!("deallocating bootloader provided stack {boot_sp:#018x} (size:{BOOT_STACK_SIZE})");
     hyperion_mem::pmm::PFA.free(frames);
 
     // start doing kernel things

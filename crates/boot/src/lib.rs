@@ -24,3 +24,7 @@ mod boot;
 #[path = "limine/mod.rs"]
 #[allow(clippy::module_inception)]
 mod boot; */
+
+//
+
+const _: () = assert!(BOOT_STACK_SIZE.rem_euclid(0x1000) == 0);

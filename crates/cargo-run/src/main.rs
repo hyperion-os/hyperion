@@ -37,6 +37,10 @@ struct Args {
     #[arg(long)]
     release: bool,
 
+    /// build the kernel with more optimizations
+    #[arg(long)]
+    release_lto: bool,
+
     /// run unit tests in QEMU
     #[arg(short, long)]
     test: bool,
@@ -72,8 +76,11 @@ fn main() {
 
     cmd.arg(format!("KVM={}", args.kvm.unwrap_or(true)));
     cmd.arg(format!("UEFI={}", args.uefi.unwrap_or(false)));
-    if args.release {
+    if args.release && !args.release_lto {
         cmd.arg("PROFILE=release");
+    }
+    if args.release_lto {
+        cmd.arg("PROFILE=release-lto");
     }
 
     cmd.spawn().unwrap().wait().unwrap();

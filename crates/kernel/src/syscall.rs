@@ -230,10 +230,7 @@ fn _nanosleep_until(nanosecond: u128) {
 ///
 /// [`hyperion_syscall::spawn`]
 pub fn spawn(args: &mut SyscallRegs) -> Result<usize> {
-    let fn_ptr = args.arg0;
-    let fn_arg = args.arg1;
-
-    _spawn(fn_ptr, fn_arg);
+    _spawn(args.arg0, args.arg1);
     return Ok(0);
 }
 

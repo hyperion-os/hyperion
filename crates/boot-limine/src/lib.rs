@@ -22,9 +22,5 @@ mod smp;
 
 //
 
-pub static NAME: &str = "Limine";
-pub static BOOT_STACK_SIZE: u64 = 1 << 16;
-
-//
-
-pub fn init() {}
+pub const NAME: &str = "Limine";
+pub const BOOT_STACK_SIZE: u64 = 1 << 16;
