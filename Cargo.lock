@@ -707,16 +707,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperion-driver-pit"
-version = "0.2.0"
-dependencies = [
- "hyperion-clock",
- "hyperion-driver-pic",
- "spin",
- "x86_64",
-]
-
-[[package]]
 name = "hyperion-driver-ps2"
 version = "0.2.0"
 dependencies = [

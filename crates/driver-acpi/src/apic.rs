@@ -5,6 +5,7 @@ use core::{
 };
 
 use crossbeam::atomic::AtomicCell;
+use hyperion_clock::ClockSource;
 use hyperion_cpu_id::Tls;
 use hyperion_interrupts::{end_of_interrupt, IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
@@ -13,14 +14,15 @@ use spin::{Lazy, Once, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::PhysAddr;
 
 use super::{madt::MADT, ReadOnly, ReadWrite, Reserved, WriteOnly};
+use crate::hpet::HPET;
 
 //
 
 pub static APIC_TIMER_HANDLER: AtomicCell<fn()> = AtomicCell::new(|| {});
 
 pub const IRQ_APIC_SPURIOUS: u8 = 0xFF;
-pub const APIC_CALIBRATION_MICROS: u16 = 1_000;
-pub const APIC_PERIOD_MULT: u32 = 100_000; // 1kµs × 100 = 100ms
+// APIC timer interval is 100ms
+pub const APIC_PERIOD_MULT: u32 = 100;
 
 //
 
@@ -66,11 +68,6 @@ pub fn enable() {
         Lapic::current_mut().eoi();
     });
     INT_CONTROLLER.store(IntController::Apic);
-
-    write_msr(
-        IA32_APIC_BASE,
-        read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
-    );
 
     // enable apic only once per cpu
     static ONCE: Lazy<Tls<AtomicBool>> = Lazy::new(|| Tls::new(|| AtomicBool::new(false)));
@@ -124,7 +121,16 @@ pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
 
     // let mut lapic = Lapic::current_mut();
 
+    // reset APIC to a known state
     reset(lapic.regs);
+
+    // .. then enable it
+    write_msr(
+        IA32_APIC_BASE,
+        read_msr(IA32_APIC_BASE) | IA32_APIC_XAPIC_ENABLE,
+    );
+
+    // .. and then enable the timer interrupts
     init_lvt_timer(timer_irq, lapic.regs);
 }
 
@@ -217,15 +223,15 @@ const _APIC_TIMER_MODE_ONESHOT: u32 = 0b00 << 17;
 const APIC_TIMER_MODE_PERIODIC: u32 = 0b01 << 17;
 const _APIC_TIMER_MODE_TSC_DEADLINE: u32 = 0b10 << 17;
 
-const _APIC_TIMER_DIV_BY_1: u32 = 0b1011;
-const _APIC_TIMER_DIV_BY_2: u32 = 0b0000;
-const _APIC_TIMER_DIV_BY_4: u32 = 0b0001;
-const _APIC_TIMER_DIV_BY_8: u32 = 0b0010;
-const APIC_TIMER_DIV_BY_16: u32 = 0b0011;
-const _APIC_TIMER_DIV_BY_32: u32 = 0b1000;
-const _APIC_TIMER_DIV_BY_64: u32 = 0b1001;
-const _APIC_TIMER_DIV_BY_128: u32 = 0b1010;
-const APIC_TIMER_DIV: u32 = APIC_TIMER_DIV_BY_16;
+// const APIC_TIMER_DIV: u32 = 0b1011; // div by 1
+// const APIC_TIMER_DIV: u32 = 0b0000; // div by 2
+// const APIC_TIMER_DIV: u32 = 0b0001; // div by 4
+const APIC_TIMER_DIV: u32 = 0b0010; // div by 8
+
+// const APIC_TIMER_DIV: u32 = 0b0011; // div by 16
+// const APIC_TIMER_DIV: u32 = 0b1000; // div by 32
+// const APIC_TIMER_DIV: u32 = 0b1001; // div by 64
+// const APIC_TIMER_DIV: u32 = 0b1010; // div by 128
 
 //
 
@@ -249,7 +255,9 @@ fn reset(regs: &mut ApicRegs) {
 
 fn init_lvt_timer(timer_irq: u8, regs: &mut ApicRegs) {
     // let apic_period = 1_000_000;
-    let apic_period = calibrate(regs);
+    // only the first CPU has to use the PIC to find the bus speed
+    static APIC_PERIOD: Once<u32> = Once::new();
+    let apic_period = *APIC_PERIOD.call_once(|| calibrate(regs));
 
     regs.timer_divide.write(APIC_TIMER_DIV);
     regs.lvt_timer
@@ -267,15 +275,24 @@ fn calibrate(regs: &mut ApicRegs) -> u32 {
     const INITIAL_COUNT: u32 = 0xFFFF_FFFF;
 
     regs.timer_divide.write(APIC_TIMER_DIV);
+    hyperion_log::debug!("calibrating APIC timer ...");
 
-    hyperion_log::trace!("apic timer calibration");
-    hyperion_clock::get()._apic_sleep_simple_blocking(APIC_CALIBRATION_MICROS, &mut || {
-        // reset right before PIT sleeping
+    // calibrate APIC with HPET by waiting 1ms
+    HPET._apic_sleep_simple_blocking(1_000, &mut || {
+        // reset right before spinning on the HPET counter value
         regs.timer_init.write(INITIAL_COUNT);
     });
 
+    // calibrate APIC with PIC by waiting 1ms
+    // hyperion_clock::get()._apic_sleep_simple_blocking(APIC_CALIBRATION_MICROS, &mut || {
+    //     // reset right before PIT sleeping
+    //     regs.timer_init.write(INITIAL_COUNT);
+    // });
+
     regs.lvt_timer.write(APIC_DISABLE);
     let count = INITIAL_COUNT - regs.timer_current.read();
+
+    hyperion_log::debug!("calibrating APIC timer done");
 
     count * APIC_PERIOD_MULT
 }
