@@ -6,7 +6,7 @@ use core::{
     alloc::{AllocError, Allocator, Layout},
     fmt,
     mem::{transmute, MaybeUninit},
-    ptr::NonNull,
+    ptr::{self, NonNull},
     slice,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -386,7 +386,9 @@ impl PageFrame {
 //
 
 fn fill_maybeuninit_slice<T: Copy>(s: &mut [MaybeUninit<T>], v: T) -> &mut [T] {
-    s.fill(MaybeUninit::new(v));
+    for target in s.iter_mut() {
+        unsafe { ptr::write_volatile(target, MaybeUninit::new(v)) };
+    }
 
     // Safety: The whole slice has been filled with copies of `v`
     unsafe { MaybeUninit::slice_assume_init_mut(s) }

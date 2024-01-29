@@ -86,9 +86,17 @@ impl fmt::Display for SyscallRegs {
 /// jump into the instruction pointer with a given stack and arguments
 ///
 /// the processor switches into user privileges so it is safe to call with garbage args
-pub fn userland(instr_ptr: VirtAddr, stack_ptr: VirtAddr, argc: u64, argv: u64) -> ! {
-    let instr_ptr = instr_ptr.as_u64();
-    let stack_ptr = stack_ptr.as_u64();
+#[no_mangle]
+pub extern "sysv64" fn userland(
+    _instr_ptr: VirtAddr,
+    _stack_ptr: VirtAddr,
+    _argc: u64,
+    _argv: u64,
+) -> ! {
+    // rdi = _instr_ptr
+    // rsi = _stack_ptr
+    // rdx = _argc
+    // rcx = _argv
 
     // SAFETY:
     // the processor jumps into user space with user privileges so it can't hurt the kernel
@@ -97,16 +105,18 @@ pub fn userland(instr_ptr: VirtAddr, stack_ptr: VirtAddr, argc: u64, argv: u64) 
     unsafe {
         asm!(
             // "cli",
-            // "mov r8, rcx", // tmp save argc
+            "mov r8, rcx", // tmp save argc
+            // "mov rcx, [0x0]",
+            // "mov rcx, [0x243b10]",
 
             // setup sysretq args
-            "mov rcx, {instr}",
-            "mov rsp, {stack}",
+            "mov rcx, rdi",
+            "mov rsp, rsi",
             "mov r11, {rflags}",
 
             // setup argc,argv
-            "mov rsi, {argc}",
-            "mov rdi, {argv}",
+            "mov rsi, r8",
+            "mov rdi, rdx",
 
             // clear some registers
             "xor rax, rax",
@@ -128,10 +138,6 @@ pub fn userland(instr_ptr: VirtAddr, stack_ptr: VirtAddr, argc: u64, argv: u64) 
             // "jmp {halt}",
             "sysretq",
             // halt = sym halt,
-            instr = in(reg) instr_ptr,
-            stack = in(reg) stack_ptr,
-            argc = in(reg) argc,
-            argv = in(reg) argv,
             rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
             options(noreturn)
         );

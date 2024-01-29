@@ -5,7 +5,7 @@
 
 extern crate alloc;
 
-use core::{alloc::Layout, mem::MaybeUninit, slice};
+use core::{alloc::Layout, mem::MaybeUninit, ptr, slice};
 
 use elf::{
     abi::{PF_R, PF_W, PF_X, PT_LOAD, PT_TLS},
@@ -147,6 +147,19 @@ impl<'a> Loader<'a> {
             segment_alloc.split_at_mut(align_down_offs as usize);
         let (segment_alloc_data, segment_alloc_zeros) =
             segment_alloc_virtual.split_at_mut(segment_alloc_virtual.len().min(segment_data.len()));
+
+        // the rust compiler will convert these to u64 or even vectors
+        // already zeroed:
+        // for byte in segment_alloc_align_pad {
+        //     unsafe { ptr::write_volatile(byte, MaybeUninit::zeroed()) };
+        // }
+        for (byte, elf_byte) in segment_alloc_data.iter_mut().zip(segment_data) {
+            unsafe { ptr::write_volatile(byte, MaybeUninit::new(*elf_byte)) };
+        }
+        // already zeroed:
+        // for byte in segment_alloc_zeros {
+        //     unsafe { ptr::write_volatile(byte, MaybeUninit::zeroed()) };
+        // }
 
         segment_alloc_align_pad.fill(MaybeUninit::zeroed());
         MaybeUninit::write_slice(segment_alloc_data, segment_data);

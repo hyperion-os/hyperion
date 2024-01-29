@@ -22,18 +22,15 @@ fn lang_start<T: Termination>(
 }
 
 #[no_mangle]
-#[naked]
-extern "C" fn _start() -> ! {
-    unsafe { core::arch::asm!("jmp rust_start", options(noreturn)) }
-}
-
-#[no_mangle]
-extern "C" fn rust_start(hyperion_cli_args_ptr: usize, _a2: usize) -> ! {
+extern "C" fn _start(hyperion_cli_args_ptr: usize, _a2: usize) -> ! {
     // rustc generates the real `main` function, that fn
     // simply calls `lang_start` with the correct args
     extern "Rust" {
         fn main(argc: isize, argv: *const *const u8) -> isize;
     }
+
+    hyperion_syscall::log("_start");
+    crate::println!("{hyperion_cli_args_ptr} {_a2}");
 
     // init cli args from stack, move them to the heap
     // crate::println!("init cli args");
