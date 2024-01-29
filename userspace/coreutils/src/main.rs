@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod cat;
+mod cp;
 mod date;
 mod echo;
 mod ls;
@@ -27,6 +28,7 @@ fn main() {
 
     let result = match cmd {
         "cat" => cat::cmd(args),
+        "cp" => cp::cmd(args),
         "date" => date::cmd(args),
         "echo" => echo::cmd(args),
         "ls" => ls::cmd(args),

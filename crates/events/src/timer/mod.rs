@@ -73,15 +73,13 @@ impl Future for SleepUntil {
             if deadline.is_reached() {
                 return Poll::Ready(());
             }
-
-            Poll::Pending
         } else {
             if deadline.is_reached() {
                 return Poll::Ready(());
             }
-
-            unreachable!()
         }
+
+        Poll::Pending
     }
 }
 

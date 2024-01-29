@@ -62,15 +62,15 @@ pub async fn kshell() {
     // everything is the same file
     let bin = Arc::new(Mutex::new(StaticRoFile::new(load_elf!("COREUTILS"))));
     VFS_ROOT.install_dev_ref("/bin/cat", bin.clone());
+    VFS_ROOT.install_dev_ref("/bin/cp", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/date", bin.clone());
-    VFS_ROOT.install_dev_ref("/bin/coreutils", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/echo", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/ls", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/random", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/sleep", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/touch", bin.clone());
 
-    _ = bin;
+    VFS_ROOT.install_dev_ref("/bin/coreutils", bin);
 
     let term = Term::new();
     let mut shell = Shell::new(term);
