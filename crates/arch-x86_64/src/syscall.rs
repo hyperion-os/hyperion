@@ -86,6 +86,7 @@ impl fmt::Display for SyscallRegs {
 /// jump into the instruction pointer with a given stack and arguments
 ///
 /// the processor switches into user privileges so it is safe to call with garbage args
+#[naked]
 #[no_mangle]
 pub extern "sysv64" fn userland(
     _instr_ptr: VirtAddr,
@@ -104,10 +105,7 @@ pub extern "sysv64" fn userland(
     // this call won't return
     unsafe {
         asm!(
-            // "cli",
             "mov r8, rcx", // tmp save argc
-            // "mov rcx, [0x0]",
-            // "mov rcx, [0x243b10]",
 
             // setup sysretq args
             "mov rcx, rdi",
