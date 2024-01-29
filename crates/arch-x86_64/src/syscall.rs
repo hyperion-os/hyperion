@@ -135,27 +135,12 @@ pub extern "sysv64" fn userland(
             "xor r13, r13",
             "xor r14, r14",
             "xor r15, r15",
-            // "jmp {halt}",
             "sysretq",
-            // halt = sym halt,
             rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
             options(noreturn)
         );
     }
 }
-
-extern "C" fn jump_userland(
-    _instr_ptr: VirtAddr,
-    _stack_ptr: VirtAddr,
-    _argc: u64,
-    _argv: u64,
-) -> ! {
-    panic!()
-}
-
-// extern "C" fn halt() {
-//     loop {}
-// }
 
 //
 

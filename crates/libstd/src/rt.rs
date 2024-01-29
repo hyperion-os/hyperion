@@ -29,9 +29,6 @@ extern "C" fn _start(hyperion_cli_args_ptr: usize, _a2: usize) -> ! {
         fn main(argc: isize, argv: *const *const u8) -> isize;
     }
 
-    hyperion_syscall::log("_start");
-    crate::println!("{hyperion_cli_args_ptr} {_a2}");
-
     // init cli args from stack, move them to the heap
     // crate::println!("init cli args");
     unsafe { env::init_args(hyperion_cli_args_ptr) };
