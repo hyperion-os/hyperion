@@ -8,7 +8,6 @@ use core::{fmt::Write, str, sync::atomic::Ordering};
 use anyhow::anyhow;
 use futures_util::stream::select;
 use hyperion_cpu_id::cpu_count;
-use hyperion_driver_acpi::apic::ApicId;
 use hyperion_events::keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -31,10 +30,7 @@ use hyperion_vfs::{
 use spin::Mutex;
 
 use super::{term::Term, *};
-use crate::{
-    cmd::{Command, NULL_DEV},
-    snake::snake_game,
-};
+use crate::cmd::{Command, NULL_DEV};
 
 //
 
@@ -138,7 +134,6 @@ impl Shell {
             "cd" => self.cd_cmd(args)?,
             "mem" => self.mem_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
-            "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
             "nproc" => self.nproc_cmd(args)?,
@@ -380,10 +375,6 @@ impl Shell {
         }
 
         Ok(())
-    }
-
-    async fn snake_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        snake_game(&mut self.term).await
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {

@@ -21,7 +21,6 @@ use crate::{shell::Shell, term::Term};
 
 pub mod cmd;
 pub mod shell;
-pub mod snake;
 pub mod term;
 
 //
