@@ -87,19 +87,8 @@ impl fmt::Display for SyscallRegs {
 ///
 /// the processor switches into user privileges so it is safe to call with garbage args
 pub fn userland(instr_ptr: VirtAddr, stack_ptr: VirtAddr, argc: u64, argv: u64) -> ! {
-    jump_userland(instr_ptr, stack_ptr, argc, argv)
-}
-
-extern "C" fn jump_userland(
-    _instr_ptr: VirtAddr,
-    _stack_ptr: VirtAddr,
-    _argc: u64,
-    _argv: u64,
-) -> ! {
-    // rdi = _instr_ptr
-    // rsi = _stack_ptr
-    // rdx = _argc
-    // rcx = _argv
+    let instr_ptr = instr_ptr.as_u64();
+    let stack_ptr = stack_ptr.as_u64();
 
     // SAFETY:
     // the processor jumps into user space with user privileges so it can't hurt the kernel
@@ -108,16 +97,16 @@ extern "C" fn jump_userland(
     unsafe {
         asm!(
             // "cli",
-            "mov r8, rcx", // tmp save argc
+            // "mov r8, rcx", // tmp save argc
 
             // setup sysretq args
-            "mov rcx, rdi",
-            "mov rsp, rsi",
+            "mov rcx, {instr}",
+            "mov rsp, {stack}",
             "mov r11, {rflags}",
 
             // setup argc,argv
-            "mov rsi, r8",
-            "mov rdi, rdx",
+            "mov rsi, {argc}",
+            "mov rdi, {argv}",
 
             // clear some registers
             "xor rax, rax",
@@ -136,13 +125,31 @@ extern "C" fn jump_userland(
             "xor r13, r13",
             "xor r14, r14",
             "xor r15, r15",
-            // "call {halt}",
+            // "jmp {halt}",
             "sysretq",
+            // halt = sym halt,
+            instr = in(reg) instr_ptr,
+            stack = in(reg) stack_ptr,
+            argc = in(reg) argc,
+            argv = in(reg) argv,
             rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
             options(noreturn)
         );
     }
 }
+
+extern "C" fn jump_userland(
+    _instr_ptr: VirtAddr,
+    _stack_ptr: VirtAddr,
+    _argc: u64,
+    _argv: u64,
+) -> ! {
+    panic!()
+}
+
+// extern "C" fn halt() {
+//     loop {}
+// }
 
 //
 
