@@ -140,8 +140,6 @@ impl Shell {
             "kbl" => self.kbl_cmd(args)?,
             "snake" => self.snake_cmd(args).await?,
             "help" => self.help_cmd(args)?,
-            "lapic_id" => self.lapic_id_cmd(args)?,
-            "cpu_id" => self.cpu_id_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
             "nproc" => self.nproc_cmd(args)?,
             "top" => self.top_cmd(args)?,
@@ -391,16 +389,6 @@ impl Shell {
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
         _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear");
 
-        Ok(())
-    }
-
-    fn lapic_id_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "{:?}", ApicId::current());
-        Ok(())
-    }
-
-    fn cpu_id_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "{:?}", hyperion_cpu_id::cpu_id());
         Ok(())
     }
 
