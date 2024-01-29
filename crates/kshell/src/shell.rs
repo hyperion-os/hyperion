@@ -387,7 +387,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, lapic_id, cpu_id, ps, nproc, top, kill, exit, clear");
+        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, ps, nproc, top, kill, exit, clear");
 
         Ok(())
     }
