@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["dbg_cpu","die","init","rng_seed","spin_loop","stack_pages","wake_cpus"],"mod":["context","cpu","int","paging","pmm","stack","syscall","tls","vmm"]};
+window.SIDEBAR_ITEMS = {"fn":["dbg_cpu","die","init","rng_seed","spin_loop","wake_cpus"],"mod":["context","cpu","int","paging","pmm","stack","syscall","tls","vmm"]};

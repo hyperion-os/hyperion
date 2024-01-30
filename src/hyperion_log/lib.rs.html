@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/log/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b1a3e7f8283b8434.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_log" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (635124704 2024-01-27)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/log/src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b1a3e7f8283b8434.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_log" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (5518eaa94 2024-01-29)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
             <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../hyperion_log/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
@@ -206,6 +206,18 @@
 <a href="#204" id="204">204</a>
 <a href="#205" id="205">205</a>
 <a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
 </pre></div><pre class="rust"><code><span class="attr">#![no_std]
 
 </span><span class="comment">//
@@ -216,7 +228,7 @@
 
 <span class="kw">use </span>arcstr::{literal, ArcStr};
 <span class="kw">use </span>hyperion_escape::encode::EscapeEncoder;
-<span class="kw">use </span>spin::RwLock;
+<span class="kw">use </span>spin::Once;
 
 <span class="comment">//
 
@@ -340,14 +352,20 @@
 <span class="comment">//
 
 </span><span class="kw">pub fn </span>set_logger(new_logger: <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Logger) {
-    <span class="kw-2">*</span>LOGGER.write() = new_logger;
+    <span class="kw">let </span><span class="kw-2">mut </span>set = <span class="bool-val">false</span>;
+    LOGGER.call_once(|| {
+        set = <span class="bool-val">true</span>;
+        new_logger
+    });
+
+    <span class="kw">if </span>!set {
+        <span class="macro">error!</span>(<span class="string">"set_logger: logger was already set"</span>);
+    }
 }
 
 <span class="attr">#[doc(hidden)]
 </span><span class="kw">pub fn </span>_print_log_custom(level: LogLevel, pre: <span class="kw">impl </span>Display, module: <span class="kw-2">&amp;</span>str, args: Arguments) {
-    <span class="kw">let </span>logger = LOGGER.read();
-
-    <span class="kw">let </span>task = logger
+    <span class="kw">let </span>task = logger()
         .proc_name()
         .unwrap_or(<span class="macro">literal!</span>(<span class="string">"pre-scheduler"</span>))
         .true_lightgrey()
@@ -358,7 +376,7 @@
         .true_grey()
         .with_reset(<span class="bool-val">false</span>);
 
-    logger.print(
+    logger().print(
         level,
         <span class="macro">format_args!</span>(
             <span class="string">"{}{pre}{task} {} {}: {args}"</span>,
@@ -371,7 +389,7 @@
 
 <span class="attr">#[doc(hidden)]
 </span><span class="kw">pub fn </span>_print(level: LogLevel, args: Arguments) {
-    LOGGER.read().print(level, args);
+    logger().print(level, args);
 }
 
 <span class="attr">#[doc(hidden)]
@@ -390,12 +408,8 @@
 
 <span class="attr">#[doc(hidden)]
 </span><span class="kw">pub fn </span>_is_enabled(level: LogLevel) -&gt; bool {
-    LOGGER.read().is_enabled(level)
+    logger().is_enabled(level)
 }
-
-<span class="comment">//
-
-</span><span class="kw">static </span>LOGGER: RwLock&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Logger&gt; = RwLock::new(<span class="kw-2">&amp;</span>NopLogger);
 
 <span class="comment">//
 
@@ -412,4 +426,14 @@
 
     <span class="kw">fn </span>print(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw">_</span>: LogLevel, <span class="kw">_</span>: Arguments) {}
 }
+
+<span class="comment">//
+
+</span><span class="kw">fn </span>logger() -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Logger {
+    LOGGER.get().copied().unwrap_or(<span class="kw-2">&amp;</span>NopLogger)
+}
+
+<span class="comment">//
+
+</span><span class="kw">static </span>LOGGER: Once&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span><span class="kw">dyn </span>Logger&gt; = Once::new();
 </code></pre></div></section></main></body></html>

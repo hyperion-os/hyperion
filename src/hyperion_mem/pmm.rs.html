@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/mem/src/pmm.rs`."><title>pmm.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b1a3e7f8283b8434.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_mem" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (635124704 2024-01-27)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/mem/src/pmm.rs`."><title>pmm.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b1a3e7f8283b8434.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_mem" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (5518eaa94 2024-01-29)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
             <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../hyperion_mem/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
@@ -424,13 +424,43 @@
 <a href="#422" id="422">422</a>
 <a href="#423" id="423">423</a>
 <a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! Physical memory management
 //!
 //! Page frame allocating
 
-</span><span class="kw">use </span>core::{
+</span><span class="kw">use </span>alloc::vec::Vec;
+<span class="kw">use </span>core::{
     alloc::{AllocError, Allocator, Layout},
     fmt,
+    hint::black_box,
     mem::{transmute, MaybeUninit},
     ptr::{<span class="self">self</span>, NonNull},
     slice,
@@ -503,26 +533,61 @@
         <span class="self">self</span>.bitmap.len()
     }
 
+    <span class="doccomment">/// # Safety
+    ///
+    /// this is safe to call once the bootloader memory is guaranteed to not be used anymore
+    ///
+    /// so after the bootloader stacks are freed and the bootloader page mapper is freed
+    /// and there are no calls to things like Limine requests
+    ///
+    /// I use Lazy in limine requests to avoid reading the raw data twice, so most Limine
+    /// requests should be already cached, and 'should be' is admittedly not 'guaranteed'
+    </span><span class="kw">pub unsafe fn </span>free_bootloader(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let </span>reclaimable: Vec&lt;Memmap&gt; = hyperion_boot::memmap()
+            .filter(|map| map.is_bootloader_reclaimable())
+            .collect();
+
+        <span class="comment">// the vec has to be collected because the memmaps are stored in the bootloader reclaimable memory
+        </span><span class="kw">let </span>reclaimable = black_box(reclaimable);
+
+        <span class="kw">for </span>region <span class="kw">in </span>reclaimable {
+            <span class="self">self</span>.free_memmap(region);
+        }
+    }
+
     <span class="doccomment">/// Free up pages
+    </span><span class="comment">// #[track_caller]
     </span><span class="kw">pub fn </span>free(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>frame: PageFrame) {
         <span class="kw">if </span>frame.first.as_u64() == <span class="number">0 </span>|| frame.count == <span class="number">0 </span>{
             <span class="kw">return</span>;
         }
 
+        frame.as_bytes_mut().fill(<span class="number">0</span>);
+        <span class="self">self</span>.free_no_overwrite(frame);
+    }
+
+    <span class="doccomment">/// Free up pages without destroying the data
+    </span><span class="kw">pub fn </span>free_no_overwrite(<span class="kw-2">&amp;</span><span class="self">self</span>, frame: PageFrame) {
+        <span class="kw">if </span>frame.first.as_u64() == <span class="number">0 </span>|| frame.count == <span class="number">0 </span>{
+            <span class="kw">return</span>;
+        }
+
         <span class="kw">let </span>page = frame.first.as_u64() <span class="kw">as </span>usize / PAGE_SIZE;
-        <span class="kw">for </span>page <span class="kw">in </span>page..page + frame.count {
+        <span class="comment">// debug!(
+        //     "freeing pages first={page} count={} from={}",
+        //     frame.count,
+        //     core::panic::Location::caller()
+        // );
+        </span><span class="kw">for </span>page <span class="kw">in </span>page..page + frame.count {
             <span class="macro">assert_eq!</span>(
                 <span class="self">self</span>.bitmap.swap(page, <span class="bool-val">false</span>, Ordering::Release),
                 <span class="prelude-val">Some</span>(<span class="bool-val">true</span>),
                 <span class="string">"trying to free pages that were already free"
             </span>);
         }
-        <span class="comment">// trace!("freeing pages first={page} count={}", frame.count);
-
-        </span>frame.as_bytes_mut().fill(<span class="number">0</span>);
 
         <span class="self">self</span>.used
-            .fetch_sub(frame.count * PAGE_SIZE, Ordering::SeqCst);
+            .fetch_sub(frame.count * PAGE_SIZE, Ordering::Release);
     }
 
     <span class="doccomment">/// Alloc pages
@@ -537,10 +602,10 @@
             };
         };
 
-        <span class="comment">/* hyperion_log::debug!(
-            "allocating {count} pages (from {})",
-            core::panic::Location::caller()
-        ); */
+        <span class="comment">// hyperion_log::debug!(
+        //     "allocating {count} pages (from {})",
+        //     core::panic::Location::caller()
+        // );
 
         // TODO: lock-less page alloc
         </span><span class="kw">let </span>from = <span class="self">self</span>.last_alloc_index.load(Ordering::SeqCst);
@@ -566,7 +631,7 @@
         <span class="comment">/* let page_data = */
         </span>fill_maybeuninit_slice(page_data, <span class="number">0</span>);
 
-        <span class="self">self</span>.used.fetch_add(count * PAGE_SIZE, Ordering::SeqCst);
+        <span class="self">self</span>.used.fetch_add(count * PAGE_SIZE, Ordering::Release);
 
         PageFrame { first: addr, count }
     }
@@ -607,6 +672,19 @@
         }
     }
 
+    <span class="kw">fn </span>free_memmap(<span class="kw-2">&amp;</span><span class="self">self</span>, Memmap { base, len, ty }: Memmap) {
+        <span class="macro">debug!</span>(
+            <span class="string">"Free {ty:?} pages: [ {:#018x?} ] ({}B)"</span>,
+            base..base + len,
+            len.postfix_binary()
+        );
+
+        <span class="comment">// base and len are guaranteed to be page aligned
+        </span><span class="kw">let </span>frame = <span class="kw">unsafe </span>{ PageFrame::new(PhysAddr::new(base <span class="kw">as _</span>), len &gt;&gt; <span class="number">12</span>) };
+        <span class="comment">// TODO: user space apps could read what the bootloader stored, but is it a problem?
+        </span><span class="self">self</span>.free_no_overwrite(frame);
+    }
+
     <span class="kw">fn </span>init() -&gt; <span class="self">Self </span>{
         <span class="comment">// usable system memory
         </span><span class="kw">let </span><span class="kw-2">mut </span>usable: usize = memmap()
@@ -616,21 +694,16 @@
 
         <span class="comment">// total system memory
         </span><span class="kw">let </span>total: usize = memmap()
-            .filter(|m| !m.is_framebuffer())
-            .map(|Memmap { len, .. }| len)
-            .sum();
+            .map(|Memmap { base, len, ty: <span class="kw">_ </span>}| base + len)
+            .max()
+            .unwrap_or(<span class="number">0</span>);
 
         <span class="comment">// the end of the usable physical memory address space
         </span><span class="kw">let </span>top = memmap()
-            .filter(Memmap::is_usable)
+            .filter(|m| m.is_usable() | m.is_bootloader_reclaimable())
             .map(|Memmap { base, len, ty: <span class="kw">_ </span>}| base + len)
             .max()
-            .expect(<span class="string">"No memory"</span>);
-
-        <span class="kw">let </span>used: usize = memmap()
-            .filter(|m| m.is_bootloader_reclaimable())
-            .map(|Memmap { len, .. }| len)
-            .sum();
+            .unwrap_or(<span class="number">0</span>);
 
         <span class="comment">// size in bytes
         </span><span class="kw">let </span>bitmap_size: usize = align_up((top / PAGE_SIZE / <span class="number">8</span>) <span class="kw">as _</span>, PAGE_SIZE <span class="kw">as _</span>) <span class="kw">as _</span>;
@@ -651,47 +724,30 @@
         bitmap.fill(<span class="bool-val">true</span>, Ordering::SeqCst);
         <span class="comment">// bitmap.fill(true, Ordering::SeqCst); // initialized here
 
-        // free up some pages
-        </span><span class="kw">for </span>Memmap {
-            <span class="kw-2">mut </span>base,
-            <span class="kw-2">mut </span>len,
-            ty: <span class="kw">_</span>,
-        } <span class="kw">in </span>memmap().filter(Memmap::is_usable)
-        {
-            <span class="kw">if </span>base == bitmap_data {
-                <span class="comment">// skip the bitmap allocation spot
-                </span>base += bitmap_size;
-                len -= bitmap_size;
-            }
-
-            <span class="kw">let </span><span class="kw-2">mut </span>bottom = base;
-            <span class="kw">let </span><span class="kw-2">mut </span>top = base + len;
-
-            <span class="macro">debug!</span>(
-                <span class="string">"Free pages: [ {:#018x?} ] ({}B)"</span>,
-                bottom..top,
-                (top - bottom).postfix_binary()
-            );
-
-            bottom /= PAGE_SIZE;
-            top /= PAGE_SIZE;
-
-            <span class="comment">// TODO: reverse, mark used memory instead of unused memory
-            </span><span class="kw">for </span>page <span class="kw">in </span>bottom..top {
-                bitmap.store(page, <span class="bool-val">false</span>, Ordering::Release).unwrap();
-            }
-        }
-
-        usable -= bitmap_size;
-
+        </span>usable -= bitmap_size;
         <span class="kw">let </span>pfa = <span class="self">Self </span>{
             bitmap,
             usable: usable.into(),
-            used: used.into(),
+            used: usable.into(),
             total: total.into(),
 
             last_alloc_index: <span class="number">0</span>.into(),
         };
+
+        <span class="comment">// free up some pages
+        </span><span class="macro">hyperion_log::debug!</span>(<span class="string">"bitmap size: {bitmap_size}"</span>);
+        <span class="kw">for </span><span class="kw-2">mut </span>region <span class="kw">in </span>memmap().filter(Memmap::is_usable) {
+            <span class="kw">if </span>region.base == bitmap_data {
+                <span class="comment">// skip the bitmap allocation spot
+                </span>region.base += bitmap_size;
+                region.len -= bitmap_size;
+            }
+            <span class="kw">if </span>region.len == <span class="number">0 </span>{
+                <span class="kw">continue</span>;
+            }
+
+            pfa.free_memmap(region);
+        }
 
         <span class="macro">debug!</span>(<span class="string">"PFA initialized:\n{pfa}"</span>);
 

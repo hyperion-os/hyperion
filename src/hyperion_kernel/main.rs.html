@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b1a3e7f8283b8434.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (635124704 2024-01-27)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/kernel/src/main.rs`."><title>main.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-b1a3e7f8283b8434.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="hyperion_kernel" data-themes="" data-resource-suffix="" data-rustdoc-version="1.77.0-nightly (5518eaa94 2024-01-29)" data-channel="nightly" data-search-js="search-dd67cee4cfa65049.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-48f368f3872407c8.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
             <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
     <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../hyperion_kernel/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
@@ -161,25 +161,6 @@
 <a href="#159" id="159">159</a>
 <a href="#160" id="160">160</a>
 <a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a>
-<a href="#163" id="163">163</a>
-<a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a>
-<a href="#166" id="166">166</a>
-<a href="#167" id="167">167</a>
-<a href="#168" id="168">168</a>
-<a href="#169" id="169">169</a>
-<a href="#170" id="170">170</a>
-<a href="#171" id="171">171</a>
-<a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
 </pre></div><pre class="rust"><code><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">"../../../README.md"</span>)]
 </span><span class="comment">//
 </span><span class="attr">#![no_std]
@@ -195,9 +176,6 @@
 
 </span><span class="kw">extern crate </span>alloc;
 
-<span class="kw">use </span>core::ops::Range;
-
-<span class="kw">use </span>arch::vmm::PageMap;
 <span class="kw">use </span>hyperion_arch <span class="kw">as </span>arch;
 <span class="kw">use </span>hyperion_boot <span class="kw">as </span>boot;
 <span class="kw">use </span>hyperion_cpu_id::cpu_id;
@@ -207,11 +185,10 @@
 <span class="kw">use </span>hyperion_kernel_info::{NAME, VERSION};
 <span class="kw">use </span>hyperion_log::<span class="kw-2">*</span>;
 <span class="kw">use </span>hyperion_log_multi <span class="kw">as </span>log_multi;
-<span class="kw">use </span>hyperion_mem::{from_higher_half, vmm::PageMapImpl, KernelSlabAlloc};
+<span class="kw">use </span>hyperion_mem::KernelSlabAlloc;
 <span class="kw">use </span>hyperion_random <span class="kw">as </span>random;
 <span class="kw">use </span>hyperion_scheduler <span class="kw">as </span>scheduler;
 <span class="kw">use </span>hyperion_sync <span class="kw">as </span>sync;
-<span class="kw">use </span>x86_64::VirtAddr;
 
 <span class="comment">//
 
@@ -229,8 +206,7 @@
 
 </span><span class="attr">#[no_mangle]
 </span><span class="kw">extern </span><span class="string">"C" </span><span class="kw">fn </span>_start() -&gt; ! {
-    <span class="comment">// save the bootloader stack range so it can be freed later
-    </span><span class="kw">let </span>boot_stack = arch::stack_pages();
+    hyperion_boot::init_fb();
 
     <span class="kw">if </span><span class="macro">sync::once!</span>() {
         <span class="comment">// enable logging and and outputs based on the kernel args,
@@ -250,14 +226,12 @@
     <span class="comment">// wake up all cpus
     </span>arch::wake_cpus();
 
-    <span class="kw">let </span>boot_vmm = PageMap::current();
-
     <span class="comment">// init task per cpu
     </span><span class="macro">debug!</span>(<span class="string">"init CPU-{}"</span>, cpu_id());
-    scheduler::init(<span class="kw">move </span>|| init(boot_stack, boot_vmm));
+    scheduler::init(init);
 }
 
-<span class="kw">fn </span>init(boot_stack: Range&lt;VirtAddr&gt;, <span class="kw-2">mut </span>boot_vmm: PageMap) {
+<span class="kw">fn </span>init() {
     scheduler::rename(<span class="string">"&lt;kernel async&gt;"</span>);
 
     <span class="comment">// init task once
@@ -275,28 +249,16 @@
         </span>futures::spawn(hyperion_kshell::kshell());
     }
 
-    <span class="comment">// The bootloader provided vmm is shared between CPUs
-    // so this makes sure that only the last processor still using it,
+    <span class="comment">// The bootloader stuff (like the bootloader stacks and the bootloader page map)
+    // is shared between CPUs, so this makes sure that only the last processor still using it,
     // is the only one that can delete it.
     </span><span class="kw">if </span><span class="macro">sync::last!</span>() {
-        <span class="macro">debug!</span>(
-            <span class="string">"freeing bootloader page table: {:#x}"</span>,
-            boot_vmm.cr3().start_address()
-        );
+        <span class="comment">// bootloader memory shouldn't be used anymore
+        </span><span class="macro">debug!</span>(<span class="string">"freeing bootloader reclaimable memory"</span>);
         <span class="kw">unsafe </span>{
-            boot_vmm.mark_owned();
-        };
-        drop(boot_vmm);
+            hyperion_mem::pmm::PFA.free_bootloader();
+        }
     }
-
-    <span class="kw">let </span>first = from_higher_half(boot_stack.start);
-    <span class="kw">let </span>count = ((boot_stack.end - boot_stack.start) / <span class="number">0x1000</span>) <span class="kw">as </span>usize;
-
-    <span class="comment">// Bootloader provided stack can be freed after switching away from
-    // the bootloader task.
-    </span><span class="kw">let </span>frames = <span class="kw">unsafe </span>{ hyperion_mem::pmm::PageFrame::new(first, count) };
-    <span class="macro">trace!</span>(<span class="string">"deallocating bootloader provided stack {boot_stack:?}"</span>);
-    hyperion_mem::pmm::PFA.free(frames);
 
     <span class="comment">// start doing kernel things
     </span>futures::run_tasks();
