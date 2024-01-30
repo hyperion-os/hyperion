@@ -21,8 +21,8 @@ use crate::hpet::HPET;
 pub static APIC_TIMER_HANDLER: AtomicCell<fn()> = AtomicCell::new(|| {});
 
 pub const IRQ_APIC_SPURIOUS: u8 = 0xFF;
-// APIC timer interval is 100ms
-pub const APIC_PERIOD_MULT: u32 = 100;
+// APIC timer interval is 10ms
+pub const APIC_PERIOD_MULT: u32 = 10;
 
 //
 
