@@ -39,7 +39,7 @@ pub mod vmm;
 extern "C" fn _start() -> ! {
     unsafe {
         // save the stack pointer before rust touches it
-        asm!("mov rsi, rsp", "jmp rust_start", options(noreturn));
+        asm!("mov rdi, rsp", "jmp rust_start", options(noreturn));
     }
 }
 

@@ -45,7 +45,7 @@ static ALLOCATOR: KernelSlabAlloc<spin::Mutex<()>> = KernelSlabAlloc::new();
 //
 
 #[no_mangle]
-extern "C" fn rust_start(sp: usize) -> ! {
+extern "sysv64" fn rust_start(sp: usize) -> ! {
     if sync::once!() {
         // enable logging and and outputs based on the kernel args,
         // any logging before won't be shown
