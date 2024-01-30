@@ -43,6 +43,8 @@ static ALLOCATOR: KernelSlabAlloc<spin::Mutex<()>> = KernelSlabAlloc::new();
 
 #[no_mangle]
 extern "C" fn _start() -> ! {
+    hyperion_boot::init_fb();
+
     if sync::once!() {
         // enable logging and and outputs based on the kernel args,
         // any logging before won't be shown

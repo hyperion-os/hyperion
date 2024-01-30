@@ -4,7 +4,7 @@
 
 pub use addr::{hhdm_offset, phys_addr, size, virt_addr};
 pub use cmdline::cmdline;
-pub use framebuffer::framebuffer;
+pub use framebuffer::{framebuffer, init_fb};
 pub use kernel::kernel_file;
 pub use mem::memmap;
 pub use rsdp::rsdp;

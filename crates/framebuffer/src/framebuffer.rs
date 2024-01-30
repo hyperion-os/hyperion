@@ -45,14 +45,14 @@ impl Framebuffer {
         static FBO: Once<Option<Mutex<Framebuffer>>> = Once::new();
 
         FBO.call_once(|| {
-            let FramebufferCreateInfo {
-                buf,
+            let mut fb @ FramebufferCreateInfo {
                 width,
                 height,
                 pitch,
+                ..
             } = hyperion_boot::framebuffer()?;
             let mut fbo = Framebuffer::new(
-                buf,
+                unsafe { fb.buf_mut() },
                 FramebufferInfo {
                     width,
                     height,
