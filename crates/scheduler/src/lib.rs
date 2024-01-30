@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(offset_of, let_chains)]
+#![feature(let_chains)]
 
 //
 
