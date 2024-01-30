@@ -254,7 +254,7 @@ impl RtcPorts {
         if reg_b & 0x04 == 0 {
             let bcd_to_bin = |bcd: u8| -> u8 { (bcd & 0x0F) + bcd / 16 * 10 };
             last.sec = bcd_to_bin(last.sec);
-            last.min = bcd_to_bin(last.sec);
+            last.min = bcd_to_bin(last.min);
             /* last.hour = bcd_to_bin(last.hour); */
             last.hour = (last.hour & 0x0F) + (((last.hour & 0x70) / 16 * 10) | (last.hour & 0x80));
             last.day = bcd_to_bin(last.day);
