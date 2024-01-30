@@ -12,8 +12,6 @@
 
 extern crate alloc;
 
-use core::arch::asm;
-
 use hyperion_cpu_id::{self as cpu_id, cpu_id};
 use hyperion_log::*;
 use x86_64::{
@@ -31,17 +29,6 @@ pub mod stack;
 pub mod syscall;
 pub mod tls;
 pub mod vmm;
-
-//
-
-#[naked]
-#[no_mangle]
-extern "C" fn _start() -> ! {
-    unsafe {
-        // save the stack pointer before rust touches it
-        asm!("mov rdi, rsp", "jmp rust_start", options(noreturn));
-    }
-}
 
 //
 

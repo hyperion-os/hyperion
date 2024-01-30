@@ -1,7 +1,9 @@
+use core::mem::transmute;
+
 use hyperion_boot_interface::Cpu;
 use hyperion_log::{debug, error};
-use limine::{SmpInfo, SmpRequest};
-use spin::Lazy;
+use limine::SmpRequest;
+use spin::{Lazy, Once};
 
 //
 
@@ -15,12 +17,13 @@ pub fn smp_init() {
         .flat_map(|resp| resp.cpus().iter_mut())
         .filter(|cpu| boot.processor_id != cpu.processor_id)
     {
-        cpu.goto_address = smp_start;
+        cpu.goto_address = unsafe { transmute(_start as usize) };
     }
 }
 
 pub fn cpu_count() -> usize {
-    REQ.get_response().get_mut().unwrap().cpu_count as usize
+    static CPU_COUNT: Once<usize> = Once::new();
+    *CPU_COUNT.call_once(|| REQ.get_response().get_mut().unwrap().cpu_count as usize)
 }
 
 pub fn boot_cpu() -> Cpu {
@@ -60,10 +63,6 @@ pub fn lapics() -> impl Iterator<Item = u32> {
 
 extern "C" {
     fn _start() -> !;
-}
-
-extern "C" fn smp_start(_info: *const SmpInfo) -> ! {
-    unsafe { _start() };
 }
 
 //

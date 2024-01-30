@@ -15,8 +15,7 @@ pub struct Arguments {
     pub video_log_level: LogLevel,
     // log_color: bool,
     pub had_unrecognized: bool,
-
-    pub cmdline: &'static str,
+    // pub cmdline: &'static str,
 }
 
 //
@@ -25,7 +24,7 @@ impl Arguments {
     pub fn parse(s: &'static str) -> Self {
         let iter = s.split(|c: char| c.is_whitespace());
         let mut result = Arguments {
-            cmdline: s,
+            // cmdline: s,
             ..<_>::default()
         };
 

@@ -13,8 +13,6 @@
 
 extern crate alloc;
 
-use arch::vmm::PageMap;
-use boot::BOOT_STACK_SIZE;
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
@@ -24,11 +22,10 @@ use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
-use hyperion_mem::{from_higher_half, vmm::PageMapImpl, KernelSlabAlloc};
+use hyperion_mem::KernelSlabAlloc;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
-use x86_64::VirtAddr;
 
 //
 
@@ -45,7 +42,7 @@ static ALLOCATOR: KernelSlabAlloc<spin::Mutex<()>> = KernelSlabAlloc::new();
 //
 
 #[no_mangle]
-extern "sysv64" fn rust_start(sp: usize) -> ! {
+extern "C" fn _start() -> ! {
     if sync::once!() {
         // enable logging and and outputs based on the kernel args,
         // any logging before won't be shown
@@ -64,14 +61,12 @@ extern "sysv64" fn rust_start(sp: usize) -> ! {
     // wake up all cpus
     arch::wake_cpus();
 
-    let boot_vmm = PageMap::current();
-
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
-    scheduler::init(move || init(sp, boot_vmm));
+    scheduler::init(init);
 }
 
-fn init(boot_sp: usize, mut boot_vmm: PageMap) {
+fn init() {
     scheduler::rename("<kernel async>");
 
     // init task once
@@ -89,28 +84,16 @@ fn init(boot_sp: usize, mut boot_vmm: PageMap) {
         futures::spawn(hyperion_kshell::kshell());
     }
 
-    // The bootloader provided vmm is shared between CPUs
-    // so this makes sure that only the last processor still using it,
+    // The bootloader stuff (like the bootloader stacks and the bootloader page map)
+    // is shared between CPUs, so this makes sure that only the last processor still using it,
     // is the only one that can delete it.
     if sync::last!() {
-        debug!(
-            "freeing bootloader page table: {:#x}",
-            boot_vmm.cr3().start_address()
-        );
+        // bootloader memory shouldn't be used anymore
+        debug!("freeing bootloader reclaimable memory");
         unsafe {
-            boot_vmm.mark_owned();
-        };
-        drop(boot_vmm);
+            hyperion_mem::pmm::PFA.free_bootloader();
+        }
     }
-
-    let first = from_higher_half(VirtAddr::new(boot_sp as _));
-    let count = (BOOT_STACK_SIZE >> 12) as usize;
-
-    // Bootloader provided stack can be freed after switching away from
-    // the bootloader task.
-    let frames = unsafe { hyperion_mem::pmm::PageFrame::new(first, count) };
-    trace!("deallocating bootloader provided stack {boot_sp:#018x} (size:{BOOT_STACK_SIZE})");
-    hyperion_mem::pmm::PFA.free(frames);
 
     // start doing kernel things
     futures::run_tasks();

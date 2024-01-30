@@ -2,7 +2,7 @@
 
 //
 
-pub use addr::{hhdm_offset, phys_addr, virt_addr};
+pub use addr::{hhdm_offset, phys_addr, size, virt_addr};
 pub use cmdline::cmdline;
 pub use framebuffer::framebuffer;
 pub use kernel::kernel_file;

@@ -2,9 +2,11 @@
 //!
 //! Page frame allocating
 
+use alloc::vec::Vec;
 use core::{
     alloc::{AllocError, Allocator, Layout},
     fmt,
+    hint::black_box,
     mem::{transmute, MaybeUninit},
     ptr::{self, NonNull},
     slice,
@@ -77,6 +79,28 @@ impl PageFrameAllocator {
         self.bitmap.len()
     }
 
+    /// # Safety
+    ///
+    /// this is safe to call once the bootloader memory is guaranteed to not be used anymore
+    ///
+    /// so after the bootloader stacks are freed and the bootloader page mapper is freed
+    /// and there are no calls to things like Limine requests
+    ///
+    /// I use Lazy in limine requests to avoid reading the raw data twice, so most Limine
+    /// requests should be already cached, and 'should be' is admittedly not 'guaranteed'
+    pub unsafe fn free_bootloader(&self) {
+        let reclaimable: Vec<Memmap> = hyperion_boot::memmap()
+            .filter(|map| map.is_bootloader_reclaimable())
+            .collect();
+
+        // the vec has to be collected because the memmaps are stored in the bootloader reclaimable memory
+        let reclaimable = black_box(reclaimable);
+
+        for region in reclaimable {
+            self.free_memmap(region);
+        }
+    }
+
     /// Free up pages
     // #[track_caller]
     pub fn free(&self, mut frame: PageFrame) {
@@ -84,8 +108,17 @@ impl PageFrameAllocator {
             return;
         }
 
-        let page = frame.first.as_u64() as usize / PAGE_SIZE;
         frame.as_bytes_mut().fill(0);
+        self.free_no_overwrite(frame);
+    }
+
+    /// Free up pages without destroying the data
+    pub fn free_no_overwrite(&self, frame: PageFrame) {
+        if frame.first.as_u64() == 0 || frame.count == 0 {
+            return;
+        }
+
+        let page = frame.first.as_u64() as usize / PAGE_SIZE;
         // debug!(
         //     "freeing pages first={page} count={} from={}",
         //     frame.count,
@@ -100,7 +133,7 @@ impl PageFrameAllocator {
         }
 
         self.used
-            .fetch_sub(frame.count * PAGE_SIZE, Ordering::SeqCst);
+            .fetch_sub(frame.count * PAGE_SIZE, Ordering::Release);
     }
 
     /// Alloc pages
@@ -144,7 +177,7 @@ impl PageFrameAllocator {
         /* let page_data = */
         fill_maybeuninit_slice(page_data, 0);
 
-        self.used.fetch_add(count * PAGE_SIZE, Ordering::SeqCst);
+        self.used.fetch_add(count * PAGE_SIZE, Ordering::Release);
 
         PageFrame { first: addr, count }
     }
@@ -185,6 +218,19 @@ impl PageFrameAllocator {
         }
     }
 
+    fn free_memmap(&self, Memmap { base, len, ty }: Memmap) {
+        debug!(
+            "Free {ty:?} pages: [ {:#018x?} ] ({}B)",
+            base..base + len,
+            len.postfix_binary()
+        );
+
+        // base and len are guaranteed to be page aligned
+        let frame = unsafe { PageFrame::new(PhysAddr::new(base as _), len >> 12) };
+        // TODO: user space apps could read what the bootloader stored, but is it a problem?
+        self.free_no_overwrite(frame);
+    }
+
     fn init() -> Self {
         // usable system memory
         let mut usable: usize = memmap()
@@ -194,21 +240,16 @@ impl PageFrameAllocator {
 
         // total system memory
         let total: usize = memmap()
-            .filter(|m| !m.is_framebuffer())
-            .map(|Memmap { len, .. }| len)
-            .sum();
+            .map(|Memmap { base, len, ty: _ }| base + len)
+            .max()
+            .unwrap_or(0);
 
         // the end of the usable physical memory address space
         let top = memmap()
-            .filter(Memmap::is_usable)
+            .filter(|m| m.is_usable() | m.is_bootloader_reclaimable())
             .map(|Memmap { base, len, ty: _ }| base + len)
             .max()
-            .expect("No memory");
-
-        let used: usize = memmap()
-            .filter(|m| m.is_bootloader_reclaimable())
-            .map(|Memmap { len, .. }| len)
-            .sum();
+            .unwrap_or(0);
 
         // size in bytes
         let bitmap_size: usize = align_up((top / PAGE_SIZE / 8) as _, PAGE_SIZE as _) as _;
@@ -229,47 +270,30 @@ impl PageFrameAllocator {
         bitmap.fill(true, Ordering::SeqCst);
         // bitmap.fill(true, Ordering::SeqCst); // initialized here
 
-        // free up some pages
-        for Memmap {
-            mut base,
-            mut len,
-            ty: _,
-        } in memmap().filter(Memmap::is_usable)
-        {
-            if base == bitmap_data {
-                // skip the bitmap allocation spot
-                base += bitmap_size;
-                len -= bitmap_size;
-            }
-
-            let mut bottom = base;
-            let mut top = base + len;
-
-            debug!(
-                "Free pages: [ {:#018x?} ] ({}B)",
-                bottom..top,
-                (top - bottom).postfix_binary()
-            );
-
-            bottom /= PAGE_SIZE;
-            top /= PAGE_SIZE;
-
-            // TODO: reverse, mark used memory instead of unused memory
-            for page in bottom..top {
-                bitmap.store(page, false, Ordering::Release).unwrap();
-            }
-        }
-
         usable -= bitmap_size;
-
         let pfa = Self {
             bitmap,
             usable: usable.into(),
-            used: used.into(),
+            used: usable.into(),
             total: total.into(),
 
             last_alloc_index: 0.into(),
         };
+
+        // free up some pages
+        hyperion_log::debug!("bitmap size: {bitmap_size}");
+        for mut region in memmap().filter(Memmap::is_usable) {
+            if region.base == bitmap_data {
+                // skip the bitmap allocation spot
+                region.base += bitmap_size;
+                region.len -= bitmap_size;
+            }
+            if region.len == 0 {
+                continue;
+            }
+
+            pfa.free_memmap(region);
+        }
 
         debug!("PFA initialized:\n{pfa}");
 

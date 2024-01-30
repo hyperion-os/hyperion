@@ -29,7 +29,7 @@ use hyperion_mem::{
     from_higher_half, pmm, to_higher_half,
     vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
-use spin::{Lazy, Mutex, RwLock};
+use spin::RwLock;
 use x86_64::{
     registers::control::{Cr3, Cr3Flags},
     structures::paging::{
@@ -55,30 +55,6 @@ pub const KERNEL_STACKS: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFD_8000_0000
 pub const KERNEL_EXECUTABLE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_8000_0000);
 pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_FFFF_F000);
 
-/// level 3 entries 510 and 511 in level 4 entry 511
-/// - `0xFFFF_8000_0000..`
-/// - `0xFFFF_C000_0000..`
-pub static KERNEL_EXECUTABLE_MAPS: Lazy<((PhysAddr, PageTableFlags), (PhysAddr, PageTableFlags))> =
-    Lazy::new(|| {
-        let (cr3, _) = Cr3::read();
-        let l4 = unsafe { read_table_mut(cr3.start_address()) };
-
-        let l3 = &l4[511];
-        assert!(!l3.is_unused());
-        let l3 = unsafe { read_table_mut(l3.addr()) };
-
-        let l2 = &mut l3[510];
-        l2.set_flags(l2.flags() | PageTableFlags::BIT_9); // bit 9 marks it as shared, TODO: a better method
-        let l3_510 = (l2.addr(), l2.flags());
-        let l2 = &mut l3[511];
-        l2.set_flags(l2.flags() | PageTableFlags::BIT_9);
-        let l3_511 = (l2.addr(), l2.flags());
-
-        // no flushing needed, the cpu doesn't care about the bit 9
-
-        (l3_510, l3_511)
-    });
-
 //
 
 pub struct PageMap {
@@ -88,50 +64,9 @@ pub struct PageMap {
 
 //
 
-// unsafe fn read_table(addr: PhysAddr) -> &'static PageTable {
-//     let table = to_higher_half(addr);
-//     let table: *const PageTable = table.as_ptr();
-//     unsafe { &*table }
-// }
-
-unsafe fn read_table_mut(addr: PhysAddr) -> &'static mut PageTable {
-    let table = to_higher_half(addr);
-    let table: *mut PageTable = table.as_mut_ptr();
-    unsafe { &mut *table }
-}
-
-fn _crash_after_nth(nth: usize) {
-    static TABLE: Mutex<BTreeMap<usize, usize>> = Mutex::new(BTreeMap::new());
-    let mut table = TABLE.lock();
-
-    let left = table.entry(nth).or_insert_with(|| nth);
-    *left -= 1;
-
-    if *left == 0 {
-        panic!("crash_after_nth {nth} complete");
-    }
-}
-
 impl PageMapImpl for PageMap {
     fn page_fault(&self, _v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
         // TODO: lazy allocs
-
-        /* if privilege == Privilege::User {
-            return PageFaultResult::NotHandled;
-        }
-
-        let mut table = self.offs.write();
-
-        if lazy_map(
-            &mut table,
-            v_addr,
-            HIGHER_HALF_DIRECT_MAPPING..KERNEL_STACKS,
-            PhysAddr::new(0),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
-        ) == PageFaultResult::Handled
-        {
-            return PageFaultResult::NotHandled;
-        } */
 
         Ok(NotHandled)
     }
@@ -157,24 +92,8 @@ impl PageMapImpl for PageMap {
 
         new_table.zero();
 
-        let mut offs =
+        let offs =
             unsafe { OffsetPageTable::new(new_table, VirtAddr::new(hyperion_boot::hhdm_offset())) };
-
-        /* let page = Page::containing_address(CURRENT_ADDRESS_SPACE);
-        offs.map_to(page, frame, flags, frame_allocator); */
-
-        let (l3_510, l3_511) = &*KERNEL_EXECUTABLE_MAPS;
-        let l4 = offs.level_4_table();
-        let l3 = &mut l4[511];
-        let frame = pmm::PFA.alloc(1);
-        l3.set_addr(
-            frame.physical_addr(),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-        );
-        assert!(!l3.is_unused());
-        let l3 = unsafe { read_table_mut(l3.addr()) };
-        l3[510].set_addr(l3_510.0, l3_510.1);
-        l3[511].set_addr(l3_511.0, l3_511.1);
 
         // TODO: Copy on write maps
 
@@ -193,15 +112,20 @@ impl PageMapImpl for PageMap {
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
         );
 
-        /* // TODO: less dumb kernel mapping
-        // hyperion_log::debug!("kernel map");
+        // FIXME: less dumb kernel mapping
+        // deep copy the kernel mapping from the bootloader pagemap
+        // and then use it as a global or CoW page map
+        //
+        // currently the whole kernel mapping is RW so a bug could write
+        // code into the executable kernel region (which is obviously really fkng bad)
         let kernel = VirtAddr::new(hyperion_boot::virt_addr() as _);
-        let top = VirtAddr::new(u64::MAX);
+        let top = kernel + hyperion_boot::size();
+        hyperion_log::debug!("kernel map {kernel:#018x}");
         page_map.map(
             kernel..top,
             PhysAddr::new(hyperion_boot::phys_addr() as _),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-        ); */
+        );
 
         page_map
     }
