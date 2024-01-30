@@ -12,7 +12,7 @@ pub(crate) fn process(ps2_byte: u8) -> impl Iterator<Item = KeyboardEvent> {
     let mut kb = KEYBOARD.lock();
 
     let Some(mut event) = kb.add_byte(ps2_byte).ok().flatten() else {
-        return [KeyboardEvent::empty(); 2].into_iter().take(2);
+        return [KeyboardEvent::empty(); 2].into_iter().take(0);
     };
 
     if event.code == KeyCode::Oem7 {

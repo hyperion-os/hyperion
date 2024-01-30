@@ -209,7 +209,7 @@ impl Shell {
         fn try_forward(from: &dyn FileDescriptor, to: &mpmc::Sender<Option<String>>) -> Option<()> {
             loop {
                 // TODO: if the buffer is full, the result might not be UTF-8
-                let mut buf = [0u8; 512];
+                let mut buf = [0u8; 0x2000];
                 let len = from.read(&mut buf).ok()?;
 
                 if len == 0 {
@@ -217,6 +217,7 @@ impl Shell {
                 }
 
                 let str = str::from_utf8(&buf[..len]).ok()?.to_string();
+                // hyperion_log::info!("{str}");
 
                 to.send(Some(str)).ok()?;
             }
