@@ -24,7 +24,8 @@ impl ArcWake for SleepWaker {
         assert!(arc_self.deadline.is_reached());
 
         let Some(task) = arc_self.task.take() else {
-            unreachable!("double wakes shouldn't happen, its a bug in the executor");
+            hyperion_log::error!("double wakes shouldn't happen, its a bug in the executor");
+            return;
         };
 
         READY.push(task);
@@ -33,9 +34,12 @@ impl ArcWake for SleepWaker {
 
 impl Drop for SleepWaker {
     fn drop(&mut self) {
-        if self.task.take().is_some() {
-            unreachable!("the waker wasn't woken before dropping it");
-        }
+        let Some(task) = self.task.take() else {
+            return;
+        };
+
+        hyperion_log::error!("the waker wasn't woken before dropping it");
+        READY.push(task);
     }
 }
 
