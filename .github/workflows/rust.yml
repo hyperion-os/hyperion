@@ -37,13 +37,13 @@ jobs:
     #  uses: Swatinem/rust-cache@v2.5.0
 
     - name: Run tests
-      run: make unittest
+      run: make nextest
 
     - name: Run QEMU tests
       run: make KVM=false test
 
     - name: Run Clippy
-      run: cargo clippy
+      run: cargo clippy -- -Dwarnings
 
     - name: Run Rustfmt
       run: cargo fmt --all -- --check
