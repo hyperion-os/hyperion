@@ -85,6 +85,7 @@ impl PageFrameAllocator {
         }
 
         let page = frame.first.as_u64() as usize / PAGE_SIZE;
+        frame.as_bytes_mut().fill(0);
         // debug!(
         //     "freeing pages first={page} count={} from={}",
         //     frame.count,
@@ -97,8 +98,6 @@ impl PageFrameAllocator {
                 "trying to free pages that were already free"
             );
         }
-
-        frame.as_bytes_mut().fill(0);
 
         self.used
             .fetch_sub(frame.count * PAGE_SIZE, Ordering::SeqCst);
