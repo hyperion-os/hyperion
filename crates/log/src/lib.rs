@@ -8,7 +8,7 @@ use core::fmt::{Arguments, Display};
 
 use arcstr::{literal, ArcStr};
 use hyperion_escape::encode::EscapeEncoder;
-use spin::RwLock;
+use spin::Once;
 
 //
 
@@ -132,14 +132,20 @@ pub trait Logger: Send + Sync {
 //
 
 pub fn set_logger(new_logger: &'static dyn Logger) {
-    *LOGGER.write() = new_logger;
+    let mut set = false;
+    LOGGER.call_once(|| {
+        set = true;
+        new_logger
+    });
+
+    if !set {
+        error!("set_logger: logger was already set");
+    }
 }
 
 #[doc(hidden)]
 pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args: Arguments) {
-    let logger = LOGGER.read();
-
-    let task = logger
+    let task = logger()
         .proc_name()
         .unwrap_or(literal!("pre-scheduler"))
         .true_lightgrey()
@@ -150,7 +156,7 @@ pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args:
         .true_grey()
         .with_reset(false);
 
-    logger.print(
+    logger().print(
         level,
         format_args!(
             "{}{pre}{task} {} {}: {args}",
@@ -163,7 +169,7 @@ pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args:
 
 #[doc(hidden)]
 pub fn _print(level: LogLevel, args: Arguments) {
-    LOGGER.read().print(level, args);
+    logger().print(level, args);
 }
 
 #[doc(hidden)]
@@ -182,12 +188,8 @@ pub fn _print_log(level: LogLevel, module: &str, args: Arguments) {
 
 #[doc(hidden)]
 pub fn _is_enabled(level: LogLevel) -> bool {
-    LOGGER.read().is_enabled(level)
+    logger().is_enabled(level)
 }
-
-//
-
-static LOGGER: RwLock<&'static dyn Logger> = RwLock::new(&NopLogger);
 
 //
 
@@ -204,3 +206,13 @@ impl Logger for NopLogger {
 
     fn print(&self, _: LogLevel, _: Arguments) {}
 }
+
+//
+
+fn logger() -> &'static dyn Logger {
+    LOGGER.get().copied().unwrap_or(&NopLogger)
+}
+
+//
+
+static LOGGER: Once<&'static dyn Logger> = Once::new();
