@@ -33,6 +33,6 @@ pub fn init_fb() {
     if let Some(mut fb) = framebuffer() {
         let buf = unsafe { fb.buf_mut() };
 
-        buf.fill(b'0');
+        buf.fill(0);
     }
 }
