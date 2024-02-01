@@ -36,6 +36,7 @@ endif
 QEMU_FLAGS      += -vga std
 QEMU_FLAGS      += -display gtk,show-cursor=on
 QEMU_FLAGS      += -usb
+QEMU_FLAGS      += -device virtio-sound
 
 QEMU_RUN_FLAGS  ?=
 QEMU_RUN_FLAGS  += ${QEMU_FLAGS}

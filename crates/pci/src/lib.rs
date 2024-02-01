@@ -83,7 +83,7 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn class_name(&self) -> &str {
+    pub fn class_name(&self) -> &'static str {
         match self.class {
             0x0 => "Unclassified",
             0x1 => "Mass Storage Controller",
@@ -112,7 +112,7 @@ impl Device {
         }
     }
 
-    pub fn subclass_name(&self) -> &str {
+    pub fn subclass_name(&self) -> &'static str {
         match (self.class, self.subclass) {
             (0x0, 0x0) => "VGA incompatible controller unclassified device",
             (0x0, 0x1) => "VGA incompatible controller unclassified device",
@@ -148,6 +148,18 @@ impl Device {
             (0x3, 0x80) => "Other display controller",
             (0x3, _) => "Unknown display controller",
 
+            (0x4, 0x0) => "Multimedia video controller",
+            (0x4, 0x1) => "Multimedia audio controller",
+            (0x4, 0x2) => "Computer telephony device",
+            (0x4, 0x3) => "Audio device",
+            (0x4, 0x80) => "Other multimedia controller",
+            (0x4, _) => "Unknown multimedia controller",
+
+            (0x5, 0x0) => "RAM controller",
+            (0x5, 0x1) => "Flash controller",
+            (0x5, 0x80) => "Other memory controller",
+            (0x5, _) => "Unknown memory controller",
+
             (0x6, 0x0) => "Host bridge",
             (0x6, 0x1) => "ISA bridge",
             (0x6, 0x2) => "EISA bridge",
@@ -181,13 +193,51 @@ impl Device {
             }
         }
     }
+
+    // https://www.pcilookup.com/
+    fn vendor_name(&self) -> &'static str {
+        match self.vendor_id {
+            0x8086 => "Intel Corporation",
+            0x1AF4 | 0x1B36 => "Red Hat, Inc.",
+            0x1234 => "QEMU",
+            v_id => {
+                error!("TODO: PCI vendor_id={v_id:04x}");
+                "unknown"
+            }
+        }
+    }
+
+    fn device_name(&self) -> &'static str {
+        match (self.vendor_id, self.device_id) {
+            (0x8086, 0x29C0) => "82G33/G31/P35/P31 Express DRAM Controller",
+            (0x8086, 0x10D3) => "82574L Gigabit Network Connection",
+            (0x8086, 0x2934) => "82801I (ICH9 Family) USB UHCI Controller #1",
+            (0x8086, 0x2918) => "82801IB (ICH9) LPC Interface Controller",
+
+            (0x1AF4, 0x1059) => "Virtio Sound",
+
+            (0x1234, 0x1111) => "stdvga",
+            (v_id, d_id) => {
+                error!("TODO: PCI vendor_id={v_id:04x} device_id={d_id:04x}");
+                "unknown"
+            }
+        }
+    }
 }
 
 impl fmt::Display for Device {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let DeviceLocation { bus, device, func } = self.location;
         let subclass_name = self.subclass_name();
-        write!(f, "{bus:02x}:{device:02x}.{func} {subclass_name}")
+        let vendor_name = self.vendor_name();
+        let device_name = self.device_name();
+        let v_id = self.vendor_id;
+        let d_id = self.device_id;
+        let rev = self.rev_id;
+        write!(
+            f,
+            "{bus:02x}:{device:02x}.{func} {subclass_name}: {vendor_name} {device_name} (rev {rev:02x}) [{v_id:04x}:{d_id:04x}]"
+        )
     }
 }
 
