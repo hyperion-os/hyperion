@@ -16,14 +16,16 @@ use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
     read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
-    read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo, SocketPipe, VFS_ROOT,
+    read_untrusted_str, BoundSocket, FileDescData, FileDescriptor, LocalSocket, SocketInfo,
+    SocketPipe, VFS_ROOT,
 };
+use hyperion_loader::Loader;
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
     futex,
-    lock::Mutex,
-    process, task,
+    lock::{Lazy, Mutex},
+    process, schedule, task,
     task::{AllocErr, FreeErr},
 };
 use hyperion_syscall::{
@@ -95,6 +97,8 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::UNMAP_FILE => call_id(unmap_file, args),
         id::METADATA => call_id(metadata, args),
         id::SEEK => call_id(seek, args),
+
+        id::SYSTEM => call_id(system, args),
 
         _ => {
             debug!("invalid syscall");
@@ -734,6 +738,67 @@ pub fn seek(args: &mut SyscallRegs) -> Result<usize> {
 
     let file = fd_query(fd)?;
     file.seek(offset, origin)?;
+
+    Ok(0)
+}
+
+/// launch a binary
+///
+/// [`hyperion_syscall::seek`]
+pub fn system(args: &mut SyscallRegs) -> Result<usize> {
+    let program: String = read_untrusted_str(args.arg0, args.arg1)?.to_string();
+
+    static NULL_STDIO: Lazy<Arc<dyn FileDescriptor>> =
+        Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
+
+    schedule(move || {
+        let mut elf = Vec::new();
+
+        let bin = VFS_ROOT
+            .find_file(program.as_str(), false, false)
+            .expect("could not load ELF");
+
+        let bin = bin.lock_arc();
+
+        loop {
+            let mut buf = [0; 64];
+            let len = bin.read(elf.len(), &mut buf).unwrap();
+            elf.extend_from_slice(&buf[..len]);
+            if len == 0 {
+                break;
+            }
+        }
+        drop(bin);
+
+        // set its name
+        hyperion_scheduler::rename(program.as_str());
+        debug!("running");
+
+        // setup the STDIO
+        hyperion_kernel_impl::fd_replace(FileDesc(0), NULL_STDIO.clone());
+        hyperion_kernel_impl::fd_replace(FileDesc(1), NULL_STDIO.clone());
+        hyperion_kernel_impl::fd_replace(FileDesc(2), NULL_STDIO.clone());
+
+        // setup the environment
+        let args: Vec<&str> = [program.as_str()] // TODO: actually load binaries from vfs
+            .into_iter()
+            // .chain(args.iter().flat_map(|args| args.split(' ')))
+            .collect();
+        let args = &args[..];
+
+        trace!("spawning \"{program}\" with args {args:?}");
+
+        // load ..
+        let loader = Loader::new(elf.as_ref());
+        loader.load();
+
+        // .. and exec the binary
+        if loader.enter_userland(args).is_err() {
+            error!("no ELF entrypoint");
+            let stderr = fd_query(FileDesc(2)).unwrap();
+            stderr.write(b"invalid ELF: entry point missing").unwrap();
+        }
+    });
 
     Ok(0)
 }

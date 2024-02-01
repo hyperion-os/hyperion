@@ -148,6 +148,8 @@ pub fn main() -> Result<()> {
 
     println!("PID:{} TID:{}", get_pid(), get_tid());
 
+    system("/bin/fbtest").unwrap();
+
     _ = run_server();
     run_client()
 }

@@ -61,6 +61,8 @@ pub mod id {
     pub const UNMAP_FILE: usize = 30; // TODO: merge into unmap
     pub const METADATA: usize = 31;
     pub const SEEK: usize = 32;
+
+    pub const SYSTEM: usize = 33;
 }
 
 //
@@ -336,4 +338,9 @@ pub fn metadata(file: FileDesc, metadata: &mut Metadata) -> Result<()> {
 /// file position seek (fseek)
 pub fn seek(file: FileDesc, offset: isize, origin: usize) -> Result<()> {
     unsafe { syscall_3(id::SEEK, file.0, offset as _, origin) }.map(|_| {})
+}
+
+/// launch a process
+pub fn system(path: &str) -> Result<()> {
+    unsafe { syscall_2(id::SYSTEM, path.as_ptr() as usize, path.len()) }.map(|_| {})
 }

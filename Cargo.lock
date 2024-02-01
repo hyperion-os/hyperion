@@ -852,6 +852,7 @@ dependencies = [
  "hyperion-kernel-impl",
  "hyperion-kernel-info",
  "hyperion-kshell",
+ "hyperion-loader",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-mem",
