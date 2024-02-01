@@ -467,8 +467,6 @@ impl TaskInner {
             let tcb_ptr = tls_copy + (n_pages - 1) * 0x1000;
             let tls_ptr = tcb_ptr - tls_alloc;
 
-            debug!("TLS copy base={tls_copy:#018x}");
-
             // copy the master TLS
             unsafe {
                 ptr::copy_nonoverlapping::<u8>(addr.as_ptr(), tls_ptr.as_mut_ptr(), layout.size());
@@ -482,7 +480,6 @@ impl TaskInner {
 
             // TODO: a more robust is_active fn
             let active = task();
-            debug!("TLS tid:{} FS={fs:#018x}", active.tid.num());
             if self.tid == active.tid && self.pid == active.pid {
                 FsBase::write(fs);
                 // unsafe { FS::write_base(tls_copy) };
