@@ -856,6 +856,7 @@ dependencies = [
  "hyperion-log-multi",
  "hyperion-mem",
  "hyperion-num-postfix",
+ "hyperion-pci",
  "hyperion-random",
  "hyperion-scheduler",
  "hyperion-sync",
@@ -915,6 +916,7 @@ dependencies = [
  "hyperion-log-multi",
  "hyperion-mem",
  "hyperion-num-postfix",
+ "hyperion-pci",
  "hyperion-random",
  "hyperion-scheduler",
  "hyperion-syscall",
@@ -996,6 +998,14 @@ dependencies = [
 [[package]]
 name = "hyperion-num-postfix"
 version = "0.3.0"
+
+[[package]]
+name = "hyperion-pci"
+version = "0.3.0"
+dependencies = [
+ "hyperion-log",
+ "x86_64",
+]
 
 [[package]]
 name = "hyperion-random"

@@ -23,24 +23,25 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 
 hyperion-arch.path = "../arch"
 hyperion-color.path = "../color"
+hyperion-cpu-id.path = "../cpu-id"
 hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-escape.path = "../escape"
+hyperion-events.path = "../events"
 hyperion-framebuffer.path = "../framebuffer"
 hyperion-futures.path = "../futures"
-hyperion-events.path = "../events"
 hyperion-instant.path = "../instant"
+hyperion-kernel-impl.path = "../kernel-impl"
 hyperion-kernel-info.path = "../kernel-info"
 hyperion-loader.path = "../loader"
 hyperion-log-multi.path = "../log-multi"
 hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"
 hyperion-num-postfix.path = "../num-postfix"
+hyperion-pci.path = "../pci"
 hyperion-random.path = "../random"
 hyperion-scheduler.path = "../scheduler"
 hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
-hyperion-cpu-id.path = "../cpu-id"
-hyperion-kernel-impl.path = "../kernel-impl"
 
 fbtest = { path = "../../userspace/fbtest", artifact = "bin", target = "x86_64-unknown-none" }
 sample-elf = { path = "../../userspace/sample-elf", artifact = "bin", target = "x86_64-unknown-none" }

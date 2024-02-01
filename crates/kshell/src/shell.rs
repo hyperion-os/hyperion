@@ -141,6 +141,7 @@ impl Shell {
             "kill" => self.kill_cmd(args)?,
             "exit" => return Ok(None),
             "clear" => self.term.clear(),
+            "lspci" => self.lspci_cmd(args)?,
             "" => self.term.write_byte(b'\n'),
             _ => self.cmd_line(line).await.map_err(|err| Error::Other {
                 msg: err.to_string(),
@@ -379,7 +380,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, ps, nproc, top, kill, exit, clear");
+        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, ps, nproc, top, kill, exit, clear, lspci");
 
         Ok(())
     }
@@ -476,6 +477,14 @@ impl Shell {
         };
 
         proc.should_terminate.store(true, Ordering::SeqCst);
+
+        Ok(())
+    }
+
+    fn lspci_cmd(&mut self, _args: Option<&str>) -> Result<()> {
+        for device in hyperion_pci::devices() {
+            _ = writeln!(self.term, "{device}");
+        }
 
         Ok(())
     }
