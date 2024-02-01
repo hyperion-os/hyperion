@@ -628,6 +628,18 @@ pub fn read_untrusted_mut<'a, T>(ptr: u64) -> Result<&'a mut T> {
         .map(|(start, _)| unsafe { &mut *start.as_mut_ptr() })
 }
 
+pub fn read_untrusted_slice<'a, T: Copy>(ptr: u64, len: u64) -> Result<&'a [T]> {
+    read_slice_parts(ptr, len).map(|(start, len)| {
+        // TODO:
+        // SAFETY: this is most likely unsafe
+        if len == 0 {
+            &[]
+        } else {
+            unsafe { core::slice::from_raw_parts(start.as_ptr(), len as _) }
+        }
+    })
+}
+
 pub fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {
     read_slice_parts(ptr, len).map(|(start, len)| {
         // TODO:

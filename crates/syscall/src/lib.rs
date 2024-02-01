@@ -341,6 +341,15 @@ pub fn seek(file: FileDesc, offset: isize, origin: usize) -> Result<()> {
 }
 
 /// launch a process
-pub fn system(path: &str) -> Result<()> {
-    unsafe { syscall_2(id::SYSTEM, path.as_ptr() as usize, path.len()) }.map(|_| {})
+pub fn system(path: &str, args: &[&str]) -> Result<()> {
+    unsafe {
+        syscall_4(
+            id::SYSTEM,
+            path.as_ptr() as usize,
+            path.len(),
+            args.as_ptr() as usize,
+            args.len(),
+        )
+    }
+    .map(|_| {})
 }

@@ -16,8 +16,8 @@ use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
     read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
-    read_untrusted_str, BoundSocket, FileDescData, FileDescriptor, LocalSocket, SocketInfo,
-    SocketPipe, VFS_ROOT,
+    read_untrusted_slice, read_untrusted_str, BoundSocket, FileDescData, FileDescriptor,
+    LocalSocket, SocketInfo, SocketPipe, VFS_ROOT,
 };
 use hyperion_loader::Loader;
 use hyperion_log::*;
@@ -746,10 +746,24 @@ pub fn seek(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::seek`]
 pub fn system(args: &mut SyscallRegs) -> Result<usize> {
-    let program: String = read_untrusted_str(args.arg0, args.arg1)?.to_string();
+    let program: &str = read_untrusted_str(args.arg0, args.arg1)?;
+    // FIXME: &str (&[u8]) is not yet ABI stable
+    let args: &[&str] = read_untrusted_slice(args.arg2, args.arg3)?;
+
+    let program = program.to_string();
+    let args = args
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<String>>();
+
+    // hyperion_log::debug!("system `{program}` `{args:?}`");
 
     static NULL_STDIO: Lazy<Arc<dyn FileDescriptor>> =
         Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
+
+    let stdin = NULL_STDIO.clone();
+    let stdout = fd_query(FileDesc(1))?;
+    let stderr = fd_query(FileDesc(2))?;
 
     schedule(move || {
         let mut elf = Vec::new();
@@ -775,14 +789,14 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
         debug!("running");
 
         // setup the STDIO
-        hyperion_kernel_impl::fd_replace(FileDesc(0), NULL_STDIO.clone());
-        hyperion_kernel_impl::fd_replace(FileDesc(1), NULL_STDIO.clone());
-        hyperion_kernel_impl::fd_replace(FileDesc(2), NULL_STDIO.clone());
+        hyperion_kernel_impl::fd_replace(FileDesc(0), stdin);
+        hyperion_kernel_impl::fd_replace(FileDesc(1), stdout);
+        hyperion_kernel_impl::fd_replace(FileDesc(2), stderr);
 
         // setup the environment
         let args: Vec<&str> = [program.as_str()] // TODO: actually load binaries from vfs
             .into_iter()
-            // .chain(args.iter().flat_map(|args| args.split(' ')))
+            .chain(args.iter().flat_map(|args| args.split(' ')))
             .collect();
         let args = &args[..];
 
