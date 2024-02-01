@@ -43,7 +43,15 @@ pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFau
         handle_stack_grow(&current.user_stack, addr)?;
 
         // user process tried to access memory thats not available to it
-        hyperion_log::warn!("killing user-space process, it tried to use {addr:#x} at {instr:#x}");
+        hyperion_log::warn!(
+            "killing user-space process, tid:{} tried to use {addr:#x} at {instr:#x}",
+            current.tid.num()
+        );
+        let maps_to = current
+            .address_space
+            .page_map
+            .virt_to_phys(VirtAddr::new(addr as _));
+        hyperion_log::warn!("{addr:#x} maps to {maps_to:#x?}");
         current.should_terminate.store(true, Ordering::SeqCst);
         exit();
     } else {
@@ -54,11 +62,11 @@ pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFau
         hyperion_log::error!("page fault from kernel-space");
     };
 
-    let page = PageMap::current();
-    let v = VirtAddr::new(addr as _);
-    let p = page.virt_to_phys(v);
-    error!("{v:018x?} -> {p:018x?}");
-
+    let maps_to = current
+        .address_space
+        .page_map
+        .virt_to_phys(VirtAddr::new(addr as _));
+    hyperion_log::error!("{addr:#x} maps to {maps_to:#x?}");
     error!("couldn't handle a page fault {}", cpu_id());
 
     Ok(NotHandled)

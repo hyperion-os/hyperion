@@ -120,7 +120,11 @@ fn post_ctx_switch() {
 extern "C" fn thread_entry() -> ! {
     post_ctx_switch();
 
-    let job = task().job.take().expect("no active jobs");
+    let task = task();
+    let job = task.job.take().expect("no active jobs");
+    task.init_tls();
+    drop(task);
+
     job();
 
     done();
@@ -437,30 +441,48 @@ impl TaskInner {
 
             // TODO: deallocate it when the thread quits
 
+            // afaik, it has to be at least one page?
+            // and at least 2 pages if TLS has any data
+            // , because FSBase has to point to TCB and
+            // FSBase has to be page aligned and TLS
+            // has to be right below TCB
+            // +--------------+--------------+
+            // |   PHYS PAGE  |  PHYS PAGE   |
+            // +--------+-----+-----+--------+
+            // | unused | TLS | TCB | unused |
+            // +--------+-----+-----+--------+
+
             // the alloc is align_up(TLS) + TCB
-            let tls_alloc = align_up(layout.size() as u64, 0x10u64) + 0x8u64;
+            let tls_alloc = align_up(layout.size() as u64, 0x10u64);
+            let n_pages = tls_alloc.div_ceil(0x1000) as usize + 1;
             let (tls_copy, _) = self
                 .alloc(
-                    tls_alloc.div_ceil(0x1000) as usize,
+                    n_pages,
                     PageTableFlags::USER_ACCESSIBLE
                         | PageTableFlags::WRITABLE
                         | PageTableFlags::PRESENT,
                 )
                 .unwrap();
 
+            let tcb_ptr = tls_copy + (n_pages - 1) * 0x1000;
+            let tls_ptr = tcb_ptr - tls_alloc;
+
+            debug!("TLS copy base={tls_copy:#018x}");
+
             // copy the master TLS
             unsafe {
-                ptr::copy_nonoverlapping::<u8>(addr.as_ptr(), tls_copy.as_mut_ptr(), layout.size());
+                ptr::copy_nonoverlapping::<u8>(addr.as_ptr(), tls_ptr.as_mut_ptr(), layout.size());
             }
 
+            // init TCB
             // %fs register value, it points to a pointer to itself, TLS items are right before it
-            let fs = (tls_copy + layout.size()).align_up(0x8u64);
-
+            let fs = tcb_ptr;
             // %fs:0x0 should point to fsbase
             unsafe { *fs.as_mut_ptr() = fs.as_u64() };
 
             // TODO: a more robust is_active fn
             let active = task();
+            debug!("TLS tid:{} FS={fs:#018x}", active.tid.num());
             if self.tid == active.tid && self.pid == active.pid {
                 FsBase::write(fs);
                 // unsafe { FS::write_base(tls_copy) };

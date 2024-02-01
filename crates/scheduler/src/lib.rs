@@ -215,7 +215,10 @@ pub fn exit() -> ! {
 /// jumps into user space
 pub fn spawn_userspace(fn_ptr: u64, fn_arg: u64) {
     spawn(move || {
-        let stack_top = task().user_stack.lock().top;
+        let task = task();
+        let stack_top = task.user_stack.lock().top;
+        task.init_tls();
+        drop(task);
 
         hyperion_arch::syscall::userland(
             VirtAddr::new(fn_ptr),
