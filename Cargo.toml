@@ -41,13 +41,16 @@ lock_api = { version = "0.4", features = ["arc_lock"] }
 ringbuf = { version = "0.3", default-features = false, features = ["alloc"] }
 rand = { version = "0.8", default-features = false, features = ["rand_chacha"] }
 rand_chacha = { version = "0.3", default-features = false }
-heapless = { version = "0.8", features = ["mpmc_large"] }
+heapless = "0.8"
 pin-project = "1.1"
 bitflags = "2.4"
 # rpds = { version = "1.1", default-features = false }
 # image = "0.24"
 # bitvec = "1.0.1"
 # tracing = { version = "0.1.37", default-features = false }
+
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 
 event-listener = { version = "4.0", default-features = false }
 
