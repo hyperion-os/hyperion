@@ -1,28 +1,28 @@
 #![no_std]
-#![feature(pointer_is_aligned)]
+#![feature(pointer_is_aligned, box_into_boxed_slice)]
 
 //
 
 extern crate alloc;
 
-use alloc::{format, string::String};
+use alloc::{boxed::Box, format, string::String};
 
 use hyperion_framebuffer::framebuffer::Framebuffer;
 use hyperion_log::error;
-use hyperion_mem::from_higher_half;
+use hyperion_mem::{from_higher_half, pmm::PageFrame};
 use hyperion_vfs::{
     device::FileDevice,
     error::{IoError, IoResult},
 };
 use spin::{MutexGuard, Once};
-use x86_64::VirtAddr;
+use x86_64::{PhysAddr, VirtAddr};
 
 //
 
 pub struct FboDevice {
     maps: usize,
 
-    lock: Option<MutexGuard<'static, Framebuffer>>,
+    lock: Option<(MutexGuard<'static, Framebuffer>, PageFrame)>,
 }
 
 pub struct FboInfoDevice {
@@ -38,7 +38,7 @@ impl FileDevice for FboDevice {
 
     fn len(&self) -> usize {
         if let Some(fbo) = self.lock.as_ref() {
-            fbo.buf().len()
+            fbo.0.buf().len()
         } else {
             Self::with(|fbo| fbo.len())
         }
@@ -48,29 +48,36 @@ impl FileDevice for FboDevice {
         Err(IoError::PermissionDenied)
     }
 
-    fn map_phys(&mut self, size_bytes: usize) -> IoResult<usize> {
+    fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
         self.maps = self.maps.checked_add(1).ok_or(IoError::FilesystemError)?;
 
-        let lock = self
-            .lock
-            .get_or_insert_with(|| Framebuffer::get().unwrap().lock());
+        let (_, frame) = self.lock.get_or_insert_with(|| {
+            let fbo = Framebuffer::get().unwrap().lock();
 
-        let buf = lock.buf_mut();
+            let start = fbo.buf().as_ptr();
+            let size = fbo.buf().len();
 
-        let start = buf.as_mut_ptr();
-        let size = buf.len();
+            assert!(
+                start.is_aligned_to(0x1000) && (size as *const u8).is_aligned_to(0x1000),
+                "framebuffer isn't aligned to a page",
+            );
 
-        if size_bytes > size {
+            let start = from_higher_half(VirtAddr::from_ptr(start));
+
+            (fbo, unsafe { PageFrame::new(start, size >> 12) })
+        });
+
+        let pages = min_bytes.div_ceil(0x1000);
+
+        if frame.len() < pages {
             return Err(IoError::UnexpectedEOF);
         }
-        if !start.is_aligned_to(0x1000) || size % 0x1000 != 0 {
-            error!("framebuffer isnt aligned to a page");
-            return Err(IoError::FilesystemError);
-        }
 
-        let start = from_higher_half(VirtAddr::new(start as u64));
+        hyperion_log::debug!("FBO mapped");
 
-        Ok(start.as_u64() as _)
+        Ok(Box::into_boxed_slice(Box::new(unsafe {
+            PageFrame::new(frame.physical_addr(), pages)
+        })))
     }
 
     fn unmap_phys(&mut self) -> IoResult<()> {

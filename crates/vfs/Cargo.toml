@@ -15,4 +15,5 @@ crossbeam.workspace = true
 lock_api.workspace = true
 
 hyperion-log.path = "../log"
+hyperion-mem.path = "../mem"
 hyperion-syscall.path = "../syscall"

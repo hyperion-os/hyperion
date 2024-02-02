@@ -1,4 +1,5 @@
 use alloc::{
+    boxed::Box,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
@@ -21,7 +22,7 @@ use hyperion_kernel_impl::{
 };
 use hyperion_loader::Loader;
 use hyperion_log::*;
-use hyperion_mem::vmm::PageMapImpl;
+use hyperion_mem::{pmm::PageFrame, vmm::PageMapImpl};
 use hyperion_scheduler::{
     futex,
     lock::{Lazy, Mutex},
@@ -34,7 +35,8 @@ use hyperion_syscall::{
     id,
     net::{Protocol, SocketDomain, SocketType},
 };
-use hyperion_vfs::{path::Path, ramdisk, tree::Node};
+use hyperion_vfs::{device::FileDevice, path::Path, ramdisk, tree::Node};
+use lock_api::ArcMutexGuard;
 use time::Duration;
 use x86_64::{align_down, align_up, structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
@@ -627,7 +629,7 @@ pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
     }
 
     let fd = fd_push(Arc::new(FileDescData {
-        file_ref: Arc::new(Mutex::new(ramdisk::File::new(Vec::from(buf)))),
+        file_ref: Arc::new(Mutex::new(ramdisk::File::new(buf.as_bytes()))),
         position: AtomicUsize::new(0),
     }));
 
@@ -676,7 +678,7 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
 
     let mut file = fd_query_of::<FileDescData>(fd)?.file_ref.lock_arc();
 
-    let phys = file.map_phys(size).map_err(map_vfs_err_to_syscall_err)?;
+    let phys: Box<[PageFrame]> = file.map_phys(size).map_err(map_vfs_err_to_syscall_err)?;
 
     let this = process();
 
@@ -686,14 +688,17 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
         0x1000,
     );
 
-    let bottom = VirtAddr::new(bottom);
-    this.address_space.page_map.map(
-        bottom..bottom + size,
-        PhysAddr::new(phys as _),
-        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
-    );
+    let mut offs = 0usize;
+    for phys in phys.into_iter() {
+        let bottom = VirtAddr::new(bottom);
+        this.address_space.page_map.map(
+            bottom + offs..bottom + size + offs,
+            phys.physical_addr(),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
+        );
+    }
 
-    Ok(bottom.as_u64() as usize)
+    Ok(bottom as usize)
 }
 
 /// unmap file from memory
@@ -786,7 +791,6 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
 
         // set its name
         hyperion_scheduler::rename(program.as_str());
-        debug!("running");
 
         // setup the STDIO
         hyperion_kernel_impl::fd_replace(FileDesc(0), stdin);

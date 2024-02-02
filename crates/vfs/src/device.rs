@@ -1,12 +1,20 @@
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 use core::any::Any;
 
+use hyperion_mem::pmm::PageFrame;
 use lock_api::RawMutex;
 
 use crate::{
     error::{IoError, IoResult},
     tree::Node,
 };
+
+//
+
+pub struct PhysicalPages {
+    first: usize,
+    count: usize,
+}
 
 //
 
@@ -26,8 +34,8 @@ pub trait FileDevice: Send + Sync {
     ///
     /// allocated pages are managed by this FileDevice, each [`Self::map_phys`] is paired with
     /// an [`Self::unmap_phys`] and only the last [`Self::unmap_phys`] deallocate the pages
-    fn map_phys(&mut self, size_bytes: usize) -> IoResult<usize> {
-        _ = size_bytes;
+    fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
+        _ = min_bytes;
         Err(IoError::PermissionDenied)
     }
 

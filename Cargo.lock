@@ -416,7 +416,6 @@ dependencies = [
  "hyperion-color",
  "libm",
  "libstd",
- "x86_64",
 ]
 
 [[package]]
@@ -1093,6 +1092,7 @@ version = "0.3.0"
 dependencies = [
  "crossbeam",
  "hyperion-log",
+ "hyperion-mem",
  "hyperion-syscall",
  "lock_api",
  "snafu",
@@ -1566,6 +1566,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "term"
+version = "0.3.0"
+dependencies = [
+ "hyperion-color",
+ "hyperion-syscall",
+]
+
+[[package]]
 name = "tiff"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1762,6 +1770,14 @@ name = "windows_x86_64_msvc"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
+
+[[package]]
+name = "wm"
+version = "0.3.0"
+dependencies = [
+ "hyperion-color",
+ "hyperion-syscall",
+]
 
 [[package]]
 name = "x86"
