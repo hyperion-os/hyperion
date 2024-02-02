@@ -148,8 +148,6 @@ pub fn main() -> Result<()> {
 
     println!("PID:{} TID:{}", get_pid(), get_tid());
 
-    system("/bin/cp", &["/splash", "/splash-copy"]).unwrap();
-
     _ = run_server();
     run_client()
 }
