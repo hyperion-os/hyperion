@@ -11,15 +11,15 @@ workspace = true
 [dependencies]
 anyhow.workspace = true
 arcstr.workspace = true
-time.workspace = true
 futures-util.workspace = true
+itertools = { version = "0.11", default-features = false }
+lock_api.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 snafu.workspace = true
 spin.workspace = true
-lock_api.workspace = true
-itertools = { version = "0.11", default-features = false }
+time.workspace = true
 
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 
 hyperion-arch.path = "../arch"
 hyperion-color.path = "../color"
