@@ -10,6 +10,7 @@ use super::CHAR_SIZE;
 //
 
 pub struct Term {
+    pub stdout_cursor: (usize, usize),
     pub cursor: (usize, usize),
     pub size: (usize, usize),
     buf: Box<[u8]>,
@@ -41,6 +42,7 @@ impl Term {
         let old_buf = (0..size.0 * size.1).map(|_| b'=').collect();
 
         Self {
+            stdout_cursor: cursor,
             cursor,
             size,
             buf,
@@ -50,7 +52,9 @@ impl Term {
 
     pub fn flush(&mut self) {
         // framebuffer is already proven to be Some
-        let mut vbo = Framebuffer::get().unwrap().lock();
+        let Some(mut vbo) = Framebuffer::get().unwrap().try_lock() else {
+            return;
+        };
 
         // let mut updates = 0u32;
         for ((idx, ch), _) in self
@@ -101,10 +105,12 @@ impl Term {
         self.cursor = (0, 0);
         self.buf.fill(b' ');
         self.flush();
+    }
 
-        // let mut fbo = Framebuffer::get().unwrap().lock();
-        // let (w, h) = (fbo.width, fbo.height);
-        // fbo.fill(0, 0, w, h, Color::BLACK);
+    pub fn clear_line(&mut self) {
+        self.cursor.0 = 0;
+        self.buf[self.cursor.1 * self.size.0..(self.cursor.1 + 1) * self.size.0].fill(b' ');
+        self.flush();
     }
 
     pub fn read_at(&self, cursor: (usize, usize)) -> u8 {
@@ -118,7 +124,8 @@ impl Term {
         }
         if self.cursor.1 >= self.size.1 {
             let len = self.buf.len();
-            self.cursor.1 = self.size.1 - 1;
+            self.stdout_cursor.1 = self.stdout_cursor.1.saturating_sub(1);
+            self.cursor.1 -= 1;
             self.buf.copy_within(self.size.0.., 0);
             self.buf[len - self.size.0..].fill(b' ');
         }

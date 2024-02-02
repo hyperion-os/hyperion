@@ -8,7 +8,6 @@ use alloc::{string::String, sync::Arc};
 use core::num::ParseIntError;
 
 use futures_util::StreamExt;
-use hyperion_futures::keyboard::keyboard_events;
 use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_log::*;
 use hyperion_scheduler::lock::Mutex;
@@ -75,11 +74,8 @@ pub async fn kshell() {
     let mut shell = Shell::new(term);
 
     shell.init();
-    while let Some(ev) = keyboard_events().next().await {
-        if shell.input(ev).await.is_none() {
-            break;
-        }
-    }
+
+    while shell.run().await.is_some() {}
 
     let mut term = shell.into_inner();
     term.clear();

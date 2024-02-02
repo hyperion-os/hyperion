@@ -1,4 +1,5 @@
 use alloc::{
+    boxed::Box,
     format,
     string::{String, ToString},
     sync::Arc,
@@ -6,7 +7,7 @@ use alloc::{
 use core::{fmt::Write, str, sync::atomic::Ordering};
 
 use anyhow::anyhow;
-use futures_util::stream::select;
+use futures_util::{stream::select, Stream};
 use hyperion_cpu_id::cpu_count;
 use hyperion_events::keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
@@ -34,22 +35,70 @@ use crate::cmd::{Command, NULL_DEV};
 
 //
 
+enum Event {
+    Keyboard(KeyboardEvent),
+    Stdout(String),
+}
+
+//
+
 pub struct Shell {
     term: Term,
     current_dir: PathBuf,
     cmdbuf: Arc<Mutex<String>>,
     last: String,
+
+    stdout: Arc<dyn FileDescriptor>,
+    events: Box<dyn Stream<Item = Event> + Send + Unpin>,
 }
 
 //
 
 impl Shell {
     pub fn new(term: Term) -> Self {
+        let (stdout_tx, stdout_rx) = pipe().split();
+
+        // hacky blocking channel -> async channel stuff
+        // program stdout -> terminal
+        let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
+
+        fn try_forward(from: &impl FileDescriptor, to: &mpmc::Sender<String>) -> Option<()> {
+            loop {
+                // TODO: if the buffer is full, the result might not be UTF-8
+                let mut buf = [0u8; 0x2000];
+                let len = from.read(&mut buf).ok()?;
+
+                if len == 0 {
+                    return None;
+                }
+
+                let str = str::from_utf8(&buf[..len]).ok()?.to_string();
+                // hyperion_log::info!("{str}");
+
+                to.send(str).ok()?;
+            }
+        }
+
+        fn forward(from: &impl FileDescriptor, to: mpmc::Sender<String>) {
+            _ = try_forward(from, &to);
+            // _ = to.send(None);
+        }
+
+        spawn(move || forward(&stdout_rx, o_tx));
+
+        let events = select(
+            keyboard_events().map(Event::Keyboard),
+            o_rx.into_stream().map(Event::Stdout),
+        );
+
         Self {
             term,
             current_dir: PathBuf::new("/"),
             cmdbuf: <_>::default(),
             last: <_>::default(),
+
+            stdout: Arc::new(stdout_tx),
+            events: Box::new(events),
         }
     }
 
@@ -63,6 +112,25 @@ impl Shell {
         self.term.flush();
     }
 
+    pub async fn run(&mut self) -> Option<()> {
+        let ev = self.events.next().await?;
+
+        match ev {
+            Event::Keyboard(ev) => self.input(ev).await?,
+            Event::Stdout(ev) => {
+                self.term.clear_line(); // remove the prompt
+                self.term.cursor = self.term.stdout_cursor;
+                _ = write!(self.term, "{ev}");
+
+                self.prompt();
+                self.term.write_bytes(self.cmdbuf.lock().as_bytes());
+                self.term.flush();
+            }
+        }
+
+        Some(())
+    }
+
     pub async fn input(&mut self, ev: KeyboardEvent) -> Option<()> {
         let cmdbuf = self.cmdbuf.clone();
         let mut cmdbuf = cmdbuf.lock();
@@ -72,7 +140,9 @@ impl Shell {
         };
 
         if ev == '\n' {
+            // enter
             _ = writeln!(self.term);
+            self.term.stdout_cursor = self.term.cursor;
             match self.run_line(&cmdbuf).await {
                 Ok(v) => {
                     v?;
@@ -86,6 +156,7 @@ impl Shell {
             cmdbuf.clear();
             self.prompt();
         } else if ev == '\t' {
+            // tab
             cmdbuf.clear();
             _ = write!(cmdbuf, "{}", self.last);
             self.prompt();
@@ -100,6 +171,7 @@ impl Shell {
                 cmdbuf.push(' ');
             } */
         } else if ev == '\u{8}' {
+            // backspace
             if cmdbuf.pop().is_some() {
                 self.term.cursor_prev();
                 let cursor = self.term.cursor;
@@ -117,6 +189,7 @@ impl Shell {
     }
 
     fn prompt(&mut self) {
+        self.term.stdout_cursor = self.term.cursor;
         _ = write!(self.term, "\n[kshell {}]# ", self.current_dir.as_str());
     }
 
@@ -154,12 +227,17 @@ impl Shell {
     async fn cmd_line(&mut self, line: &str) -> anyhow::Result<()> {
         let mut is_doom = false;
 
+        // prepare shared stderr, cli input (keyboard) and cli output (term)
         let (stdin_tx, stdin_rx) = pipe().split();
-        let (stderr_tx, stderr_rx) = pipe().split();
-
-        let stderr = Arc::new(stderr_tx);
+        let stderr = self.stdout.clone();
         let mut stdin = Arc::new(stdin_rx) as _;
-        for part in line.split('|') {
+
+        // stop stdin reading when it closes
+        let (closed_tx, closed_rx) = hyperion_futures::mpmc::channel();
+
+        // launch all cmds
+        let mut part_iter = line.split('|').peekable();
+        while let Some(part) = part_iter.next() {
             let mut redirects = part.split('>');
 
             let program = redirects.next().unwrap_or(part).trim();
@@ -182,71 +260,41 @@ impl Shell {
             let mut cmd = Command::new(program);
             cmd.args(args).stdin(stdin).stderr(stderr.clone());
 
-            if let Some(output_file) = redirects.last() {
-                let stdout_tx = Arc::new(
-                    FileDescData::open(output_file.trim())
-                        .map_err(|err| anyhow!("couldn't open file `{output_file:?}`: {err}"))?,
-                );
-
-                // spawn the new process
-                cmd.stdout(stdout_tx).spawn()?;
-
+            let stdout = if let Some(output_file) = redirects.last() {
+                // stdout is redirected to a file
+                let stdout_tx = FileDescData::open(output_file.trim())
+                    .map_err(|err| anyhow!("couldn't open file `{output_file:?}`: {err}"))?;
                 stdin = NULL_DEV.clone();
+                Arc::new(stdout_tx)
+            } else if part_iter.peek().is_none() {
+                // last cmd part uses the shell's shared pipe
+                cmd.on_close(closed_tx.clone());
+                stdin = NULL_DEV.clone();
+                stderr.clone()
             } else {
+                // stdout is redirected to the next program's stdin
                 let (stdout_tx, stdout_rx) = pipe().split();
-
-                // spawn the new process
-                cmd.stdout(Arc::new(stdout_tx)).spawn()?;
-
                 stdin = Arc::new(stdout_rx);
+                Arc::new(stdout_tx)
             };
+
+            // spawn the new process
+            cmd.stdout(stdout).spawn()?;
         }
-
-        // hacky blocking channel -> async channel stuff
-        let (o_tx, o_rx) = hyperion_futures::mpmc::channel();
-        // last program's stdout (stdin) -> terminal
-        let o_tx_2 = o_tx.clone();
-
-        fn try_forward(from: &dyn FileDescriptor, to: &mpmc::Sender<Option<String>>) -> Option<()> {
-            loop {
-                // TODO: if the buffer is full, the result might not be UTF-8
-                let mut buf = [0u8; 0x2000];
-                let len = from.read(&mut buf).ok()?;
-
-                if len == 0 {
-                    return None;
-                }
-
-                let str = str::from_utf8(&buf[..len]).ok()?.to_string();
-                // hyperion_log::info!("{str}");
-
-                to.send(Some(str)).ok()?;
-            }
-        }
-
-        fn forward(from: &dyn FileDescriptor, to: mpmc::Sender<Option<String>>) {
-            _ = try_forward(from, &to);
-            _ = to.send(None);
-        }
-
-        spawn(move || forward(&stderr_rx, o_tx_2));
-        spawn(move || forward(&*stdin, o_tx));
 
         // start sending keyboard events to the process and read stdout into the terminal
-        let mut events = select(keyboard_events().map(Ok), o_rx.race_stream().map(Err));
-
         let mut l_ctrl_held = false;
-        loop {
-            // hyperion_log::debug!("Waiting for events ...");
-            let ev = events.next().await;
-            // hyperion_log::debug!("Event {ev:?}");
-
+        let mut events = select(
+            self.events.as_mut().map(Some),
+            closed_rx.into_stream().map(|_| None),
+        );
+        while let Some(Some(ev)) = events.next().await {
             match ev {
-                Some(Ok(KeyboardEvent {
+                Event::Keyboard(KeyboardEvent {
                     state,
                     keycode,
                     unicode,
-                })) => {
+                }) => {
                     if state == ElementState::Pressed && keycode == KeyCode::LControl {
                         l_ctrl_held = true;
                     }
@@ -309,22 +357,19 @@ impl Shell {
                         }
                     }
                 }
-                Some(Err(Some(s))) => {
+                Event::Stdout(s) => {
                     // TODO: HACK: doom locks the framebuffer and flushing here would deadlock,
                     // as kshell cannot send any keyboard input anymore
                     if is_doom {
                         continue;
                     }
 
+                    print!("{s}");
+
+                    self.term.cursor = self.term.stdout_cursor;
                     _ = write!(self.term, "{s}");
+                    self.term.stdout_cursor = self.term.cursor;
                     self.term.flush();
-                }
-                Some(Err(None)) => {
-                    break;
-                }
-                None => {
-                    trace!("NONE");
-                    break;
                 }
             }
         }

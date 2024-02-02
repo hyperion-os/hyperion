@@ -1,6 +1,7 @@
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
 use anyhow::{anyhow, Result};
+use hyperion_futures::mpmc::Sender;
 use hyperion_kernel_impl::{fd_query, FileDescData, FileDescriptor, VFS_ROOT};
 use hyperion_loader::Loader;
 use hyperion_log::*;
@@ -21,6 +22,8 @@ pub struct Command {
     program: String,
     args: Vec<String>,
 
+    on_close: Option<Sender<()>>,
+
     stdin: Option<Arc<dyn FileDescriptor>>,
     stdout: Option<Arc<dyn FileDescriptor>>,
     stderr: Option<Arc<dyn FileDescriptor>>,
@@ -31,6 +34,8 @@ impl Command {
         Self {
             program: program.into(),
             args: Vec::new(),
+
+            on_close: None,
 
             stdin: None,
             stdout: None,
@@ -45,6 +50,11 @@ impl Command {
 
     pub fn args(&mut self, args: impl IntoIterator<Item = impl Into<String>>) -> &mut Self {
         self.args.extend(args.into_iter().map(|a| a.into()));
+        self
+    }
+
+    pub fn on_close(&mut self, tx: Sender<()>) -> &mut Self {
+        self.on_close = Some(tx);
         self
     }
 
@@ -68,6 +78,8 @@ impl Command {
         let args = self.args.clone();
         let elf = Self::load_elf(&program)?;
 
+        let on_close = self.on_close.clone();
+
         let stdin = self.stdin.clone().unwrap_or_else(|| NULL_DEV.clone());
         let stdout = self.stdout.clone().unwrap_or_else(|| NULL_DEV.clone());
         let stderr = self.stderr.clone().unwrap_or_else(|| LOG_DEV.clone());
@@ -75,12 +87,16 @@ impl Command {
         schedule(move || {
             // set its name
             hyperion_scheduler::rename(program.as_str());
-            debug!("running");
 
             // setup the STDIO
             hyperion_kernel_impl::fd_replace(FileDesc(0), stdin);
             hyperion_kernel_impl::fd_replace(FileDesc(1), stdout);
             hyperion_kernel_impl::fd_replace(FileDesc(2), stderr);
+            if let Some(on_close) = on_close {
+                hyperion_kernel_impl::on_close(Box::new(move || {
+                    _ = on_close.send(());
+                }));
+            }
 
             // setup the environment
             let args: Vec<&str> = [program.as_str()] // TODO: actually load binaries from vfs
