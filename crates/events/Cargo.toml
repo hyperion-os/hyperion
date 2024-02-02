@@ -10,13 +10,13 @@ default = ["input-buffer"]
 input-buffer = []
 
 [dependencies]
+bitflags.workspace = true
 event-listener.workspace = true
 futures-util.workspace = true
 heapless.workspace = true
 pc-keyboard.workspace = true
 pin-project.workspace = true
 spin.workspace = true
-bitflags.workspace = true
 
 hyperion-clock.path = "../clock"
 hyperion-instant.path = "../instant"
