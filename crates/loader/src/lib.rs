@@ -62,8 +62,8 @@ impl<'a> Loader<'a> {
                     SectionHeaderFlags::ALLOC | SectionHeaderFlags::WRITE | SectionHeaderFlags::TLS,
                 )
             {
-                debug!("FOUND .tbss named `{}`", section.name);
-                debug!("{section:?}");
+                trace!("FOUND .tbss named `{}`", section.name);
+                trace!("{section:?}");
             }
 
             if section.ty == SectionHeaderType::PROGBITS
@@ -71,8 +71,8 @@ impl<'a> Loader<'a> {
                     SectionHeaderFlags::ALLOC | SectionHeaderFlags::WRITE | SectionHeaderFlags::TLS,
                 )
             {
-                debug!("FOUND .tdata named `{}`", section.name);
-                debug!("{section:?}");
+                trace!("FOUND .tdata named `{}`", section.name);
+                trace!("{section:?}");
             }
         }
 
@@ -168,7 +168,7 @@ impl<'a> Loader<'a> {
         // if it is the TLS segment, save the master TLS copy location + size
         // the scheduler will create copies for each thread
         if segment.p_type == PT_TLS {
-            debug!("TLS {flags:?} {segment:?}");
+            trace!("TLS {flags:?} {segment:?}");
             let master_tls = (
                 VirtAddr::new(segment.p_vaddr),
                 Layout::from_size_align(align as _, v_size as _).unwrap(),
@@ -260,7 +260,7 @@ impl<'a> Loader<'a> {
 
         task().init_tls();
 
-        debug!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x} and argv:{argv:#016x}");
+        trace!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x} and argv:{argv:#016x}");
         syscall::userland(VirtAddr::new(entrypoint), stack_top, argv.as_u64(), 0);
     }
 }
