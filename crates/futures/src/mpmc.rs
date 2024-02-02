@@ -105,6 +105,21 @@ impl<T> Receiver<T> {
     pub fn race_stream(&self) -> impl Stream<Item = T> + Unpin + '_ {
         self.inner.race_stream()
     }
+
+    // F: FnMut(T) -> Fut,
+    // Fut: Future<Output = Option<(Item, T)>>,
+}
+
+impl<T: Send> Receiver<T> {
+    pub fn into_stream(self) -> impl Stream<Item = T> + Send + Unpin {
+        unfold(self, |ch| {
+            // TODO: same as [`Channel::race_stream`]
+            Box::pin(async move {
+                let item = Box::pin(ch.recv()).await.ok()?;
+                Some((item, ch))
+            })
+        })
+    }
 }
 
 impl<T> Clone for Receiver<T> {
@@ -165,6 +180,16 @@ impl<T> Channel<T> {
     }
 
     pub fn race_stream(&self) -> impl Stream<Item = T> + Unpin + '_ {
+        unfold(self, |ch| {
+            // TODO: manual Future impl to get rid of the Box::pin
+            Box::pin(async move {
+                let item = ch.recv().await;
+                Some((item, ch))
+            })
+        })
+    }
+
+    pub fn into_stream(self) -> impl Stream<Item = T> + Unpin {
         unfold(self, |ch| {
             // TODO: manual Future impl to get rid of the Box::pin
             Box::pin(async move {
