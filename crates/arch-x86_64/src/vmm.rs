@@ -120,7 +120,7 @@ impl PageMapImpl for PageMap {
         // code into the executable kernel region (which is obviously really fkng bad)
         let kernel = VirtAddr::new(hyperion_boot::virt_addr() as _);
         let top = kernel + hyperion_boot::size();
-        hyperion_log::debug!("kernel map {kernel:#018x}");
+        hyperion_log::trace!("kernel map {kernel:#018x}");
         page_map.map(
             kernel..top,
             PhysAddr::new(hyperion_boot::phys_addr() as _),
