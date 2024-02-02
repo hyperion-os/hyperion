@@ -8,10 +8,11 @@ pub use hyperion_driver_framebuffer as fbo;
 // pub use hyperion_driver_pit as pit;
 pub use hyperion_driver_rtc as rtc;
 use hyperion_sync as sync;
-use hyperion_vfs::tree::IntoNode;
+use hyperion_vfs::{device::FileDevice, tree::IntoNode};
 
 //
 
+mod input;
 mod log;
 mod null;
 mod rand;
@@ -32,6 +33,9 @@ pub fn lazy_install_early(root: impl IntoNode) {
     root.install_dev("dev/hpet", acpi::hpet::HpetDevice);
     root.install_dev("dev/fb0", fbo::FboDevice::new());
     root.install_dev("dev/fb0-info", fbo::FboInfoDevice::new());
+
+    root.install_dev("dev/keyboard", input::KeyboardDevice);
+    root.install_dev("dev/mouse", input::MouseDevice);
 
     hyperion_clock::set_source_picker(|| {
         // TODO: more clocks
