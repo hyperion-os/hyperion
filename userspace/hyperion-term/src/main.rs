@@ -3,12 +3,14 @@ use std::os::hyperion::{net::LocalStream, AsRawFd};
 use std::{
     fs::File,
     io::{self, BufRead, Write},
-    ptr::{self, NonNull},
+    ptr::NonNull,
     sync::{Arc, Mutex, MutexGuard},
 };
 
 use hyperion_color::Color;
-use hyperion_syscall::{fs::FileDesc, get_pid, map_file, nanosleep_until, timestamp, yield_now};
+use hyperion_syscall::{fs::FileDesc, get_pid, map_file, nanosleep_until, timestamp};
+
+//
 
 // clippy doesn't support x86_64-unknown-hyperion
 #[cfg(feature = "cargo-clippy")]
@@ -16,7 +18,7 @@ struct LocalStream;
 
 #[cfg(feature = "cargo-clippy")]
 impl LocalStream {
-    pub fn connect(_: &str) -> Result<Self, ()> {
+    pub fn connect(_: &str) -> std::io::Result<Self> {
         todo!()
     }
 }
@@ -48,6 +50,18 @@ impl Write for LocalStream {
     }
 }
 
+#[cfg(feature = "cargo-clippy")]
+trait AsRawFd {
+    fn as_raw_fd(&self) -> usize;
+}
+
+#[cfg(feature = "cargo-clippy")]
+impl AsRawFd for File {
+    fn as_raw_fd(&self) -> usize {
+        todo!()
+    }
+}
+
 //
 
 fn main() {
@@ -67,6 +81,7 @@ fn main() {
     }
 }
 
+#[allow(unused)]
 pub struct Window {
     conn: Connection,
 

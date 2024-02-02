@@ -8,14 +8,13 @@ extern crate alloc;
 use alloc::{boxed::Box, format, string::String};
 
 use hyperion_framebuffer::framebuffer::Framebuffer;
-use hyperion_log::error;
 use hyperion_mem::{from_higher_half, pmm::PageFrame};
 use hyperion_vfs::{
     device::FileDevice,
     error::{IoError, IoResult},
 };
 use spin::{MutexGuard, Once};
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::VirtAddr;
 
 //
 

@@ -35,10 +35,9 @@ use hyperion_syscall::{
     id,
     net::{Protocol, SocketDomain, SocketType},
 };
-use hyperion_vfs::{device::FileDevice, path::Path, ramdisk, tree::Node};
-use lock_api::ArcMutexGuard;
+use hyperion_vfs::{path::Path, ramdisk, tree::Node};
 use time::Duration;
-use x86_64::{align_down, align_up, structures::paging::PageTableFlags, PhysAddr, VirtAddr};
+use x86_64::{align_down, align_up, structures::paging::PageTableFlags, VirtAddr};
 
 //
 
@@ -688,14 +687,15 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
         0x1000,
     );
 
-    let mut offs = 0usize;
-    for phys in phys.into_iter() {
-        let bottom = VirtAddr::new(bottom);
+    let mut offs = 0u64;
+    for phys in phys.into_vec() {
+        let bottom = VirtAddr::new(bottom) + offs;
         this.address_space.page_map.map(
-            bottom + offs..bottom + size + offs,
+            bottom..bottom + size,
             phys.physical_addr(),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
         );
+        offs += size;
     }
 
     Ok(bottom as usize)

@@ -11,7 +11,7 @@ use hyperion_mem::pmm::{PageFrame, PFA};
 use lock_api::Mutex;
 
 use crate::{
-    device::{DirectoryDevice, FileDevice, PhysicalPages},
+    device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
     tree::{DirRef, FileRef, Node, WeakDirRef},
     AnyMutex,
@@ -81,7 +81,6 @@ impl FileDevice for File {
 
     fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
         let mut pages_left = min_bytes.div_ceil(0x1000);
-        let mut current_page_end = 0usize;
         let pages = self
             .pages
             .iter()

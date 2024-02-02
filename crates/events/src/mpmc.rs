@@ -8,7 +8,6 @@ use core::{
 use event_listener::{Event, EventListener};
 use futures_util::ready;
 use heapless::mpmc::MpMcQueue;
-use hyperion_log::warn;
 use pin_project::pin_project;
 
 //
@@ -27,10 +26,7 @@ impl<T: Debug> EventQueue<T> {
     }
 
     pub fn send(&self, event: T) {
-        if let Err(lost) = self.queue.enqueue(event) {
-            // warn!("event queue full! lost `{lost:?}`");
-        }
-
+        _ = self.queue.enqueue(event);
         self.ops.notify(1);
     }
 

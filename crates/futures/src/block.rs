@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use core::{
     future::{Future, IntoFuture},
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
     task::{Context, Poll},
 };
 
@@ -9,11 +9,9 @@ use futures_util::{
     pin_mut,
     task::{waker, ArcWake},
 };
-use hyperion_scheduler::{condvar::Condvar, futex, lock::Mutex};
+use hyperion_scheduler::futex;
 
 use crate::executor::run_once;
-
-static EMPTY: (Mutex<bool>, Condvar) = (Mutex::new(true), Condvar::new());
 
 //
 

@@ -8,7 +8,7 @@ pub use hyperion_driver_framebuffer as fbo;
 // pub use hyperion_driver_pit as pit;
 pub use hyperion_driver_rtc as rtc;
 use hyperion_sync as sync;
-use hyperion_vfs::{device::FileDevice, tree::IntoNode};
+use hyperion_vfs::tree::IntoNode;
 
 //
 

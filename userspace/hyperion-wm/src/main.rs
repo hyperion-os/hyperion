@@ -8,14 +8,12 @@ use std::os::hyperion::{
     AsRawFd,
 };
 use std::{
-    arch::asm,
-    cell::{Cell, LazyCell},
     fs::{File, OpenOptions},
     io::{stderr, stdout, BufRead, BufReader, Seek, SeekFrom, Write},
     ptr::{self, NonNull},
     sync::{
         atomic::{AtomicUsize, Ordering},
-        LazyLock, Mutex, MutexGuard,
+        LazyLock, Mutex,
     },
     thread,
 };
@@ -128,12 +126,12 @@ struct Window {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-struct WindowInfo {
-    id: usize,
-    x: usize,
-    y: usize,
-    w: usize,
-    h: usize,
+pub struct WindowInfo {
+    pub id: usize,
+    pub x: usize,
+    pub y: usize,
+    pub w: usize,
+    pub h: usize,
 }
 
 unsafe impl Sync for Window {}
@@ -185,7 +183,7 @@ fn blitter() {
 
             // println!("VSYNC");
             // TODO: smarter blitting to avoid copying every single window every single frame
-            for y in (0..info.h) {
+            for y in 0..info.h {
                 let gy = y + info.y;
 
                 if gy >= height {
@@ -272,7 +270,10 @@ fn handle_client(mut client: impl BufRead + Write) {
                 let path = format!("/run/wm.window.{window_id}");
                 // TODO: create_new
                 let mut window_file = File::create(path.as_str()).unwrap();
-                window_file.seek(SeekFrom::Start(200 * 200 * 4 - 4));
+                // TODO: truncate
+                window_file
+                    .seek(SeekFrom::Start(200 * 200 * 4 - 4))
+                    .unwrap();
                 window_file.write_all(&[0u8; 4]).unwrap();
                 let len = window_file.metadata().unwrap().len() as usize;
 

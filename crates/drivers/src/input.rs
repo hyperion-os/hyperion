@@ -20,11 +20,11 @@ impl FileDevice for KeyboardDevice {
         0
     }
 
-    fn set_len(&mut self, len: usize) -> IoResult<()> {
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
         Err(IoError::PermissionDenied)
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
         if buf.is_empty() {
             return Ok(0);
         }
@@ -35,7 +35,7 @@ impl FileDevice for KeyboardDevice {
         Ok(1)
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
         Err(IoError::PermissionDenied)
     }
 }
@@ -53,11 +53,11 @@ impl FileDevice for MouseDevice {
         0
     }
 
-    fn set_len(&mut self, len: usize) -> IoResult<()> {
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
         Err(IoError::PermissionDenied)
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
         if buf.is_empty() {
             return Ok(0);
         }
@@ -69,7 +69,7 @@ impl FileDevice for MouseDevice {
         Ok(limit)
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
         Err(IoError::PermissionDenied)
     }
 }

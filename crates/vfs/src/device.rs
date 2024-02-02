@@ -11,13 +11,6 @@ use crate::{
 
 //
 
-pub struct PhysicalPages {
-    first: usize,
-    count: usize,
-}
-
-//
-
 pub trait FileDevice: Send + Sync {
     fn as_any(&self) -> &dyn Any;
 
