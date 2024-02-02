@@ -15,6 +15,8 @@ pub struct Context {
     pub cr3: PhysAddr,
     pub fs: VirtAddr,
     pub syscall_stack: VirtAddr,
+
+    fxsave_reg: [u16; 256],
 }
 
 impl Context {
@@ -60,6 +62,7 @@ impl Context {
             rsp,
             fs: VirtAddr::new_truncate(0),
             syscall_stack: stack_top,
+            fxsave_reg: [0; 256],
         }
     }
 
@@ -72,6 +75,7 @@ impl Context {
             rsp: VirtAddr::new_truncate(0),
             fs: VirtAddr::new_truncate(0),
             syscall_stack: VirtAddr::new_truncate(0),
+            fxsave_reg: [0; 256],
         }
     }
 }
@@ -122,12 +126,15 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
             "push r14",
             "push r15",
 
+
             // save prev task
             "mov [rdi+{rsp}], rsp", // save prev stack
+            "fxsave64 [rdi+{fxsave_reg}]", // save prev FX state
             // "mov [rdi+{fs}], fs",   // save thread local pointer
 
             // load next task
             // "wrfsbase [rsi+{fs}]",   // load thread local pointer
+            "fxrstor64 [rsi+{fxsave_reg}]", // save prev FX state
             "mov rsp, [rsi+{rsp}]", // load next stack
             "mov rax, [rsi+{cr3}]", // rax = next virtual address space
 
@@ -150,6 +157,7 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
 
             rsp = const(offset_of!(Context, rsp)),
             cr3 = const(offset_of!(Context, cr3)),
+            fxsave_reg = const(offset_of!(Context, fxsave_reg)),
             // fs = const(offset_of!(Context, fs)),
             options(noreturn)
         );
