@@ -7,35 +7,38 @@ use crate::keyboard::event::ElementState;
 
 //
 
-pub(crate) fn process(ps2_byte: u8) -> impl Iterator<Item = MouseEvent> {
-    let mut events: Vec<MouseEvent, 4> = Vec::new();
-
+pub(crate) fn unpack(ps2_byte: u8) -> Option<[u8; 3]> {
     match NEXT.load(Ordering::Acquire) {
         CMD => {
-            DATA.0.store(ps2_byte, Ordering::Release);
+            let cmd = Byte1::from_bits_truncate(ps2_byte);
+            if cmd.contains(Byte1::X_OVERFLOW | Byte1::Y_OVERFLOW) || !cmd.contains(Byte1::ONE) {
+                // invalid packet, prob out of sync
+                return None;
+            }
 
+            DATA.0.store(ps2_byte, Ordering::Release);
             _ = NEXT.compare_exchange(CMD, X, Ordering::Release, Ordering::Relaxed);
+            None
         }
         X => {
             DATA.1.store(ps2_byte, Ordering::Release);
-
             _ = NEXT.compare_exchange(X, Y, Ordering::Release, Ordering::Relaxed);
+            None
         }
         Y => {
             let cmd = DATA.0.load(Ordering::Acquire);
             let x = DATA.1.load(Ordering::Acquire);
             let y = ps2_byte;
-
-            if NEXT
-                .compare_exchange(Y, CMD, Ordering::Release, Ordering::Relaxed)
-                .is_ok()
-            {
-                decode_bytes(&mut events, [cmd, x, y]);
-            }
+            _ = NEXT.compare_exchange(Y, CMD, Ordering::Release, Ordering::Relaxed);
+            Some([cmd, x, y])
         }
         _ => unreachable!(),
-    };
+    }
+}
 
+pub(crate) fn process(ev: [u8; 3]) -> impl Iterator<Item = MouseEvent> {
+    let mut events: Vec<MouseEvent, 4> = Vec::new();
+    decode_bytes(&mut events, ev);
     events.into_iter()
 }
 
