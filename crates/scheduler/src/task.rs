@@ -71,11 +71,6 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
         panic!("this task is already running");
     }
 
-    if let Some(tls) = next.tls.get().copied() {
-        FsBase::write(tls);
-        // unsafe { FS::write_base(tls) };
-    }
-
     // tell the page fault handler that the actual current task is still this one
     {
         let task = task();
@@ -112,6 +107,8 @@ fn post_ctx_switch() {
         .switch_last_active
         .store(ptr::null_mut(), Ordering::SeqCst);
 
+    task().init_tls();
+
     crate::cleanup();
 
     // hyperion_arch::
@@ -120,11 +117,7 @@ fn post_ctx_switch() {
 extern "C" fn thread_entry() -> ! {
     post_ctx_switch();
 
-    let task = task();
-    let job = task.job.take().expect("no active jobs");
-    task.init_tls();
-    drop(task);
-
+    let job = task().job.take().expect("no active jobs");
     job();
 
     done();
@@ -433,60 +426,71 @@ pub struct TaskInner {
 
 impl TaskInner {
     pub fn init_tls(&self) {
-        _ = self.tls.try_call_once(|| {
-            let Some((addr, layout)) = self.master_tls.get().copied() else {
-                // master tls doesn't exist, so don't copy it
-                return Err(());
-            };
+        let fs = self
+            .tls
+            .try_call_once(|| {
+                let Some((addr, layout)) = self.master_tls.get().copied() else {
+                    // master tls doesn't exist, so don't copy it
+                    return Err(());
+                };
+                // debug!("init_tls for {}", self.name.read());
 
-            // TODO: deallocate it when the thread quits
+                // TODO: deallocate it when the thread quits
 
-            // afaik, it has to be at least one page?
-            // and at least 2 pages if TLS has any data
-            // , because FSBase has to point to TCB and
-            // FSBase has to be page aligned and TLS
-            // has to be right below TCB
-            // +--------------+--------------+
-            // |   PHYS PAGE  |  PHYS PAGE   |
-            // +--------+-----+-----+--------+
-            // | unused | TLS | TCB | unused |
-            // +--------+-----+-----+--------+
+                // afaik, it has to be at least one page?
+                // and at least 2 pages if TLS has any data
+                // , because FSBase has to point to TCB and
+                // FSBase has to be page aligned and TLS
+                // has to be right below TCB
+                // +--------------+--------------+
+                // |   PHYS PAGE  |  PHYS PAGE   |
+                // +--------+-----+-----+--------+
+                // | unused | TLS | TCB | unused |
+                // +--------+-----+-----+--------+
 
-            // the alloc is align_up(TLS) + TCB
-            let tls_alloc = align_up(layout.size() as u64, 0x10u64);
-            let n_pages = tls_alloc.div_ceil(0x1000) as usize + 1;
-            let (tls_copy, _) = self
-                .alloc(
-                    n_pages,
-                    PageTableFlags::USER_ACCESSIBLE
-                        | PageTableFlags::WRITABLE
-                        | PageTableFlags::PRESENT,
-                )
-                .unwrap();
+                // the alloc is align_up(TLS) + TCB
+                let tls_alloc = align_up(layout.size() as u64, 0x10u64);
+                let n_pages = tls_alloc.div_ceil(0x1000) as usize + 1;
+                let (tls_copy, _) = self
+                    .alloc(
+                        n_pages,
+                        PageTableFlags::USER_ACCESSIBLE
+                            | PageTableFlags::WRITABLE
+                            | PageTableFlags::PRESENT,
+                    )
+                    .unwrap();
 
-            let tcb_ptr = tls_copy + (n_pages - 1) * 0x1000;
-            let tls_ptr = tcb_ptr - tls_alloc;
+                let tcb_ptr = tls_copy + (n_pages - 1) * 0x1000;
+                let tls_ptr = tcb_ptr - tls_alloc;
 
-            // copy the master TLS
-            unsafe {
-                ptr::copy_nonoverlapping::<u8>(addr.as_ptr(), tls_ptr.as_mut_ptr(), layout.size());
-            }
+                // copy the master TLS
+                unsafe {
+                    ptr::copy_nonoverlapping::<u8>(
+                        addr.as_ptr(),
+                        tls_ptr.as_mut_ptr(),
+                        layout.size(),
+                    );
+                }
 
-            // init TCB
-            // %fs register value, it points to a pointer to itself, TLS items are right before it
-            let fs = tcb_ptr;
-            // %fs:0x0 should point to fsbase
-            unsafe { *fs.as_mut_ptr() = fs.as_u64() };
+                // init TCB
+                // %fs register value, it points to a pointer to itself, TLS items are right before it
+                let fs = tcb_ptr;
+                // %fs:0x0 should point to fsbase
+                unsafe { *fs.as_mut_ptr() = fs.as_u64() };
 
-            // TODO: a more robust is_active fn
-            let active = task();
-            if self.tid == active.tid && self.pid == active.pid {
-                FsBase::write(fs);
-                // unsafe { FS::write_base(tls_copy) };
-            }
+                Ok(fs)
+            })
+            .ok()
+            .copied()
+            .unwrap_or(VirtAddr::new(0));
 
-            Ok(tls_copy)
-        });
+        // TODO: a more robust is_active fn
+        let active = task();
+        if self.tid == active.tid && self.pid == active.pid {
+            // debug!("tls fs={fs:#018x}");
+            FsBase::write(fs);
+            // unsafe { FS::write_base(tls_copy) };
+        }
     }
 }
 
