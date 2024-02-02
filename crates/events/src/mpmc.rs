@@ -14,7 +14,7 @@ use pin_project::pin_project;
 //
 
 pub(crate) struct EventQueue<T> {
-    queue: MpMcQueue<T, 512>,
+    queue: MpMcQueue<T, 128>,
     ops: Event,
 }
 
@@ -28,7 +28,7 @@ impl<T: Debug> EventQueue<T> {
 
     pub fn send(&self, event: T) {
         if let Err(lost) = self.queue.enqueue(event) {
-            warn!("event queue full! lost `{lost:?}`");
+            // warn!("event queue full! lost `{lost:?}`");
         }
 
         self.ops.notify(1);
