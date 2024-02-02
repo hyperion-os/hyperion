@@ -482,12 +482,14 @@ impl FileDevice for BoundSocket {
 
 pub struct ProcessExtra {
     pub files: Mutex<SparseVec<Arc<dyn FileDescriptor>>>,
+    pub on_close: Mutex<Vec<Box<dyn FnOnce() + Send>>>,
 }
 
 impl Clone for ProcessExtra {
     fn clone(&self) -> Self {
         let files = Mutex::new(self.files.lock().clone());
-        Self { files }
+        let on_close = Mutex::new(Vec::new());
+        Self { files, on_close }
     }
 }
 
@@ -498,10 +500,25 @@ impl ProcessExt for ProcessExtra {
 
     fn close(&self) {
         self.files.lock().inner.clear();
+        for f in self.on_close.lock().drain(..) {
+            f();
+        }
+    }
+}
+
+impl Drop for ProcessExtra {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 
 //
+
+pub fn on_close(on_close: Box<dyn FnOnce() + Send>) {
+    with_proc_ext(|ext| {
+        ext.on_close.lock().push(on_close);
+    });
+}
 
 pub fn fd_query(fd: FileDesc) -> Result<Arc<dyn FileDescriptor>> {
     with_proc_ext(|ext| {
@@ -568,6 +585,7 @@ pub fn process_ext_with(proc: &Process) -> &ProcessExtra {
         .call_once(|| {
             Box::new(ProcessExtra {
                 files: Mutex::new(SparseVec::new()),
+                on_close: Mutex::new(Vec::new()),
             })
         })
         .as_any()
