@@ -17,7 +17,7 @@ memoffset = { version = "0.9", features = ["unstable_const"] }
 
 hyperion-boot-interface.path = "../boot-interface"
 hyperion-boot.path = "../boot"
-hyperion-drivers.path = "../drivers"
+hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-interrupts.path = "../interrupts"
 hyperion-log.path = "../log"
 hyperion-macros.path = "../macros"
