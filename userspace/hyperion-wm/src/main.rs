@@ -9,11 +9,11 @@ use std::os::hyperion::{
 };
 use std::{
     fs::{File, OpenOptions},
-    io::{stderr, stdout, BufRead, BufReader, Seek, SeekFrom, Write},
+    io::{stderr, stdout, BufRead, BufReader, Read, Seek, SeekFrom, Write},
     ptr::{self, NonNull},
     sync::{
         atomic::{AtomicUsize, Ordering},
-        LazyLock, Mutex,
+        Arc, LazyLock, Mutex,
     },
     thread,
 };
@@ -123,6 +123,8 @@ struct Window {
     info: WindowInfo,
     shmem: Option<File>,
     shmem_ptr: Option<NonNull<()>>,
+
+    events: Arc<dyn Write>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -155,6 +157,23 @@ fn main() {
 
         thread::spawn(move || handle_client(client));
     }
+}
+
+fn keyboard() {
+    let windows = &*WINDOWS;
+
+    let mut keyboard = File::open("/dev/keyboard").unwrap();
+
+    let mut msg_buf;
+
+    let mut buf = [0u8; 8];
+    let n = keyboard.read(&mut buf).unwrap();
+
+    let _windows = windows.lock().unwrap();
+    if let Some(window) = _windows.get(0) {
+        window.events.write_all("event keyboard {}");
+    }
+    drop(_windows);
 }
 
 fn blitter() {
@@ -228,17 +247,19 @@ fn blitter() {
 
 // erease the type information for rust-analyzer
 // (because rust-analyzer doesn't support x86_64-unknown-hyperion)
-fn handle_client(mut client: impl BufRead + Write) {
+fn handle_client(client: LocalStream) {
     let windows = &*WINDOWS;
 
-    println!("new client = tid:{}", get_tid());
+    let client = Arc::new(client);
+    let client_send = client.clone() as Arc<dyn Write>;
+    let client_recv = BufReader::new(client.clone());
 
     // a super simple display protocol
     let mut buf = String::new();
 
     loop {
         buf.clear();
-        let len = client.read_line(&mut buf).unwrap();
+        let len = client_recv.read_line(&mut buf).unwrap();
         let line = buf[..len].trim();
 
         match line {
@@ -263,6 +284,7 @@ fn handle_client(mut client: impl BufRead + Write) {
                         w: 200,
                         h: 200,
                     },
+                    events: client_send.clone(),
                 });
                 drop(_windows);
 
@@ -292,8 +314,8 @@ fn handle_client(mut client: impl BufRead + Write) {
 
                 buf.clear();
                 use std::fmt::Write;
-                writeln!(buf, "{window_id}").unwrap();
-                client.write_all(buf.as_bytes()).unwrap();
+                writeln!(buf, "return new_window {window_id}").unwrap();
+                client_send.write_all(buf.as_bytes()).unwrap();
             }
             _ => {
                 println!("unknown command")
