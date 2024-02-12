@@ -45,6 +45,16 @@ impl File {
     }
 }
 
+impl Drop for File {
+    fn drop(&mut self) {
+        for page in mem::take(&mut self.pages) {
+            PFA.free(page);
+        }
+    }
+}
+
+//
+
 pub struct StaticRoFile {
     bytes: &'static [u8],
 }
