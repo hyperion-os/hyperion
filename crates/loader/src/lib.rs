@@ -5,7 +5,11 @@
 
 extern crate alloc;
 
-use core::{alloc::Layout, mem::MaybeUninit, ptr, slice};
+use core::{
+    alloc::Layout,
+    mem::{self, MaybeUninit},
+    ptr, slice,
+};
 
 use elf::{
     abi::{PF_R, PF_W, PF_X, PT_LOAD, PT_TLS},
@@ -218,6 +222,12 @@ impl<'a> Loader<'a> {
     pub fn init_stack(args: &[&str]) -> (VirtAddr, VirtAddr) {
         let mut stack_top = hyperion_scheduler::task().user_stack.lock().top;
 
+        let args_len = args.iter().map(|arg| arg.len()).sum::<usize>();
+        let padding = args_len.next_multiple_of(8) - args_len; // for alignment
+        for _ in 0..padding {
+            push(&mut stack_top, 0u8);
+        }
+
         for arg in args.iter().rev() {
             for byte in arg.as_bytes().iter().rev() {
                 push(&mut stack_top, *byte);
@@ -269,6 +279,7 @@ impl<'a> Loader<'a> {
 
 /// push items to the stack
 pub fn push<T: Sized>(top: &mut VirtAddr, v: T) {
-    *top -= core::mem::size_of::<T>();
+    *top -= mem::size_of::<T>();
+    assert!(top.is_aligned(mem::size_of::<T>() as u64));
     unsafe { top.as_mut_ptr::<T>().write_volatile(v) };
 }
