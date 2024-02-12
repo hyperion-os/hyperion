@@ -186,12 +186,10 @@ impl<Mut: AnyMutex> Node<Mut> {
         let path = path.as_ref();
         let (parent_dir, file_name) = if let Some((parent_path, file_name)) = path.split() {
             (self.find_dir(parent_path, make_dirs)?, file_name)
+        } else if let Node::Directory(d) = self {
+            (d.clone(), path.as_str())
         } else {
-            (if let Node::Directory(d) = self {
-                (d.clone(), path.as_str())
-            } else {
-                return Err(IoError::NotADirectory);
-            })
+            return Err(IoError::NotADirectory);
         };
 
         let mut parent_dir = parent_dir.lock();
