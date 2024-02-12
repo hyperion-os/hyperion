@@ -5,7 +5,10 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::any::Any;
+use core::{
+    any::{type_name_of_val, Any},
+    mem,
+};
 
 use hyperion_mem::pmm::{PageFrame, PFA};
 use lock_api::Mutex;
@@ -27,13 +30,20 @@ pub struct File {
 
 impl File {
     pub fn new(bytes: &[u8]) -> Self {
-        let pages = bytes.len().div_ceil(0x1000);
-        let mut pages = PFA.alloc(pages);
-        pages.as_bytes_mut()[..bytes.len()].copy_from_slice(bytes);
+        if bytes.is_empty() {
+            Self {
+                pages: vec![],
+                len: 0,
+            }
+        } else {
+            let pages = bytes.len().div_ceil(0x1000);
+            let mut pages = PFA.alloc(pages);
+            pages.as_bytes_mut()[..bytes.len()].copy_from_slice(bytes);
 
-        Self {
-            pages: vec![pages],
-            len: bytes.len(),
+            Self {
+                pages: vec![pages],
+                len: bytes.len(),
+            }
         }
     }
 
@@ -114,17 +124,25 @@ impl FileDevice for File {
     }
 
     fn read(&self, offset: usize, mut buf: &mut [u8]) -> IoResult<usize> {
+        if let Some(buf_limit) = self.len.checked_sub(offset) {
+            let buf_limit = buf_limit.min(buf.len());
+            buf = &mut buf[..buf_limit];
+        } else {
+            return Ok(0);
+        }
         let initial_len = buf.len();
 
         let mut current_page_start = 0usize;
         let mut pages = self.pages.iter();
         while !buf.is_empty() {
+            let limit = self.len - current_page_start;
+
             let Some(at) = pages.next() else {
                 return Ok(initial_len - buf.len());
             };
 
-            if let Some(read_from) = current_page_start
-                .checked_sub(offset)
+            if let Some(read_from) = offset
+                .checked_sub(current_page_start)
                 .and_then(|read_from| at.as_bytes().get(read_from..))
             {
                 let read_limit = read_from.len().min(buf.len());
@@ -155,8 +173,8 @@ impl FileDevice for File {
                 break;
             };
 
-            if let Some(write_to) = current_page_start
-                .checked_sub(offset)
+            if let Some(write_to) = offset
+                .checked_sub(current_page_start)
                 .and_then(|write_to| at.as_bytes_mut().get_mut(write_to..))
             {
                 let write_limit = write_to.len().min(buf.len());
