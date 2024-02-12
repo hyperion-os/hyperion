@@ -108,6 +108,14 @@ impl<Mut: AnyMutex> Node<Mut> {
         Node::Directory(Directory::new_ref(""))
     }
 
+    pub fn new_file(f: impl FileDevice + 'static) -> Self {
+        Self::File(Arc::new(Mutex::new(f)))
+    }
+
+    pub fn new_dir(f: impl DirectoryDevice<Mut> + 'static) -> Self {
+        Self::Directory(Arc::new(Mutex::new(f)))
+    }
+
     pub fn find(&self, path: impl AsRef<Path>, make_dirs: bool) -> IoResult<Self> {
         let mut this = self.clone();
         for part in path.as_ref().iter() {

@@ -1,5 +1,8 @@
-use alloc::{boxed::Box, string::String, sync::Arc};
-use core::{any::Any, fmt::Write};
+use alloc::{boxed::Box, format, string::String, sync::Arc};
+use core::{
+    any::Any,
+    fmt::{self, Display, Write},
+};
 
 use hyperion_scheduler::lock::{Futex, Lazy, Once};
 use hyperion_vfs::{
@@ -14,12 +17,7 @@ use lock_api::{Mutex, RawMutex};
 //
 
 pub fn init(root: impl IntoNode) {
-    root.into_node().mount(
-        "proc",
-        ProcFs {
-            cmdline: Once::new(),
-        },
-    );
+    root.into_node().mount("proc", ProcFs::new());
 
     // let root = root.into_node().find("/proc", true).unwrap();
 
@@ -28,48 +26,66 @@ pub fn init(root: impl IntoNode) {
 
 //
 
-// pub struct MemInfo {
-//     inner: Box<[u8]>,
-//     // total: usize,
-//     // free: usize,
-// }
+pub struct MemInfo {
+    total: usize,
+    free: usize,
+}
 
-// impl FileDevice for MemInfo {
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
+impl fmt::Display for MemInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "MemTotal:{}", self.total)?;
+        writeln!(f, "MemFree:{}", self.free)?;
+        Ok(())
+    }
+}
 
-//     fn len(&self) -> usize {
-//         1
-//     }
+//
 
-//     fn set_len(&mut self, _: usize) -> IoResult<()> {
-//         Err(IoError::PermissionDenied)
-//     }
+pub struct Cmdline;
 
-//     // TODO: fn open(&self, mode: ...) -> ...
+impl FileDevice for Cmdline {
+    fn driver(&self) -> &'static str {
+        "procfs"
+    }
 
-//     fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-//         // FIXME: should be computed at `open`
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 
-//         // let pfa = &*hyperion_mem::pmm::PFA;
+    fn len(&self) -> usize {
+        hyperion_boot::args::get().cmdline.len()
+    }
 
-//         // let mut contents = String::new();
-//         // writeln!(&mut contents, "MemTotal:{}", pfa.usable_mem() / 0x1000).unwrap();
-//         // writeln!(&mut contents, "MemFree:{}", pfa.free_mem() / 0x1000).unwrap();
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    }
 
-//         // <[u8]>::read(contents.as_bytes(), offset, buf)
-//     }
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        hyperion_boot::args::get()
+            .cmdline
+            .as_bytes()
+            .read(offset, buf)
+    }
 
-//     fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-//         Err(IoError::PermissionDenied)
-//     }
-// }
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
+    }
+}
 
 //
 
 pub struct ProcFs<Mut> {
     cmdline: Once<Node<Mut>>,
+    version: Once<Node<Mut>>,
+}
+
+impl<Mut> ProcFs<Mut> {
+    pub const fn new() -> Self {
+        Self {
+            cmdline: Once::new(),
+            version: Once::new(),
+        }
+    }
 }
 
 impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
@@ -82,21 +98,26 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
             "meminfo" => {
                 let pfa = &*hyperion_mem::pmm::PFA;
 
-                let mut meminfo = File::new(&[]);
-                let mut writer = (&mut meminfo as &mut dyn FileDevice).as_fmt(0);
-
-                writeln!(writer, "MemTotal:{} kb", pfa.usable_mem() / 0x400);
-                writeln!(writer, "MemFree: {} kb", pfa.free_mem() / 0x400);
-
                 // create a snapshot of the system memory info to fix some data races
-                Ok(Node::File(Arc::new(lock_api::Mutex::new(meminfo))))
+                Ok(Node::new_file(DisplayFile(MemInfo {
+                    total: pfa.usable_mem() / 0x400,
+                    free: pfa.free_mem() / 0x400,
+                })))
             }
             "cmdline" => Ok(self
                 .cmdline
+                .call_once(|| Node::new_file(DisplayFile(hyperion_boot::args::get().cmdline)))
+                .clone()),
+            "version" => Ok(self
+                .version
                 .call_once(|| {
-                    Node::File(Arc::new(Mutex::new(StaticRoFile::new(
-                        hyperion_boot::args::get().cmdline.as_bytes(),
-                    ))))
+                    Node::new_file(DisplayFile(format!(
+                        "{} version {} #{} {}",
+                        hyperion_kernel_info::NAME,
+                        hyperion_kernel_info::VERSION,
+                        hyperion_kernel_info::BUILD_REV,
+                        hyperion_kernel_info::BUILD_TIME,
+                    )))
                 })
                 .clone()),
             _ => Err(IoError::NotFound),
@@ -109,8 +130,94 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
 
     fn nodes(&mut self) -> IoResult<Arc<[Arc<str>]>> {
         static FILES: Lazy<Arc<[Arc<str>]>> =
-            Lazy::new(|| ["meminfo".into(), "cmdline".into()].into());
+            Lazy::new(|| ["meminfo".into(), "cmdline".into(), "version".into()].into());
 
         Ok(FILES.clone())
+    }
+}
+
+//
+
+struct DisplayFile<T>(T);
+
+impl<T: Display + Send + Sync + 'static> FileDevice for DisplayFile<T> {
+    fn driver(&self) -> &'static str {
+        "procfs"
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn len(&self) -> usize {
+        let mut l = FmtLength { len: 0 };
+        write!(&mut l, "{}", self.0).unwrap();
+        l.len
+    }
+
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    }
+
+    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        let mut w = FmtOffsetBuf {
+            offset,
+            buf,
+            cursor: 0,
+        };
+        write!(&mut w, "{}", self.0).unwrap();
+        Ok(w.cursor.saturating_sub(w.offset).min(w.buf.len()))
+    }
+
+    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
+        Err(IoError::PermissionDenied)
+    }
+}
+
+//
+
+struct FmtLength {
+    len: usize,
+}
+
+impl fmt::Write for FmtLength {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.len += s.len();
+        Ok(())
+    }
+}
+
+struct FmtOffsetBuf<'a> {
+    // 0..offset | offset..offset+buf.len() | offset+buf.len()..
+    //   ignored | written to buf           | ignored
+    offset: usize,
+    buf: &'a mut [u8],
+    cursor: usize,
+}
+
+impl fmt::Write for FmtOffsetBuf<'_> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        let s = s.as_bytes();
+
+        // write s into buf when s starts from self.cursor and buf starts from offset
+        // both have some virtual empty space before and after
+        //
+        // so it is like an unaligned slice copy
+        //           +--------+
+        //           |abc     |
+        //           +--------+
+        //             |
+        //            \/
+        //      +--------+
+        //      |     abc|
+        //      +--------+
+        if let Some(s) = s.get(self.offset.saturating_sub(self.cursor)..) {
+            let limit = s.len().min(self.buf.len());
+            self.buf[..limit].copy_from_slice(&s[..limit]);
+        }
+
+        self.cursor += s.len();
+
+        Ok(())
     }
 }

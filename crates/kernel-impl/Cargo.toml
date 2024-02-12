@@ -15,6 +15,7 @@ x86_64.workspace = true
 
 hyperion-arch.path = "../arch"
 hyperion-boot.path = "../boot"
+hyperion-kernel-info.path = "../kernel-info"
 hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"
 hyperion-scheduler.path = "../scheduler"
