@@ -193,6 +193,12 @@ impl<T> Once<T> {
     }
 }
 
+impl<T> Default for Once<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 //
 
 pub struct Lazy<T, F = fn() -> T> {
