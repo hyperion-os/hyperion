@@ -1,5 +1,7 @@
 #![no_std]
 
+extern crate alloc;
+
 //
 
 pub use hyperion_boot_limine::*;

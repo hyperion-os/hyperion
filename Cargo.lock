@@ -875,6 +875,7 @@ name = "hyperion-kernel-impl"
 version = "0.3.0"
 dependencies = [
  "hyperion-arch",
+ "hyperion-boot",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-scheduler",

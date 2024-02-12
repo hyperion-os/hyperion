@@ -1,18 +1,25 @@
 use alloc::{boxed::Box, string::String, sync::Arc};
 use core::{any::Any, fmt::Write};
 
+use hyperion_scheduler::lock::{Futex, Lazy, Once};
 use hyperion_vfs::{
     device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
-    ramdisk::File,
+    ramdisk::{File, StaticRoFile},
     tree::{IntoNode, Node},
+    AnyMutex,
 };
 use lock_api::{Mutex, RawMutex};
 
 //
 
 pub fn init(root: impl IntoNode) {
-    root.into_node().mount("proc", ProcFs);
+    root.into_node().mount(
+        "proc",
+        ProcFs {
+            cmdline: Once::new(),
+        },
+    );
 
     // let root = root.into_node().find("/proc", true).unwrap();
 
@@ -61,9 +68,11 @@ pub fn init(root: impl IntoNode) {
 
 //
 
-pub struct ProcFs;
+pub struct ProcFs<Mut> {
+    cmdline: Once<Node<Mut>>,
+}
 
-impl<Mut: RawMutex> DirectoryDevice<Mut> for ProcFs {
+impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
     fn driver(&self) -> &'static str {
         "procfs"
     }
@@ -82,6 +91,14 @@ impl<Mut: RawMutex> DirectoryDevice<Mut> for ProcFs {
                 // create a snapshot of the system memory info to fix some data races
                 Ok(Node::File(Arc::new(lock_api::Mutex::new(meminfo))))
             }
+            "cmdline" => Ok(self
+                .cmdline
+                .call_once(|| {
+                    Node::File(Arc::new(Mutex::new(StaticRoFile::new(
+                        hyperion_boot::args::get().cmdline.as_bytes(),
+                    ))))
+                })
+                .clone()),
             _ => Err(IoError::NotFound),
         }
     }
@@ -91,6 +108,9 @@ impl<Mut: RawMutex> DirectoryDevice<Mut> for ProcFs {
     }
 
     fn nodes(&mut self) -> IoResult<Arc<[Arc<str>]>> {
-        Ok(["meminfo".into()].into())
+        static FILES: Lazy<Arc<[Arc<str>]>> =
+            Lazy::new(|| ["meminfo".into(), "cmdline".into()].into());
+
+        Ok(FILES.clone())
     }
 }
