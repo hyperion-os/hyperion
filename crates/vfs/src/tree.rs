@@ -183,8 +183,16 @@ impl<Mut: AnyMutex> Node<Mut> {
     }
 
     pub fn insert(&self, path: impl AsRef<Path>, make_dirs: bool, node: Node<Mut>) -> IoResult<()> {
-        let (parent_dir, file_name) = path.as_ref().split().ok_or(IoError::NotFound)?;
-        let parent_dir = self.find_dir(parent_dir, make_dirs)?;
+        let path = path.as_ref();
+        let (parent_dir, file_name) = if let Some((parent_path, file_name)) = path.split() {
+            (self.find_dir(parent_path, make_dirs)?, file_name)
+        } else {
+            (if let Node::Directory(d) = self {
+                (d.clone(), path.as_str())
+            } else {
+                return Err(IoError::NotADirectory);
+            })
+        };
 
         let mut parent_dir = parent_dir.lock();
         parent_dir.create_node(file_name, node)?;
