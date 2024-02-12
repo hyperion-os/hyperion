@@ -40,12 +40,12 @@ impl Path {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &str> {
-        ["/"].into_iter().chain(
-            self.0
-                .trim_matches('/')
-                .split('/')
-                .filter(|p| !p.is_empty()),
-        )
+        // ["/"].into_iter().chain(
+        self.0
+            .trim_matches('/')
+            .split('/')
+            .filter(|p| !p.is_empty())
+        // )
     }
 
     pub fn is_dir(&self) -> bool {
