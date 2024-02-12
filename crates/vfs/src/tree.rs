@@ -1,7 +1,8 @@
 use alloc::sync::{Arc, Weak};
+use core::fmt;
 
 use hyperion_log::*;
-use lock_api::Mutex;
+use lock_api::{Mutex, MutexGuard, RawMutex};
 
 use crate::{
     device::DirectoryDevice,
@@ -77,6 +78,18 @@ pub enum Node<Mut> {
     /// a directory device most likely contains more directory devices, like `/https/archlinux/org`
     /// inside `/https/archlinux/`
     Directory(DirRef<Mut>),
+}
+
+impl<Mut: RawMutex> fmt::Debug for Node<Mut> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Node::File(v) => f.debug_tuple("File").field(&v.lock().driver()).finish(),
+            Node::Directory(v) => f
+                .debug_tuple("Directory")
+                .field(&v.lock().driver())
+                .finish(),
+        }
+    }
 }
 
 impl<Mut> Clone for Node<Mut> {
@@ -192,10 +205,22 @@ impl<Mut: AnyMutex> Node<Mut> {
             return Err(IoError::NotADirectory);
         };
 
-        let mut parent_dir = parent_dir.lock();
+        let mut parent_dir: MutexGuard<Mut, dyn DirectoryDevice<Mut>> = parent_dir.lock();
         parent_dir.create_node(file_name, node)?;
 
         Ok(())
+    }
+
+    pub fn mount(&self, path: impl AsRef<Path>, dev: impl DirectoryDevice<Mut> + 'static) {
+        self.mount_ref(path, Arc::new(Mutex::new(dev)))
+    }
+
+    pub fn mount_ref(&self, path: impl AsRef<Path>, dev: DirRef<Mut>) {
+        let path = path.as_ref();
+        trace!("mounting VFS device at {path:?}");
+        if let Err(err) = self.insert_dir(path, true, dev) {
+            error!("failed to mount VFS device at {path:?} : {err:?}");
+        }
     }
 
     pub fn install_dev(&self, path: impl AsRef<Path>, dev: impl FileDevice + 'static) {

@@ -212,6 +212,10 @@ impl FileDevice for StaticRoFile {
 }
 
 impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
+    fn driver(&self) -> &'static str {
+        "vfs"
+    }
+
     fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
         if let Some(node) = self.children.get(name) {
             Ok(node.clone())

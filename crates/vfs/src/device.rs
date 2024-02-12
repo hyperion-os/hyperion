@@ -1,5 +1,5 @@
 use alloc::{boxed::Box, sync::Arc};
-use core::any::Any;
+use core::{any::Any, fmt, mem::transmute};
 
 use hyperion_mem::pmm::PageFrame;
 use lock_api::RawMutex;
@@ -12,6 +12,10 @@ use crate::{
 //
 
 pub trait FileDevice: Send + Sync {
+    fn driver(&self) -> &'static str {
+        "unknown"
+    }
+
     fn as_any(&self) -> &dyn Any;
 
     fn len(&self) -> usize;
@@ -79,6 +83,10 @@ pub trait FileDevice: Send + Sync {
 }
 
 pub trait DirectoryDevice<Mut: RawMutex>: Send + Sync {
+    fn driver(&self) -> &'static str {
+        "unknown"
+    }
+
     fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>>;
 
     fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()>;
@@ -145,5 +153,26 @@ impl<T: FileDevice> FileDevice for &'static T {
 
     fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
         Err(IoError::PermissionDenied)
+    }
+}
+
+//
+
+pub struct FmtWriteFile<'a>(&'a mut dyn FileDevice, usize);
+
+impl dyn FileDevice {
+    pub fn as_fmt(&mut self, at: usize) -> FmtWriteFile {
+        FmtWriteFile(self, at)
+    }
+}
+
+impl fmt::Write for FmtWriteFile<'_> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        if let Ok(n) = self.0.write(self.1, s.as_bytes()) {
+            self.1 += n;
+            Ok(())
+        } else {
+            Err(fmt::Error)
+        }
     }
 }
