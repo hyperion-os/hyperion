@@ -100,8 +100,8 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         id::SYSTEM => call_id(system, args),
 
-        _ => {
-            debug!("invalid syscall");
+        other => {
+            debug!("invalid syscall ({other})");
             hyperion_scheduler::exit();
         }
     };
@@ -704,6 +704,7 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
     let mut offs = 0u64;
     for phys in phys.into_vec() {
         let bottom = VirtAddr::new(bottom) + offs;
+        debug!("mapping phys page {:018x}", phys.virtual_addr());
         this.address_space.page_map.map(
             bottom..bottom + size,
             phys.physical_addr(),
@@ -781,6 +782,8 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
         Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
 
     let stdin = NULL_STDIO.clone();
+    // let stdout = NULL_STDIO.clone();
+    // let stderr = NULL_STDIO.clone();
     let stdout = fd_query(FileDesc(1))?;
     let stderr = fd_query(FileDesc(2))?;
 
@@ -818,7 +821,7 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
             .collect();
         let args = &args[..];
 
-        trace!("spawning \"{program}\" with args {args:?}");
+        debug!("spawning \"{program}\" with args {args:?}");
 
         // load ..
         let loader = Loader::new(elf.as_ref());

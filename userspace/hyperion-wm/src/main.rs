@@ -8,7 +8,7 @@ use std::os::hyperion::{
     AsRawFd,
 };
 use std::{
-    fs::{File, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{stderr, stdout, BufRead, BufReader, Read, Seek, SeekFrom, Write},
     ptr::{self, NonNull},
     sync::{
@@ -118,13 +118,12 @@ struct Framebuffer {
     pitch: usize,
 }
 
-#[derive(Debug, Default)]
 struct Window {
     info: WindowInfo,
     shmem: Option<File>,
     shmem_ptr: Option<NonNull<()>>,
 
-    events: Arc<dyn Write>,
+    events: Arc<LocalStream>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -142,9 +141,12 @@ unsafe impl Send for Window {}
 static WINDOWS: LazyLock<Mutex<Vec<Window>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 
 fn main() {
-    thread::spawn(blitter);
+    stdio_to_logfile();
 
-    hyperion_syscall::open_dir("/run").unwrap();
+    thread::spawn(blitter);
+    thread::spawn(keyboard);
+
+    fs::create_dir_all("/run").unwrap();
 
     let server = LocalListener::bind("/run/wm.socket").unwrap();
 
@@ -164,14 +166,12 @@ fn keyboard() {
 
     let mut keyboard = File::open("/dev/keyboard").unwrap();
 
-    let mut msg_buf;
-
     let mut buf = [0u8; 8];
-    let n = keyboard.read(&mut buf).unwrap();
+    let _n = keyboard.read(&mut buf).unwrap();
 
     let _windows = windows.lock().unwrap();
     if let Some(window) = _windows.get(0) {
-        window.events.write_all("event keyboard {}");
+        writeln!(&mut &*window.events, "event keyboard").unwrap();
     }
     drop(_windows);
 }
@@ -251,8 +251,8 @@ fn handle_client(client: LocalStream) {
     let windows = &*WINDOWS;
 
     let client = Arc::new(client);
-    let client_send = client.clone() as Arc<dyn Write>;
-    let client_recv = BufReader::new(client.clone());
+    let mut client_send = client.clone();
+    let mut client_recv = BufReader::new(&*client);
 
     // a super simple display protocol
     let mut buf = String::new();
@@ -261,6 +261,10 @@ fn handle_client(client: LocalStream) {
         buf.clear();
         let len = client_recv.read_line(&mut buf).unwrap();
         let line = buf[..len].trim();
+
+        if line.is_empty() {
+            continue;
+        }
 
         match line {
             "new_window" => {
@@ -314,11 +318,11 @@ fn handle_client(client: LocalStream) {
 
                 buf.clear();
                 use std::fmt::Write;
-                writeln!(buf, "return new_window {window_id}").unwrap();
+                writeln!(buf, "new_window {window_id}").unwrap();
                 client_send.write_all(buf.as_bytes()).unwrap();
             }
             _ => {
-                println!("unknown command")
+                println!("unknown command `{line}`")
             }
         }
 
@@ -334,19 +338,21 @@ fn stdio_to_logfile() {
 
     // close stdout and stderr, replace them with a log file
     hyperion_syscall::close(FileDesc(1)).unwrap();
-    hyperion_syscall::open(
-        "/tmp/wm.stdout.log",
-        FileOpenFlags::CREATE | FileOpenFlags::WRITE | FileOpenFlags::TRUNC,
-        0,
-    )
-    .unwrap();
+    // hyperion_syscall::open(
+    //     "/tmp/wm.stdout.log",
+    //     FileOpenFlags::CREATE | FileOpenFlags::WRITE | FileOpenFlags::TRUNC,
+    //     0,
+    // )
+    // .unwrap();
+    hyperion_syscall::open("/dev/log", FileOpenFlags::WRITE, 0).unwrap();
     hyperion_syscall::close(FileDesc(2)).unwrap();
-    hyperion_syscall::open(
-        "/tmp/wm.stderr.log",
-        FileOpenFlags::CREATE | FileOpenFlags::WRITE | FileOpenFlags::TRUNC,
-        0,
-    )
-    .unwrap();
+    // hyperion_syscall::open(
+    //     "/tmp/wm.stderr.log",
+    //     FileOpenFlags::CREATE | FileOpenFlags::WRITE | FileOpenFlags::TRUNC,
+    //     0,
+    // )
+    // .unwrap();
+    hyperion_syscall::open("/dev/log", FileOpenFlags::WRITE, 0).unwrap();
 
     drop((stdout, stderr))
 }
