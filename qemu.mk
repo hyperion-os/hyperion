@@ -32,14 +32,14 @@ QEMU_OVMF       ?= /usr/share/ovmf/x64/OVMF.fd
 ifeq (${UEFI},true)
 QEMU_FLAGS      += -bios ${QEMU_OVMF}
 endif
-# QEMU_FLAGS      += -vga virtio
-QEMU_FLAGS      += -vga std
-QEMU_FLAGS      += -display gtk,show-cursor=on
-QEMU_FLAGS      += -usb
-QEMU_FLAGS      += -device virtio-sound
 
 QEMU_RUN_FLAGS  ?=
 QEMU_RUN_FLAGS  += ${QEMU_FLAGS}
+# QEMU_FLAGS      += -vga virtio
+QEMU_RUN_FLAGS  += -vga std
+QEMU_RUN_FLAGS  += -display gtk,show-cursor=on
+QEMU_RUN_FLAGS  += -usb
+QEMU_RUN_FLAGS  += -device virtio-sound
 
 QEMU_TEST_FLAGS ?=
 QEMU_TEST_FLAGS += ${QEMU_FLAGS}
