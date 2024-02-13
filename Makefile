@@ -89,7 +89,7 @@ include ./${BOOT_DIR}/Makefile
 include ./qemu.mk
 
 # nextest doesn't support excluding packages
-EXCLUDED_UNITS   := fbtest sample-elf coreutils libstd std-test hyperion-kernel hyperion-macros
+EXCLUDED_UNITS   := fbtest sample-elf coreutils libstd std-test hyperion-kernel hyperion-macros wm term
 nextest:
 	${CARGO} nextest run \
 		--no-fail-fast --workspace ${RUST_F_${PROFILE}} \
