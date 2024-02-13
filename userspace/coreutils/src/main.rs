@@ -29,6 +29,7 @@ fn main() {
 
     let result = match cmd {
         "cat" => cat::cmd(args),
+        "coreutils" => crate::cmd(),
         "cp" => cp::cmd(args),
         "date" => date::cmd(args),
         "echo" => echo::cmd(args),
@@ -37,7 +38,10 @@ fn main() {
         "random" => random::cmd(args),
         "sleep" => sleep::cmd(args),
         "touch" => touch::cmd(args),
-        _ => crate::cmd(),
+        _ => {
+            eprintln!("`{cmd}` is not part of hyperion coreutils");
+            exit(-1);
+        }
     };
 
     if let Err(err) = result {
