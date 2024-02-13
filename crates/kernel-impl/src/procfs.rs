@@ -26,57 +26,10 @@ pub fn init(root: impl IntoNode) {
 
 //
 
-pub struct MemInfo {
-    total: usize,
-    free: usize,
-}
-
-impl fmt::Display for MemInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "MemTotal:{}", self.total)?;
-        writeln!(f, "MemFree:{}", self.free)?;
-        Ok(())
-    }
-}
-
-//
-
-pub struct Cmdline;
-
-impl FileDevice for Cmdline {
-    fn driver(&self) -> &'static str {
-        "procfs"
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn len(&self) -> usize {
-        hyperion_boot::args::get().cmdline.len()
-    }
-
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        hyperion_boot::args::get()
-            .cmdline
-            .as_bytes()
-            .read(offset, buf)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
-    }
-}
-
-//
-
 pub struct ProcFs<Mut> {
     cmdline: Once<Node<Mut>>,
     version: Once<Node<Mut>>,
+    cpuinfo: Once<Node<Mut>>,
 }
 
 impl<Mut> ProcFs<Mut> {
@@ -84,6 +37,7 @@ impl<Mut> ProcFs<Mut> {
         Self {
             cmdline: Once::new(),
             version: Once::new(),
+            cpuinfo: Once::new(),
         }
     }
 }
@@ -120,6 +74,23 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
                     )))
                 })
                 .clone()),
+            "uptime" => Ok(Node::new_file(DisplayFile(Uptime {
+                system_s: (hyperion_clock::get().nanosecond_now() / 10_000_000) as f32 / 100.0,
+                cpu_idle_sum_s: hyperion_scheduler::idle()
+                    .map(|cpu_idle| cpu_idle.as_seconds_f32())
+                    .sum::<f32>(),
+            }))),
+            "cpuinfo" => Ok(self
+                .cpuinfo
+                .call_once(|| {
+                    let mut buf = String::new();
+                    for n in 0..hyperion_boot::cpu_count() {
+                        _ = writeln!(&mut buf, "processor : {n}");
+                        _ = writeln!(&mut buf);
+                    }
+                    Node::new_file(DisplayFile(buf))
+                })
+                .clone()),
             _ => Err(IoError::NotFound),
         }
     }
@@ -129,10 +100,62 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
     }
 
     fn nodes(&mut self) -> IoResult<Arc<[Arc<str>]>> {
-        static FILES: Lazy<Arc<[Arc<str>]>> =
-            Lazy::new(|| ["meminfo".into(), "cmdline".into(), "version".into()].into());
+        static FILES: Lazy<Arc<[Arc<str>]>> = Lazy::new(|| {
+            [
+                "cmdline".into(),
+                "cpuinfo".into(),
+                "meminfo".into(),
+                "uptime".into(),
+                "version".into(),
+            ]
+            .into()
+        });
 
         Ok(FILES.clone())
+    }
+}
+
+//
+
+struct MemInfo {
+    total: usize,
+    free: usize,
+}
+
+impl fmt::Display for MemInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "MemTotal:{}", self.total)?;
+        writeln!(f, "MemFree:{}", self.free)?;
+        Ok(())
+    }
+}
+
+//
+
+struct Uptime {
+    system_s: f32,
+    cpu_idle_sum_s: f32,
+}
+
+impl fmt::Display for Uptime {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut w = FmtOffsetBuf {
+            offset: 2,
+            buf: &mut [0u8; 2],
+            cursor: 0,
+        };
+
+        w.write_str("testing");
+
+        hyperion_log::println!(
+            "`{}` {}",
+            core::str::from_utf8(w.buf).unwrap(),
+            w.cursor.saturating_sub(w.offset).min(w.buf.len())
+        );
+
+        hyperion_log::println!("{:.2} {:.2}", self.system_s, self.cpu_idle_sum_s);
+        writeln!(f, "{:.2} {:.2}", self.system_s, self.cpu_idle_sum_s)?;
+        Ok(())
     }
 }
 
@@ -211,7 +234,10 @@ impl fmt::Write for FmtOffsetBuf<'_> {
         //      +--------+
         //      |     abc|
         //      +--------+
-        if let Some(s) = s.get(self.offset.saturating_sub(self.cursor)..) {
+        if let (Some(s), Some(buf)) = (
+            s.get(self.offset.saturating_sub(self.cursor)..),
+            self.buf.get_mut(self.cursor.saturating_sub(self.offset)..),
+        ) {
             let limit = s.len().min(self.buf.len());
             self.buf[..limit].copy_from_slice(&s[..limit]);
         }

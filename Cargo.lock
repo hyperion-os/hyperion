@@ -876,6 +876,7 @@ version = "0.3.0"
 dependencies = [
  "hyperion-arch",
  "hyperion-boot",
+ "hyperion-clock",
  "hyperion-kernel-info",
  "hyperion-log",
  "hyperion-mem",
