@@ -5,10 +5,7 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::{
-    any::{type_name_of_val, Any},
-    mem,
-};
+use core::{any::Any, mem};
 
 use hyperion_mem::pmm::{PageFrame, PFA};
 use lock_api::Mutex;
@@ -135,7 +132,7 @@ impl FileDevice for File {
         let mut current_page_start = 0usize;
         let mut pages = self.pages.iter();
         while !buf.is_empty() {
-            let limit = self.len - current_page_start;
+            // let limit = self.len - current_page_start;
 
             let Some(at) = pages.next() else {
                 return Ok(initial_len - buf.len());

@@ -1,18 +1,16 @@
-use alloc::{boxed::Box, format, string::String, sync::Arc};
+use alloc::{format, string::String, sync::Arc};
 use core::{
     any::Any,
     fmt::{self, Display, Write},
 };
 
-use hyperion_scheduler::lock::{Futex, Lazy, Once};
+use hyperion_scheduler::lock::{Lazy, Once};
 use hyperion_vfs::{
     device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
-    ramdisk::{File, StaticRoFile},
     tree::{IntoNode, Node},
     AnyMutex,
 };
-use lock_api::{Mutex, RawMutex};
 
 //
 
@@ -95,7 +93,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
         }
     }
 
-    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()> {
+    fn create_node(&mut self, _: &str, _: Node<Mut>) -> IoResult<()> {
         Err(IoError::PermissionDenied)
     }
 
@@ -124,8 +122,8 @@ struct MemInfo {
 
 impl fmt::Display for MemInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "MemTotal:{}", self.total)?;
-        writeln!(f, "MemFree:{}", self.free)?;
+        writeln!(f, "MemTotal: {} kb", self.total)?;
+        writeln!(f, "MemFree:  {} kb", self.free)?;
         Ok(())
     }
 }
@@ -139,21 +137,6 @@ struct Uptime {
 
 impl fmt::Display for Uptime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut w = FmtOffsetBuf {
-            offset: 2,
-            buf: &mut [0u8; 2],
-            cursor: 0,
-        };
-
-        w.write_str("testing");
-
-        hyperion_log::println!(
-            "`{}` {}",
-            core::str::from_utf8(w.buf).unwrap(),
-            w.cursor.saturating_sub(w.offset).min(w.buf.len())
-        );
-
-        hyperion_log::println!("{:.2} {:.2}", self.system_s, self.cpu_idle_sum_s);
         writeln!(f, "{:.2} {:.2}", self.system_s, self.cpu_idle_sum_s)?;
         Ok(())
     }
@@ -238,8 +221,8 @@ impl fmt::Write for FmtOffsetBuf<'_> {
             s.get(self.offset.saturating_sub(self.cursor)..),
             self.buf.get_mut(self.cursor.saturating_sub(self.offset)..),
         ) {
-            let limit = s.len().min(self.buf.len());
-            self.buf[..limit].copy_from_slice(&s[..limit]);
+            let limit = s.len().min(buf.len());
+            buf[..limit].copy_from_slice(&s[..limit]);
         }
 
         self.cursor += s.len();

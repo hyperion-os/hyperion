@@ -9,6 +9,7 @@ mod cp;
 mod date;
 mod echo;
 mod ls;
+mod mem;
 mod random;
 mod sleep;
 mod touch;
@@ -32,6 +33,7 @@ fn main() {
         "date" => date::cmd(args),
         "echo" => echo::cmd(args),
         "ls" => ls::cmd(args),
+        "mem" => mem::cmd(args),
         "random" => random::cmd(args),
         "sleep" => sleep::cmd(args),
         "touch" => touch::cmd(args),

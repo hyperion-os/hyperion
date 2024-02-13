@@ -205,7 +205,6 @@ impl Shell {
             "splash" => self.splash_cmd(args)?,
             "pwd" => self.pwd_cmd(args)?,
             "cd" => self.cd_cmd(args)?,
-            "mem" => self.mem_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
             "help" => self.help_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
@@ -399,21 +398,6 @@ impl Shell {
         Ok(())
     }
 
-    fn mem_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        let used = pmm::PFA.used_mem();
-        let usable = pmm::PFA.usable_mem();
-        let p = used as f64 / usable as f64 * 100.0;
-        let used = used.postfix_binary();
-        let usable = usable.postfix_binary();
-
-        _ = writeln!(
-            self.term,
-            "Mem:\n - usable: {usable}B\n - used: {used}B ({p:3.1}%)",
-        );
-
-        Ok(())
-    }
-
     fn kbl_cmd(&mut self, args: Option<&str>) -> Result<()> {
         let name = args.unwrap_or("us");
         if set_layout(name).is_none() {
@@ -425,7 +409,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, mem, kbl, snake, help, ps, nproc, top, kill, exit, clear, lspci");
+        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, kbl, snake, help, ps, nproc, top, kill, exit, clear, lspci");
 
         Ok(())
     }

@@ -1,5 +1,5 @@
 use alloc::{boxed::Box, sync::Arc};
-use core::{any::Any, fmt, mem::transmute};
+use core::{any::Any, fmt};
 
 use hyperion_mem::pmm::PageFrame;
 use lock_api::RawMutex;
