@@ -363,8 +363,6 @@ impl Shell {
                         continue;
                     }
 
-                    print!("{s}");
-
                     self.term.cursor = self.term.stdout_cursor;
                     _ = write!(self.term, "{s}");
                     self.term.stdout_cursor = self.term.cursor;
