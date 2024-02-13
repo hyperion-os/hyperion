@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(trait_alias)]
 
 //
 
@@ -15,7 +14,9 @@ use crate::device::FileDevice;
 //     branches: Vec<Mut>,
 // }
 
-pub trait AnyMutex = RawMutex + Send + Sync + 'static;
+pub trait AnyMutex: RawMutex + Send + Sync + 'static {}
+
+impl<T> AnyMutex for T where T: RawMutex + Send + Sync + 'static {}
 
 //
 
