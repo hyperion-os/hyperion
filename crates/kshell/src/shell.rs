@@ -23,10 +23,7 @@ use hyperion_scheduler::{
     spawn,
     task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
 };
-use hyperion_vfs::{
-    self,
-    path::{Path, PathBuf},
-};
+use hyperion_vfs::{self, path::PathBuf};
 use spin::Mutex;
 
 use super::{term::Term, *};
@@ -106,7 +103,11 @@ impl Shell {
     }
 
     pub fn init(&mut self) {
-        _ = self.splash_cmd(None);
+        use hyperion_kernel_info::{BUILD_REV, BUILD_TIME, NAME, VERSION};
+        _ = writeln!(
+            self.term,
+            "Welcome to {NAME} - {VERSION} (built {BUILD_TIME} build [{BUILD_REV}])"
+        );
         self.prompt();
         self.term.flush();
     }
@@ -201,9 +202,6 @@ impl Shell {
             .unwrap_or((line, None));
 
         match cmd {
-            "splash" => self.splash_cmd(args)?,
-            "pwd" => self.pwd_cmd(args)?,
-            "cd" => self.cd_cmd(args)?,
             "kbl" => self.kbl_cmd(args)?,
             "help" => self.help_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
@@ -372,28 +370,6 @@ impl Shell {
         Ok(())
     }
 
-    fn splash_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        use hyperion_kernel_info::{BUILD_REV, BUILD_TIME, NAME, VERSION};
-        // _ = writeln!(self.term, "{SPLASH}");
-        _ = writeln!(
-            self.term,
-            "Welcome to {NAME} - {VERSION} (built {BUILD_TIME} build [{BUILD_REV}])"
-        );
-        Ok(())
-    }
-
-    fn pwd_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "{}", self.current_dir.as_str());
-        Ok(())
-    }
-
-    fn cd_cmd(&mut self, args: Option<&str>) -> Result<()> {
-        let resource = Path::from_str(args.unwrap_or("/")).to_absolute(&self.current_dir);
-        self.current_dir = resource.into_owned();
-
-        Ok(())
-    }
-
     fn kbl_cmd(&mut self, args: Option<&str>) -> Result<()> {
         let name = args.unwrap_or("us");
         if set_layout(name).is_none() {
@@ -405,7 +381,10 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, kbl, snake, help, ps, top, kill, exit, clear, lspci");
+        _ = writeln!(
+            self.term,
+            "available built-in shell commands:\nkbl, help, ps, top, kill, exit, clear, lspci"
+        );
 
         Ok(())
     }
