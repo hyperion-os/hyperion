@@ -1,8 +1,8 @@
 use alloc::sync::{Arc, Weak};
-use core::fmt;
+use core::{any::type_name_of_val, fmt};
 
 use hyperion_log::*;
-use lock_api::{Mutex, MutexGuard, RawMutex};
+use lock_api::{ArcMutexGuard, Mutex, MutexGuard, RawMutex};
 
 use crate::{
     device::DirectoryDevice,
@@ -80,6 +80,24 @@ pub enum Node<Mut> {
     Directory(DirRef<Mut>),
 }
 
+impl<Mut> Node<Mut> {
+    #[must_use]
+    pub fn try_as_file(&self) -> IoResult<FileRef<Mut>> {
+        match self {
+            Node::File(f) => Ok(f.clone()),
+            Node::Directory(_) => Err(IoError::IsADirectory),
+        }
+    }
+
+    #[must_use]
+    pub fn try_as_dir(&self) -> IoResult<DirRef<Mut>> {
+        match self {
+            Node::File(_) => Err(IoError::NotADirectory),
+            Node::Directory(d) => Ok(d.clone()),
+        }
+    }
+}
+
 impl<Mut: RawMutex> fmt::Debug for Node<Mut> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -119,33 +137,58 @@ impl<Mut: AnyMutex> Node<Mut> {
     pub fn find(&self, path: impl AsRef<Path>, make_dirs: bool) -> IoResult<Self> {
         let mut this = self.clone();
         for part in path.as_ref().iter() {
-            match this {
-                Node::File(_) => return Err(IoError::NotADirectory),
-                Node::Directory(_dir) => {
-                    let mut dir = _dir.lock();
-                    // TODO: only Node::Directory should be cloned
+            let mut dir = this.try_as_dir()?.lock_arc();
 
-                    this = if let Ok(node) = dir.get_node(part) {
-                        node
-                    } else if make_dirs {
-                        let node = Self::Directory(Directory::new_ref(part));
-                        dir.create_node(part, node.clone())?;
-                        node
-                    } else {
-                        return Err(IoError::NotFound);
-                    };
-                }
-            }
+            // TODO: only Node::Directory should be cloned
+
+            this = if let Ok(node) = dir.get_node(part) {
+                node
+            } else if make_dirs {
+                let node = Self::Directory(Directory::new_ref(part));
+                dir.create_node(part, node.clone())?;
+                node
+            } else {
+                return Err(IoError::NotFound);
+            };
         }
 
         Ok(this)
     }
 
-    pub fn find_dir(&self, path: impl AsRef<Path>, make_dirs: bool) -> IoResult<DirRef<Mut>> {
-        match self.find(path, make_dirs)? {
-            Node::File(_) => Err(IoError::NotADirectory),
-            Node::Directory(dir) => Ok(dir),
+    pub fn find_dir(
+        &self,
+        path: impl AsRef<Path>,
+        make_dirs: bool,
+        // create: bool,
+    ) -> IoResult<DirRef<Mut>> {
+        let path = path.as_ref();
+        let (parent, target_dir) = path.split();
+
+        if path.is_root() {
+            return self.try_as_dir();
         }
+
+        let parent = self.find(parent, make_dirs)?.try_as_dir()?;
+
+        if target_dir.is_empty() {
+            return Ok(parent);
+        }
+
+        let mut parent = parent.lock();
+
+        // existing dir
+        if let Ok(found) = parent.get_node(target_dir) {
+            return found.try_as_dir();
+        }
+
+        // new file
+        // if create {
+        let node = Directory::new_ref(target_dir);
+        parent.create_node(target_dir, Node::Directory(node.clone()))?;
+        return Ok(node);
+        // }
+
+        // Err(IoError::NotFound)
     }
 
     pub fn find_file(
@@ -155,30 +198,23 @@ impl<Mut: AnyMutex> Node<Mut> {
         create: bool,
     ) -> IoResult<FileRef<Mut>> {
         let path = path.as_ref();
-        let (parent, file) = path.split().ok_or(IoError::NotFound)?;
+        let (parent, file) = path.split();
 
-        match self.find(parent, make_dirs)? {
-            Node::File(_) => Err(IoError::NotADirectory),
-            Node::Directory(parent) => {
-                let mut parent = parent.lock();
+        let mut parent = self.find(parent, make_dirs)?.try_as_dir()?.lock_arc();
 
-                // existing file
-                match parent.get_node(file) {
-                    Ok(Node::File(file)) => return Ok(file),
-                    Ok(Node::Directory(_)) => return Err(IoError::IsADirectory),
-                    Err(_) => {}
-                }
-
-                // new file
-                if create {
-                    let node = File::new_empty();
-                    parent.create_node(file, Node::File(node.clone()))?;
-                    return Ok(node);
-                }
-
-                Err(IoError::NotFound)
-            }
+        // existing file
+        if let Ok(found) = parent.get_node(file) {
+            return found.try_as_file();
         }
+
+        // new file
+        if create {
+            let node = File::new_empty();
+            parent.create_node(file, Node::File(node.clone()))?;
+            return Ok(node);
+        }
+
+        Err(IoError::NotFound)
     }
 
     pub fn install_dev_with(&self, path: impl AsRef<Path>, dev: impl FileDevice + 'static) {
@@ -205,18 +241,11 @@ impl<Mut: AnyMutex> Node<Mut> {
 
     pub fn insert(&self, path: impl AsRef<Path>, make_dirs: bool, node: Node<Mut>) -> IoResult<()> {
         let path = path.as_ref();
-        let (parent_dir, file_name) = if let Some((parent_path, file_name)) = path.split() {
-            (self.find_dir(parent_path, make_dirs)?, file_name)
-        } else if let Node::Directory(d) = self {
-            (d.clone(), path.as_str())
-        } else {
-            return Err(IoError::NotADirectory);
-        };
+        let (parent_dir, target_name) = path.split();
 
-        let mut parent_dir: MutexGuard<Mut, dyn DirectoryDevice<Mut>> = parent_dir.lock();
-        parent_dir.create_node(file_name, node)?;
-
-        Ok(())
+        self.find_dir(parent_dir, make_dirs)?
+            .lock()
+            .create_node(target_name, node)
     }
 
     pub fn mount(&self, path: impl AsRef<Path>, dev: impl DirectoryDevice<Mut> + 'static) {

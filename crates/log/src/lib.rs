@@ -33,7 +33,12 @@ macro_rules! println {
 macro_rules! log {
     ($level:expr, $($t:tt)*) => {
         if $crate::_is_enabled($level) {
-            $crate::_print_log($level, module_path!(), format_args!("{}\n", format_args!($($t)*)))
+            fn __fn_name() -> &'static str {
+                core::any::type_name_of_val(&__fn_name).trim_end_matches("::__fn_name")
+            }
+
+            $crate::_print_log($level, __fn_name(), format_args!("{}\n", format_args!($($t)*)))
+            // $crate::_print_log($level, module_path!(), format_args!("{}\n", format_args!($($t)*)))
         }
     };
 }

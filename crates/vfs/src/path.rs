@@ -21,18 +21,19 @@ pub struct PathBuf(pub String);
 //
 
 impl Path {
-    pub fn parent(&self) -> Option<&Path> {
-        self.split().map(|(parent, _)| parent)
+    pub fn parent(&self) -> &Path {
+        self.split().0
     }
 
-    pub fn file_name(&self) -> Option<&str> {
-        self.split().map(|(_, file)| file)
+    pub fn file_name(&self) -> &str {
+        self.split().1
     }
 
-    pub fn split(&self) -> Option<(&Path, &str)> {
+    pub fn split(&self) -> (&Path, &str) {
         self.0
             .rsplit_once('/')
             .map(|(parent, file)| (parent.as_ref(), file))
+            .unwrap_or(("".as_ref(), self.as_str()))
     }
 
     pub fn as_str(&self) -> &str {
@@ -40,12 +41,14 @@ impl Path {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &str> {
-        // ["/"].into_iter().chain(
         self.0
             .trim_matches('/')
             .split('/')
             .filter(|p| !p.is_empty())
-        // )
+    }
+
+    pub const fn is_root(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn is_dir(&self) -> bool {
