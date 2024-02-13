@@ -1,6 +1,6 @@
 use alloc::{format, vec::Vec};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use hyperion_num_postfix::NumberPostfix;
 use libstd::{
     fs::{Dir, DirEntry},
@@ -13,7 +13,7 @@ pub fn cmd<'a>(mut args: impl Iterator<Item = &'a str>) -> Result<()> {
     let a1 = args.next().unwrap_or("/"); // TODO: cwd
                                          // .ok_or_else(|| anyhow!("expected at least one argument"))?;
 
-    let mut entries: Vec<DirEntry> = Dir::open(a1).unwrap().collect();
+    let mut entries: Vec<DirEntry> = Dir::open(a1).map_err(|err| anyhow!("{err}"))?.collect();
     entries.sort_by(|a, b| {
         let cmp = (!a.is_dir).cmp(&(!b.is_dir));
         if cmp.is_ne() {
