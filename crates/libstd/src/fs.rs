@@ -5,10 +5,32 @@ use hyperion_syscall::{
     close,
     err::{Error, Result},
     fs::{FileDesc, FileOpenFlags, Metadata},
-    metadata, open, open_dir, read, write,
+    metadata, open, read, write,
 };
 
 use crate::io::{self, BufReader};
+
+//
+
+pub fn create_dir(path: &str) -> Result<()> {
+    OpenOptions::new()
+        .read(true)
+        .is_dir(true)
+        .create(true)
+        .create_dirs(false)
+        .open(path)?;
+    Ok(())
+}
+
+pub fn create_dir_all(path: &str) -> Result<()> {
+    OpenOptions::new()
+        .read(true)
+        .is_dir(true)
+        .create(true)
+        .create_dirs(true)
+        .open(path)?;
+    Ok(())
+}
 
 //
 
@@ -20,7 +42,7 @@ pub struct Dir {
 impl Dir {
     pub fn open(path: &str) -> Result<Self> {
         Ok(Self {
-            file: BufReader::new(unsafe { File::new(open_dir(path)?) }),
+            file: BufReader::new(OpenOptions::new().read(true).is_dir(true).open(path)?),
             cur: String::new(),
         })
     }
@@ -30,14 +52,14 @@ impl Dir {
         self.file.read_line(&mut self.cur).ok()?;
 
         let mut iter = self.cur.trim().split(' ');
-        let is_dir = iter.next()?;
+        let file_name = iter.next()?;
         let size = iter.next()?;
-        let file_name = Cow::Borrowed(iter.remainder()?);
+        let is_dir = iter.remainder()?;
 
         Some(DirEntry {
             is_dir: is_dir == "d",
             size: size.parse().unwrap(),
-            file_name,
+            file_name: Cow::Borrowed(file_name),
         })
     }
 }
@@ -205,6 +227,16 @@ impl OpenOptions {
 
     pub fn truncate(&mut self, truncate: bool) -> &mut Self {
         self.flags.set(FileOpenFlags::TRUNC, truncate);
+        self
+    }
+
+    pub fn is_dir(&mut self, is_dir: bool) -> &mut Self {
+        self.flags.set(FileOpenFlags::IS_DIR, is_dir);
+        self
+    }
+
+    pub fn create_dirs(&mut self, create_dirs: bool) -> &mut Self {
+        self.flags.set(FileOpenFlags::CREATE_DIRS, create_dirs);
         self
     }
 

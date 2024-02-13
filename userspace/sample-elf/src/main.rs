@@ -9,7 +9,7 @@ use alloc::{format, string::String, sync::Arc};
 use core::str::from_utf8;
 
 use libstd::{
-    fs::File,
+    fs::{self, File},
     io::{stdout, BufReader, Read, Stdin, Stdout, Write},
     net::{LocalListener, LocalStream},
     println,
@@ -25,7 +25,7 @@ use libstd::{
 //
 
 fn run_server() -> Result<()> {
-    open_dir("/run").unwrap(); // mkdir
+    fs::create_dir_all("/run").unwrap();
 
     let server = LocalListener::bind("/run/server.sock")?;
 

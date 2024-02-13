@@ -90,7 +90,6 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::GET_TID => call_id(get_tid, args),
 
         id::DUP => call_id(dup, args),
-        id::OPEN_DIR => call_id(open_dir, args),
         id::FUTEX_WAIT => call_id(futex_wait, args),
         id::FUTEX_WAKE => call_id(futex_wake, args),
 
@@ -333,7 +332,7 @@ fn _open_dir(
     create: bool,
     create_dirs: bool,
 ) -> Result<FileDesc> {
-    if flags.contains(FileOpenFlags::WRITE) {
+    if flags.intersects(FileOpenFlags::WRITE | FileOpenFlags::TRUNC | FileOpenFlags::APPEND) {
         // tried to open a directory with write
         return Err(Error::INVALID_FLAGS);
     }
@@ -648,39 +647,6 @@ pub fn dup(args: &mut SyscallRegs) -> Result<usize> {
     fd_replace(new, old);
 
     Ok(new.0 as _)
-}
-
-/// open a directory
-///
-/// [`hyperion_syscall::open_dir`]
-pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
-    let path: &str = read_untrusted_str(args.arg0, args.arg1)?;
-
-    let mut dir = VFS_ROOT
-        .find_dir(path, true, false) // TODO: mkdir
-        .map_err(map_vfs_err_to_syscall_err)?
-        .lock_arc();
-
-    let s = dir.nodes().map_err(map_vfs_err_to_syscall_err)?;
-
-    let mut buf = String::new(); // TODO: real readdir
-    for name in s.iter() {
-        let node = dir.get_node(name).map_err(map_vfs_err_to_syscall_err)?;
-
-        let (mode, size) = match node {
-            Node::File(f) => ('f', f.lock().len()),
-            Node::Directory(_) => ('d', 0),
-        };
-
-        writeln!(&mut buf, "{mode} {size} {name}").unwrap();
-    }
-
-    let fd = fd_push(Arc::new(FileDescData {
-        file_ref: Arc::new(Mutex::new(ramdisk::File::new(buf.as_bytes()))),
-        position: AtomicUsize::new(0),
-    }));
-
-    Ok(fd.0)
 }
 
 /// futex wait

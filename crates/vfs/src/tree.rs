@@ -1,8 +1,8 @@
 use alloc::sync::{Arc, Weak};
-use core::{any::type_name_of_val, fmt};
+use core::fmt;
 
 use hyperion_log::*;
-use lock_api::{ArcMutexGuard, Mutex, MutexGuard, RawMutex};
+use lock_api::{Mutex, RawMutex};
 
 use crate::{
     device::DirectoryDevice,
