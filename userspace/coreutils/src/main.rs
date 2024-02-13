@@ -10,6 +10,7 @@ mod date;
 mod echo;
 mod ls;
 mod mem;
+mod nproc;
 mod random;
 mod sleep;
 mod touch;
@@ -35,6 +36,7 @@ fn main() {
         "echo" => echo::cmd(args),
         "ls" => ls::cmd(args),
         "mem" => mem::cmd(args),
+        "nproc" => nproc::cmd(args),
         "random" => random::cmd(args),
         "sleep" => sleep::cmd(args),
         "touch" => touch::cmd(args),

@@ -8,7 +8,6 @@ use core::{fmt::Write, str, sync::atomic::Ordering};
 
 use anyhow::anyhow;
 use futures_util::{stream::select, Stream};
-use hyperion_cpu_id::cpu_count;
 use hyperion_events::keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -208,7 +207,6 @@ impl Shell {
             "kbl" => self.kbl_cmd(args)?,
             "help" => self.help_cmd(args)?,
             "ps" => self.ps_cmd(args)?,
-            "nproc" => self.nproc_cmd(args)?,
             "top" => self.top_cmd(args)?,
             "kill" => self.kill_cmd(args)?,
             "exit" => return Ok(None),
@@ -407,7 +405,7 @@ impl Shell {
     }
 
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, kbl, snake, help, ps, nproc, top, kill, exit, clear, lspci");
+        _ = writeln!(self.term, "available built-in shell commands:\nsplash, pwd, cd, kbl, snake, help, ps, top, kill, exit, clear, lspci");
 
         Ok(())
     }
@@ -435,12 +433,6 @@ impl Shell {
                 "{pid: >6} {threads: >7} {time_m: >2}:{time_s:02}.{time_ms:03} {name}"
             );
         }
-
-        Ok(())
-    }
-
-    fn nproc_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        _ = writeln!(self.term, "{}", cpu_count());
 
         Ok(())
     }
