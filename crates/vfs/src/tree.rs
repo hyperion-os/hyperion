@@ -81,7 +81,6 @@ pub enum Node<Mut> {
 }
 
 impl<Mut> Node<Mut> {
-    #[must_use]
     pub fn try_as_file(&self) -> IoResult<FileRef<Mut>> {
         match self {
             Node::File(f) => Ok(f.clone()),
@@ -89,7 +88,6 @@ impl<Mut> Node<Mut> {
         }
     }
 
-    #[must_use]
     pub fn try_as_dir(&self) -> IoResult<DirRef<Mut>> {
         match self {
             Node::File(_) => Err(IoError::NotADirectory),
