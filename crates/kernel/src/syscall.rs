@@ -318,7 +318,59 @@ pub fn open(args: &mut SyscallRegs) -> Result<usize> {
 // #[trace]
 fn _open(path: &str, flags: FileOpenFlags) -> Result<FileDesc> {
     let create = flags.contains(FileOpenFlags::CREATE) || flags.contains(FileOpenFlags::CREATE_NEW);
+    let create_dirs = flags.contains(FileOpenFlags::CREATE_DIRS);
 
+    if flags.contains(FileOpenFlags::IS_DIR) {
+        _open_dir(path, flags, create, create_dirs)
+    } else {
+        _open_file(path, flags, create, create_dirs)
+    }
+}
+
+fn _open_dir(
+    path: &str,
+    flags: FileOpenFlags,
+    create: bool,
+    create_dirs: bool,
+) -> Result<FileDesc> {
+    if flags.contains(FileOpenFlags::WRITE) {
+        // tried to open a directory with write
+        return Err(Error::INVALID_FLAGS);
+    }
+
+    let mut dir = VFS_ROOT
+        .find_dir(path, create_dirs) // TODO: mkdir
+        .map_err(map_vfs_err_to_syscall_err)?
+        .lock_arc();
+
+    let s = dir.nodes().map_err(map_vfs_err_to_syscall_err)?;
+
+    let mut buf = String::new(); // TODO: real readdir
+    for name in s.iter() {
+        let node = dir.get_node(name).map_err(map_vfs_err_to_syscall_err)?;
+
+        let (mode, size) = match node {
+            Node::File(f) => ('f', f.lock().len()),
+            Node::Directory(_) => ('d', 0),
+        };
+
+        writeln!(&mut buf, "{name} {size} {mode}").unwrap();
+    }
+
+    let fd = fd_push(Arc::new(FileDescData {
+        file_ref: Arc::new(Mutex::new(ramdisk::File::new(buf.as_bytes()))),
+        position: AtomicUsize::new(0),
+    }));
+
+    return Ok(fd);
+}
+
+fn _open_file(
+    path: &str,
+    flags: FileOpenFlags,
+    create: bool,
+    create_dirs: bool,
+) -> Result<FileDesc> {
     if !flags.intersects(FileOpenFlags::READ | FileOpenFlags::WRITE) {
         // tried to open a file with no read and no write
         return Err(Error::INVALID_FLAGS);
@@ -330,10 +382,8 @@ fn _open(path: &str, flags: FileOpenFlags) -> Result<FileDesc> {
         return Err(Error::FILESYSTEM_ERROR);
     }
 
-    let mkdirs = true; // TODO: tmp
-
     let file_ref = VFS_ROOT
-        .find_file(path, mkdirs, create)
+        .find_file(path, create_dirs, create)
         .map_err(map_vfs_err_to_syscall_err)?;
 
     // let mut file_lock = file_ref.lock();
@@ -443,9 +493,7 @@ fn bind(args: &mut SyscallRegs) -> Result<usize> {
 fn _bind(socket_fd: FileDesc, addr: &str) -> Result<()> {
     // TODO: this is only for LOCAL domain sockets atm
     let path = Path::from_str(addr);
-    let Some((dir, sock_file)) = path.split() else {
-        return Err(Error::NOT_FOUND);
-    };
+    let (dir, sock_file) = path.split();
 
     let socket = fd_query_of::<LocalSocket>(socket_fd)?;
 
@@ -606,7 +654,7 @@ pub fn dup(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::open_dir`]
 pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
-    let path = read_untrusted_str(args.arg0, args.arg1)?;
+    let path: &str = read_untrusted_str(args.arg0, args.arg1)?;
 
     let mut dir = VFS_ROOT
         .find_dir(path, true) // TODO: mkdir

@@ -22,25 +22,32 @@ bitflags! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FileOpenFlags: usize {
     /// open file with read caps
-    const READ       = 0b00_0001;
+    const READ       = 0b0000_0001;
 
     /// open file with write caps
-    const WRITE      = 0b00_0010;
+    const WRITE      = 0b0000_0010;
 
     /// open file with read and write caps
     const READ_WRITE = Self::READ.bits() | Self::WRITE.bits();
 
     /// writes append to the file
-    const APPEND     = 0b00_0100;
+    const APPEND     = 0b0000_0100;
 
     /// create file if it doesn't already exist
-    const CREATE     = 0b00_1000;
+    const CREATE     = 0b0000_1000;
 
     /// create file if it doesn't already exist and err if it already exists
-    const CREATE_NEW = 0b01_0000;
+    const CREATE_NEW = 0b0001_0000;
 
     /// truncate file on open (if the file already existed)
-    const TRUNC      = 0b10_0000;
+    const TRUNC      = 0b0010_0000;
+
+    /// the opened file is actually a directory, a directory is a virtual file of its contents:
+    /// <item-name> <item-size> <item-mode>
+    const IS_DIR     = 0b0100_0000;
+
+    /// create all parent directories
+    const CREATE_DIRS= 0b1000_0000;
 }
 }
 
