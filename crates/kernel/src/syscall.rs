@@ -339,7 +339,7 @@ fn _open_dir(
     }
 
     let mut dir = VFS_ROOT
-        .find_dir(path, create_dirs) // TODO: mkdir
+        .find_dir(path, create_dirs, create) // TODO: mkdir
         .map_err(map_vfs_err_to_syscall_err)?
         .lock_arc();
 
@@ -499,7 +499,7 @@ fn _bind(socket_fd: FileDesc, addr: &str) -> Result<()> {
 
     VFS_ROOT
         // find the directory node
-        .find_dir(dir, false)
+        .find_dir(dir, false, true)
         .map_err(map_vfs_err_to_syscall_err)?
         // lock the directory
         .lock_arc()
@@ -657,7 +657,7 @@ pub fn open_dir(args: &mut SyscallRegs) -> Result<usize> {
     let path: &str = read_untrusted_str(args.arg0, args.arg1)?;
 
     let mut dir = VFS_ROOT
-        .find_dir(path, true) // TODO: mkdir
+        .find_dir(path, true, false) // TODO: mkdir
         .map_err(map_vfs_err_to_syscall_err)?
         .lock_arc();
 

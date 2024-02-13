@@ -159,7 +159,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         &self,
         path: impl AsRef<Path>,
         make_dirs: bool,
-        // create: bool,
+        create: bool,
     ) -> IoResult<DirRef<Mut>> {
         let path = path.as_ref();
         let (parent, target_dir) = path.split();
@@ -182,13 +182,13 @@ impl<Mut: AnyMutex> Node<Mut> {
         }
 
         // new file
-        // if create {
-        let node = Directory::new_ref(target_dir);
-        parent.create_node(target_dir, Node::Directory(node.clone()))?;
-        return Ok(node);
-        // }
+        if create {
+            let node = Directory::new_ref(target_dir);
+            parent.create_node(target_dir, Node::Directory(node.clone()))?;
+            return Ok(node);
+        }
 
-        // Err(IoError::NotFound)
+        Err(IoError::NotFound)
     }
 
     pub fn find_file(
@@ -243,7 +243,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         let path = path.as_ref();
         let (parent_dir, target_name) = path.split();
 
-        self.find_dir(parent_dir, make_dirs)?
+        self.find_dir(parent_dir, make_dirs, true)?
             .lock()
             .create_node(target_name, node)
     }
