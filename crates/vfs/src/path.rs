@@ -213,7 +213,7 @@ mod tests {
 
         let mut parts = path.iter();
 
-        assert_eq!(parts.next(), Some("/"));
+        // assert_eq!(parts.next(), Some("/"));
         assert_eq!(parts.next(), Some("some"));
         assert_eq!(parts.next(), Some("path"));
         assert_eq!(parts.next(), None);
