@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, sync::Arc};
+use alloc::boxed::Box;
 use core::{any::Any, fmt};
 
 use hyperion_mem::pmm::PageFrame;

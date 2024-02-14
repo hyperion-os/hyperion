@@ -1,10 +1,10 @@
-use alloc::{boxed::Box, format, string::String, sync::Arc};
+use alloc::{boxed::Box, format, string::String};
 use core::{
     any::Any,
     fmt::{self, Display, Write},
 };
 
-use hyperion_scheduler::lock::{Lazy, Once};
+use hyperion_scheduler::lock::Once;
 use hyperion_vfs::{
     device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
