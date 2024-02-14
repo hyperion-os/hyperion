@@ -81,7 +81,15 @@ fn main() {
         window.fill(colors[i % 3]);
 
         match wm.next_event() {
-            Event::Keyboard {} => i += 1,
+            Event::Keyboard {
+                code: 88 | 101, // up or left
+                state: 1,
+            } => i = i.wrapping_add(1),
+            Event::Keyboard {
+                code: 102 | 103, // down or right
+                state: 1,
+            } => i = i.wrapping_sub(1),
+            _ => {}
         }
 
         // t += 16_666_667;
@@ -119,8 +127,10 @@ impl Window {
 
 //
 
+#[derive(Debug)]
 pub enum Event {
-    Keyboard {},
+    Keyboard { code: u8, state: u8 },
+    Text { ch: char },
 }
 
 #[derive(Clone)]
@@ -254,12 +264,22 @@ fn conn_reader(
                 pending_windows_tx.send(window_id).unwrap();
             }
             "event" => {
-                let (event_ty, _data) = data.split_once(' ').unwrap_or((data, ""));
+                let (event_ty, data) = data.split_once(' ').unwrap_or((data, ""));
 
                 match event_ty {
                     "keyboard" => {
-                        println!("kb event");
-                        event_buf_tx.send(Event::Keyboard {}).unwrap()
+                        let (code, state) = data
+                            .split_once(' ')
+                            .expect("the window manager sent an invalid keyboard event");
+                        let (code, state) =
+                            (code.parse::<u8>().unwrap(), state.parse::<u8>().unwrap());
+
+                        event_buf_tx.send(Event::Keyboard { code, state }).unwrap()
+                    }
+                    "text" => {
+                        let ch = data.parse::<u32>().unwrap();
+                        let ch = char::from_u32(ch).unwrap();
+                        event_buf_tx.send(Event::Text { ch }).unwrap()
                     }
                     _ => {
                         panic!("the window manager sent an unknown event: `{event_ty}`");

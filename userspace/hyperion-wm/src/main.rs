@@ -8,8 +8,10 @@ use std::os::hyperion::{
     AsRawFd,
 };
 use std::{
+    cell::LazyCell,
     fs::{self, File, OpenOptions},
     io::{stderr, stdout, BufRead, BufReader, Read, Seek, SeekFrom, Write},
+    ops::Deref,
     ptr::{self, NonNull},
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -21,6 +23,10 @@ use std::{
 use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags},
     get_tid, map_file, nanosleep_until, system, timestamp, unmap_file,
+};
+use pc_keyboard::{
+    layouts::{AnyLayout, Us104Key},
+    DecodedKey, HandleControl, KeyState, Keyboard, ScancodeSet1,
 };
 
 //
@@ -164,18 +170,50 @@ fn main() {
 fn keyboard() {
     let windows = &*WINDOWS;
 
-    let mut keyboard = File::open("/dev/keyboard").unwrap();
+    let mut kb_dev = File::open("/dev/keyboard").unwrap();
 
     let mut buf = [0u8; 8];
 
-    loop {
-        let _n = keyboard.read(&mut buf).unwrap();
+    static KEYBOARD: Mutex<Keyboard<AnyLayout, ScancodeSet1>> = Mutex::new(Keyboard::new(
+        ScancodeSet1::new(),
+        // AnyLayout::Uk105Key(Uk105Key),
+        AnyLayout::Us104Key(Us104Key),
+        HandleControl::Ignore,
+    ));
 
-        let _windows = windows.lock().unwrap();
-        if let Some(window) = _windows.get(0) {
-            writeln!(&mut &*window.events, "event keyboard").unwrap();
+    let mut keyboard = Keyboard::new(
+        ScancodeSet1::new(),
+        AnyLayout::Us104Key(Us104Key),
+        HandleControl::Ignore,
+    );
+
+    loop {
+        let n = kb_dev.read(&mut buf).unwrap();
+
+        // let windows = LazyCell::new(|| windows.lock().unwrap());
+        // let windows = LazyCell::new(|| windows.last());
+
+        let windows = windows.lock().unwrap();
+        if let Some(window) = windows.get(0) {
+            for byte in &buf[..n] {
+                if let Ok(Some(ev)) = keyboard.add_byte(*byte) {
+                    let code = ev.code as u8;
+                    if ev.state != KeyState::Up {
+                        // down or single shot
+                        writeln!(&mut &*window.events, "event keyboard {code} 1").unwrap();
+                    }
+                    if ev.state != KeyState::Down {
+                        // this is intentionally not an `else if`, single shot presses send both
+                        // up or single shot
+                        writeln!(&mut &*window.events, "event keyboard {code} 0").unwrap();
+                    }
+                    if let Some(DecodedKey::Unicode(ch)) = keyboard.process_keyevent(ev) {
+                        writeln!(&mut &*window.events, "event text {}", ch as u32).unwrap();
+                    }
+                }
+            }
         }
-        drop(_windows);
+        drop(windows);
     }
 }
 

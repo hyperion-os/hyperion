@@ -1782,6 +1782,7 @@ version = "0.3.0"
 dependencies = [
  "hyperion-color",
  "hyperion-syscall",
+ "pc-keyboard",
 ]
 
 [[package]]
