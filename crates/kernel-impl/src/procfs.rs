@@ -4,7 +4,6 @@ use core::{
     fmt::{self, Display, Write},
 };
 
-use hyperion_scheduler::lock::Once;
 use hyperion_vfs::{
     device::{DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
@@ -26,17 +25,17 @@ pub fn init(root: impl IntoNode) {
 
 pub struct ProcFs<Mut> {
     // TODO: doesnt have to be sync, use Option instead of Once
-    cmdline: Once<Node<Mut>>,
-    version: Once<Node<Mut>>,
-    cpuinfo: Once<Node<Mut>>,
+    cmdline: Option<Node<Mut>>,
+    version: Option<Node<Mut>>,
+    cpuinfo: Option<Node<Mut>>,
 }
 
 impl<Mut: AnyMutex> ProcFs<Mut> {
     pub const fn new() -> Self {
         Self {
-            cmdline: Once::new(),
-            version: Once::new(),
-            cpuinfo: Once::new(),
+            cmdline: None,
+            version: None,
+            cpuinfo: None,
         }
     }
 
@@ -50,15 +49,15 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
         }))
     }
 
-    fn cmdline(&self) -> Node<Mut> {
+    fn cmdline(&mut self) -> Node<Mut> {
         self.cmdline
-            .call_once(|| Node::new_file(DisplayFile(hyperion_boot::args::get().cmdline)))
+            .get_or_insert_with(|| Node::new_file(DisplayFile(hyperion_boot::args::get().cmdline)))
             .clone()
     }
 
-    fn version(&self) -> Node<Mut> {
+    fn version(&mut self) -> Node<Mut> {
         self.version
-            .call_once(|| {
+            .get_or_insert_with(|| {
                 Node::new_file(DisplayFile(format!(
                     "{} version {} #{} {}",
                     hyperion_kernel_info::NAME,
@@ -70,7 +69,7 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
             .clone()
     }
 
-    fn uptime(&self) -> Node<Mut> {
+    fn uptime(&mut self) -> Node<Mut> {
         Node::new_file(DisplayFile(Uptime {
             system_s: (hyperion_clock::get().nanosecond_now() / 10_000_000) as f32 / 100.0,
             cpu_idle_sum_s: hyperion_scheduler::idle()
@@ -79,9 +78,9 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
         }))
     }
 
-    fn cpuinfo(&self) -> Node<Mut> {
+    fn cpuinfo(&mut self) -> Node<Mut> {
         self.cpuinfo
-            .call_once(|| {
+            .get_or_insert_with(|| {
                 let mut buf = String::new();
                 for n in 0..hyperion_boot::cpu_count() {
                     _ = writeln!(&mut buf, "processor : {n}");
