@@ -11,6 +11,7 @@ pc-keyboard.workspace = true
 # libstd.path = "../libstd"
 hyperion-syscall.path = "../../crates/syscall"
 hyperion-color.path = "../../crates/color"
+hyperion-windowing.path = "../hyperion-windowing"
 
 [lints]
 workspace = true

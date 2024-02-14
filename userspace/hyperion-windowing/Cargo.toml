@@ -1,0 +1,10 @@
+[package]
+name = "hyperion-windowing"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+hyperion-syscall.path = "../../crates/syscall"
+
+[lints]
+workspace = true

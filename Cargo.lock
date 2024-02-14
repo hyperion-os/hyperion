@@ -1105,6 +1105,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyperion-windowing"
+version = "0.3.0"
+dependencies = [
+ "hyperion-syscall",
+]
+
+[[package]]
 name = "iana-time-zone"
 version = "0.1.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1576,6 +1583,7 @@ version = "0.3.0"
 dependencies = [
  "hyperion-color",
  "hyperion-syscall",
+ "hyperion-windowing",
 ]
 
 [[package]]
@@ -1782,6 +1790,7 @@ version = "0.3.0"
 dependencies = [
  "hyperion-color",
  "hyperion-syscall",
+ "hyperion-windowing",
  "pc-keyboard",
 ]
 
