@@ -1,10 +1,8 @@
 use alloc::{
     boxed::Box,
-    collections::BTreeMap,
     format,
     string::String,
     sync::{Arc, Weak},
-    vec::Vec,
 };
 use core::{
     any::Any,
@@ -40,8 +38,6 @@ pub struct ProcFs<Mut> {
     cmdline: Option<Node<Mut>>,
     version: Option<Node<Mut>>,
     cpuinfo: Option<Node<Mut>>,
-
-    processes: BTreeMap<Pid, Weak<Process>>,
 }
 
 impl<Mut: AnyMutex> ProcFs<Mut> {
@@ -50,8 +46,6 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
             cmdline: None,
             version: None,
             cpuinfo: None,
-
-            processes: BTreeMap::new(),
         }
     }
 
@@ -127,7 +121,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
             "self" => Ok(self.self_dir()),
             _ => {
                 if let Some(proc) = name.parse::<usize>().ok().and_then(|pid| {
-                    let mut processes = PROCESSES.lock();
+                    let processes = PROCESSES.lock();
                     processes.get(&Pid::new(pid)).and_then(Weak::upgrade)
                 }) {
                     return Ok(Node::new_dir(ProcDir(proc)));
@@ -216,7 +210,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
         }
     }
 
-    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()> {
+    fn create_node(&mut self, _: &str, _: Node<Mut>) -> IoResult<()> {
         Err(IoError::PermissionDenied)
     }
 
