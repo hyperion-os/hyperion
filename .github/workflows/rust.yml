@@ -43,7 +43,7 @@ jobs:
       run: make KVM=false test
 
     - name: Run Clippy
-      run: cargo clippy -- -Dwarnings
+      run: cargo clippy --workspace --exclude=term --exclude=wm -- -Dwarnings
 
     - name: Run Rustfmt
       run: cargo fmt --all -- --check
