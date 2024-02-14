@@ -8,6 +8,7 @@ mod cat;
 mod cp;
 mod date;
 mod echo;
+mod hello;
 mod ls;
 mod mem;
 mod nproc;
@@ -34,6 +35,7 @@ fn main() {
         "cp" => cp::cmd(args),
         "date" => date::cmd(args),
         "echo" => echo::cmd(args),
+        "hello" => hello::cmd(args),
         "ls" => ls::cmd(args),
         "mem" => mem::cmd(args),
         "nproc" => nproc::cmd(args),

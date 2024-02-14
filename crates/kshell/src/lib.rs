@@ -63,6 +63,7 @@ pub async fn kshell() {
     VFS_ROOT.install_dev_ref("/bin/cp", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/date", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/echo", bin.clone());
+    VFS_ROOT.install_dev_ref("/bin/hello", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/ls", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/mem", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/nproc", bin.clone());
