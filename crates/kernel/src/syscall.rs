@@ -345,9 +345,7 @@ fn _open_dir(
     let s = dir.nodes().map_err(map_vfs_err_to_syscall_err)?;
 
     let mut buf = String::new(); // TODO: real readdir
-    for name in s.iter() {
-        let node = dir.get_node(name).map_err(map_vfs_err_to_syscall_err)?;
-
+    for (name, node) in s.into_iter() {
         let (mode, size) = match node {
             Node::File(f) => ('f', f.lock().len()),
             Node::Directory(_) => ('d', 0),

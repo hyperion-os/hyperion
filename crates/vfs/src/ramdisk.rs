@@ -232,11 +232,12 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
         }
     }
 
-    fn nodes(&mut self) -> IoResult<Arc<[Arc<str>]>> {
-        Ok(self
-            .nodes_cache
-            .get_or_insert_with(|| self.children.keys().cloned().collect())
-            .clone())
+    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = (&'_ str, Node<Mut>)> + '_>> {
+        Ok(Box::new(
+            self.children
+                .iter()
+                .map(|(name, node)| (name.as_ref(), node.clone())),
+        ))
     }
 }
 

@@ -91,7 +91,7 @@ pub trait DirectoryDevice<Mut: RawMutex>: Send + Sync {
 
     fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()>;
 
-    fn nodes(&mut self) -> IoResult<Arc<[Arc<str>]>>;
+    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = (&'_ str, Node<Mut>)> + '_>>;
 }
 
 //
