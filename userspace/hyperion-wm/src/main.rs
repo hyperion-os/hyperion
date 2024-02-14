@@ -167,13 +167,16 @@ fn keyboard() {
     let mut keyboard = File::open("/dev/keyboard").unwrap();
 
     let mut buf = [0u8; 8];
-    let _n = keyboard.read(&mut buf).unwrap();
 
-    let _windows = windows.lock().unwrap();
-    if let Some(window) = _windows.get(0) {
-        writeln!(&mut &*window.events, "event keyboard").unwrap();
+    loop {
+        let _n = keyboard.read(&mut buf).unwrap();
+
+        let _windows = windows.lock().unwrap();
+        if let Some(window) = _windows.get(0) {
+            writeln!(&mut &*window.events, "event keyboard").unwrap();
+        }
+        drop(_windows);
     }
-    drop(_windows);
 }
 
 fn blitter() {

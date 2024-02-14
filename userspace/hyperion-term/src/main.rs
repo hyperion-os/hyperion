@@ -4,7 +4,11 @@ use std::{
     fs::File,
     io::{self, BufRead, BufReader, Write},
     ptr::NonNull,
-    sync::{Arc, Mutex},
+    sync::{
+        mpsc::{self},
+        Arc,
+    },
+    thread,
 };
 
 use hyperion_color::Color;
@@ -70,20 +74,26 @@ fn main() {
     let mut window = wm.new_window().unwrap();
 
     let colors = [Color::RED, Color::GREEN, Color::BLUE];
-    let i = get_pid();
+    let mut i = get_pid();
 
-    let mut t = timestamp().unwrap() as u64;
+    // let mut t = timestamp().unwrap() as u64;
     loop {
         window.fill(colors[i % 3]);
 
-        t += 16_666_667;
-        nanosleep_until(t);
+        match wm.next_event() {
+            Event::Keyboard {} => i += 1,
+        }
+
+        // t += 16_666_667;
+        // nanosleep_until(t);
     }
 }
 
 #[allow(unused)]
 pub struct Window {
+    // TODO: make each window a its own stream?
     conn: Connection,
+    window_id: usize,
 
     fbo: File,
     fbo_ptr: NonNull<()>, // TODO: volatile write
@@ -107,8 +117,10 @@ impl Window {
     }
 }
 
+//
+
 pub enum Event {
-    NewWindow { id: usize },
+    Keyboard {},
 }
 
 #[derive(Clone)]
@@ -117,14 +129,13 @@ pub struct Connection {
 }
 
 struct ConnectionInner {
-    read: Mutex<ConnectionRead>,
+    read: ConnectionRead,
     write: ConnectionWrite,
 }
 
 struct ConnectionRead {
-    socket_r: BufReader<Arc<LocalStream>>,
-    buf: String,
-    event_buf: Vec<Event>,
+    event_buf: mpsc::Receiver<Event>,
+    pending_windows: mpsc::Receiver<usize>,
 }
 
 struct ConnectionWrite {
@@ -137,13 +148,19 @@ impl Connection {
         let socket_r = BufReader::new(socket.clone());
         let socket_w = socket;
 
+        let (event_buf_tx, event_buf) = mpsc::channel();
+        let (pending_windows_tx, pending_windows) = mpsc::channel();
+
+        thread::spawn(move || {
+            conn_reader(socket_r, event_buf_tx, pending_windows_tx);
+        });
+
         Ok(Self {
             inner: Arc::new(ConnectionInner {
-                read: Mutex::new(ConnectionRead {
-                    socket_r,
-                    buf: String::new(),
-                    event_buf: Vec::new(),
-                }),
+                read: ConnectionRead {
+                    event_buf,
+                    pending_windows,
+                },
                 write: ConnectionWrite { socket_w },
             }),
         })
@@ -154,9 +171,7 @@ impl Connection {
         self.inner.cmd("new_window")?;
 
         println!("waiting for new_window");
-        let ev = self.inner.next_event(Some("new_window"))?;
-
-        let Event::NewWindow { id: window_id } = ev;
+        let window_id = self.inner.read.pending_windows.recv().unwrap();
         println!("got window_id={window_id}");
 
         let path = format!("/run/wm.window.{window_id}");
@@ -172,12 +187,17 @@ impl Connection {
 
         Ok(Window {
             conn: self.clone(),
+            window_id,
             fbo,
             fbo_ptr,
             width: 200,
             height: 200,
             pitch: 200,
         })
+    }
+
+    pub fn next_event(&self) -> Event {
+        self.inner.next_event()
     }
 }
 
@@ -186,8 +206,8 @@ impl ConnectionInner {
         self.write.cmd(str)
     }
 
-    pub fn next_event(&self, filter: Option<&str>) -> io::Result<Event> {
-        self.read.lock().unwrap().next_event(filter)
+    pub fn next_event(&self) -> Event {
+        self.read.event_buf.recv().unwrap()
     }
 }
 
@@ -203,36 +223,56 @@ impl ConnectionWrite {
 }
 
 impl ConnectionRead {
-    pub fn next_event(&mut self, filter: Option<&str>) -> io::Result<Event> {
-        loop {
-            // wait for the result
-            self.buf.clear();
-            let len = self.socket_r.read_line(&mut self.buf)?;
-            let result = self.buf[..len].trim();
+    pub fn next_event(&mut self) -> Event {
+        self.event_buf.recv().unwrap()
+    }
+}
 
-            let (ty, data) = result.split_once(' ').unwrap_or((result, ""));
+//
 
-            let ev = match ty {
-                "new_window" => {
-                    let window_id = data.parse::<usize>().unwrap_or_else(|_| {
-                        panic!("the window manager sent invalid new_window data: `{result}`")
-                    });
+fn conn_reader(
+    mut socket_r: BufReader<Arc<LocalStream>>,
+    event_buf_tx: mpsc::Sender<Event>,
+    pending_windows_tx: mpsc::Sender<usize>,
+) {
+    let mut buf = String::new();
 
-                    Event::NewWindow { id: window_id }
-                }
-                _ => {
-                    panic!("the window manager sent an unknown event: `{ty}`");
-                }
-            };
+    loop {
+        // wait for the result
+        buf.clear();
+        let len = socket_r.read_line(&mut buf).unwrap();
+        let result = buf[..len].trim();
 
-            if let Some(filter) = filter {
-                if ty != filter {
-                    self.event_buf.push(ev);
-                    continue;
+        let (ty, data) = result.split_once(' ').unwrap_or((result, ""));
+
+        match ty {
+            "new_window" => {
+                let window_id = data.parse::<usize>().unwrap_or_else(|_| {
+                    panic!("the window manager sent invalid new_window data: `{result}`")
+                });
+
+                pending_windows_tx.send(window_id).unwrap();
+            }
+            "event" => {
+                let (event_ty, _data) = data.split_once(' ').unwrap_or((data, ""));
+
+                match event_ty {
+                    "keyboard" => {
+                        println!("kb event");
+                        event_buf_tx.send(Event::Keyboard {}).unwrap()
+                    }
+                    _ => {
+                        panic!("the window manager sent an unknown event: `{event_ty}`");
+                    }
                 }
             }
+            _ => {
+                panic!("the window manager sent an unknown msg: `{ty}`");
+            }
+        };
 
-            return Ok(ev);
-        }
+        _ = &event_buf_tx;
+
+        // event_buf_tx.send(ev).unwrap();
     }
 }
