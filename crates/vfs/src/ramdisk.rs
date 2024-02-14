@@ -11,7 +11,7 @@ use hyperion_mem::pmm::{PageFrame, PFA};
 use lock_api::Mutex;
 
 use crate::{
-    device::{DirectoryDevice, FileDevice},
+    device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
     tree::{DirRef, FileRef, Node, WeakDirRef},
     AnyMutex,
@@ -232,12 +232,13 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
         }
     }
 
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = (&'_ str, Node<Mut>)> + '_>> {
-        Ok(Box::new(
-            self.children
-                .iter()
-                .map(|(name, node)| (name.as_ref(), node.clone())),
-        ))
+    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+        Ok(Box::new(self.children.iter().map(|(name, node)| {
+            DirEntry {
+                name: ArcOrRef::Ref(name),
+                node: node.clone(),
+            }
+        })))
     }
 }
 

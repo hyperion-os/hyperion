@@ -1,5 +1,5 @@
-use alloc::boxed::Box;
-use core::{any::Any, fmt};
+use alloc::{boxed::Box, sync::Arc};
+use core::{any::Any, fmt, ops::Deref};
 
 use hyperion_mem::pmm::PageFrame;
 use lock_api::RawMutex;
@@ -91,7 +91,30 @@ pub trait DirectoryDevice<Mut: RawMutex>: Send + Sync {
 
     fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()>;
 
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = (&'_ str, Node<Mut>)> + '_>>;
+    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>>;
+}
+
+//
+
+pub struct DirEntry<'a, Mut> {
+    pub name: ArcOrRef<'a, str>,
+    pub node: Node<Mut>,
+}
+
+pub enum ArcOrRef<'a, T: ?Sized> {
+    Arc(Arc<T>),
+    Ref(&'a T),
+}
+
+impl<'a, T: ?Sized> Deref for ArcOrRef<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ArcOrRef::Arc(r) => r.as_ref(),
+            ArcOrRef::Ref(r) => *r,
+        }
+    }
 }
 
 //

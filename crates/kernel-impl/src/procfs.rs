@@ -1,11 +1,20 @@
-use alloc::{boxed::Box, format, string::String};
+use alloc::{
+    boxed::Box,
+    collections::BTreeMap,
+    format,
+    string::String,
+    sync::{Arc, Weak},
+    vec::Vec,
+};
 use core::{
     any::Any,
     fmt::{self, Display, Write},
+    sync::atomic::Ordering,
 };
 
+use hyperion_scheduler::task::{Pid, Process, PROCESSES};
 use hyperion_vfs::{
-    device::{DirectoryDevice, FileDevice},
+    device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
     tree::{IntoNode, Node},
     AnyMutex,
@@ -28,6 +37,8 @@ pub struct ProcFs<Mut> {
     cmdline: Option<Node<Mut>>,
     version: Option<Node<Mut>>,
     cpuinfo: Option<Node<Mut>>,
+
+    processes: BTreeMap<Pid, Weak<Process>>,
 }
 
 impl<Mut: AnyMutex> ProcFs<Mut> {
@@ -36,6 +47,8 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
             cmdline: None,
             version: None,
             cpuinfo: None,
+
+            processes: BTreeMap::new(),
         }
     }
 
@@ -104,7 +117,16 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
             "version" => Ok(self.version()),
             "uptime" => Ok(self.uptime()),
             "cpuinfo" => Ok(self.cpuinfo()),
-            _ => Err(IoError::NotFound),
+            _ => {
+                if let Some(proc) = name.parse::<usize>().ok().and_then(|pid| {
+                    let mut processes = PROCESSES.lock();
+                    processes.get(&Pid::new(pid)).and_then(Weak::upgrade)
+                }) {
+                    return Ok(Node::new_dir(ProcDir(proc)));
+                }
+
+                Err(IoError::NotFound)
+            }
         }
     }
 
@@ -112,7 +134,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
         Err(IoError::PermissionDenied)
     }
 
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = (&'_ str, Node<Mut>)> + '_>> {
+    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
         struct ExactSizeChain<A, B>(A, B);
 
         impl<A: Iterator, B: Iterator<Item = A::Item>> Iterator for ExactSizeChain<A, B> {
@@ -143,8 +165,17 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
                 ("uptime", self.uptime()),
                 ("version", self.version()),
             ]
-            .into_iter(),
-            [].into_iter(),
+            .into_iter()
+            .map(|(name, node)| DirEntry {
+                name: ArcOrRef::Ref(name),
+                node,
+            }),
+            hyperion_scheduler::task::processes()
+                .into_iter()
+                .map(|s| DirEntry {
+                    name: ArcOrRef::Arc(format!("{}", s.pid).into()),
+                    node: Node::new_dir(ProcDir(s)),
+                }),
         )))
     }
 
@@ -162,6 +193,58 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
 
     //     Ok(FILES.clone())
     // }
+}
+
+//
+
+struct ProcDir(Arc<Process>);
+
+impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
+    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
+        match name {
+            "status" => Ok(Node::new_file(DisplayFile(ProcStatus::new(self.0.clone())))),
+            _ => Err(IoError::NotFound),
+        }
+    }
+
+    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    }
+
+    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+        Ok(Box::new(
+            [DirEntry {
+                name: ArcOrRef::Ref("status"),
+                node: Node::new_file(DisplayFile(ProcStatus::new(self.0.clone()))),
+            }]
+            .into_iter(),
+        ))
+    }
+}
+
+//
+
+struct ProcStatus {
+    proc: Arc<Process>,
+    threads: usize,
+}
+
+impl ProcStatus {
+    pub fn new(proc: Arc<Process>) -> Self {
+        Self {
+            threads: proc.threads.load(Ordering::Relaxed),
+            proc,
+        }
+    }
+}
+
+impl fmt::Display for ProcStatus {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Name: {}", self.proc.name.read())?;
+        writeln!(f, "Pid: {}", self.proc.pid.num())?;
+        writeln!(f, "Threads: {}", self.threads)?;
+        Ok(())
+    }
 }
 
 //
