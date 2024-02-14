@@ -13,16 +13,8 @@ use hyperion_events::keyboard::{
     layouts, set_layout,
 };
 use hyperion_futures::{keyboard::keyboard_events, mpmc};
-use hyperion_instant::Instant;
 use hyperion_kernel_impl::{FileDescData, FileDescriptor};
-use hyperion_mem::pmm;
-use hyperion_num_postfix::NumberPostfix;
-use hyperion_scheduler::{
-    idle,
-    ipc::pipe::pipe,
-    spawn,
-    task::{processes, Pid, TASKS_READY, TASKS_RUNNING, TASKS_SLEEPING},
-};
+use hyperion_scheduler::{ipc::pipe::pipe, spawn, task::Pid};
 use hyperion_vfs::{self, path::PathBuf};
 use spin::Mutex;
 
@@ -204,8 +196,6 @@ impl Shell {
         match cmd {
             "kbl" => self.kbl_cmd(args)?,
             "help" => self.help_cmd(args)?,
-            "ps" => self.ps_cmd(args)?,
-            "top" => self.top_cmd(args)?,
             "kill" => self.kill_cmd(args)?,
             "exit" => return Ok(None),
             "clear" => self.term.clear(),
@@ -387,72 +377,6 @@ impl Shell {
         );
 
         Ok(())
-    }
-
-    fn ps_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        let processes = processes();
-
-        _ = writeln!(
-            self.term,
-            "\n{: >6} {: >7} {: >9} CMD",
-            "PID", "THREADS", "TIME"
-        );
-        for proc in processes {
-            let pid = proc.pid;
-            let threads = proc.threads.load(Ordering::Relaxed);
-            let time = time::Duration::nanoseconds(proc.nanos.load(Ordering::Relaxed) as _);
-            // let time_h = time.whole_hours();
-            let time_m = time.whole_minutes() % 60;
-            let time_s = time.whole_seconds() % 60;
-            let time_ms = time.whole_milliseconds() % 1000;
-            let name = proc.name.read();
-
-            _ = writeln!(
-                self.term,
-                "{pid: >6} {threads: >7} {time_m: >2}:{time_s:02}.{time_ms:03} {name}"
-            );
-        }
-
-        Ok(())
-    }
-
-    fn top_cmd(&mut self, _args: Option<&str>) -> Result<()> {
-        let uptime = Instant::now() - Instant::new(0);
-
-        let uptime_h = uptime.whole_hours();
-        let uptime_m = uptime.whole_minutes() % 60;
-        let uptime_s = uptime.whole_seconds() % 60;
-
-        /* let tasks = hyperion_scheduler::tasks();
-        let task_states = tasks.iter().map(|task| task.state.load()); */
-        let tasks_running = TASKS_RUNNING.load(Ordering::Relaxed);
-        let tasks_sleeping = TASKS_SLEEPING.load(Ordering::Relaxed);
-        let tasks_ready = TASKS_READY.load(Ordering::Relaxed);
-        let tasks_total = tasks_running + tasks_sleeping + tasks_ready;
-
-        let mem_total = pmm::PFA.usable_mem().postfix_binary();
-        let mem_free = pmm::PFA.free_mem().postfix_binary();
-        let mem_used = pmm::PFA.used_mem().postfix_binary();
-
-        _ = writeln!(self.term, "top - {uptime_h}:{uptime_m:02}:{uptime_s:02} up");
-        _ = writeln!(
-            self.term,
-            "Tasks: {tasks_total} total, {tasks_running} running, {tasks_sleeping} sleeping, {tasks_ready} ready"
-        );
-        _ = writeln!(
-            self.term,
-            "Mem: {mem_total} total, {mem_free} free, {mem_used} used"
-        );
-
-        _ = write!(self.term, "Cpu idles: ");
-        for idle in idle() {
-            // round the time
-            let idle = time::Duration::milliseconds(idle.whole_milliseconds() as _);
-            _ = write!(self.term, "{idle}, ");
-        }
-        _ = writeln!(self.term);
-
-        self.ps_cmd(None)
     }
 
     fn kill_cmd(&mut self, args: Option<&str>) -> Result<()> {

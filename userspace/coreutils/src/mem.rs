@@ -1,34 +1,31 @@
 use alloc::string::String;
+use core::ops::Deref;
 
 use anyhow::{anyhow, Result};
 use hyperion_num_postfix::NumberPostfix;
-use libstd::{fs::File, io::BufReader, println};
+use libstd::println;
 
 //
 
 pub fn cmd<'a>(_: impl Iterator<Item = &'a str>) -> Result<()> {
-    let meminfo: File = File::open("/proc/meminfo").map_err(|err| anyhow!("{err}"))?;
-    let mut meminfo = BufReader::new(meminfo);
+    let (total, _, used) = read_meminfo()?;
 
-    let mut total = None;
-    let mut free = None;
+    let p = used as f64 / total as f64 * 100.0;
+    let used = used.postfix_binary();
+    let total = total.postfix_binary();
 
+    println!("Mem:\n - total: {total}B\n - used: {used}B ({p:3.1}%)");
+
+    Ok(())
+}
+
+pub fn read_meminfo() -> Result<(usize, usize, usize)> {
     let mut buf = String::new();
-    loop {
-        buf.clear();
-        let n = meminfo
-            .read_line(&mut buf)
-            .map_err(|err| anyhow!("{err}"))?;
-        if n == 0 {
-            break;
-        }
-        let line = buf.trim();
-        if line.is_empty() {
-            continue;
-        }
+    let meminfo = super::read_file_map(&mut buf, "/proc/meminfo")?;
 
-        let (item, value) = line.split_once(':').unwrap();
-        let value = value.trim();
+    let get_ent = |name: &str| -> Result<usize> {
+        let value = meminfo.get(name).unwrap().deref();
+
         let (value, kb) = value
             .split_once(' ')
             .map(|(num, kb)| (num, Some(kb)))
@@ -39,21 +36,12 @@ pub fn cmd<'a>(_: impl Iterator<Item = &'a str>) -> Result<()> {
             num *= 0x400;
         }
 
-        match item {
-            "MemTotal" => total = Some(num),
-            "MemFree" => free = Some(num),
-            _ => {}
-        }
-    }
+        Ok(num)
+    };
 
-    let total = total.unwrap();
-    let used = total - free.unwrap();
+    let total = get_ent("MemTotal")?;
+    let free = get_ent("MemFree")?;
+    let used = total - free;
 
-    let p = used as f64 / total as f64 * 100.0;
-    let used = used.postfix_binary();
-    let total = total.postfix_binary();
-
-    println!("Mem:\n - total: {total}B\n - used: {used}B ({p:3.1}%)");
-
-    Ok(())
+    Ok((total, free, used))
 }

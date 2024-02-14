@@ -12,14 +12,18 @@ mod hello;
 mod ls;
 mod mem;
 mod nproc;
+mod ps;
 mod random;
 mod sleep;
+mod top;
 mod touch;
 
 //
 
-use anyhow::Result;
-use libstd::{env, eprintln, println, sys::exit};
+use alloc::{boxed::Box, collections::BTreeMap, string::String};
+
+use anyhow::{anyhow, Result};
+use libstd::{env, eprintln, fs::File, io::BufReader, println, sys::exit};
 
 //
 
@@ -39,8 +43,10 @@ fn main() {
         "ls" => ls::cmd(args),
         "mem" => mem::cmd(args),
         "nproc" => nproc::cmd(args),
+        "ps" => ps::cmd(args),
         "random" => random::cmd(args),
         "sleep" => sleep::cmd(args),
+        "top" => top::cmd(args),
         "touch" => touch::cmd(args),
         _ => {
             eprintln!("`{cmd}` is not part of hyperion coreutils");
@@ -62,4 +68,29 @@ pub fn cmd() -> Result<()> {
     );
 
     Ok(())
+}
+
+fn read_file_map(buf: &mut String, p: &str) -> Result<BTreeMap<Box<str>, Box<str>>> {
+    let mut map = BTreeMap::new();
+
+    let file = File::open(p).map_err(|err| anyhow!("{err}"))?;
+    let mut file = BufReader::new(file);
+
+    loop {
+        buf.clear();
+        let n = file.read_line(buf).map_err(|err| anyhow!("{err}"))?;
+        if n == 0 {
+            break;
+        }
+        let line = &buf[..n];
+
+        let (key, val) = line
+            .split_once(':')
+            .expect("invalid /proc/<pid>/status format");
+        let (key, val) = (key.trim(), val.trim());
+
+        map.insert(key.into(), val.into());
+    }
+
+    Ok(map)
 }

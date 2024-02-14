@@ -236,12 +236,14 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
 struct ProcStatus {
     proc: Arc<Process>,
     threads: usize,
+    nanos: u64,
 }
 
 impl ProcStatus {
     pub fn new(proc: Arc<Process>) -> Self {
         Self {
             threads: proc.threads.load(Ordering::Relaxed),
+            nanos: proc.nanos.load(Ordering::Relaxed),
             proc,
         }
     }
@@ -252,6 +254,7 @@ impl fmt::Display for ProcStatus {
         writeln!(f, "Name: {}", self.proc.name.read())?;
         writeln!(f, "Pid: {}", self.proc.pid.num())?;
         writeln!(f, "Threads: {}", self.threads)?;
+        writeln!(f, "Nanos: {}", self.nanos)?;
         Ok(())
     }
 }
