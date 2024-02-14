@@ -12,7 +12,10 @@ use core::{
     sync::atomic::Ordering,
 };
 
-use hyperion_scheduler::task::{Pid, Process, PROCESSES};
+use hyperion_scheduler::{
+    process,
+    task::{Pid, Process, PROCESSES},
+};
 use hyperion_vfs::{
     device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
@@ -103,6 +106,10 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
             })
             .clone()
     }
+
+    fn self_dir(&self) -> Node<Mut> {
+        Node::new_dir(ProcDir(process()))
+    }
 }
 
 impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
@@ -117,6 +124,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
             "version" => Ok(self.version()),
             "uptime" => Ok(self.uptime()),
             "cpuinfo" => Ok(self.cpuinfo()),
+            "self" => Ok(self.self_dir()),
             _ => {
                 if let Some(proc) = name.parse::<usize>().ok().and_then(|pid| {
                     let mut processes = PROCESSES.lock();
@@ -164,6 +172,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
                 ("meminfo", self.meminfo()),
                 ("uptime", self.uptime()),
                 ("version", self.version()),
+                ("self", self.self_dir()),
             ]
             .into_iter()
             .map(|(name, node)| DirEntry {
