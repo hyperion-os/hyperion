@@ -11,6 +11,7 @@ mod echo;
 mod hello;
 mod ls;
 mod mem;
+mod mkdir;
 mod nproc;
 mod ps;
 mod random;
@@ -42,6 +43,7 @@ fn main() {
         "hello" => hello::cmd(args),
         "ls" => ls::cmd(args),
         "mem" => mem::cmd(args),
+        "mkdir" => mkdir::cmd(args),
         "nproc" => nproc::cmd(args),
         "ps" => ps::cmd(args),
         "random" => random::cmd(args),

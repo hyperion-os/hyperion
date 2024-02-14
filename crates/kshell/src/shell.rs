@@ -373,7 +373,7 @@ impl Shell {
     fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
         _ = writeln!(
             self.term,
-            "available built-in shell commands:\nkbl, help, ps, top, kill, exit, clear, lspci"
+            "available built-in shell commands:\nkbl, help, kill, exit, clear, lspci"
         );
 
         Ok(())
