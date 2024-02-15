@@ -10,6 +10,7 @@ edition.workspace = true
 hyperion-syscall.path = "../../crates/syscall"
 hyperion-color.path = "../../crates/color"
 hyperion-windowing.path = "../hyperion-windowing"
+hyperion-framebuffer.path = "../../crates/framebuffer"
 
 [lints]
 workspace = true

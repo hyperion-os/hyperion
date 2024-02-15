@@ -1625,6 +1625,7 @@ name = "term"
 version = "0.3.0"
 dependencies = [
  "hyperion-color",
+ "hyperion-framebuffer",
  "hyperion-syscall",
  "hyperion-windowing",
 ]

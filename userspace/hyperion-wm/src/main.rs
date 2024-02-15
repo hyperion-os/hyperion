@@ -18,7 +18,7 @@ use std::{
 use hyperion_color::Color;
 use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags},
-    get_tid, nanosleep_until, system, timestamp,
+    get_tid, system, timestamp,
 };
 use hyperion_windowing::{
     global::GlobalFb,
@@ -174,9 +174,9 @@ fn blitter() {
 
         // println!("VSYNC");
         next_sync += 16_666_667;
-        nanosleep_until(next_sync);
+        hyperion_syscall::nanosleep_until(next_sync);
 
-        // yield_now();
+        // hyperion_syscall::yield_now();
 
         global_fb.volatile_fill(c_x, c_y, 16, 16, Color::from_hex("#141414").unwrap());
     }

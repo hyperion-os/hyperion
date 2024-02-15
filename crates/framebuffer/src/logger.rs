@@ -2,7 +2,7 @@ use core::fmt::{self, Arguments, Write};
 
 use hyperion_color::Color;
 use hyperion_escape::decode::{DecodedPart, EscapeDecoder};
-use spin::{Mutex, MutexGuard};
+use spin::Mutex;
 
 use super::{font::FONT, framebuffer::Framebuffer};
 
@@ -12,14 +12,19 @@ pub fn _print(args: Arguments) {
     // TODO: without ints
     // without_interrupts(|| {
     if let Some(fbo) = Framebuffer::get() {
-        let fbo = fbo.lock();
-        _ = WriterLock {
-            lock: WRITER.lock(),
-            fbo,
-        }
-        .write_fmt(args)
+        let mut fbo = fbo.lock();
+        _print_to(args, &mut fbo)
     }
     // });
+}
+
+pub fn _print_to(args: Arguments, fbo: &mut Framebuffer) {
+    let mut writer = WRITER.lock();
+    _ = WriterLock {
+        lock: &mut writer,
+        fbo,
+    }
+    .write_fmt(args)
 }
 
 //
@@ -36,9 +41,9 @@ struct Writer {
     escapes: EscapeDecoder,
 }
 
-struct WriterLock {
-    lock: MutexGuard<'static, Writer>,
-    fbo: MutexGuard<'static, Framebuffer>,
+struct WriterLock<'a> {
+    lock: &'a mut Writer,
+    fbo: &'a mut Framebuffer,
 }
 
 //
@@ -134,7 +139,7 @@ impl Writer {
     }
 }
 
-impl fmt::Write for WriterLock {
+impl fmt::Write for WriterLock<'_> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.lock.write_bytes(s.as_bytes(), &mut self.fbo);
         Ok(())
