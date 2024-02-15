@@ -26,6 +26,7 @@ fn main() {
     });
 
     writeln!(asset_rs_file, "];").unwrap();
+    println!("cargo:rerun-if-changed={from}");
 
     // panic!("{:?}", current_dir().unwrap());
     // panic!("{out_dir}");
