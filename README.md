@@ -108,6 +108,12 @@ The current kernel side shell:
 A work in progress window manager + user space shell:
 ![image](https://github.com/xor-bits/hyperion/assets/42496863/9dfdfe09-0370-4abf-809f-27c127e154d4)
 
+## Related repos:
+
+ - [rust](https://github.com/xor-bits/rust): x86_64-unknown-hyperion Rust toolchain
+
+ - [hyperion-doom](https://github.com/xor-bits/hyperion-doom): Doom ported to hyperion
+
 ## Font
 
 The font used contains the first 256 bitmap glyphs from [GNU Unifont](http://unifoundry.com/)
