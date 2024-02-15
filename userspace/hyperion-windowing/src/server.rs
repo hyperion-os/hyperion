@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    io::{self, BufRead, BufReader, Seek, SeekFrom, Write},
+    io::{self, BufReader, Seek, SeekFrom, Write},
     ptr::{self, NonNull},
     sync::{
         mpsc::{self, Sender},
@@ -34,11 +34,11 @@ impl Server {
     pub fn accept(&self) -> io::Result<Connection> {
         let conn = Arc::new(self.listener.accept()?);
         let result_stream = MessageStream { conn: conn.clone() };
-        let cmd_stream = BufReader::new(conn);
+        let socket_r = BufReader::new(conn);
 
         let (request_buf_tx, request_buf) = mpsc::channel();
 
-        thread::spawn(move || handle_client(cmd_stream, request_buf_tx));
+        thread::spawn(move || handle_client(socket_r, request_buf_tx));
 
         Ok(Connection {
             request_buf,
@@ -77,7 +77,7 @@ pub struct MessageStream {
 
 impl MessageStream {
     pub fn send_message(&self, msg: Message) {
-        writeln!(&mut &*self.conn, "{msg}").unwrap();
+        rmp_serde::encode::write(&mut &*self.conn, &msg).unwrap();
     }
 }
 
@@ -111,18 +111,9 @@ pub fn new_window_framebuffer(
     (window_file, shmem_ptr)
 }
 
-fn handle_client(mut cmd_stream: BufReader<Arc<LocalStream>>, request_buf_tx: Sender<Request>) {
-    let mut buf = String::new();
-
+fn handle_client(mut socket_r: BufReader<Arc<LocalStream>>, request_buf_tx: Sender<Request>) {
     loop {
-        buf.clear();
-        let n = cmd_stream.read_line(&mut buf).unwrap();
-        if n == 0 {
-            break;
-        }
-        let line = buf[..n].trim();
-
-        let Some(req) = Request::parse(line) else {
+        let Ok(req) = rmp_serde::from_read(&mut socket_r) else {
             eprintln!("invalid request from a client, closing the connection");
             break;
         };

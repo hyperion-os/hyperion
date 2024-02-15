@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{self, BufRead, BufReader, Write},
+    io::{self, BufReader},
     ptr::NonNull,
     sync::{mpsc, Arc},
     thread,
@@ -81,7 +81,8 @@ impl Connection {
     }
 
     pub fn send_request(&self, req: Request) {
-        writeln!(&mut &*self.inner.socket_w, "{req}").unwrap();
+        rmp_serde::encode::write(&mut &*self.inner.socket_w, &req).unwrap();
+        // (&*self.inner.socket_w).write_all(&[0]).unwrap();
     }
 }
 
@@ -130,16 +131,26 @@ pub fn conn_handler(
     event_buf_tx: mpsc::Sender<Event>,
     pending_windows_tx: mpsc::Sender<usize>,
 ) {
-    let mut buf = String::new();
+    // let mut buf = [0u8; 256];
 
     loop {
-        // wait for the result
-        buf.clear();
-        let len = socket_r.read_line(&mut buf).unwrap();
-        let line = buf[..len].trim();
+        // if socket_r.read_until(0, &mut buf).unwrap() == 0 {
+        //     break;
+        // }
+        // if buf.last() == Some(&0) {
+        //     buf.pop();
+        // }
+        // if buf.len() == 0 {
+        //     continue
+        // }
 
-        let Some(res) = Message::parse(line) else {
-            eprintln!("invalid result from the server ({line}), closing the connection");
+        // let Ok(res) = rmp_serde::from_slice(&buf) else {
+        //     eprintln!("invalid request from a server, closing the connection");
+        //     break;
+        // };
+
+        let Ok(res) = rmp_serde::from_read(&mut socket_r) else {
+            eprintln!("invalid request from a server, closing the connection");
             break;
         };
 
@@ -149,7 +160,7 @@ pub fn conn_handler(
         };
 
         if is_err {
-            eprintln!("connection closed");
+            // eprintln!("connection closed");
             // connection closed
             break;
         }

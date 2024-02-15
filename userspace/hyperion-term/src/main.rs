@@ -1,6 +1,9 @@
 use hyperion_color::Color;
 use hyperion_syscall::get_pid;
-use hyperion_windowing::{client::Connection, shared::Event};
+use hyperion_windowing::{
+    client::Connection,
+    shared::{ElementState, Event},
+};
 
 //
 
@@ -19,11 +22,11 @@ fn main() {
         match wm.next_event() {
             Event::Keyboard {
                 code: 88 | 101, // up or left
-                state: 1,
+                state: ElementState::Pressed,
             } => i = i.wrapping_add(1),
             Event::Keyboard {
                 code: 102 | 103, // down or right
-                state: 1,
+                state: ElementState::Pressed,
             } => i = i.wrapping_sub(1),
             _ => {}
         }

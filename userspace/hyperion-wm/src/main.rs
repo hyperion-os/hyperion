@@ -1,11 +1,13 @@
-#![feature(slice_as_chunks, lazy_cell)]
+#![feature(slice_as_chunks, lazy_cell, core_intrinsics)]
+#![allow(internal_features)]
 
 //
 
 use std::{
     fs::File,
+    intrinsics::{volatile_copy_nonoverlapping_memory, volatile_store},
     io::{stderr, stdout, Read},
-    ptr::{self, NonNull},
+    ptr::NonNull,
     sync::{
         atomic::{AtomicUsize, Ordering},
         LazyLock, Mutex,
@@ -13,6 +15,7 @@ use std::{
     thread,
 };
 
+use hyperion_color::Color;
 use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags},
     get_tid, nanosleep_until, system, timestamp,
@@ -20,14 +23,18 @@ use hyperion_syscall::{
 use hyperion_windowing::{
     global::GlobalFb,
     server::{new_window_framebuffer, Connection, MessageStream, Server},
-    shared::{Event, Message, Request},
+    shared::{ElementState, Event, Message, Request},
 };
 use pc_keyboard::{
     layouts::{AnyLayout, Us104Key},
     DecodedKey, HandleControl, KeyState, Keyboard, ScancodeSet1,
 };
 
+use crate::mouse::get_mouse;
+
 //
+
+mod mouse;
 
 //
 
@@ -51,12 +58,16 @@ unsafe impl Sync for Window {}
 unsafe impl Send for Window {}
 
 static WINDOWS: LazyLock<Mutex<Vec<Window>>> = LazyLock::new(|| Mutex::new(Vec::new()));
+static ACTIVE: AtomicUsize = AtomicUsize::new(0);
+
+//
 
 fn main() {
     stdio_to_logfile();
 
     thread::spawn(blitter);
     thread::spawn(keyboard);
+    thread::spawn(mouse::mouse);
 
     let server = Server::new().unwrap();
 
@@ -75,7 +86,7 @@ fn keyboard() {
 
     let mut kb_dev = File::open("/dev/keyboard").unwrap();
 
-    let mut buf = [0u8; 8];
+    let mut buf = [0u8; 64];
 
     let mut keyboard = Keyboard::new(
         ScancodeSet1::new(),
@@ -90,22 +101,24 @@ fn keyboard() {
         // let windows = LazyCell::new(|| windows.last());
 
         let windows = windows.lock().unwrap();
-        if let Some(window) = windows.get(0) {
+        if let Some(window) = windows.get(ACTIVE.load(Ordering::Relaxed)) {
             for byte in &buf[..n] {
                 if let Ok(Some(ev)) = keyboard.add_byte(*byte) {
                     let code = ev.code as u8;
                     if ev.state != KeyState::Up {
                         // down or single shot
-                        window
-                            .conn
-                            .send_message(Message::Event(Event::Keyboard { code, state: 1 }));
+                        window.conn.send_message(Message::Event(Event::Keyboard {
+                            code,
+                            state: ElementState::Pressed,
+                        }));
                     }
                     if ev.state != KeyState::Down {
                         // this is intentionally not an `else if`, single shot presses send both
                         // up or single shot
-                        window
-                            .conn
-                            .send_message(Message::Event(Event::Keyboard { code, state: 0 }));
+                        window.conn.send_message(Message::Event(Event::Keyboard {
+                            code,
+                            state: ElementState::Released,
+                        }));
                     }
                     if let Some(DecodedKey::Unicode(ch)) = keyboard.process_keyevent(ev) {
                         window.conn.send_message(Message::Event(Event::Text { ch }));
@@ -123,66 +136,139 @@ fn blitter() {
     println!("display = tid:{}", get_tid());
 
     // stdio_to_logfile();
-    let mut global_fb = GlobalFb::lock_global_fb();
+    let global_fb = GlobalFb::lock_global_fb();
     let width = global_fb.width;
     let height = global_fb.height;
-    let pitch = global_fb.pitch;
+    let pitch = global_fb.pitch / 4;
 
-    global_fb.buf_mut().fill(20);
+    let mut global_fb = Region {
+        buf: global_fb.buf.cast(),
+        pitch,
+        width,
+        height,
+    };
+
+    global_fb.volatile_fill(0, 0, width, height, Color::from_hex("#141414").unwrap());
 
     let mut next_sync = timestamp().unwrap() as u64;
     loop {
         let _windows = windows.lock().unwrap();
         // println!("windows={}", _windows.len());
         for (info, pixels) in _windows.iter().filter_map(|w| Some((w.info, w.shmem_ptr?))) {
-            let window_pixels =
-                ptr::slice_from_raw_parts(pixels.as_ptr().cast_const().cast(), info.w * info.h * 4);
-            let window_pixels = unsafe { &*window_pixels };
+            let window = Region {
+                buf: pixels.as_ptr(),
+                pitch: info.w,
+                width: info.w,
+                height: info.h,
+            };
 
-            let global_pixels = global_fb.buf_mut();
-
-            // println!("VSYNC");
             // TODO: smarter blitting to avoid copying every single window every single frame
-            for y in 0..info.h {
-                let gy = y + info.y;
-
-                if gy >= height {
-                    break;
-                }
-
-                let from_line: &[u8] = &window_pixels[y * info.w * 4..(y + 1) * info.w * 4];
-                let to_line: &mut [u8] = &mut global_pixels[gy * pitch..gy * pitch + width * 4];
-
-                // println!(
-                //     "from_line=[.., {}] info.w=[.., {}]",
-                //     from_line.len(),
-                //     to_line.len()
-                // );
-
-                // println!(
-                //     "from_line={:#018x} info.w={:#018x}",
-                //     from_line.as_ptr() as usize,
-                //     to_line.as_ptr() as usize,
-                // );
-
-                let to_line = &mut to_line[info.x * 4..];
-
-                let limit = from_line.len().min(to_line.len());
-
-                // FIXME: windows arent always at (0,0) and smaller than the global fb
-                let from_line = &from_line[..limit];
-                let to_line = &mut to_line[..limit];
-
-                to_line.copy_from_slice(from_line);
-
-                // to_line.fill(0);
-            }
+            global_fb.volatile_copy_from(&window, info.x as isize, info.y as isize);
         }
         drop(_windows);
+
+        let (m_x, m_y) = get_mouse();
+        let (c_x, c_y) = (m_x as usize, m_y as usize);
+
+        global_fb.volatile_fill(c_x, c_y, 16, 16, Color::WHITE);
 
         // println!("VSYNC");
         next_sync += 16_666_667;
         nanosleep_until(next_sync);
+
+        // yield_now();
+
+        global_fb.volatile_fill(c_x, c_y, 16, 16, Color::from_hex("#141414").unwrap());
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Region {
+    buf: *mut u32,
+    pitch: usize,  // offset to the next line aka. the real width
+    width: usize,  // width of the region
+    height: usize, // height of the region
+}
+
+impl Region {
+    // fn sub_region(self, x: usize, y: usize, width: usize, height: usize) -> Option<Region> {
+    //     if x >= self.pitch {
+    //         panic!();
+    //     }
+    //     if y >= self.height {
+    //         panic!();
+    //     }
+    // }
+
+    fn volatile_copy_from(&mut self, from: &Region, to_x: isize, to_y: isize) {
+        // https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_aabb.html
+
+        // let xmin_a = 0usize; // left
+        // let ymin_a = 0usize; // up
+        let xmax_a = self.width; // right
+        let ymax_a = self.height; // down
+
+        let xmin_b = to_x.max(0) as usize; // left
+        let ymin_b = to_y.max(0) as usize; // up
+        let xmax_b = (to_x + from.width as isize).max(0) as usize; // right
+        let ymax_b = (to_y + from.height as isize).max(0) as usize; // down
+
+        let xmin = xmin_b;
+        let ymin = ymin_b;
+        let xmax = xmax_a.min(xmax_b);
+        let ymax = ymax_a.min(ymax_b);
+
+        let x = xmin;
+        let x_len = xmax - x;
+        let y = ymin;
+        let y_len = ymax - y;
+
+        if x_len <= 0 || y_len <= 0 {
+            return;
+        }
+
+        assert!(xmax <= self.width);
+        assert!(xmax <= self.height);
+
+        assert!(x as isize - to_x >= 0);
+        assert!(y as isize - to_y >= 0);
+        assert!(xmax.checked_add_signed(-to_x).unwrap() <= from.width);
+        assert!(ymax.checked_add_signed(-to_y).unwrap() <= from.height);
+
+        for y in ymin..ymax {
+            let to_spot = x + y * self.pitch;
+            let from_spot =
+                x.wrapping_add_signed(-to_x) + y.wrapping_add_signed(-to_y) * from.pitch;
+
+            let to = unsafe { self.buf.add(to_spot) };
+            let from = unsafe { from.buf.add(from_spot) };
+
+            unsafe {
+                volatile_copy_nonoverlapping_memory(to, from, x_len);
+            }
+        }
+    }
+
+    fn volatile_fill(&mut self, x: usize, y: usize, w: usize, h: usize, col: Color) {
+        let x_len = self.width.min(x + w).saturating_sub(x);
+        let y_len = self.height.min(y + h).saturating_sub(y);
+
+        // println!("x={x} y={y} w={w} h={h} x_len={x_len} y_len={y_len}");
+
+        if x_len <= 0 || y_len <= 0 {
+            return;
+        }
+
+        let col = col.as_u32();
+
+        for y in y..y + y_len {
+            for x in x..x + x_len {
+                let to_spot = x + y * self.pitch;
+                let to = unsafe { self.buf.add(to_spot) };
+
+                unsafe { volatile_store(to, col) }
+            }
+        }
     }
 }
 

@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+rmp-serde = "1.1"
+serde.workspace = true
 hyperion-syscall.path = "../../crates/syscall"
 
 [lints]
