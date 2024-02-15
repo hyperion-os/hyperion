@@ -352,7 +352,8 @@ pub type StaticRingBuf<T, const N: usize> = RingBuf<T, Static<T, N>>;
 pub struct Static<T, const N: usize>([UnsafeCell<MaybeUninit<T>>; N]);
 
 impl<T, const N: usize> Static<T, N> {
-    #[must_use] pub const fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         // this `const {}` shit is just amazing
         Self([const { UnsafeCell::new(MaybeUninit::uninit()) }; N])
     }
@@ -428,11 +429,13 @@ where
     T: 'a,
     C: Storage<T>,
 {
-    #[must_use] pub fn pop(&self) -> Option<T> {
+    #[must_use]
+    pub fn pop(&self) -> Option<T> {
         unsafe { self.inner.pop() }
     }
 
-    #[must_use] pub fn pop_arr<const LEN: usize>(&self) -> Option<[T; LEN]> {
+    #[must_use]
+    pub fn pop_arr<const LEN: usize>(&self) -> Option<[T; LEN]> {
         unsafe { self.inner.pop_arr() }
     }
 }
@@ -469,13 +472,15 @@ impl<T, C> RingBuf<T, C> {
 }
 
 impl<T, const N: usize> RingBuf<T, Static<T, N>> {
-    #[must_use] pub const fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self::from(Static::new(), N)
     }
 }
 
 impl<T> RingBuf<T, Box<[UnsafeCell<MaybeUninit<T>>]>> {
-    #[must_use] pub fn new(capacity: usize) -> Self {
+    #[must_use]
+    pub fn new(capacity: usize) -> Self {
         Self::from(
             (0..capacity)
                 .map(|_| UnsafeCell::new(MaybeUninit::uninit()))
