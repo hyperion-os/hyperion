@@ -58,22 +58,20 @@ rustup toolchain install nightly
 git clone git@github.com:xor-bits/rust.git
 cd rust
 
+# fix the hyperion-syscall path in library/std/Cargo.toml
+# if both `rust` and `hyperion` are not in the same parent directory
+
 # configure ./x for building the hyperion cross-compile target
-echo '
-profile = "dist"
+# copy the config.toml base from 'shell.nix' (after `config = pkgs.writeText "rustc-config"`)
+# or just use nix-shell
 
-[build]
-target = ["x86_64-unknown-linux-gnu", "x86_64-unknown-hyperion"]
-
-[rust]
-incremental = true
-' > config.toml
-
-# compile the Rust compiler + std library for hyperion
-./x build --stage 2 library --target x86_64-unknown-hyperion
+# compile the Rust compiler + std library + some tools for hyperion
+# (`src/tools/rustfmt` and `proc-macro-srv-cli` are not needed but they are nice for me)
+./x build src/tools/rustfmt proc-macro-srv-cli library compiler
 
 # link the toolchain, so that the installed rustc can use it
-rustup toolchain link dev-x86_64-unknown-hyperion ./build/x86_64-unknown-linux-gnu/stage2
+rustup toolchain link dev-x86_64-unknown-hyperion build/host/stage1
+
 ```
 
 ### Compiling with x86_64-unknown-hyperion
@@ -85,7 +83,11 @@ rm -rf ./target/x86_64-unknown-hyperion
 #rm -rf $CARGO_HOME/target/x86_64-unknown-hyperion
 
 # compile the package using x86_64-unknown-hyperion
-cargo +dev-x86_64-unknown-hyperion build --target=x86_64-unknown-hyperion --package=std-test
+cargo +dev-x86_64-unknown-hyperion build --target=x86_64-unknown-hyperion --bin=std-test
+# or if you prefer:
+rustup override set dev-x86_64-unknown-hyperion
+# and now simply:
+cargo build --target=x86_64-unknown-hyperion --package=std-test
 
 # copy the binary to the asset directory (building the kernel will automatically embed it)
 cp ./target/x86_64-unknown-hyperion/debug/std-test asset/bin/std-test
