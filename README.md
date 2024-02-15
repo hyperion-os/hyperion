@@ -96,9 +96,17 @@ cp ./target/x86_64-unknown-hyperion/debug/std-test asset/bin/std-test
 
 ## Demo(s)
 
+The first kernel side shell:
 ![image](https://github.com/xor-bits/hyperion/assets/42496863/cde71ecf-825f-4e5b-9a32-f204ffbef6e7)
 
+The second kernel side shell:
 ![image](https://github.com/xor-bits/hyperion/assets/42496863/76460288-d6d7-47de-ab1b-399d0a91dc80)
+
+The current kernel side shell:
+![image](https://github.com/xor-bits/hyperion/assets/42496863/4d59dc17-32fd-478d-91e4-5cb745ff1f2a)
+
+A work in progress window manager + user space shell:
+![image](https://github.com/xor-bits/hyperion/assets/42496863/9dfdfe09-0370-4abf-809f-27c127e154d4)
 
 ## Font
 
