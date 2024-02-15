@@ -2,7 +2,13 @@ use core::{arch::asm, mem::size_of, sync::atomic::Ordering};
 
 use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
 use memoffset::offset_of;
-use x86_64::{registers::model_specific::KernelGsBase, PhysAddr, VirtAddr};
+use x86_64::{
+    registers::{
+        model_specific::KernelGsBase,
+        mxcsr::{self, MxCsr},
+    },
+    PhysAddr, VirtAddr,
+};
 
 use crate::{tls::ThreadLocalStorage, vmm::PageMap};
 
@@ -16,7 +22,7 @@ pub struct Context {
     pub fs: VirtAddr,
     pub syscall_stack: VirtAddr,
 
-    fxsave_reg: [u16; 256],
+    fxsave_reg: [u32; 128],
 }
 
 impl Context {
@@ -57,12 +63,27 @@ impl Context {
             });
         }
 
+        // init MXCSR masks
+        // https://www.felixcloutier.com/x86/fxsave
+        let mut mxcsr = mxcsr::read();
+        // ignore exceptions from inexact float ops, why is it even a thing
+        mxcsr.insert(
+            MxCsr::INVALID_OPERATION_MASK
+                | MxCsr::DENORMAL_MASK
+                | MxCsr::DIVIDE_BY_ZERO_MASK
+                | MxCsr::OVERFLOW_MASK
+                | MxCsr::UNDERFLOW_MASK
+                | MxCsr::PRECISION_MASK,
+        );
+        let mut fxsave_reg = [0u32; 128];
+        fxsave_reg[6] = mxcsr.bits();
+
         Self {
             cr3: page_map.cr3().start_address(),
             rsp,
             fs: VirtAddr::new_truncate(0),
             syscall_stack: stack_top,
-            fxsave_reg: [0; 256],
+            fxsave_reg,
         }
     }
 
@@ -75,7 +96,7 @@ impl Context {
             rsp: VirtAddr::new_truncate(0),
             fs: VirtAddr::new_truncate(0),
             syscall_stack: VirtAddr::new_truncate(0),
-            fxsave_reg: [0; 256],
+            fxsave_reg: [0; 128],
         }
     }
 }
@@ -134,7 +155,7 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
 
             // load next task
             // "wrfsbase [rsi+{fs}]",   // load thread local pointer
-            "fxrstor64 [rsi+{fxsave_reg}]", // save prev FX state
+            "fxrstor64 [rsi+{fxsave_reg}]", // load prev FX state
             "mov rsp, [rsi+{rsp}]", // load next stack
             "mov rax, [rsi+{cr3}]", // rax = next virtual address space
 
