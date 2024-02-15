@@ -2,7 +2,7 @@ use crossbeam::atomic::AtomicCell;
 use hyperion_log::*;
 use hyperion_mem::vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use x86_64::{
-    registers::control::Cr2,
+    registers::{control::Cr2, mxcsr},
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
 };
 
@@ -136,7 +136,8 @@ pub extern "x86-interrupt" fn machine_check(stack: InterruptStackFrame) -> ! {
 }
 
 pub extern "x86-interrupt" fn simd_floating_point(stack: InterruptStackFrame) {
-    error!("INT: SIMD Floating Point\n{stack:#?}");
+    let mxcsr = mxcsr::read();
+    error!("INT: SIMD Floating Point ({mxcsr:?})\n{stack:#?}");
     panic!();
 }
 
