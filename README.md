@@ -18,22 +18,7 @@ Idk, I asked ChatGPT to give it a name:
 
 ## How do I run it?
 
-### In QEMU
-
-It is as simple as just:
-
-```bash
-# normal
-cargo run
-# to see the launch options, run
-cargo run -- --help
-```
-
-### On HW?
-
-Please don't
-
-## Dependencies
+### Dependencies
 
 Packages for Arch:
 ```bash
@@ -49,6 +34,21 @@ rustup target add x86_64-unknown-none
 # nightly compiler
 rustup toolchain install nightly
 ```
+
+### In QEMU
+
+It is as simple as just:
+
+```bash
+# normal
+cargo run
+# to see the launch options, run
+cargo run -- --help
+```
+
+### On HW?
+
+Please don't
 
 ## Compiling Rust programs for hyperion (with the std library)
 
