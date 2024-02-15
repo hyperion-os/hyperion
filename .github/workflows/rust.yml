@@ -43,7 +43,7 @@ jobs:
       run: make KVM=false test
 
     - name: Run Clippy
-      run: cargo clippy --workspace --exclude=term --exclude=wm  --exclude=hyperion-windowing -- -Dwarnings
+      run: cargo clippy --workspace --exclude=term --exclude=wm --exclude=hyperion-windowing -- -Dwarnings
 
     - name: Run Rustfmt
       run: cargo fmt --all -- --check
