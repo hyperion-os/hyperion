@@ -2,7 +2,8 @@ use alloc::boxed::Box;
 use core::fmt;
 
 use hyperion_color::Color;
-use hyperion_framebuffer::framebuffer::Framebuffer;
+use hyperion_escape::decode::{DecodedPart, EscapeDecoder};
+use hyperion_framebuffer::{font::FONT, framebuffer::Framebuffer};
 use hyperion_log::LogLevel;
 
 use super::CHAR_SIZE;
@@ -10,6 +11,7 @@ use super::CHAR_SIZE;
 //
 
 pub struct Term {
+    escapes: EscapeDecoder,
     pub stdout_cursor: (usize, usize),
     pub cursor: (usize, usize),
     pub size: (usize, usize),
@@ -42,6 +44,7 @@ impl Term {
         let old_buf = (0..size.0 * size.1).map(|_| b'=').collect();
 
         Self {
+            escapes: EscapeDecoder::new(),
             stdout_cursor: cursor,
             cursor,
             size,
@@ -68,6 +71,9 @@ impl Term {
             let y = (idx / self.size.0) * CHAR_SIZE.1 as usize;
 
             // updates += 1;
+            if FONT[*ch as usize].1 {
+                continue;
+            }
             vbo.ascii_char(x, y, *ch, Color::WHITE, Color::BLACK);
         }
         // debug!("updates: {updates}");
@@ -118,6 +124,31 @@ impl Term {
     }
 
     pub fn write_byte(&mut self, b: u8) {
+        match self.escapes.next(b) {
+            DecodedPart::Byte(b) => self.write_raw_byte(b),
+            DecodedPart::Bytes(b) => {
+                for b in b.into_iter().take_while(|b| *b != 0) {
+                    self.write_raw_byte(b)
+                }
+            }
+            DecodedPart::FgColor(_) => {}
+            DecodedPart::BgColor(_) => {}
+            DecodedPart::Reset => {}
+            DecodedPart::CursorUp(n) => self.cursor.1 = self.cursor.1.saturating_sub(n as usize),
+            DecodedPart::CursorDown(n) => {
+                self.cursor.1 += n as usize;
+                self.cursor.1 = self.cursor.1.min(self.size.1);
+            }
+            DecodedPart::CursorLeft(n) => self.cursor.0 = self.cursor.0.saturating_sub(n as usize),
+            DecodedPart::CursorRight(n) => {
+                self.cursor.0 += n as usize;
+                self.cursor.0 = self.cursor.0.min(self.size.0);
+            }
+            DecodedPart::None => {}
+        }
+    }
+
+    pub fn write_raw_byte(&mut self, b: u8) {
         if self.cursor.0 >= self.size.0 {
             self.cursor.0 = 0;
             self.cursor.1 += 1;
