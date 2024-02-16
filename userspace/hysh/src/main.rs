@@ -12,6 +12,7 @@ use hyperion_syscall::exit;
 
 fn main() {
     let name = args().next().unwrap();
+    let name = name.rsplit('/').next().unwrap();
 
     let mut stdin = stdin().lock();
 
