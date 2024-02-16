@@ -18,7 +18,7 @@ struct Args {
     cpus: Option<usize>,
 
     /// amount of physical memory
-    #[arg(short, long, value_name = "mem", value_parser = mem, default_value = "256m")]
+    #[arg(short, long, value_name = "mem", value_parser = mem, default_value = "1g")]
     mem: Option<String>,
 
     /// enable KVM in QEMU

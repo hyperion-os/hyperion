@@ -1,4 +1,4 @@
-MEMORY          ?= 256m
+MEMORY          ?= 1g
 CPUS            ?= 4
 
 QEMU_FLAGS      ?=
