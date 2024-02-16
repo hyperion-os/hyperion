@@ -99,23 +99,22 @@ impl Command {
             }
 
             // setup the environment
-            let args: Vec<&str> = [program.as_str()] // TODO: actually load binaries from vfs
-                .into_iter()
-                .chain(args.iter().flat_map(|args| args.split(' ')))
-                .collect();
-            let args = &args[..];
-
-            trace!("spawning \"{program}\" with args {args:?}");
 
             // load ..
             let loader = Loader::new(elf.as_ref());
             loader.load();
+            let entry = loader.finish();
+
+            drop(elf);
 
             // .. and exec the binary
-            if loader.enter_userland(args).is_err() {
-                error!("no ELF entrypoint");
-                let stderr = fd_query(FileDesc(2)).unwrap();
-                stderr.write(b"invalid ELF: entry point missing").unwrap();
+            match entry {
+                Ok(entry) => entry.enter(program, args),
+                Err(_) => {
+                    error!("no ELF entrypoint");
+                    let stderr = fd_query(FileDesc(2)).unwrap();
+                    stderr.write(b"invalid ELF: entry point missing").unwrap();
+                }
             }
         });
 

@@ -5,6 +5,7 @@
 
 extern crate alloc;
 
+use alloc::{string::String, vec::Vec};
 use core::{
     alloc::Layout,
     mem::{self, MaybeUninit},
@@ -219,6 +220,58 @@ impl<'a> Loader<'a> {
         }
     }
 
+    pub fn finish(self) -> Result<EntryPoint, NoEntryPoint> {
+        let entry = self.parser.ehdr.e_entry;
+        let page_map = self.page_map.cr3().start_address().as_u64();
+        if entry == 0 {
+            Err(NoEntryPoint)
+        } else {
+            Ok(EntryPoint { page_map, entry })
+        }
+    }
+}
+
+//
+
+pub struct EntryPoint {
+    page_map: u64,
+    entry: u64,
+}
+
+impl EntryPoint {
+    pub fn enter(&self, name: String, args: Vec<String>) {
+        // TODO: this is HIGHLY unsafe atm.
+
+        let entry = self.entry;
+        assert_eq!(
+            self.page_map,
+            process()
+                .address_space
+                .page_map
+                .cr3()
+                .start_address()
+                .as_u64()
+        );
+
+        trace!("spawning \"{name}\" with args {args:?}");
+
+        let env_args: Vec<&str> = [name.as_str()] // TODO: actually load binaries from vfs
+            .into_iter()
+            .chain(args.iter().flat_map(|args| args.split(' ')))
+            .collect();
+
+        let (stack_top, argv) = Self::init_stack(&env_args);
+
+        // now `name`, `args` and `env_args` can be freed, because they are copied into the stack
+        drop(env_args);
+        drop((name, args));
+
+        task().init_tls();
+
+        trace!("Entering userland at 0x{entry:016x} with stack 0x{stack_top:016x} and argv:{argv:#016x}");
+        syscall::userland(VirtAddr::new(entry), stack_top, argv.as_u64(), 0);
+    }
+
     pub fn init_stack(args: &[&str]) -> (VirtAddr, VirtAddr) {
         let mut stack_top = hyperion_scheduler::task().user_stack.lock().top;
 
@@ -252,26 +305,6 @@ impl<'a> Loader<'a> {
         push(&mut stack_top, 0u64);
 
         (stack_top, argv)
-    }
-
-    // TODO: impl args
-    pub fn enter_userland(&self, args: &[&str]) -> Result<!, NoEntryPoint> {
-        self.page_map.activate();
-
-        // TODO: this is HIGHLY unsafe atm.
-
-        let entrypoint = self.parser.ehdr.e_entry;
-
-        if entrypoint == 0 {
-            return Err(NoEntryPoint);
-        }
-
-        let (stack_top, argv) = Self::init_stack(args);
-
-        task().init_tls();
-
-        trace!("Entering userland at 0x{entrypoint:016x} with stack 0x{stack_top:016x} and argv:{argv:#016x}");
-        syscall::userland(VirtAddr::new(entrypoint), stack_top, argv.as_u64(), 0);
     }
 }
 

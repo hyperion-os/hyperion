@@ -845,24 +845,19 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
         hyperion_kernel_impl::fd_replace(FileDesc(1), stdout);
         hyperion_kernel_impl::fd_replace(FileDesc(2), stderr);
 
-        // setup the environment
-        let args: Vec<&str> = [program.as_str()] // TODO: actually load binaries from vfs
-            .into_iter()
-            .chain(args.iter().flat_map(|args| args.split(' ')))
-            .collect();
-        let args = &args[..];
-
-        debug!("spawning \"{program}\" with args {args:?}");
-
         // load ..
         let loader = Loader::new(elf.as_ref());
         loader.load();
+        let entry = loader.finish();
 
         // .. and exec the binary
-        if loader.enter_userland(args).is_err() {
-            error!("no ELF entrypoint");
-            let stderr = fd_query(FileDesc(2)).unwrap();
-            stderr.write(b"invalid ELF: entry point missing").unwrap();
+        match entry {
+            Ok(entry) => entry.enter(program, args),
+            Err(_) => {
+                error!("no ELF entrypoint");
+                let stderr = fd_query(FileDesc(2)).unwrap();
+                stderr.write(b"invalid ELF: entry point missing").unwrap();
+            }
         }
     });
 
