@@ -22,6 +22,9 @@ pub mod err;
 pub mod fs;
 pub mod net;
 
+#[cfg(feature = "rustc-dep-of-std")]
+pub mod libc;
+
 pub mod id {
     pub const LOG: usize = 1;
     pub const EXIT: usize = 420;
@@ -354,7 +357,7 @@ pub fn seek(file: FileDesc, offset: isize, origin: usize) -> Result<()> {
 }
 
 /// launch a process
-pub fn system(path: &str, args: &[&str]) -> Result<()> {
+pub fn system(path: &str, args: &[&str]) -> Result<usize> {
     unsafe {
         syscall_5(
             id::SYSTEM,
@@ -365,11 +368,10 @@ pub fn system(path: &str, args: &[&str]) -> Result<()> {
             0,
         )
     }
-    .map(|_| {})
 }
 
 /// launch a process with config
-pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<()> {
+pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<usize> {
     unsafe {
         syscall_5(
             id::SYSTEM,
@@ -380,5 +382,4 @@ pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<()> {
             &cfg as *const LaunchConfig as usize,
         )
     }
-    .map(|_| {})
 }
