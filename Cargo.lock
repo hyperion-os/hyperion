@@ -316,6 +316,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-channel"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "176dc175b78f56c0f321911d9c8eb2b77a78a4860b9c19db83835fea1a46649b"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1108,6 +1117,7 @@ dependencies = [
 name = "hyperion-windowing"
 version = "0.3.0"
 dependencies = [
+ "crossbeam-channel",
  "hyperion-syscall",
  "rmp-serde",
  "serde",
@@ -1527,6 +1537,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sh"
+version = "0.3.0"
+dependencies = [
+ "hyperion-escape",
+ "hyperion-syscall",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1625,9 +1643,11 @@ name = "term"
 version = "0.3.0"
 dependencies = [
  "hyperion-color",
- "hyperion-framebuffer",
+ "hyperion-escape",
  "hyperion-syscall",
  "hyperion-windowing",
+ "image",
+ "libm",
 ]
 
 [[package]]

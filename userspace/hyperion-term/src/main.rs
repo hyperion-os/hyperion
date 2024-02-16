@@ -1,65 +1,116 @@
-use core::slice;
-
-use hyperion_framebuffer::framebuffer::{Framebuffer, FramebufferInfo};
-use hyperion_syscall::get_pid;
-use hyperion_windowing::{
-    client::Connection,
-    shared::{ElementState, Event},
+use core::ffi;
+use std::{
+    io::{Read, Write},
+    process::{exit, Command, Stdio},
+    sync::{Arc, Mutex},
+    thread,
 };
+
+use hyperion_windowing::{client::Connection, shared::Event};
+use term::Term;
+
+//
+
+// mod fbo;
+mod font;
+mod term;
+
+//
+
+#[no_mangle]
+extern "C" fn truncf(x: ffi::c_float) -> ffi::c_float {
+    libm::truncf(x)
+}
+
+#[no_mangle]
+extern "C" fn roundf(x: ffi::c_float) -> ffi::c_float {
+    libm::roundf(x)
+}
+
+#[no_mangle]
+extern "C" fn powf(x: ffi::c_float, y: ffi::c_float) -> ffi::c_float {
+    libm::powf(x, y)
+}
+
+#[no_mangle]
+extern "C" fn exp2f(x: ffi::c_float) -> ffi::c_float {
+    libm::exp2f(x)
+}
+
+#[no_mangle]
+extern "C" fn ceil(x: ffi::c_double) -> ffi::c_double {
+    libm::ceil(x)
+}
 
 //
 
 fn main() {
+    let font = font::load_monospace_ttf();
+
     let wm = Connection::new().unwrap();
+    let window = Box::leak(Box::new(wm.new_window().unwrap()));
 
-    let mut window = wm.new_window().unwrap();
+    let term = Term::new(window.as_region(), font);
 
-    let mut i = get_pid();
+    let mut shell = Command::new("/bin/sh")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .arg("/")
+        .spawn()
+        .unwrap();
 
-    window.buf_base();
+    let mut stdin = shell.stdin.take().unwrap();
+    let mut stdout = shell.stdout.take().unwrap();
+    let mut stderr = shell.stderr.take().unwrap();
 
-    let slice = unsafe {
-        slice::from_raw_parts_mut(
-            window.buf_base().as_ptr().cast::<u8>(),
-            window.pitch * window.height * 4,
-        )
-    };
-
-    let mut fbo = Framebuffer::new(
-        slice,
-        FramebufferInfo {
-            width: window.width,
-            height: window.height,
-            pitch: window.pitch * 4,
-        },
-    );
-
-    hyperion_framebuffer::logger::_print_to(format_args!("Hello, world!\n"), &mut fbo);
-    hyperion_framebuffer::logger::_print_to(format_args!("I am PID:{i}\n"), &mut fbo);
-
-    let mut t = hyperion_syscall::timestamp().unwrap() as u64;
-    loop {
-        // let colors = [Color::RED, Color::GREEN, Color::BLUE];
-        // window.fill(colors[i % 3].as_u32());
-
+    thread::spawn(move || loop {
         match wm.next_event() {
-            Event::Keyboard {
-                code: 88 | 101, // up or left
-                state: ElementState::Pressed,
-            } => i = i.wrapping_add(1),
-            Event::Keyboard {
-                code: 102 | 103, // down or right
-                state: ElementState::Pressed,
-            } => i = i.wrapping_sub(1),
+            // TODO: send LEFT,RIGHT,UP,DOWN and others
+            // Event::Keyboard {
+            //     code: 88 | 101, // up or left
+            //     state: ElementState::Pressed,
+            // } => i = i.wrapping_add(1),
+            // Event::Keyboard {
+            //     code: 102 | 103, // down or right
+            //     state: ElementState::Pressed,
+            // } => i = i.wrapping_sub(1),
             Event::Text { ch } => {
-                hyperion_framebuffer::logger::_print_to(format_args!("{ch}"), &mut fbo);
+                let mut buf = [0u8; 4];
+                let str = ch.encode_utf8(&mut buf);
+                stdin.write_all(str.as_bytes()).unwrap();
             }
             _ => {}
         }
+    });
 
-        t += 16_666_667;
-        hyperion_syscall::nanosleep_until(t);
+    let term = Arc::new(Mutex::new(term));
+    let term2 = term.clone();
 
-        // hyperion_syscall::yield_now();
-    }
+    thread::spawn(move || {
+        let mut buf = [0u8; 512];
+        loop {
+            let n = stdout.read(&mut buf).unwrap();
+            let data = &buf[..n];
+
+            let mut t = term.lock().unwrap();
+            t.write_bytes(data);
+            t.flush();
+        }
+    });
+
+    thread::spawn(move || {
+        let mut buf = [0u8; 512];
+        loop {
+            let n = stderr.read(&mut buf).unwrap();
+            let data = &buf[..n];
+
+            let mut t = term2.lock().unwrap();
+            t.write_bytes(data);
+            t.flush();
+        }
+    });
+
+    let ec = shell.wait().unwrap().code().unwrap_or(0);
+    exit(ec);
 }

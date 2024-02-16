@@ -6,11 +6,13 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+libm = "0.2"
+image = "0.24"
 # libstd.path = "../libstd"
-hyperion-syscall.path = "../../crates/syscall"
 hyperion-color.path = "../../crates/color"
+hyperion-escape.path = "../../crates/escape"
+hyperion-syscall.path = "../../crates/syscall"
 hyperion-windowing.path = "../hyperion-windowing"
-hyperion-framebuffer.path = "../../crates/framebuffer"
 
 [lints]
 workspace = true

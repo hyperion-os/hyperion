@@ -2,13 +2,11 @@ use std::{
     fs::{self, File},
     io::{self, BufReader, Seek, SeekFrom, Write},
     ptr::{self, NonNull},
-    sync::{
-        mpsc::{self, Sender},
-        Arc,
-    },
+    sync::Arc,
     thread,
 };
 
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use hyperion_syscall::{fs::FileDesc, map_file};
 
 use crate::{
@@ -36,7 +34,7 @@ impl Server {
         let result_stream = MessageStream { conn: conn.clone() };
         let socket_r = BufReader::new(conn);
 
-        let (request_buf_tx, request_buf) = mpsc::channel();
+        let (request_buf_tx, request_buf) = unbounded();
 
         thread::spawn(move || handle_client(socket_r, request_buf_tx));
 
@@ -50,7 +48,7 @@ impl Server {
 //
 
 pub struct Connection {
-    request_buf: mpsc::Receiver<Request>,
+    request_buf: Receiver<Request>,
     message_stream: MessageStream,
 }
 

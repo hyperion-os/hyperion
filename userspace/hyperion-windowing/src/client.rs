@@ -2,13 +2,15 @@ use std::{
     fs::File,
     io::{self, BufReader},
     ptr::NonNull,
-    sync::{mpsc, Arc},
+    sync::Arc,
     thread,
 };
 
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use hyperion_syscall::{fs::FileDesc, map_file, unmap_file};
 
 use crate::{
+    global::Region,
     os::{AsRawFd, LocalStream},
     shared::{Event, Message, Request},
 };
@@ -21,8 +23,8 @@ pub struct Connection {
 }
 
 struct ConnectionInner {
-    event_buf: mpsc::Receiver<Event>,
-    pending_windows: mpsc::Receiver<usize>,
+    event_buf: Receiver<Event>,
+    pending_windows: Receiver<usize>,
 
     socket_w: Arc<LocalStream>,
 }
@@ -33,8 +35,8 @@ impl Connection {
         let socket_r = BufReader::new(socket.clone());
         let socket_w = socket;
 
-        let (event_buf_tx, event_buf) = mpsc::channel();
-        let (pending_windows_tx, pending_windows) = mpsc::channel();
+        let (event_buf_tx, event_buf) = unbounded();
+        let (pending_windows_tx, pending_windows) = unbounded();
 
         thread::spawn(move || {
             conn_handler(socket_r, event_buf_tx, pending_windows_tx);
@@ -70,9 +72,9 @@ impl Connection {
             // window_id,
             fbo,
             fbo_ptr,
-            width: 200,
-            height: 200,
-            pitch: 200,
+            width: 400,
+            height: 400,
+            pitch: 400,
         })
     }
 
@@ -115,6 +117,13 @@ impl Window {
             }
         }
     }
+
+    pub fn as_region(&mut self) -> Region<'_> {
+        let buf = self.fbo_ptr.as_ptr().cast();
+        // SAFETY: Window is borrowed for the lifetime of Region<'_>
+        // because GlobalFb owns the buffer mapping and automatically frees it
+        unsafe { Region::new(buf, self.pitch, self.width, self.height) }
+    }
 }
 
 impl Drop for Window {
@@ -128,8 +137,8 @@ impl Drop for Window {
 
 pub fn conn_handler(
     mut socket_r: BufReader<Arc<LocalStream>>,
-    event_buf_tx: mpsc::Sender<Event>,
-    pending_windows_tx: mpsc::Sender<usize>,
+    event_buf_tx: Sender<Event>,
+    pending_windows_tx: Sender<usize>,
 ) {
     // let mut buf = [0u8; 256];
 

@@ -1,13 +1,11 @@
 [package]
-name = "hyperion-windowing"
+name = "sh"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-rmp-serde = "1.1"
-crossbeam-channel = "0.5"
-serde.workspace = true
 hyperion-syscall.path = "../../crates/syscall"
+hyperion-escape.path = "../../crates/escape"
 
 [lints]
 workspace = true
