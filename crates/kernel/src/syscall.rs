@@ -18,15 +18,15 @@ use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
     read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
-    read_untrusted_slice, read_untrusted_str, BoundSocket, FileDescData, FileDescriptor,
-    LocalSocket, SocketInfo, SocketPipe, VFS_ROOT,
+    read_untrusted_slice, read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo,
+    SocketPipe, VFS_ROOT,
 };
 use hyperion_loader::Loader;
 use hyperion_log::*;
 use hyperion_mem::{pmm::PageFrame, vmm::PageMapImpl};
 use hyperion_scheduler::{
     futex,
-    lock::{Lazy, Mutex},
+    lock::Mutex,
     process, schedule, task,
     task::{AllocErr, FreeErr},
 };
@@ -823,7 +823,7 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
 
         let bin = VFS_ROOT
             .find_file(program.as_str(), false, false)
-            .expect("could not load ELF");
+            .unwrap_or_else(|err| panic!("could not load ELF `{program}`: {err}"));
 
         let bin = bin.lock_arc();
 
