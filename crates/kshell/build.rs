@@ -37,11 +37,14 @@ fn travel(path: &Path, f: &mut impl FnMut(&Path)) {
         let ent = ent.unwrap();
 
         let ty = ent.file_type().unwrap();
+        let p = ent.path();
 
         if ty.is_file() {
-            f(&ent.path());
+            f(&p);
+        } else if ty.is_symlink() {
+            f(&p);
         } else if ty.is_dir() {
-            travel(&ent.path(), f);
+            travel(&p, f);
         }
     }
 }
