@@ -1124,6 +1124,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hysh"
+version = "0.3.0"
+dependencies = [
+ "hyperion-escape",
+ "hyperion-syscall",
+]
+
+[[package]]
 name = "iana-time-zone"
 version = "0.1.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1534,14 +1542,6 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "sh"
-version = "0.3.0"
-dependencies = [
- "hyperion-escape",
- "hyperion-syscall",
 ]
 
 [[package]]

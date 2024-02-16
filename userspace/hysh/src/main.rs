@@ -1,4 +1,5 @@
 use std::{
+    env::args,
     io::{stdin, stdout, Read, Write},
     process::{Command, Stdio},
     str,
@@ -10,9 +11,11 @@ use hyperion_syscall::exit;
 //
 
 fn main() {
+    let name = args().next().unwrap();
+
     let mut stdin = stdin().lock();
 
-    prompt();
+    prompt(&name);
 
     let mut line = String::new();
     let mut buf = [0u8; 1];
@@ -42,7 +45,7 @@ fn main() {
 
             let Some(cmd) = parts.next() else {
                 line.clear();
-                prompt();
+                prompt(&name);
                 continue;
             };
 
@@ -65,12 +68,12 @@ fn main() {
             println!();
 
             line.clear();
-            prompt();
+            prompt(&name);
         }
     }
 }
 
-fn prompt() {
-    print!("[hysh]# ");
+fn prompt(name: &str) {
+    print!("[{name}]# ");
     stdout().flush().unwrap();
 }
