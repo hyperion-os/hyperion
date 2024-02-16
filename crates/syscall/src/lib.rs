@@ -53,7 +53,7 @@ pub mod id {
     pub const GET_TID: usize = 24;
 
     pub const DUP: usize = 25;
-    // pub const OPEN_DIR: usize = 26;
+    pub const PIPE: usize = 26;
     pub const FUTEX_WAIT: usize = 27;
     pub const FUTEX_WAKE: usize = 28;
 
@@ -63,6 +63,17 @@ pub mod id {
     pub const SEEK: usize = 32;
 
     pub const SYSTEM: usize = 33;
+}
+
+//
+
+// TODO: fork and exec
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct LaunchConfig {
+    pub stdin: FileDesc,
+    pub stdout: FileDesc,
+    pub stderr: FileDesc,
 }
 
 //
@@ -284,10 +295,12 @@ pub fn dup(old: FileDesc, new: FileDesc) -> Result<FileDesc> {
     unsafe { syscall_2(id::DUP, old.0, new.0) }.map(FileDesc)
 }
 
-// /// open a directory
-// pub fn open_dir(path: &str) -> Result<FileDesc> {
-//     unsafe { syscall_2(id::OPEN_DIR, path.as_ptr() as _, path.len()) }.map(FileDesc)
-// }
+/// create a new pipe
+pub fn pipe() -> Result<[FileDesc; 2]> {
+    let mut pipes = [FileDesc(0); 2];
+    unsafe { syscall_1(id::PIPE, pipes.as_mut_ptr() as usize) }?;
+    Ok(pipes)
+}
 
 /// futex wait if value at `addr` is `val`
 ///
@@ -343,12 +356,28 @@ pub fn seek(file: FileDesc, offset: isize, origin: usize) -> Result<()> {
 /// launch a process
 pub fn system(path: &str, args: &[&str]) -> Result<()> {
     unsafe {
-        syscall_4(
+        syscall_5(
             id::SYSTEM,
             path.as_ptr() as usize,
             path.len(),
             args.as_ptr() as usize,
             args.len(),
+            0,
+        )
+    }
+    .map(|_| {})
+}
+
+/// launch a process with config
+pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<()> {
+    unsafe {
+        syscall_5(
+            id::SYSTEM,
+            path.as_ptr() as usize,
+            path.len(),
+            args.as_ptr() as usize,
+            args.len(),
+            &cfg as *const LaunchConfig as usize,
         )
     }
     .map(|_| {})

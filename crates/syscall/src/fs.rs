@@ -14,6 +14,7 @@ impl Seek {
 //
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(C)]
 pub struct FileDesc(pub usize);
 
 //

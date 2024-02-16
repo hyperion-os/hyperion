@@ -35,6 +35,7 @@ use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags, Metadata, Seek},
     id,
     net::{Protocol, SocketDomain, SocketType},
+    LaunchConfig,
 };
 use hyperion_vfs::{path::Path, ramdisk, tree::Node};
 use time::Duration;
@@ -91,6 +92,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::GET_TID => call_id(get_tid, args),
 
         id::DUP => call_id(dup, args),
+        id::PIPE => call_id(pipe, args),
         id::FUTEX_WAIT => call_id(futex_wait, args),
         id::FUTEX_WAKE => call_id(futex_wake, args),
 
@@ -651,6 +653,19 @@ pub fn dup(args: &mut SyscallRegs) -> Result<usize> {
     Ok(new.0 as _)
 }
 
+/// create a pipe
+///
+/// [`hyperion_syscall::pipe`]
+pub fn pipe(args: &mut SyscallRegs) -> Result<usize> {
+    let [read, write]: &mut [FileDesc; 2] = read_untrusted_mut(args.arg0)?;
+
+    let (send, recv) = hyperion_scheduler::ipc::pipe::pipe().split();
+    *write = fd_push(Arc::new(send));
+    *read = fd_push(Arc::new(recv));
+
+    Ok(0)
+}
+
 /// futex wait
 ///
 /// [`hyperion_syscall::futex_wait`]
@@ -770,26 +785,40 @@ pub fn seek(args: &mut SyscallRegs) -> Result<usize> {
 pub fn system(args: &mut SyscallRegs) -> Result<usize> {
     let program: &str = read_untrusted_str(args.arg0, args.arg1)?;
     // FIXME: &str (&[u8]) is not yet ABI stable
-    let args: &[&str] = read_untrusted_slice(args.arg2, args.arg3)?;
+    let cli_args: &[&str] = read_untrusted_slice(args.arg2, args.arg3)?;
+
+    let stdio: LaunchConfig = if args.arg4 == 0 {
+        LaunchConfig {
+            stdin: FileDesc(0),
+            stdout: FileDesc(1),
+            stderr: FileDesc(2),
+        }
+    } else {
+        *read_untrusted_ref(args.arg4)?
+    };
 
     let program = program.to_string();
-    let args = args
+    let args = cli_args
         .iter()
         .map(ToString::to_string)
         .collect::<Vec<String>>();
 
     // hyperion_log::debug!("system `{program}` `{args:?}`");
 
-    static NULL_STDIO: Lazy<Arc<dyn FileDescriptor>> =
-        Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
+    // static NULL_STDIO: Lazy<Arc<dyn FileDescriptor>> =
+    //     Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
 
-    let stdin = NULL_STDIO.clone();
-    // let stdout = NULL_STDIO.clone();
-    // let stderr = NULL_STDIO.clone();
-    let stdout = fd_query(FileDesc(1))?;
-    let stderr = fd_query(FileDesc(2))?;
+    // let stdin = NULL_STDIO.clone();
+    // // let stdout = NULL_STDIO.clone();
+    // // let stderr = NULL_STDIO.clone();
+    // let stdout = fd_query(FileDesc(1))?;
+    // let stderr = fd_query(FileDesc(2))?;
 
-    schedule(move || {
+    let stdin = fd_query(stdio.stdin)?;
+    let stdout = fd_query(stdio.stdout)?;
+    let stderr = fd_query(stdio.stderr)?;
+
+    let pid = schedule(move || {
         let mut elf = Vec::new();
 
         let bin = VFS_ROOT
@@ -837,5 +866,5 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
         }
     });
 
-    Ok(0)
+    Ok(pid.num())
 }
