@@ -148,34 +148,6 @@ pub fn main() -> Result<()> {
 
     println!("PID:{} TID:{}", get_pid(), get_tid());
 
-    let [r, w] = pipe().unwrap();
-    let null = File::open("/dev/null").unwrap();
-
-    system_with(
-        "/bin/echo",
-        &["testing"],
-        LaunchConfig {
-            stdin: null.as_desc(),
-            stdout: w,
-            stderr: FileDesc(2),
-        },
-        // LaunchConfig {
-        //     stdin: null.as_desc(),
-        //     stdout: null.as_desc(),
-        //     stderr: FileDesc(2),
-        // },
-    );
-
-    unsafe { File::new(w) }; // close the write end from this proc
-
-    drop(null);
-
-    let mut r = unsafe { File::new(r) };
-
-    let mut buf = [0u8; 256];
-    let n = r.read(&mut buf).unwrap();
-    println!("{:?}", core::str::from_utf8(&buf[..n]));
-
     _ = run_server();
     run_client()
 }
