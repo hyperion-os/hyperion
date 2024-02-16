@@ -89,6 +89,10 @@ impl Writer {
             }
 
             DecodedPart::None => {}
+            DecodedPart::CursorUp(_) => {}
+            DecodedPart::CursorDown(_) => {}
+            DecodedPart::CursorLeft(_) => {}
+            DecodedPart::CursorRight(_) => {}
         }
     }
 

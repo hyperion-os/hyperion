@@ -12,6 +12,46 @@ pub fn color_to_code(Color { r, g, b }: Color) -> Arc<str> {
 
 //
 
+pub struct CursorUp(pub u8);
+
+impl fmt::Display for CursorUp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\x1B[{}A", self.0)
+    }
+}
+
+//
+
+pub struct CursorDown(pub u8);
+
+impl fmt::Display for CursorDown {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\x1B[{}B", self.0)
+    }
+}
+
+//
+
+pub struct CursorLeft(pub u8);
+
+impl fmt::Display for CursorLeft {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\x1B[{}C", self.0)
+    }
+}
+
+//
+
+pub struct CursorRight(pub u8);
+
+impl fmt::Display for CursorRight {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\x1B[{}D", self.0)
+    }
+}
+
+//
+
 pub trait EscapeEncoder
 where
     Self: Sized,

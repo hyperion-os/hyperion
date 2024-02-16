@@ -4,11 +4,13 @@ use hyperion_color::Color;
 /// background color can be changed like this: `"\x1B[48;2;<r>;<g>;<b>m"`
 ///
 /// THESE ARE NON STANDARD ESCAPE SEQUENCES
+#[derive(Debug)]
 pub struct EscapeDecoder {
     buf: [u8; LONGEST_ESCAPE],
     len: u8,
 }
 
+#[derive(Debug)]
 pub enum DecodedPart {
     Byte(u8),
 
@@ -18,6 +20,11 @@ pub enum DecodedPart {
     FgColor(Color),
     BgColor(Color),
     Reset,
+
+    CursorUp(u8),
+    CursorDown(u8),
+    CursorLeft(u8),
+    CursorRight(u8),
 
     None,
 }
@@ -37,23 +44,47 @@ impl EscapeDecoder {
         match (self.len, byte) {
             (0, b'\x1B') => {
                 self.len += 1;
-                self.buf[0_usize] = byte;
+                self.buf[0] = byte;
                 DecodedPart::None
             }
             (0, _) => DecodedPart::Byte(byte),
             (1, b'[') => {
                 self.len += 1;
-                self.buf[1_usize] = byte;
+                self.buf[1] = byte;
                 DecodedPart::None
+            }
+            (1, _) => {
+                self.buf[1] = byte;
+                self.clear()
+            }
+            (i, b'A' | b'B' | b'C' | b'D') => {
+                self.len += 1;
+                self.buf[i as usize] = byte;
+
+                let result = match self.buf[..self.len as usize] {
+                    [b'\x1B', b'[', ref rgb @ .., dir] => core::str::from_utf8(rgb)
+                        .ok()
+                        .and_then(|str| str.parse::<u8>().ok())
+                        .map(|count| match dir {
+                            b'A' => DecodedPart::CursorUp(count),
+                            b'B' => DecodedPart::CursorDown(count),
+                            b'C' => DecodedPart::CursorLeft(count),
+                            b'D' => DecodedPart::CursorRight(count),
+                            _ => unreachable!(),
+                        }),
+                    _ => None,
+                };
+
+                if let Some(result) = result {
+                    self.clear();
+                    result
+                } else {
+                    self.clear()
+                }
             }
             (i, b'm') => {
                 self.len += 1;
                 self.buf[i as usize] = byte;
-
-                // crate::qemu::_print(format_args_nl!(
-                //     "seq part: {:?}",
-                //     core::str::from_utf8(&self.buf[..self.len as usize])
-                // ));
 
                 let result = match self.buf[..self.len as usize] {
                     [b'\x1B', b'[', b'3', b'8', b';', b'2', b';', ref rgb @ .., b'm'] => {
