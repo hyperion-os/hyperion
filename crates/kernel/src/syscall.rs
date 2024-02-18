@@ -102,6 +102,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::SEEK => call_id(seek, args),
 
         id::SYSTEM => call_id(system, args),
+        id::FORK => call_id(fork, args),
 
         other => {
             debug!("invalid syscall ({other})");
@@ -862,4 +863,11 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
     });
 
     Ok(pid.num())
+}
+
+/// fork the current process
+///
+/// [`hyperion_syscall::fork`]
+pub fn fork(_args: &mut SyscallRegs) -> Result<usize> {
+    todo!()
 }
