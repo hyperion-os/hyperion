@@ -810,7 +810,6 @@ dependencies = [
  "futures",
  "futures-util",
  "hyperion-arch",
- "hyperion-bitmap",
  "hyperion-color",
  "hyperion-driver-acpi",
  "hyperion-events",
