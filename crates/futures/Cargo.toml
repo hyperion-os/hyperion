@@ -21,7 +21,6 @@ x86_64.workspace = true
 #hyperion-backtrace.path = "../backtrace"
 #hyperion-defer.path = "../defer"
 hyperion-arch.path = "../arch"
-hyperion-bitmap.path = "../bitmap"
 hyperion-color.path = "../color"
 hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-events.path = "../events"
