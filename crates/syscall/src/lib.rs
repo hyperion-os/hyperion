@@ -386,6 +386,6 @@ pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<usize
 }
 
 /// fork the current process and return the PID
-pub fn fork() -> Result<usize> {
-    unsafe { syscall_0(id::FORK) }
+pub fn fork() -> usize {
+    unsafe { syscall_0(id::FORK) }.unwrap()
 }

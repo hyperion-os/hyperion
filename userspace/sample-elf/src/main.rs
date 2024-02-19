@@ -146,16 +146,18 @@ pub fn main() -> Result<()> {
     // _test_userspace_mutex();
     // _repeat_stdin_to_stdout();
 
+    let value = get_pid();
     println!("PID:{} TID:{}", get_pid(), get_tid());
 
     let fork_result = fork();
 
     println!(
-        "fork_result:{fork_result:?} PID:{} TID:{}",
+        "fork_result:{fork_result:?} value={value} PID:{} TID:{}",
         get_pid(),
         get_tid()
     );
 
     _ = run_server();
+    nanosleep(100000000);
     run_client()
 }
