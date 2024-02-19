@@ -1,16 +1,15 @@
 use core::{
     alloc::{GlobalAlloc, Layout},
     marker::PhantomData,
+    mem,
     ops::{Deref, DerefMut},
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use lock_api::RawMutex;
-
 use crate::{
     slab::{AllocMetadata, BigAllocMetadata},
-    AllocBackend, PageFrames, Slab,
+    PageAlloc, Pages, Slab,
 };
 
 //
@@ -34,8 +33,8 @@ impl SlabAllocatorStats {
 
 //
 
-pub struct SlabAllocator<P, Lock> {
-    slabs: [Slab<P, Lock>; 13],
+pub struct SlabAllocator<P> {
+    slabs: [Slab<P>; 13],
     stats: SlabAllocatorStats,
 
     _p: PhantomData<P>,
@@ -43,10 +42,9 @@ pub struct SlabAllocator<P, Lock> {
 
 //
 
-unsafe impl<P, Lock> GlobalAlloc for SlabAllocator<P, Lock>
+unsafe impl<P> GlobalAlloc for SlabAllocator<P>
 where
-    P: AllocBackend,
-    Lock: RawMutex,
+    P: PageAlloc,
 {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         self.alloc(layout.size())
@@ -59,10 +57,7 @@ where
     }
 }
 
-impl<P, Lock> SlabAllocator<P, Lock>
-where
-    Lock: RawMutex,
-{
+impl<P> SlabAllocator<P> {
     #[cfg(not(all(loom, not(target_os = "none"))))]
     #[must_use]
     pub const fn new() -> Self {
@@ -104,7 +99,7 @@ where
         panic!("loom not supported");
     }
 
-    pub fn get_slab(&self, size: usize) -> Option<(u8, &Slab<P, Lock>)> {
+    pub fn get_slab(&self, size: usize) -> Option<(u8, &Slab<P>)> {
         self.slabs
             .iter()
             .enumerate()
@@ -113,10 +108,9 @@ where
     }
 }
 
-impl<P, Lock> SlabAllocator<P, Lock>
+impl<P> SlabAllocator<P>
 where
-    P: AllocBackend,
-    Lock: RawMutex,
+    P: PageAlloc,
 {
     pub fn alloc(&self, size: usize) -> *mut u8 {
         // crate::println!("alloc {size}");
@@ -152,7 +146,7 @@ where
         self.slab_of(alloc).size
     }
 
-    fn slab_of(&self, alloc: NonNull<u8>) -> &Slab<P, Lock> {
+    fn slab_of(&self, alloc: NonNull<u8>) -> &Slab<P> {
         // align down to 0x1000
         // the first bytes in the page tells the slab size
         let page_alloc = ((alloc.as_ptr() as u64) & 0xFFFF_FFFF_FFFF_F000) as *mut u8;
@@ -169,7 +163,7 @@ where
         // minimum number of pages for the alloc + 1 page
         // for metadata
         let page_count = size.div_ceil(0x1000) + 1;
-        let mut pages = P::alloc(page_count);
+        let pages = unsafe { P::alloc(page_count) };
 
         self.stats.allocated.fetch_add(page_count, Ordering::SeqCst);
         self.stats
@@ -178,9 +172,14 @@ where
 
         // write the big alloc metadata
 
-        let metadata: &mut [BigAllocMetadata] =
-            bytemuck::try_cast_slice_mut(pages.as_bytes_mut()).expect("allocation to be aligned");
-        metadata[0] = BigAllocMetadata::new(page_count);
+        let metadata: *mut BigAllocMetadata = pages.first as _;
+        debug_assert!(
+            mem::size_of::<BigAllocMetadata>() <= pages.len * 0x1000
+                && pages
+                    .first
+                    .is_aligned_to(mem::align_of::<BigAllocMetadata>())
+        );
+        unsafe { metadata.write(BigAllocMetadata::new(page_count)) };
 
         // trace!("BigAlloc    {:#x} {size}", pages.addr().as_u64());
 
@@ -195,7 +194,7 @@ where
     /// with this specific [`SlabAllocator`]
     unsafe fn big_free(&self, alloc: NonNull<u8>) {
         let (alloc, pages) = unsafe { self.big_pages(alloc) };
-        let pages = unsafe { PageFrames::new(alloc, pages) };
+        let pages = unsafe { Pages::new(alloc, pages) };
 
         self.stats
             .allocated
@@ -206,29 +205,28 @@ where
 
         // trace!("BigFree     {:#x} {size}", pages.addr().as_u64());
 
-        P::free(pages);
+        unsafe { P::dealloc(pages) };
     }
 
     unsafe fn big_pages(&self, alloc: NonNull<u8>) -> (*mut u8, usize) {
         let alloc = unsafe { alloc.as_ptr().sub(0x1000) };
 
-        let metadata: BigAllocMetadata = unsafe { *(alloc as *const BigAllocMetadata) };
-        let pages = metadata.size().expect("big alloc metadata to be valid");
+        let metadata: *const BigAllocMetadata = alloc as *const BigAllocMetadata;
+        let pages = unsafe { metadata.read() }
+            .size()
+            .expect("big alloc metadata to be valid");
 
         (alloc, pages)
     }
 }
 
-impl<P, Lock> Default for SlabAllocator<P, Lock>
-where
-    Lock: RawMutex,
-{
+impl<P> Default for SlabAllocator<P> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<P, Lock> Deref for SlabAllocator<P, Lock> {
+impl<P> Deref for SlabAllocator<P> {
     type Target = SlabAllocatorStats;
 
     fn deref(&self) -> &Self::Target {
@@ -236,7 +234,7 @@ impl<P, Lock> Deref for SlabAllocator<P, Lock> {
     }
 }
 
-impl<P, Lock> DerefMut for SlabAllocator<P, Lock> {
+impl<P> DerefMut for SlabAllocator<P> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.stats
     }

@@ -1070,10 +1070,7 @@ dependencies = [
 name = "hyperion-slab-alloc"
 version = "0.3.0"
 dependencies = [
- "bytemuck",
  "hyperion-log",
- "lock_api",
- "spin",
 ]
 
 [[package]]
