@@ -64,23 +64,25 @@ fn main() {
     let mut stdout = shell.stdout.take().unwrap();
     let mut stderr = shell.stderr.take().unwrap();
 
-    thread::spawn(move || loop {
-        match wm.next_event() {
-            // TODO: send LEFT,RIGHT,UP,DOWN and others
-            // Event::Keyboard {
-            //     code: 88 | 101, // up or left
-            //     state: ElementState::Pressed,
-            // } => i = i.wrapping_add(1),
-            // Event::Keyboard {
-            //     code: 102 | 103, // down or right
-            //     state: ElementState::Pressed,
-            // } => i = i.wrapping_sub(1),
-            Event::Text { ch } => {
-                let mut buf = [0u8; 4];
-                let str = ch.encode_utf8(&mut buf);
-                stdin.write_all(str.as_bytes()).unwrap();
+    thread::spawn(move || {
+        while let Ok(ev) = wm.next_event() {
+            match ev {
+                // TODO: send LEFT,RIGHT,UP,DOWN and others
+                // Event::Keyboard {
+                //     code: 88 | 101, // up or left
+                //     state: ElementState::Pressed,
+                // } => i = i.wrapping_add(1),
+                // Event::Keyboard {
+                //     code: 102 | 103, // down or right
+                //     state: ElementState::Pressed,
+                // } => i = i.wrapping_sub(1),
+                Event::Text { ch } => {
+                    let mut buf = [0u8; 4];
+                    let str = ch.encode_utf8(&mut buf);
+                    stdin.write_all(str.as_bytes()).unwrap();
+                }
+                _ => {}
             }
-            _ => {}
         }
     });
 

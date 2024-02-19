@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 
 //
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ConnectionClosed;
+
+//
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Message {
     NewWindow { window_id: usize },

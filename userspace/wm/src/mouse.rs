@@ -69,7 +69,7 @@ pub fn mouse() {
 
             let windows = WINDOWS.lock().unwrap();
             if let Some(window) = windows.get(ACTIVE.load(Ordering::Relaxed)) {
-                window.conn.send_message(Message::Event(Event::Mouse(ev)));
+                _ = window.conn.send_message(Message::Event(Event::Mouse(ev)));
             }
             drop(windows);
 
