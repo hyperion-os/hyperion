@@ -5,6 +5,10 @@ edition.workspace = true
 
 [features]
 log = ["hyperion-log"]
+rustc-dep-of-std = [
+  "core",
+	"compiler_builtins",
+]
 
 [lints]
 workspace = true
@@ -13,3 +17,5 @@ workspace = true
 
 [dependencies]
 hyperion-log = { path = "../log", optional = true }
+core = { version = "1.0.0", optional = true, package = "rustc-std-workspace-core" }
+compiler_builtins = { version = "0.1", optional = true }

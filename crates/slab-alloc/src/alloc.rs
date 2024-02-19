@@ -58,8 +58,6 @@ where
 }
 
 impl<P> SlabAllocator<P> {
-    #[cfg(not(all(loom, not(target_os = "none"))))]
-    #[must_use]
     pub const fn new() -> Self {
         let slabs = [
             Slab::new(8),
@@ -92,11 +90,6 @@ impl<P> SlabAllocator<P> {
 
             _p: PhantomData,
         }
-    }
-
-    #[cfg(all(loom, not(target_os = "none")))]
-    pub const fn new() -> Self {
-        panic!("loom not supported");
     }
 
     pub fn get_slab(&self, size: usize) -> Option<(u8, &Slab<P>)> {

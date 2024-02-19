@@ -40,24 +40,7 @@ unsafe impl<P> Sync for Slab<P> {}
 unsafe impl<P> Send for Slab<P> {}
 
 impl<P> Slab<P> {
-    #[cfg(not(all(loom, not(target_os = "none"))))]
-    #[must_use]
     pub const fn new(size: usize) -> Self {
-        assert!(
-            size >= size_of::<u64>() && size % size_of::<u64>() == 0,
-            "slab size should be a multiple of u64's size (8 bytes) and not zero"
-        );
-
-        Self {
-            size,
-            head: AtomicPtr::new(null_mut()),
-            _p: PhantomData,
-        }
-    }
-
-    #[cfg(all(loom, not(target_os = "none")))]
-    #[must_use]
-    pub fn new(size: usize) -> Self {
         assert!(
             size >= size_of::<u64>() && size % size_of::<u64>() == 0,
             "slab size should be a multiple of u64's size (8 bytes) and not zero"
