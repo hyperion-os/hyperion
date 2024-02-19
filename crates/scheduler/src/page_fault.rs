@@ -6,19 +6,24 @@ use hyperion_arch::{
 };
 use hyperion_cpu_id::cpu_id;
 use hyperion_log::*;
-use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
+use hyperion_mem::{
+    pmm,
+    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
+};
 use spin::Mutex;
 use x86_64::VirtAddr;
 
-use crate::{exit, task, task::TaskInner, tls};
+use crate::{exit, process, task, task::TaskInner, tls};
 
 //
 
 pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFaultResult {
     // debug!(
-    //     "scheduler page fault at {instr:#x} (from {user:?}) (cpu: {})",
-    //     cpu_id()
+    //     "scheduler page fault at {instr:#x} accessing {addr:#x} (from {user:?}) (cpu: {}) (pid: {})",
+    //     cpu_id(),
+    //     process().pid
     // );
+    let v_addr = VirtAddr::new(addr as _);
 
     let actual_current = tls().switch_last_active.load(Ordering::SeqCst);
     if !actual_current.is_null() {
@@ -42,15 +47,15 @@ pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFau
         // `Err(Handled)` short circuits and returns
         handle_stack_grow(&current.user_stack, addr)?;
 
+        // current.address_space.page_map.page_fault(v_addr, user)?;
+
         // user process tried to access memory thats not available to it
+        let maps_to = current.address_space.page_map.virt_to_phys(v_addr);
         hyperion_log::warn!(
-            "killing user-space process, tid:{} tried to use {addr:#x} at {instr:#x}",
-            current.tid.num()
+            "killing user-space process, pid:{} tid:{} tried to use {addr:#x} at {instr:#x}",
+            current.pid.num(),
+            current.tid.num(),
         );
-        let maps_to = current
-            .address_space
-            .page_map
-            .virt_to_phys(VirtAddr::new(addr as _));
         hyperion_log::warn!("{addr:#x} maps to {maps_to:#x?}");
         current.should_terminate.store(true, Ordering::SeqCst);
         exit();
@@ -62,11 +67,8 @@ pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFau
         hyperion_log::error!("page fault from kernel-space");
     };
 
-    let maps_to = current
-        .address_space
-        .page_map
-        .virt_to_phys(VirtAddr::new(addr as _));
-    hyperion_log::error!("{addr:#x} maps to {maps_to:#x?}");
+    let maps_to = current.address_space.page_map.virt_to_phys(v_addr);
+    hyperion_log::error!("{v_addr:#x} maps to {maps_to:#x?}");
     error!("couldn't handle a page fault {}", cpu_id());
 
     Ok(NotHandled)

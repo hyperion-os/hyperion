@@ -163,6 +163,27 @@ impl AddressSpace {
         }
     }
 
+    pub fn fork(&self, keep_user: &Stack<UserStack>) -> Self {
+        let page_map = self.page_map.fork();
+
+        let mut user_stacks = Stacks::new();
+        loop {
+            // TODO: improve this
+            // find and lock the correct stack
+            let try_stack = unsafe { user_stacks.take() };
+            if try_stack.top == keep_user.top {
+                break;
+            }
+            user_stacks.free(try_stack);
+        }
+
+        Self {
+            page_map,
+            user_stacks,
+            kernel_stacks: Stacks::new(),
+        }
+    }
+
     pub fn take_user_stack_lazy(&self) -> Stack<UserStack> {
         self.user_stacks.take_lazy(&self.page_map)
     }
@@ -337,6 +358,21 @@ impl<T: StackType + Debug> Stack<T> {
         );
 
         Err(Handled)
+    }
+
+    pub fn remap(&self, page_map: &PageMap) {
+        for (i, p_addr) in ([self.base_alloc]
+            .into_iter()
+            .chain(self.extra_alloc.iter().copied()))
+        .enumerate()
+        {
+            page_map.map(
+                self.top - i * 0x1000 - 0x1000u64..self.top - i * 0x1000,
+                p_addr,
+                T::PAGE_FLAGS,
+            );
+        }
+        page_map.unmap(Self::page_range(self.guard_page()));
     }
 
     pub fn cleanup(&mut self, page_map: &PageMap) {

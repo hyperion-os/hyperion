@@ -16,7 +16,7 @@ use core::{
 
 use arcstr::ArcStr;
 use crossbeam_queue::SegQueue;
-use hyperion_arch::{cpu::ints, int, stack::AddressSpace, vmm::PageMap};
+use hyperion_arch::{cpu::ints, int, stack::AddressSpace, syscall::SyscallRegs, vmm::PageMap};
 use hyperion_cpu_id::Tls;
 use hyperion_driver_acpi::{apic, hpet::HPET};
 use hyperion_instant::Instant;
@@ -224,6 +224,12 @@ pub fn spawn_userspace(fn_ptr: u64, fn_arg: u64) {
             fn_arg,
         );
     });
+}
+
+/// fork the active process
+pub fn fork(f: impl FnOnce() + Send + 'static) -> Pid {
+    update_cpu_usage();
+    schedule(task().fork(f))
 }
 
 /// spawn a new process running this closure or a function or a task

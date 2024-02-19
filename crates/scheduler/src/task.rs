@@ -572,6 +572,42 @@ impl Task {
         }))
     }
 
+    pub fn fork(&self, f: impl FnOnce() + Send + 'static) -> Task {
+        self.fork_any(Box::new(f))
+    }
+
+    pub fn fork_any(&self, f: Box<dyn FnOnce() + Send + 'static>) -> Task {
+        let name = self.name.read().clone();
+        trace!("initializing a fork of process {name}");
+
+        let mut user_stack = self.user_stack.lock().clone();
+        let address_space = self.address_space.fork(&user_stack);
+        let kernel_stack = address_space.take_kernel_stack_prealloc(1);
+        let stack_top = kernel_stack.top;
+        user_stack.remap(&address_space.page_map);
+
+        let context = UnsafeCell::new(Context::new(
+            &address_space.page_map,
+            stack_top,
+            thread_entry,
+        ));
+
+        let process = Process::new(Pid::next(), name, address_space);
+
+        TASKS_READY.fetch_add(1, Ordering::Relaxed);
+        Self(Arc::new(TaskInner {
+            tid: Tid::next(&process),
+            process,
+            state: AtomicCell::new(TaskState::Ready),
+            user_stack: Mutex::new(user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+            job: TakeOnce::new(f),
+            tls: Once::new(),
+            context,
+            is_valid: true,
+        }))
+    }
+
     pub fn thread(process: Arc<Process>, f: impl FnOnce() + Send + 'static) -> Task {
         Self::thread_any(process, Box::new(f))
     }

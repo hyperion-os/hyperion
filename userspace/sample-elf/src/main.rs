@@ -148,6 +148,14 @@ pub fn main() -> Result<()> {
 
     println!("PID:{} TID:{}", get_pid(), get_tid());
 
+    let fork_result = fork();
+
+    println!(
+        "fork_result:{fork_result:?} PID:{} TID:{}",
+        get_pid(),
+        get_tid()
+    );
+
     _ = run_server();
     run_client()
 }

@@ -24,18 +24,21 @@
 use alloc::collections::BTreeMap;
 use core::{cmp::Ordering, ops::Range};
 
-use hyperion_log::println;
+use hyperion_log::*;
 use hyperion_mem::{
     from_higher_half, pmm, to_higher_half,
-    vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
+    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
 use spin::RwLock;
 use x86_64::{
     registers::control::{Cr3, Cr3Flags},
     structures::paging::{
-        mapper::{MapToError, MappedFrame, TranslateResult, UnmapError},
-        Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame, Size1GiB,
-        Size2MiB, Size4KiB, Translate,
+        mapper::{
+            MapToError, MappedFrame, MapperFlush, MapperFlushAll, TranslateResult, UnmapError,
+        },
+        page_table::FrameError,
+        MappedPageTable, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags,
+        PhysFrame, Size1GiB, Size2MiB, Size4KiB, Translate,
     },
     PhysAddr, VirtAddr,
 };
@@ -57,6 +60,29 @@ pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_F
 
 //
 
+fn v_addr_from_parts(
+    offset: usize,
+    p1_index: usize,
+    p2_index: usize,
+    p3_index: usize,
+    p4_index: usize,
+) -> VirtAddr {
+    assert!(p4_index < (1 << 9));
+    assert!(p3_index < (1 << 9));
+    assert!(p2_index < (1 << 9));
+    assert!(p1_index < (1 << 9));
+    assert!(offset < (1 << 12));
+    VirtAddr::new_truncate(
+        (p4_index as u64) << 12 << 9 << 9 << 9
+            | (p3_index as u64) << 12 << 9 << 9
+            | (p2_index as u64) << 12 << 9
+            | (p1_index as u64) << 12
+            | (offset as u64),
+    )
+}
+
+//
+
 pub struct PageMap {
     offs: RwLock<OffsetPageTable<'static>>,
     owned: bool,
@@ -65,10 +91,57 @@ pub struct PageMap {
 //
 
 impl PageMapImpl for PageMap {
-    fn page_fault(&self, _v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
+    fn page_fault(&self, v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
         // TODO: lazy allocs
 
-        Ok(NotHandled)
+        // return Ok(NotHandled);
+
+        let mut offs = self.offs.write();
+
+        let TranslateResult::Mapped {
+            frame,
+            offset,
+            flags,
+        } = offs.translate(v_addr)
+        else {
+            return Ok(NotHandled);
+        };
+
+        let l4 = offs.level_4_table();
+        let l4e = &mut l4[v_addr.p4_index()];
+        let l3: &mut PageTable =
+            unsafe { &mut *to_higher_half(l4e.frame().unwrap().start_address()).as_mut_ptr() };
+
+        let l3e = &mut l3[v_addr.p3_index()];
+        let l2: &mut PageTable =
+            unsafe { &mut *to_higher_half(l3e.frame().unwrap().start_address()).as_mut_ptr() };
+
+        let l2e = &mut l2[v_addr.p2_index()];
+        let l1: &mut PageTable =
+            unsafe { &mut *to_higher_half(l2e.frame().unwrap().start_address()).as_mut_ptr() };
+
+        let l1e = &mut l1[v_addr.p1_index()];
+        let mut l0f = l1e.flags();
+
+        if l0f.contains(PageTableFlags::BIT_11) {
+            l0f.remove(PageTableFlags::BIT_10);
+            l0f.remove(PageTableFlags::BIT_11);
+            l0f.insert(PageTableFlags::WRITABLE);
+            // bit 11 == writeable copy on write
+        } else if l0f.contains(PageTableFlags::BIT_10) {
+            l0f.remove(PageTableFlags::BIT_10);
+            // bit 10 == copy on write
+        } else {
+            return Ok(NotHandled);
+        }
+
+        let page = Page::containing_address(v_addr);
+        let frame = l1e.frame().unwrap();
+        let new_frame = unsafe { pmm::PFA.fork_page_fault(frame, page) };
+        l1e.set_frame(new_frame, l0f);
+        MapperFlush::new(Page::<Size4KiB>::containing_address(v_addr)).flush();
+
+        Err(Handled)
     }
 
     fn current() -> Self {
@@ -128,6 +201,107 @@ impl PageMapImpl for PageMap {
         );
 
         page_map
+    }
+
+    fn fork(&self) -> Self {
+        let new = Self::new();
+
+        assert!(self.is_active());
+
+        let mut offs = self.offs.write();
+        // TODO: CoW page tables also
+
+        let hhdm_p4_index: usize = VirtAddr::new(hyperion_boot::hhdm_offset())
+            .p4_index()
+            .into();
+
+        // TODO: iter maps instead of this mess
+        let l4: &mut PageTable = offs.level_4_table();
+        for (l4i, l4e) in l4.iter_mut().enumerate() {
+            if l4i >= hhdm_p4_index {
+                break;
+            }
+
+            let l3f = l4e.flags();
+            let l3 = match l4e.frame() {
+                Err(FrameError::FrameNotPresent) => continue,
+                Err(FrameError::HugeFrame) => unreachable!(),
+                Ok(l3) => l3,
+            };
+            let l3: &mut PageTable =
+                unsafe { &mut *to_higher_half(l3.start_address()).as_mut_ptr() };
+            for (l3i, l3e) in l3.iter_mut().enumerate() {
+                let mut l2f = l3e.flags();
+                let l2 = match l3e.frame() {
+                    Err(FrameError::FrameNotPresent) => continue,
+                    Err(FrameError::HugeFrame) => {
+                        // 1 GiB page
+                        // mark as read only
+                        let w = l2f.contains(PageTableFlags::WRITABLE);
+                        l2f.remove(PageTableFlags::WRITABLE);
+                        l2f.insert(PageTableFlags::BIT_10); // bit 10 == copy on write marker
+                        l2f.set(PageTableFlags::BIT_11, w); // bit 11 == copy on write writeable marker
+                        l3e.set_flags(l2f);
+
+                        let start = v_addr_from_parts(0, 0, 0, l3i, l4i);
+                        new.map(start..start + Size1GiB::SIZE, l3e.addr(), l2f);
+                        continue;
+                    }
+                    Ok(l2) => l2,
+                };
+                let l2: &mut PageTable =
+                    unsafe { &mut *to_higher_half(l2.start_address()).as_mut_ptr() };
+                for (l2i, l2e) in l2.iter_mut().enumerate() {
+                    let mut l1f = l2e.flags();
+                    let l1 = match l2e.frame() {
+                        Err(FrameError::FrameNotPresent) => continue,
+                        Err(FrameError::HugeFrame) => {
+                            // 2 MiB page
+                            // mark as read only
+                            let w = l1f.contains(PageTableFlags::WRITABLE);
+                            l1f.remove(PageTableFlags::WRITABLE);
+                            l1f.insert(PageTableFlags::BIT_10);
+                            l1f.set(PageTableFlags::BIT_11, w);
+                            l2e.set_flags(l1f);
+
+                            let start = v_addr_from_parts(0, 0, l2i, l3i, l4i);
+                            new.map(start..start + Size2MiB::SIZE, l2e.addr(), l1f);
+                            continue;
+                        }
+                        Ok(l1) => l1,
+                    };
+                    let l1: &mut PageTable =
+                        unsafe { &mut *to_higher_half(l1.start_address()).as_mut_ptr() };
+                    for (l1i, l1e) in l1.iter_mut().enumerate() {
+                        let mut l0f = l1e.flags();
+                        let l0 = match l1e.frame() {
+                            Err(FrameError::FrameNotPresent) => continue,
+                            Err(FrameError::HugeFrame) => {
+                                unreachable!()
+                            }
+                            Ok(l0) => l0,
+                        };
+
+                        // 4 KiB page
+                        // mark as read only
+                        let w = l0f.contains(PageTableFlags::WRITABLE);
+                        l0f.remove(PageTableFlags::WRITABLE);
+                        l0f.insert(PageTableFlags::BIT_10);
+                        l0f.set(PageTableFlags::BIT_11, w);
+                        l1e.set_flags(l0f);
+
+                        let start = v_addr_from_parts(0, l1i, l2i, l3i, l4i);
+                        let l1e_addr =
+                            unsafe { pmm::PFA.fork(l0, Page::from_start_address(start).unwrap()) };
+                        new.map(start..start + Size4KiB::SIZE, l1e_addr.start_address(), l0f);
+                    }
+                }
+            }
+        }
+
+        MapperFlushAll::new().flush_all();
+
+        new
     }
 
     fn activate(&self) {
@@ -597,7 +771,16 @@ where
     let page = Page::<T>::containing_address(start);
     let frame = PhysFrame::<T>::containing_address(p_addr);
 
-    let result = unsafe { table.map_to(page, frame, flags, &mut Pfa) };
+    let result = unsafe {
+        table.map_to_with_table_flags(
+            page,
+            frame,
+            flags,
+            (flags & (PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE))
+                | PageTableFlags::WRITABLE,
+            &mut Pfa,
+        )
+    };
 
     if let Err(MapToError::PageAlreadyMapped(old_frame)) = result {
         if old_frame == frame {

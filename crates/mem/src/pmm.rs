@@ -19,7 +19,11 @@ use hyperion_boot_interface::Memmap;
 use hyperion_log::debug;
 use hyperion_num_postfix::NumberPostfix;
 use spin::Lazy;
-use x86_64::{align_up, PhysAddr, VirtAddr};
+use x86_64::{
+    align_up,
+    structures::paging::{Page, PhysFrame},
+    PhysAddr, VirtAddr,
+};
 
 use super::{from_higher_half, to_higher_half};
 
@@ -177,11 +181,11 @@ impl PageFrameAllocator {
     /// the original and copied pages shouldn't be written to
     ///
     /// `mapped` should point to `frame` in the active page mapper
-    pub unsafe fn fork(&self, frame: PhysAddr, mapped: VirtAddr) -> PhysAddr {
-        if frame.as_u64() == 0 {
+    pub unsafe fn fork(&self, frame: PhysFrame, mapped: Page) -> PhysFrame {
+        if frame.start_address().as_u64() == 0 {
             panic!();
         }
-        let page = frame.as_u64() as usize / PAGE_SIZE;
+        let page = frame.start_address().as_u64() as usize / PAGE_SIZE;
 
         if matches!(unsafe { self.pages[page].copy() }, Err(TooManyRefs)) {
             unsafe { self.cold_copy_fork(mapped) }
@@ -191,16 +195,16 @@ impl PageFrameAllocator {
     }
 
     #[cold]
-    unsafe fn cold_copy_fork(&self, mapped: VirtAddr) -> PhysAddr {
+    unsafe fn cold_copy_fork(&self, mapped: Page) -> PhysFrame {
         let copy = self.alloc(1);
         unsafe {
             volatile_copy_nonoverlapping_memory::<u8>(
                 copy.virtual_addr().as_mut_ptr(),
-                mapped.as_ptr(),
+                mapped.start_address().as_ptr(),
                 PAGE_SIZE,
             );
         }
-        copy.physical_addr()
+        PhysFrame::from_start_address(copy.physical_addr()).unwrap()
     }
 
     /// handle a page fault from a forked CoW page
@@ -216,11 +220,11 @@ impl PageFrameAllocator {
     ///
     /// # Safety
     /// `mapped` should point to `frame` in the active page mapper
-    pub unsafe fn fork_page_fault(&self, frame: PhysAddr, mapped: VirtAddr) -> PhysAddr {
-        if frame.as_u64() == 0 {
+    pub unsafe fn fork_page_fault(&self, frame: PhysFrame, mapped: Page) -> PhysFrame {
+        if frame.start_address().as_u64() == 0 {
             panic!();
         }
-        let page = frame.as_u64() as usize / PAGE_SIZE;
+        let page = frame.start_address().as_u64() as usize / PAGE_SIZE;
         let ref_count = &self.pages[page].ref_count;
 
         match ref_count.load(Ordering::Acquire) {
@@ -239,7 +243,7 @@ impl PageFrameAllocator {
                 unsafe {
                     volatile_copy_nonoverlapping_memory::<u8>(
                         copy.virtual_addr().as_mut_ptr(),
-                        mapped.as_ptr(),
+                        mapped.start_address().as_ptr(),
                         PAGE_SIZE,
                     );
                 }
@@ -262,7 +266,7 @@ impl PageFrameAllocator {
 
                         // a copy has been made and the original page is now
                         // either deallocated or shared between some other process(es)
-                        return copy.physical_addr();
+                        return PhysFrame::from_start_address(copy.physical_addr()).unwrap();
                     } else {
                         // it doesnt matter if the ref count goes to 1 here
                         // because the copy has already been made

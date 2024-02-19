@@ -868,6 +868,12 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
 /// fork the current process
 ///
 /// [`hyperion_syscall::fork`]
-pub fn fork(_args: &mut SyscallRegs) -> Result<usize> {
-    todo!()
+pub fn fork(args: &mut SyscallRegs) -> Result<usize> {
+    let args = *args;
+    let pid = hyperion_scheduler::fork(move || {
+        let mut args = args;
+        args.syscall_id = Error::encode(Ok(0)) as _;
+        hyperion_arch::syscall::userland_return(&mut args);
+    });
+    return Ok(pid.num());
 }

@@ -30,6 +30,8 @@ pub trait PageMapImpl {
 
     fn new() -> Self;
 
+    fn fork(&self) -> Self;
+
     fn activate(&self);
 
     fn virt_to_phys(&self, v_addr: VirtAddr) -> Option<PhysAddr>;
