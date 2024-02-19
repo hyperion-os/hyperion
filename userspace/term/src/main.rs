@@ -91,6 +91,9 @@ fn main() {
         let mut buf = [0u8; 512];
         loop {
             let n = stdout.read(&mut buf).unwrap();
+            if n == 0 {
+                return;
+            }
             let data = &buf[..n];
 
             let mut t = term.lock().unwrap();
@@ -103,6 +106,9 @@ fn main() {
         let mut buf = [0u8; 512];
         loop {
             let n = stderr.read(&mut buf).unwrap();
+            if n == 0 {
+                return;
+            }
             let data = &buf[..n];
 
             let mut t = term2.lock().unwrap();
