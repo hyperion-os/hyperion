@@ -57,6 +57,17 @@ pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_F
 
 //
 
+/// the page should not be freed
+pub const NO_FREE: PageTableFlags = PageTableFlags::BIT_9;
+/// the page is shared
+pub const COW: PageTableFlags = PageTableFlags::BIT_10;
+/// the page is shared and was originally writeable
+pub const COW_WRITEABLE: PageTableFlags = PageTableFlags::BIT_11;
+/// the page is allocated on first use using a page fault
+pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
+
+//
+
 pub struct PageMap {
     offs: RwLock<OffsetPageTable<'static>>,
     owned: bool,
@@ -452,7 +463,7 @@ impl Drop for PageMap {
                 WalkTableIterResult::Size4KiB(_p_addr) => {}
                 WalkTableIterResult::Level3(l3) => {
                     for (_, flags, entry) in l3.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -462,7 +473,7 @@ impl Drop for PageMap {
                 }
                 WalkTableIterResult::Level2(l2) => {
                     for (_, flags, entry) in l2.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -472,7 +483,7 @@ impl Drop for PageMap {
                 }
                 WalkTableIterResult::Level1(l1) => {
                     for (_, flags, entry) in l1.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -493,7 +504,7 @@ impl Drop for PageMap {
 
         let l4 = Level4::from_pml4(offs.level_4_table());
         for (_, flags, entry) in l4.iter() {
-            if !flags.contains(PageTableFlags::BIT_9) {
+            if !flags.contains(NO_FREE) {
                 travel_level(entry);
             } else {
                 hyperion_log::debug!("skip bit 9");
