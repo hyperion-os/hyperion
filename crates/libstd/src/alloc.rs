@@ -1,13 +1,13 @@
 use core::{alloc::GlobalAlloc, ptr::NonNull};
 
-use hyperion_slab_alloc::{AllocBackend, PageFrames, SlabAllocator};
+use hyperion_slab_alloc::{PageAlloc, Pages, SlabAllocator};
 use hyperion_syscall::{palloc, pfree};
 
 //
 
-pub struct PageAlloc;
+pub struct PageAllocator;
 
-unsafe impl GlobalAlloc for PageAlloc {
+unsafe impl GlobalAlloc for PageAllocator {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         let pages = layout.size().div_ceil(0x1000);
 
@@ -22,20 +22,20 @@ unsafe impl GlobalAlloc for PageAlloc {
     }
 }
 
-impl AllocBackend for PageAlloc {
-    fn alloc(pages: usize) -> PageFrames {
+unsafe impl PageAlloc for PageAllocator {
+    unsafe fn alloc(pages: usize) -> Pages {
         let alloc = palloc(pages).unwrap().unwrap();
-        unsafe { PageFrames::new(alloc.as_ptr(), pages) }
+        unsafe { Pages::new(alloc.as_ptr(), pages) }
     }
 
-    fn free(frames: PageFrames) {
+    unsafe fn dealloc(frames: Pages) {
         pfree(NonNull::new(frames.as_ptr()).unwrap(), frames.len()).unwrap();
     }
 }
 
 //
 
-pub type SlabAlloc = SlabAllocator<PageAlloc, spin::Mutex<()>>;
+pub type SlabAlloc = SlabAllocator<PageAllocator>;
 
 #[global_allocator]
 pub static GLOBAL_ALLOC: SlabAlloc = SlabAlloc::new();

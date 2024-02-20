@@ -104,7 +104,7 @@ fn keyboard() {
                     let code = ev.code as u8;
                     if ev.state != KeyState::Up {
                         // down or single shot
-                        window.conn.send_message(Message::Event(Event::Keyboard {
+                        _ = window.conn.send_message(Message::Event(Event::Keyboard {
                             code,
                             state: ElementState::Pressed,
                         }));
@@ -112,13 +112,13 @@ fn keyboard() {
                     if ev.state != KeyState::Down {
                         // this is intentionally not an `else if`, single shot presses send both
                         // up or single shot
-                        window.conn.send_message(Message::Event(Event::Keyboard {
+                        _ = window.conn.send_message(Message::Event(Event::Keyboard {
                             code,
                             state: ElementState::Released,
                         }));
                     }
                     if let Some(DecodedKey::Unicode(ch)) = keyboard.process_keyevent(ev) {
-                        window.conn.send_message(Message::Event(Event::Text { ch }));
+                        _ = window.conn.send_message(Message::Event(Event::Text { ch }));
                     }
                 }
             }
@@ -144,6 +144,15 @@ fn blitter() {
 
     let mut next_sync = timestamp().unwrap() as u64;
     loop {
+        // blit cursor
+        let (m_x, m_y) = get_mouse();
+        let (c_x, c_y) = (m_x as usize, m_y as usize);
+        global_fb.volatile_fill(c_x, c_y, 16, 16, Color::WHITE.as_u32());
+
+        // println!("VSYNC");
+        next_sync += 16_666_667;
+        hyperion_syscall::nanosleep_until(next_sync);
+
         // blit all windows
         let _windows = windows.lock().unwrap();
         for (info, pixels) in _windows.iter().filter_map(|w| Some((w.info, w.shmem_ptr?))) {
@@ -153,15 +162,6 @@ fn blitter() {
             global_fb.volatile_copy_from(&window, info.x as isize, info.y as isize);
         }
         drop(_windows);
-
-        // blit cursor
-        let (m_x, m_y) = get_mouse();
-        let (c_x, c_y) = (m_x as usize, m_y as usize);
-        global_fb.volatile_fill(c_x, c_y, 16, 16, Color::WHITE.as_u32());
-
-        // println!("VSYNC");
-        next_sync += 16_666_667;
-        hyperion_syscall::nanosleep_until(next_sync);
 
         // hyperion_syscall::yield_now();
 
@@ -179,8 +179,8 @@ fn blitter() {
 fn handle_client(client: Connection) {
     let windows = &*WINDOWS;
 
-    loop {
-        match client.next_request() {
+    while let Ok(ev) = client.next_request() {
+        match ev {
             Request::NewWindow => {
                 println!("client requested a new window");
 
@@ -214,7 +214,12 @@ fn handle_client(client: Connection) {
                 window.shmem_ptr = Some(shmem_ptr);
                 drop(_windows);
 
-                client.send_message(Message::NewWindow { window_id });
+                if client
+                    .send_message(Message::NewWindow { window_id })
+                    .is_err()
+                {
+                    break;
+                }
             }
         }
     }

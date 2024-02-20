@@ -58,6 +58,15 @@ pub const KERNEL_STACKS: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFD_8000_0000
 pub const KERNEL_EXECUTABLE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_8000_0000);
 pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_FFFF_F000);
 
+/// the page should not be freed
+pub const NO_FREE: PageTableFlags = PageTableFlags::BIT_9;
+/// the page is shared
+pub const COW: PageTableFlags = PageTableFlags::BIT_10;
+/// the page is shared and was originally writeable
+pub const COW_WRITEABLE: PageTableFlags = PageTableFlags::BIT_11;
+/// the page is allocated on first use using a page fault
+pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
+
 //
 
 fn v_addr_from_parts(
@@ -123,13 +132,13 @@ impl PageMapImpl for PageMap {
         let l1e = &mut l1[v_addr.p1_index()];
         let mut l0f = l1e.flags();
 
-        if l0f.contains(PageTableFlags::BIT_11) {
-            l0f.remove(PageTableFlags::BIT_10);
-            l0f.remove(PageTableFlags::BIT_11);
+        if l0f.contains(COW_WRITEABLE) {
+            l0f.remove(COW);
+            l0f.remove(COW_WRITEABLE);
             l0f.insert(PageTableFlags::WRITABLE);
             // bit 11 == writeable copy on write
-        } else if l0f.contains(PageTableFlags::BIT_10) {
-            l0f.remove(PageTableFlags::BIT_10);
+        } else if l0f.contains(COW) {
+            l0f.remove(COW);
             // bit 10 == copy on write
         } else {
             return Ok(NotHandled);
@@ -239,8 +248,8 @@ impl PageMapImpl for PageMap {
                         // mark as read only
                         let w = l2f.contains(PageTableFlags::WRITABLE);
                         l2f.remove(PageTableFlags::WRITABLE);
-                        l2f.insert(PageTableFlags::BIT_10); // bit 10 == copy on write marker
-                        l2f.set(PageTableFlags::BIT_11, w); // bit 11 == copy on write writeable marker
+                        l2f.insert(COW); // bit 10 == copy on write marker
+                        l2f.set(COW_WRITEABLE, w); // bit 11 == copy on write writeable marker
                         l3e.set_flags(l2f);
 
                         let start = v_addr_from_parts(0, 0, 0, l3i, l4i);
@@ -260,8 +269,8 @@ impl PageMapImpl for PageMap {
                             // mark as read only
                             let w = l1f.contains(PageTableFlags::WRITABLE);
                             l1f.remove(PageTableFlags::WRITABLE);
-                            l1f.insert(PageTableFlags::BIT_10);
-                            l1f.set(PageTableFlags::BIT_11, w);
+                            l1f.insert(COW);
+                            l1f.set(COW_WRITEABLE, w);
                             l2e.set_flags(l1f);
 
                             let start = v_addr_from_parts(0, 0, l2i, l3i, l4i);
@@ -286,8 +295,8 @@ impl PageMapImpl for PageMap {
                         // mark as read only
                         let w = l0f.contains(PageTableFlags::WRITABLE);
                         l0f.remove(PageTableFlags::WRITABLE);
-                        l0f.insert(PageTableFlags::BIT_10);
-                        l0f.set(PageTableFlags::BIT_11, w);
+                        l0f.insert(COW);
+                        l0f.set(COW_WRITEABLE, w);
                         l1e.set_flags(l0f);
 
                         let start = v_addr_from_parts(0, l1i, l2i, l3i, l4i);
@@ -626,7 +635,7 @@ impl Drop for PageMap {
                 WalkTableIterResult::Size4KiB(_p_addr) => {}
                 WalkTableIterResult::Level3(l3) => {
                     for (_, flags, entry) in l3.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -636,7 +645,7 @@ impl Drop for PageMap {
                 }
                 WalkTableIterResult::Level2(l2) => {
                     for (_, flags, entry) in l2.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -646,7 +655,7 @@ impl Drop for PageMap {
                 }
                 WalkTableIterResult::Level1(l1) => {
                     for (_, flags, entry) in l1.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -667,7 +676,7 @@ impl Drop for PageMap {
 
         let l4 = Level4::from_pml4(offs.level_4_table());
         for (_, flags, entry) in l4.iter() {
-            if !flags.contains(PageTableFlags::BIT_9) {
+            if !flags.contains(NO_FREE) {
                 travel_level(entry);
             } else {
                 hyperion_log::debug!("skip bit 9");

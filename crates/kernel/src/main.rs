@@ -22,7 +22,6 @@ use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
-use hyperion_mem::KernelSlabAlloc;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
@@ -33,11 +32,6 @@ pub mod panic;
 pub mod syscall;
 #[cfg(test)]
 pub mod testfw;
-
-//
-
-#[global_allocator]
-static ALLOCATOR: KernelSlabAlloc<spin::Mutex<()>> = KernelSlabAlloc::new();
 
 //
 

@@ -12,7 +12,7 @@ use hyperion_syscall::{fs::FileDesc, map_file, unmap_file};
 use crate::{
     global::Region,
     os::{AsRawFd, LocalStream},
-    shared::{Event, Message, Request},
+    shared::{ConnectionClosed, Event, Message, Request},
 };
 
 //
@@ -51,8 +51,8 @@ impl Connection {
         })
     }
 
-    pub fn new_window(&self) -> io::Result<Window> {
-        self.send_request(Request::NewWindow);
+    pub fn new_window(&self) -> Result<Window, ConnectionClosed> {
+        self.send_request(Request::NewWindow)?;
 
         let window_id = self.inner.pending_windows.recv().unwrap();
 
@@ -78,13 +78,12 @@ impl Connection {
         })
     }
 
-    pub fn next_event(&self) -> Event {
-        self.inner.event_buf.recv().unwrap()
+    pub fn next_event(&self) -> Result<Event, ConnectionClosed> {
+        self.inner.event_buf.recv().map_err(|_| ConnectionClosed)
     }
 
-    pub fn send_request(&self, req: Request) {
-        rmp_serde::encode::write(&mut &*self.inner.socket_w, &req).unwrap();
-        // (&*self.inner.socket_w).write_all(&[0]).unwrap();
+    pub fn send_request(&self, req: Request) -> Result<(), ConnectionClosed> {
+        rmp_serde::encode::write(&mut &*self.inner.socket_w, &req).map_err(|_| ConnectionClosed)
     }
 }
 

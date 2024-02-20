@@ -24,7 +24,6 @@ impl ArcWake for SleepWaker {
         assert!(arc_self.deadline.is_reached());
 
         let Some(task) = arc_self.task.take() else {
-            hyperion_log::error!("double wakes shouldn't happen, its a bug in the executor");
             return;
         };
 

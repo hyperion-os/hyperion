@@ -1,5 +1,5 @@
-[[language]]
-name = "rust"
+# [[language]]
+# name = "rust"
 
-[language-server.rust-analyzer.config.cargo]
-target = "x86_64-unknown-hyperion"
+# [language-server.rust-analyzer.config.cargo]
+# target = "x86_64-unknown-hyperion"

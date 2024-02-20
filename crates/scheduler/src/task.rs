@@ -135,7 +135,7 @@ impl PageAllocs {
     pub fn bitmap(&self) -> MutexGuard<Bitmap<'static>> {
         self.bitmap
             .call_once(|| {
-                let bitmap_alloc = vec![0u8; pmm::PFA.bitmap_len() / 8];
+                let bitmap_alloc = vec![0u8; pmm::PFA.bitmap_len() / 8 + 1];
                 Mutex::new(Bitmap::new(Vec::leak(bitmap_alloc)))
             })
             .lock()

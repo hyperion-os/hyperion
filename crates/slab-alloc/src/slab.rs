@@ -6,9 +6,7 @@ use core::{
     sync::atomic::{AtomicPtr, Ordering},
 };
 
-use bytemuck::{Pod, Zeroable};
-
-use crate::{AllocBackend, SlabAllocatorStats, PAGE_SIZE};
+use crate::{PageAlloc, SlabAllocatorStats, PAGE_SIZE};
 
 //
 
@@ -30,20 +28,18 @@ impl Block {
 
 //
 
-pub struct Slab<P, Lock> {
+pub struct Slab<P> {
     pub size: usize,
 
     head: AtomicPtr<Block>,
 
-    _p: PhantomData<(P, Lock)>,
+    _p: PhantomData<P>,
 }
 
-unsafe impl<P, Lock: Sync> Sync for Slab<P, Lock> {}
-unsafe impl<P, Lock: Send> Send for Slab<P, Lock> {}
+unsafe impl<P> Sync for Slab<P> {}
+unsafe impl<P> Send for Slab<P> {}
 
-impl<P, Lock> Slab<P, Lock> {
-    #[cfg(not(all(loom, not(target_os = "none"))))]
-    #[must_use]
+impl<P> Slab<P> {
     pub const fn new(size: usize) -> Self {
         assert!(
             size >= size_of::<u64>() && size % size_of::<u64>() == 0,
@@ -56,26 +52,11 @@ impl<P, Lock> Slab<P, Lock> {
             _p: PhantomData,
         }
     }
-
-    #[cfg(all(loom, not(target_os = "none")))]
-    #[must_use]
-    pub fn new(size: usize) -> Self {
-        assert!(
-            size >= size_of::<u64>() && size % size_of::<u64>() == 0,
-            "slab size should be a multiple of u64's size (8 bytes) and not zero"
-        );
-
-        Self {
-            size,
-            head: AtomicPtr::new(null_mut()),
-            _p: PhantomData,
-        }
-    }
 }
 
-impl<P, Lock> Slab<P, Lock>
+impl<P> Slab<P>
 where
-    P: AllocBackend,
+    P: PageAlloc,
 {
     pub fn alloc(&self, idx: u8, stats: &SlabAllocatorStats) -> *mut u8 {
         #[cfg(feature = "log")]
@@ -176,7 +157,7 @@ where
     ) -> *mut Block {
         #[cfg(feature = "log")]
         hyperion_log::debug!("alloc pages {size}");
-        let page = P::alloc(1);
+        let page = unsafe { P::alloc(1) };
         stats.allocated.fetch_add(1, Ordering::Relaxed);
 
         let mut blocks = (0..PAGE_SIZE / size).map(|i| unsafe { page.first.add(i * size) });
@@ -209,7 +190,7 @@ where
 
 //
 
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub(crate) struct BigAllocMetadata {
     // a magic number to make it more likely to expose bugs
@@ -240,7 +221,7 @@ impl BigAllocMetadata {
     }
 }
 
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub(crate) struct AllocMetadata {
     // a magic number to make it more likely to expose bugs

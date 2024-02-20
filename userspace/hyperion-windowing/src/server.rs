@@ -11,7 +11,7 @@ use hyperion_syscall::{fs::FileDesc, map_file};
 
 use crate::{
     os::{AsRawFd, LocalListener, LocalStream},
-    shared::{Message, Request},
+    shared::{ConnectionClosed, Message, Request},
 };
 
 //
@@ -53,11 +53,11 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn next_request(&self) -> Request {
-        self.request_buf.recv().unwrap()
+    pub fn next_request(&self) -> Result<Request, ConnectionClosed> {
+        self.request_buf.recv().map_err(|_| ConnectionClosed)
     }
 
-    pub fn send_message(&self, res: Message) {
+    pub fn send_message(&self, res: Message) -> Result<(), ConnectionClosed> {
         self.message_stream.send_message(res)
     }
 
@@ -74,8 +74,8 @@ pub struct MessageStream {
 }
 
 impl MessageStream {
-    pub fn send_message(&self, msg: Message) {
-        rmp_serde::encode::write(&mut &*self.conn, &msg).unwrap();
+    pub fn send_message(&self, msg: Message) -> Result<(), ConnectionClosed> {
+        rmp_serde::encode::write(&mut &*self.conn, &msg).map_err(|_| ConnectionClosed)
     }
 }
 
