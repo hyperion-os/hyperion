@@ -537,6 +537,22 @@ impl PageMap {
         PhysFrame::containing_address(phys)
     }
 
+    pub fn fork_into(&self, into: &Self) {
+        /* let mut from_offs = self.offs.write();
+        let mut into_offs = new.offs.write();
+        // TODO: CoW page tables also
+
+        let hhdm_p4_index: usize = VirtAddr::new(hyperion_boot::hhdm_offset())
+            .p4_index()
+            .into();
+
+        // TODO: iter maps instead of this mess
+        let from_l4: &mut PageTable = from_offs.level_4_table();
+        let into_l4: &mut PageTable = into_offs.level_4_table();
+
+        for (from_l4e, into_l4e) in from_l4.iter_mut().zip(into_l4) {} */
+    }
+
     pub fn debug(&self) {
         fn travel_level(
             flags: PageTableFlags,
