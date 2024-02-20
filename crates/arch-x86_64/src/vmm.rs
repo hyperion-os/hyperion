@@ -37,8 +37,8 @@ use x86_64::{
             MapToError, MappedFrame, MapperFlush, MapperFlushAll, TranslateResult, UnmapError,
         },
         page_table::{FrameError, PageTableEntry},
-        MappedPageTable, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags,
-        PhysFrame, Size1GiB, Size2MiB, Size4KiB, Translate,
+        Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame, Size1GiB,
+        Size2MiB, Size4KiB, Translate,
     },
     PhysAddr, VirtAddr,
 };
@@ -235,7 +235,6 @@ impl PageMapImpl for PageMap {
                 break;
             }
 
-            let l3f = l4e.flags();
             let l3 = match l4e.frame() {
                 Err(FrameError::FrameNotPresent) => continue,
                 Err(FrameError::HugeFrame) => unreachable!(),
@@ -244,7 +243,6 @@ impl PageMapImpl for PageMap {
             let l3: &mut PageTable =
                 unsafe { &mut *to_higher_half(l3.start_address()).as_mut_ptr() };
             for (l3i, l3e) in l3.iter_mut().enumerate() {
-                let mut l2f = l3e.flags();
                 let l2 = match l3e.frame() {
                     Err(FrameError::FrameNotPresent) => continue,
                     Err(FrameError::HugeFrame) => {
@@ -266,7 +264,6 @@ impl PageMapImpl for PageMap {
                 let l2: &mut PageTable =
                     unsafe { &mut *to_higher_half(l2.start_address()).as_mut_ptr() };
                 for (l2i, l2e) in l2.iter_mut().enumerate() {
-                    let mut l1f = l2e.flags();
                     let l1 = match l2e.frame() {
                         Err(FrameError::FrameNotPresent) => continue,
                         Err(FrameError::HugeFrame) => {
@@ -537,7 +534,7 @@ impl PageMap {
         PhysFrame::containing_address(phys)
     }
 
-    pub fn fork_into(&self, into: &Self) {
+    pub fn fork_into(&self, _into: &Self) {
         /* let mut from_offs = self.offs.write();
         let mut into_offs = new.offs.write();
         // TODO: CoW page tables also

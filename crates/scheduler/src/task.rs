@@ -580,7 +580,7 @@ impl Task {
         let name = self.name.read().clone();
         trace!("initializing a fork of process {name}");
 
-        let mut user_stack = self.user_stack.lock().clone();
+        let user_stack = self.user_stack.lock().clone();
         let address_space = self.address_space.fork(&user_stack);
         let kernel_stack = address_space.take_kernel_stack_prealloc(1);
         let stack_top = kernel_stack.top;

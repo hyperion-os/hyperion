@@ -6,14 +6,11 @@ use hyperion_arch::{
 };
 use hyperion_cpu_id::cpu_id;
 use hyperion_log::*;
-use hyperion_mem::{
-    pmm,
-    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
-};
+use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use spin::Mutex;
 use x86_64::VirtAddr;
 
-use crate::{exit, process, task, task::TaskInner, tls};
+use crate::{exit, task, task::TaskInner, tls};
 
 //
 

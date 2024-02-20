@@ -166,7 +166,7 @@ impl AddressSpace {
     pub fn fork(&self, keep_user: &Stack<UserStack>) -> Self {
         let page_map = self.page_map.fork();
 
-        let mut user_stacks = Stacks::new();
+        let user_stacks = Stacks::new();
         loop {
             // TODO: improve this
             // find and lock the correct stack

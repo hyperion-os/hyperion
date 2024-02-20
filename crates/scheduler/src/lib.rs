@@ -16,7 +16,7 @@ use core::{
 
 use arcstr::ArcStr;
 use crossbeam_queue::SegQueue;
-use hyperion_arch::{cpu::ints, int, stack::AddressSpace, syscall::SyscallRegs, vmm::PageMap};
+use hyperion_arch::{cpu::ints, int, stack::AddressSpace, vmm::PageMap};
 use hyperion_cpu_id::Tls;
 use hyperion_driver_acpi::{apic, hpet::HPET};
 use hyperion_instant::Instant;
