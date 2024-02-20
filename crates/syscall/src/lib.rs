@@ -66,6 +66,7 @@ pub mod id {
     pub const SEEK: usize = 32;
 
     pub const SYSTEM: usize = 33;
+    pub const FORK: usize = 34;
 }
 
 //
@@ -382,4 +383,9 @@ pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<usize
             &cfg as *const LaunchConfig as usize,
         )
     }
+}
+
+/// fork the current process and return the PID
+pub fn fork() -> usize {
+    unsafe { syscall_0(id::FORK) }.unwrap()
 }

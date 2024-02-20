@@ -12,7 +12,11 @@ use x86_64::instructions::interrupts::without_interrupts;
 
 #[doc(hidden)]
 pub fn _print(args: Arguments) {
-    without_interrupts(|| _ = COM1.lock().write_fmt(args));
+    without_interrupts(|| {
+        // Lazy::force(&COM1);
+        // _ = unsafe { SerialPort::new(0x3f8) }.write_fmt(args);
+        _ = COM1.lock().write_fmt(args);
+    });
 }
 
 /* /// Force unlock this [`Mutex`].

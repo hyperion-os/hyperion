@@ -50,7 +50,7 @@ pub fn set_handler(f: fn(&mut SyscallRegs)) {
 
 #[allow(unused)]
 #[repr(C)]
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct SyscallRegs {
     _r15: u64,
     _r14: u64,
@@ -135,6 +135,42 @@ pub extern "sysv64" fn userland(
             "xor r15, r15",
             "sysretq",
             rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
+            options(noreturn)
+        );
+    }
+}
+
+#[naked]
+#[no_mangle]
+pub extern "sysv64" fn userland_return(_args: &mut SyscallRegs) -> ! {
+    // rdi = _args
+    unsafe {
+        asm!(
+            "mov rsp, rdi", // set the stack ptr to point to _args temporarily
+
+            "pop r15",
+            "pop r14",
+            "pop r13",
+            "pop r12",
+            "pop r11",
+            "pop r10",
+            "pop r9",
+            "pop r8",
+            "pop rbp",
+            "pop rsi",
+            "pop rdi",
+            "pop rdx",
+            "pop rcx",
+            "pop rbx",
+            "pop rax",
+
+            "swapgs",
+            "pop QWORD PTR gs:{user_stack}",
+            "mov rsp, gs:{user_stack}",
+            "swapgs",
+            // TODO: fix the sysret vulnerability
+            "sysretq",
+            user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
             options(noreturn)
         );
     }

@@ -135,7 +135,7 @@ impl PageAllocs {
     pub fn bitmap(&self) -> MutexGuard<Bitmap<'static>> {
         self.bitmap
             .call_once(|| {
-                let bitmap_alloc = vec![0u8; pmm::PFA.bitmap_len() / 8];
+                let bitmap_alloc = vec![0u8; pmm::PFA.bitmap_len() / 8 + 1];
                 Mutex::new(Bitmap::new(Vec::leak(bitmap_alloc)))
             })
             .lock()
@@ -557,6 +557,42 @@ impl Task {
             "task rsp:{stack_top:#x} cr3:{:#x}",
             process.address_space.page_map.cr3().start_address()
         );
+
+        TASKS_READY.fetch_add(1, Ordering::Relaxed);
+        Self(Arc::new(TaskInner {
+            tid: Tid::next(&process),
+            process,
+            state: AtomicCell::new(TaskState::Ready),
+            user_stack: Mutex::new(user_stack),
+            kernel_stack: Mutex::new(kernel_stack),
+            job: TakeOnce::new(f),
+            tls: Once::new(),
+            context,
+            is_valid: true,
+        }))
+    }
+
+    pub fn fork(&self, f: impl FnOnce() + Send + 'static) -> Task {
+        self.fork_any(Box::new(f))
+    }
+
+    pub fn fork_any(&self, f: Box<dyn FnOnce() + Send + 'static>) -> Task {
+        let name = self.name.read().clone();
+        trace!("initializing a fork of process {name}");
+
+        let user_stack = self.user_stack.lock().clone();
+        let address_space = self.address_space.fork(&user_stack);
+        let kernel_stack = address_space.take_kernel_stack_prealloc(1);
+        let stack_top = kernel_stack.top;
+        user_stack.remap(&address_space.page_map);
+
+        let context = UnsafeCell::new(Context::new(
+            &address_space.page_map,
+            stack_top,
+            thread_entry,
+        ));
+
+        let process = Process::new(Pid::next(), name, address_space);
 
         TASKS_READY.fetch_add(1, Ordering::Relaxed);
         Self(Arc::new(TaskInner {

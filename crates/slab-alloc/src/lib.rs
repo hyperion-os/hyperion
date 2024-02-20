@@ -13,7 +13,6 @@
     pointer_is_aligned,
     const_pointer_is_aligned,
     strict_provenance_atomic_ptr,
-    new_uninit,
     const_ptr_is_null,
     allocator_api,
     inline_const
@@ -40,20 +39,29 @@ const PAGE_SIZE: usize = 0x1000; // 4KiB pages
 //
 
 /// a backend allocator, allocates whole pages (4KiB blocks)
-pub trait AllocBackend {
-    fn alloc(pages: usize) -> PageFrames;
+///
+/// # Safety
+/// todo
+pub unsafe trait PageAlloc {
+    /// # Safety
+    /// the returned pages should always have the requested size,
+    /// the pages must be R/W and they will be exclusively owned by the slab allocator
+    /// the pages should be aligned to 0x1000
+    unsafe fn alloc(pages: usize) -> Pages;
 
-    fn free(frames: PageFrames);
+    /// # Safety
+    /// the pages are now in an undefined state
+    unsafe fn dealloc(frames: Pages);
 }
 
 //
 
-pub struct PageFrames {
+pub struct Pages {
     first: *mut u8,
     len: usize,
 }
 
-impl PageFrames {
+impl Pages {
     /// # Safety
     /// `first` must point to a valid page allocation of `len * 0x1000` bytes
     pub const unsafe fn new(first: *mut u8, len: usize) -> Self {

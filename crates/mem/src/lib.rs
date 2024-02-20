@@ -1,12 +1,13 @@
 #![no_std]
-#![feature(pointer_is_aligned, allocator_api, maybe_uninit_slice)]
+#![feature(pointer_is_aligned, allocator_api, maybe_uninit_slice, core_intrinsics)]
+#![allow(internal_features)]
 
 //
 
 extern crate alloc;
 
 use hyperion_boot::hhdm_offset;
-use hyperion_slab_alloc::{AllocBackend, PageFrames, SlabAllocator};
+use hyperion_slab_alloc::{PageAlloc, Pages, SlabAllocator};
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::pmm::{PageFrame, PFA};
@@ -18,20 +19,21 @@ pub mod vmm;
 
 //
 
-pub type KernelSlabAlloc<Lock> = SlabAllocator<Pfa, Lock>;
+#[global_allocator]
+static ALLOCATOR: SlabAllocator<Pfa> = SlabAllocator::new();
 
 //
 
 pub struct Pfa;
 
-impl AllocBackend for Pfa {
-    fn alloc(pages: usize) -> PageFrames {
+unsafe impl PageAlloc for Pfa {
+    unsafe fn alloc(pages: usize) -> Pages {
         let pages = PFA.alloc(pages);
 
-        unsafe { PageFrames::new(pages.virtual_addr().as_mut_ptr(), pages.len()) }
+        unsafe { Pages::new(pages.virtual_addr().as_mut_ptr(), pages.len()) }
     }
 
-    fn free(frames: PageFrames) {
+    unsafe fn dealloc(frames: Pages) {
         let pages = unsafe {
             PageFrame::new(
                 from_higher_half(VirtAddr::new(frames.as_ptr() as u64)),

@@ -18,6 +18,7 @@ fn main() {
         let os_canonical = path.canonicalize().unwrap();
         let path = Path::new("/").join(path.strip_prefix(from).unwrap());
 
+        println!("cargo:rerun-if-changed={os_canonical:?}");
         writeln!(
             asset_rs_file,
             "    ({path:?}, include_bytes!({os_canonical:?})),",
@@ -39,9 +40,7 @@ fn travel(path: &Path, f: &mut impl FnMut(&Path)) {
         let ty = ent.file_type().unwrap();
         let p = ent.path();
 
-        if ty.is_file() {
-            f(&p);
-        } else if ty.is_symlink() {
+        if ty.is_file() || ty.is_symlink() {
             f(&p);
         } else if ty.is_dir() {
             travel(&p, f);

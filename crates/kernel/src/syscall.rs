@@ -102,6 +102,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::SEEK => call_id(seek, args),
 
         id::SYSTEM => call_id(system, args),
+        id::FORK => call_id(fork, args),
 
         other => {
             debug!("invalid syscall ({other})");
@@ -850,6 +851,9 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
         loader.load();
         let entry = loader.finish();
 
+        // the elf is trying to steal our memory, drop the elf as a revenge
+        drop(elf);
+
         // .. and exec the binary
         match entry {
             Ok(entry) => entry.enter(program, args),
@@ -862,4 +866,24 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
     });
 
     Ok(pid.num())
+}
+
+/// fork the current process
+///
+/// [`hyperion_syscall::fork`]
+pub fn fork(args: &mut SyscallRegs) -> Result<usize> {
+    let args = *args;
+    let stdin = fd_query(FileDesc(0)).unwrap();
+    let stdout = fd_query(FileDesc(1)).unwrap();
+    let stderr = fd_query(FileDesc(2)).unwrap();
+    let pid = hyperion_scheduler::fork(move || {
+        fd_push(stdin);
+        fd_push(stdout);
+        fd_push(stderr);
+
+        let mut args = args;
+        args.syscall_id = Error::encode(Ok(0)) as _;
+        hyperion_arch::syscall::userland_return(&mut args);
+    });
+    return Ok(pid.num());
 }

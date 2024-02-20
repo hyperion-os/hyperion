@@ -24,12 +24,12 @@
 use alloc::collections::BTreeMap;
 use core::{cmp::Ordering, ops::Range};
 
-use hyperion_log::println;
+use hyperion_log::*;
 use hyperion_mem::{
-    from_higher_half, is_higher_half,
+    from_higher_half, is_higher_half, pmm,
     pmm::{self, PageFrame},
     to_higher_half,
-    vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege},
+    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
 use spin::RwLock;
 use x86_64::{
@@ -59,6 +59,67 @@ pub const KERNEL_STACKS: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFD_8000_0000
 pub const KERNEL_EXECUTABLE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_8000_0000);
 pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_FFFF_F000);
 
+/// the page should not be freed
+pub const NO_FREE: PageTableFlags = PageTableFlags::BIT_9;
+/// the page is shared and was originally writeable
+pub const COW: PageTableFlags = PageTableFlags::BIT_10;
+/// the page is allocated on first use using a page fault
+pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
+
+//
+
+fn v_addr_from_parts(
+    offset: usize,
+    p1_index: usize,
+    p2_index: usize,
+    p3_index: usize,
+    p4_index: usize,
+) -> VirtAddr {
+    assert!(p4_index < (1 << 9));
+    assert!(p3_index < (1 << 9));
+    assert!(p2_index < (1 << 9));
+    assert!(p1_index < (1 << 9));
+    assert!(offset < (1 << 12));
+    VirtAddr::new_truncate(
+        (p4_index as u64) << 12 << 9 << 9 << 9
+            | (p3_index as u64) << 12 << 9 << 9
+            | (p2_index as u64) << 12 << 9
+            | (p1_index as u64) << 12
+            | (offset as u64),
+    )
+}
+
+fn next_table(entry: &mut PageTableEntry) -> Option<&mut PageTable> {
+    let frame = entry.frame().ok()?;
+    Some(unsafe { &mut *to_higher_half(frame.start_address()).as_mut_ptr() })
+}
+
+fn page_fault_1gib(_entry: &mut PageTableEntry, _addr: VirtAddr) -> PageFaultResult {
+    Ok(NotHandled)
+}
+
+fn page_fault_2mib(_entry: &mut PageTableEntry, _addr: VirtAddr) -> PageFaultResult {
+    Ok(NotHandled)
+}
+
+fn page_fault_4kib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResult {
+    let mut flags = entry.flags();
+    if flags.contains(COW) {
+        flags.remove(COW);
+        flags.insert(PageTableFlags::WRITABLE);
+    } else {
+        return Ok(NotHandled);
+    }
+
+    let page = Page::containing_address(addr);
+    let frame = entry.frame().unwrap();
+    let new_frame = unsafe { pmm::PFA.fork_page_fault(frame, page) };
+    entry.set_frame(new_frame, flags);
+    MapperFlush::new(Page::<Size4KiB>::containing_address(addr)).flush();
+
+    Err(Handled)
+}
+
 //
 
 fn alloc_table() -> PhysFrame {
@@ -79,10 +140,32 @@ pub struct PageMap {
 }
 
 impl PageMapImpl for PageMap {
-    fn page_fault(&self, _v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
+    fn page_fault(&self, v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
         // TODO: lazy allocs
 
-        Ok(NotHandled)
+        let mut offs = self.offs.write();
+        let l4 = offs.level_4_table();
+
+        // giant pages
+        let l4e = &mut l4[v_addr.p4_index()];
+        let Some(l3) = next_table(l4e) else {
+            return Ok(NotHandled);
+        };
+
+        // huge pages
+        let l3e = &mut l3[v_addr.p3_index()];
+        let Some(l2) = next_table(l3e) else {
+            return page_fault_1gib(l3e, v_addr);
+        };
+
+        // normal pages
+        let l2e = &mut l2[v_addr.p2_index()];
+        let Some(l1) = next_table(l2e) else {
+            return page_fault_2mib(l2e, v_addr);
+        };
+
+        let l1e = &mut l1[v_addr.p1_index()];
+        page_fault_4kib(l1e, v_addr)
     }
 
     fn current() -> Self {
@@ -140,6 +223,106 @@ impl PageMapImpl for PageMap {
         // page_map.debug();
 
         page_map
+    }
+
+    fn fork(&self) -> Self {
+        let new = Self::new();
+
+        assert!(self.is_active());
+
+        let mut offs = self.offs.write();
+        // TODO: CoW page tables also
+
+        let hhdm_p4_index: usize = VirtAddr::new(hyperion_boot::hhdm_offset())
+            .p4_index()
+            .into();
+
+        // TODO: iter maps instead of this mess
+        let l4: &mut PageTable = offs.level_4_table();
+        for (l4i, l4e) in l4.iter_mut().enumerate() {
+            if l4i >= hhdm_p4_index {
+                break;
+            }
+
+            let l3 = match l4e.frame() {
+                Err(FrameError::FrameNotPresent) => continue,
+                Err(FrameError::HugeFrame) => unreachable!(),
+                Ok(l3) => l3,
+            };
+            let l3: &mut PageTable =
+                unsafe { &mut *to_higher_half(l3.start_address()).as_mut_ptr() };
+            for (l3i, l3e) in l3.iter_mut().enumerate() {
+                let l2 = match l3e.frame() {
+                    Err(FrameError::FrameNotPresent) => continue,
+                    Err(FrameError::HugeFrame) => {
+                        /* // 1 GiB page
+                        // mark as read only
+                        let w = l2f.contains(PageTableFlags::WRITABLE);
+                        l2f.remove(PageTableFlags::WRITABLE);
+                        l2f.insert(COW); // bit 10 == copy on write marker
+                        l2f.set(COW_WRITEABLE, w); // bit 11 == copy on write writeable marker
+                        l3e.set_flags(l2f);
+
+                        let start = v_addr_from_parts(0, 0, 0, l3i, l4i);
+                        new.map(start..start + Size1GiB::SIZE, l3e.addr(), l2f);
+                        continue; */
+                        todo!()
+                    }
+                    Ok(l2) => l2,
+                };
+                let l2: &mut PageTable =
+                    unsafe { &mut *to_higher_half(l2.start_address()).as_mut_ptr() };
+                for (l2i, l2e) in l2.iter_mut().enumerate() {
+                    let l1 = match l2e.frame() {
+                        Err(FrameError::FrameNotPresent) => continue,
+                        Err(FrameError::HugeFrame) => {
+                            /* // 2 MiB page
+                            // mark as read only
+                            let w = l1f.contains(PageTableFlags::WRITABLE);
+                            l1f.remove(PageTableFlags::WRITABLE);
+                            l1f.insert(COW);
+                            l1f.set(COW_WRITEABLE, w);
+                            l2e.set_flags(l1f);
+
+                            let start = v_addr_from_parts(0, 0, l2i, l3i, l4i);
+                            new.map(start..start + Size2MiB::SIZE, l2e.addr(), l1f);
+                            continue; */
+                            todo!()
+                        }
+                        Ok(l1) => l1,
+                    };
+                    let l1: &mut PageTable =
+                        unsafe { &mut *to_higher_half(l1.start_address()).as_mut_ptr() };
+                    for (l1i, l1e) in l1.iter_mut().enumerate() {
+                        let l0 = match l1e.frame() {
+                            Err(FrameError::FrameNotPresent) => continue,
+                            Err(FrameError::HugeFrame) => {
+                                unreachable!()
+                            }
+                            Ok(l0) => l0,
+                        };
+
+                        // 4 KiB page
+                        // mark as read only
+                        let mut l0f = l1e.flags();
+                        if l0f.contains(PageTableFlags::WRITABLE) {
+                            l0f.remove(PageTableFlags::WRITABLE);
+                            l0f.insert(COW);
+                        }
+                        l1e.set_flags(l0f);
+
+                        let start = v_addr_from_parts(0, l1i, l2i, l3i, l4i);
+                        let l1e_addr =
+                            unsafe { pmm::PFA.fork(l0, Page::from_start_address(start).unwrap()) };
+                        new.map(start..start + Size4KiB::SIZE, l1e_addr.start_address(), l0f);
+                    }
+                }
+            }
+        }
+
+        MapperFlushAll::new().flush_all();
+
+        new
     }
 
     fn activate(&self) {
@@ -623,6 +806,22 @@ impl PageMap {
         self.inner.read().cr3()
     }
 
+    pub fn fork_into(&self, _into: &Self) {
+        /* let mut from_offs = self.offs.write();
+        let mut into_offs = new.offs.write();
+        // TODO: CoW page tables also
+
+        let hhdm_p4_index: usize = VirtAddr::new(hyperion_boot::hhdm_offset())
+            .p4_index()
+            .into();
+
+        // TODO: iter maps instead of this mess
+        let from_l4: &mut PageTable = from_offs.level_4_table();
+        let into_l4: &mut PageTable = into_offs.level_4_table();
+
+        for (from_l4e, into_l4e) in from_l4.iter_mut().zip(into_l4) {} */
+    }
+
     pub fn debug(&self) {
         fn travel_level(
             flags: PageTableFlags,
@@ -727,7 +926,7 @@ impl Drop for PageMap {
                 WalkTableIterResult::Size4KiB(_p_addr) => {}
                 WalkTableIterResult::Level3(l3) => {
                     for (_, flags, entry) in l3.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -737,7 +936,7 @@ impl Drop for PageMap {
                 }
                 WalkTableIterResult::Level2(l2) => {
                     for (_, flags, entry) in l2.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -747,7 +946,7 @@ impl Drop for PageMap {
                 }
                 WalkTableIterResult::Level1(l1) => {
                     for (_, flags, entry) in l1.iter() {
-                        if !flags.contains(PageTableFlags::BIT_9) {
+                        if !flags.contains(NO_FREE) {
                             travel_level(entry);
                         }
                     }
@@ -766,7 +965,7 @@ impl Drop for PageMap {
 
         let l4 = Level4::from_pml4(&self.inner.get_mut().l4);
         for (_, flags, entry) in l4.iter() {
-            if !flags.contains(PageTableFlags::BIT_9) {
+            if !flags.contains(NO_FREE) {
                 travel_level(entry);
             } else {
                 hyperion_log::debug!("skip bit 9");
@@ -880,7 +1079,16 @@ where
     let page = Page::<T>::containing_address(start);
     let frame = PhysFrame::<T>::containing_address(p_addr);
 
-    let result = unsafe { table.map_to(page, frame, flags, &mut Pfa) };
+    let result = unsafe {
+        table.map_to_with_table_flags(
+            page,
+            frame,
+            flags,
+            (flags & (PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE))
+                | PageTableFlags::WRITABLE,
+            &mut Pfa,
+        )
+    };
 
     if let Err(MapToError::PageAlreadyMapped(old_frame)) = result {
         if old_frame == frame {

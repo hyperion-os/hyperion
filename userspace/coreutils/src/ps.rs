@@ -13,7 +13,6 @@ pub fn cmd<'a>(_: impl Iterator<Item = &'a str>) -> Result<()> {
 
     for proc in Dir::open("/proc")
         .map_err(|err| anyhow!("{err}"))?
-        .into_iter()
         // filter out non-PID entries
         .filter(|ent| ent.file_name.parse::<usize>().is_ok())
     {

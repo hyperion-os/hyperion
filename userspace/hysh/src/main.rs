@@ -16,7 +16,7 @@ fn main() {
 
     let mut stdin = stdin().lock();
 
-    prompt(&name);
+    prompt(name);
 
     let mut line = String::new();
     let mut buf = [0u8; 1];
@@ -25,7 +25,7 @@ fn main() {
         let input = str::from_utf8(&buf[..n]).unwrap();
 
         // handle backspace
-        if &buf[..n] == &[8] {
+        if buf[..n] == [8] {
             if line.pop().is_some() {
                 print!("{} {}", CursorLeft(1), CursorLeft(1));
                 stdout().flush().unwrap();
@@ -46,7 +46,7 @@ fn main() {
 
             let Some(cmd) = parts.next() else {
                 line.clear();
-                prompt(&name);
+                prompt(name);
                 continue;
             };
 
@@ -69,7 +69,7 @@ fn main() {
             println!();
 
             line.clear();
-            prompt(&name);
+            prompt(name);
         }
     }
 }

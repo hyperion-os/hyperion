@@ -112,7 +112,7 @@ impl<'a, T: ?Sized> Deref for ArcOrRef<'a, T> {
     fn deref(&self) -> &Self::Target {
         match self {
             ArcOrRef::Arc(r) => r.as_ref(),
-            ArcOrRef::Ref(r) => *r,
+            ArcOrRef::Ref(r) => r,
         }
     }
 }
