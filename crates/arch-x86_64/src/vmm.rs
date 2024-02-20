@@ -60,10 +60,8 @@ pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_F
 
 /// the page should not be freed
 pub const NO_FREE: PageTableFlags = PageTableFlags::BIT_9;
-/// the page is shared
-pub const COW: PageTableFlags = PageTableFlags::BIT_10;
 /// the page is shared and was originally writeable
-pub const COW_WRITEABLE: PageTableFlags = PageTableFlags::BIT_11;
+pub const COW: PageTableFlags = PageTableFlags::BIT_10;
 /// the page is allocated on first use using a page fault
 pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
 
@@ -105,16 +103,9 @@ fn page_fault_2mib(_entry: &mut PageTableEntry, _addr: VirtAddr) -> PageFaultRes
 
 fn page_fault_4kib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResult {
     let mut flags = entry.flags();
-    if flags.contains(COW_WRITEABLE) {
+    if flags.contains(COW) {
         flags.remove(COW);
-        flags.remove(COW_WRITEABLE);
         flags.insert(PageTableFlags::WRITABLE);
-        // bit 11 == writeable copy on write
-    } else if flags.contains(COW) {
-        // TODO: this is useless as the permissions stay as the same,
-        // so how could this page fault be triggered?
-        flags.remove(COW);
-        // bit 10 == copy on write
     } else {
         return Ok(NotHandled);
     }
@@ -257,7 +248,7 @@ impl PageMapImpl for PageMap {
                 let l2 = match l3e.frame() {
                     Err(FrameError::FrameNotPresent) => continue,
                     Err(FrameError::HugeFrame) => {
-                        // 1 GiB page
+                        /* // 1 GiB page
                         // mark as read only
                         let w = l2f.contains(PageTableFlags::WRITABLE);
                         l2f.remove(PageTableFlags::WRITABLE);
@@ -267,7 +258,8 @@ impl PageMapImpl for PageMap {
 
                         let start = v_addr_from_parts(0, 0, 0, l3i, l4i);
                         new.map(start..start + Size1GiB::SIZE, l3e.addr(), l2f);
-                        continue;
+                        continue; */
+                        todo!()
                     }
                     Ok(l2) => l2,
                 };
@@ -278,7 +270,7 @@ impl PageMapImpl for PageMap {
                     let l1 = match l2e.frame() {
                         Err(FrameError::FrameNotPresent) => continue,
                         Err(FrameError::HugeFrame) => {
-                            // 2 MiB page
+                            /* // 2 MiB page
                             // mark as read only
                             let w = l1f.contains(PageTableFlags::WRITABLE);
                             l1f.remove(PageTableFlags::WRITABLE);
@@ -288,14 +280,14 @@ impl PageMapImpl for PageMap {
 
                             let start = v_addr_from_parts(0, 0, l2i, l3i, l4i);
                             new.map(start..start + Size2MiB::SIZE, l2e.addr(), l1f);
-                            continue;
+                            continue; */
+                            todo!()
                         }
                         Ok(l1) => l1,
                     };
                     let l1: &mut PageTable =
                         unsafe { &mut *to_higher_half(l1.start_address()).as_mut_ptr() };
                     for (l1i, l1e) in l1.iter_mut().enumerate() {
-                        let mut l0f = l1e.flags();
                         let l0 = match l1e.frame() {
                             Err(FrameError::FrameNotPresent) => continue,
                             Err(FrameError::HugeFrame) => {
@@ -306,10 +298,11 @@ impl PageMapImpl for PageMap {
 
                         // 4 KiB page
                         // mark as read only
-                        let w = l0f.contains(PageTableFlags::WRITABLE);
-                        l0f.remove(PageTableFlags::WRITABLE);
-                        l0f.insert(COW);
-                        l0f.set(COW_WRITEABLE, w);
+                        let mut l0f = l1e.flags();
+                        if l0f.contains(PageTableFlags::WRITABLE) {
+                            l0f.remove(PageTableFlags::WRITABLE);
+                            l0f.insert(COW);
+                        }
                         l1e.set_flags(l0f);
 
                         let start = v_addr_from_parts(0, l1i, l2i, l3i, l4i);
