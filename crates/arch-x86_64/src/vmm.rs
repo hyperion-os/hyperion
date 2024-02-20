@@ -36,7 +36,7 @@ use x86_64::{
         mapper::{
             MapToError, MappedFrame, MapperFlush, MapperFlushAll, TranslateResult, UnmapError,
         },
-        page_table::FrameError,
+        page_table::{FrameError, PageTableEntry},
         MappedPageTable, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags,
         PhysFrame, Size1GiB, Size2MiB, Size4KiB, Translate,
     },
@@ -90,6 +90,44 @@ fn v_addr_from_parts(
     )
 }
 
+fn next_table(entry: &mut PageTableEntry) -> Option<&mut PageTable> {
+    let frame = entry.frame().ok()?;
+    Some(unsafe { &mut *to_higher_half(frame.start_address()).as_mut_ptr() })
+}
+
+fn page_fault_1gib(_entry: &mut PageTableEntry, _addr: VirtAddr) -> PageFaultResult {
+    Ok(NotHandled)
+}
+
+fn page_fault_2mib(_entry: &mut PageTableEntry, _addr: VirtAddr) -> PageFaultResult {
+    Ok(NotHandled)
+}
+
+fn page_fault_4kib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResult {
+    let mut flags = entry.flags();
+    if flags.contains(COW_WRITEABLE) {
+        flags.remove(COW);
+        flags.remove(COW_WRITEABLE);
+        flags.insert(PageTableFlags::WRITABLE);
+        // bit 11 == writeable copy on write
+    } else if flags.contains(COW) {
+        // TODO: this is useless as the permissions stay as the same,
+        // so how could this page fault be triggered?
+        flags.remove(COW);
+        // bit 10 == copy on write
+    } else {
+        return Ok(NotHandled);
+    }
+
+    let page = Page::containing_address(addr);
+    let frame = entry.frame().unwrap();
+    let new_frame = unsafe { pmm::PFA.fork_page_fault(frame, page) };
+    entry.set_frame(new_frame, flags);
+    MapperFlush::new(Page::<Size4KiB>::containing_address(addr)).flush();
+
+    Err(Handled)
+}
+
 //
 
 pub struct PageMap {
@@ -103,54 +141,29 @@ impl PageMapImpl for PageMap {
     fn page_fault(&self, v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
         // TODO: lazy allocs
 
-        // return Ok(NotHandled);
-
         let mut offs = self.offs.write();
+        let l4 = offs.level_4_table();
 
-        let TranslateResult::Mapped {
-            frame,
-            offset,
-            flags,
-        } = offs.translate(v_addr)
-        else {
+        // giant pages
+        let l4e = &mut l4[v_addr.p4_index()];
+        let Some(l3) = next_table(l4e) else {
             return Ok(NotHandled);
         };
 
-        let l4 = offs.level_4_table();
-        let l4e = &mut l4[v_addr.p4_index()];
-        let l3: &mut PageTable =
-            unsafe { &mut *to_higher_half(l4e.frame().unwrap().start_address()).as_mut_ptr() };
-
+        // huge pages
         let l3e = &mut l3[v_addr.p3_index()];
-        let l2: &mut PageTable =
-            unsafe { &mut *to_higher_half(l3e.frame().unwrap().start_address()).as_mut_ptr() };
+        let Some(l2) = next_table(l3e) else {
+            return page_fault_1gib(l3e, v_addr);
+        };
 
+        // normal pages
         let l2e = &mut l2[v_addr.p2_index()];
-        let l1: &mut PageTable =
-            unsafe { &mut *to_higher_half(l2e.frame().unwrap().start_address()).as_mut_ptr() };
+        let Some(l1) = next_table(l2e) else {
+            return page_fault_2mib(l2e, v_addr);
+        };
 
         let l1e = &mut l1[v_addr.p1_index()];
-        let mut l0f = l1e.flags();
-
-        if l0f.contains(COW_WRITEABLE) {
-            l0f.remove(COW);
-            l0f.remove(COW_WRITEABLE);
-            l0f.insert(PageTableFlags::WRITABLE);
-            // bit 11 == writeable copy on write
-        } else if l0f.contains(COW) {
-            l0f.remove(COW);
-            // bit 10 == copy on write
-        } else {
-            return Ok(NotHandled);
-        }
-
-        let page = Page::containing_address(v_addr);
-        let frame = l1e.frame().unwrap();
-        let new_frame = unsafe { pmm::PFA.fork_page_fault(frame, page) };
-        l1e.set_frame(new_frame, l0f);
-        MapperFlush::new(Page::<Size4KiB>::containing_address(v_addr)).flush();
-
-        Err(Handled)
+        page_fault_4kib(l1e, v_addr)
     }
 
     fn current() -> Self {
