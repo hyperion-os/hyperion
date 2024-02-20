@@ -851,6 +851,9 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
         loader.load();
         let entry = loader.finish();
 
+        // the elf is trying to steal our memory, drop the elf as a revenge
+        drop(elf);
+
         // .. and exec the binary
         match entry {
             Ok(entry) => entry.enter(program, args),
