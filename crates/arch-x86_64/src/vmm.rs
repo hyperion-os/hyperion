@@ -932,19 +932,72 @@ impl LockedPageMap {
                 return true;
             }
 
-            let Some((_, frame, flags)) = self.translate_addr(start) else {
-                return false;
-            };
-
-            if !flags.contains(contains) {
+            let l4 = &self.l4[start.p4_index()];
+            if !self.is_mapped_layer(l4, contains) {
                 return false;
             }
 
-            match frame {
-                MappedFrame::Size4KiB(_) => start += Size4KiB::SIZE,
-                MappedFrame::Size2MiB(_) => start += Size2MiB::SIZE,
-                MappedFrame::Size1GiB(_) => start += Size1GiB::SIZE,
+            let l3 = match self.translate_layer(l4) {
+                Some(Ok(next)) => &next[start.p3_index()],
+                Some(Err(())) => unreachable!(),
+                None => return false,
             };
+            if !self.is_mapped_layer(l3, contains) {
+                return false;
+            }
+
+            let l2 = match self.translate_layer(l3) {
+                Some(Ok(next)) => &next[start.p2_index()],
+                Some(Err(())) => {
+                    // giant page
+                    if !l3.flags().contains(contains) {
+                        return false;
+                    }
+
+                    start += Size1GiB::SIZE;
+                    continue;
+                }
+                None => return false,
+            };
+            if !self.is_mapped_layer(l2, contains) {
+                return false;
+            }
+
+            let l1 = match self.translate_layer(l2) {
+                Some(Ok(next)) => &next[start.p1_index()],
+                Some(Err(())) => {
+                    // huge page
+                    if !l2.flags().contains(contains) {
+                        return false;
+                    }
+
+                    start += Size2MiB::SIZE;
+                    continue;
+                }
+                None => return false,
+            };
+            if !self.is_mapped_layer(l1, contains) {
+                return false;
+            }
+
+            if !l2.flags().contains(contains) {
+                return false;
+            }
+
+            start += Size4KiB::SIZE;
+        }
+    }
+
+    fn is_mapped_layer(&self, entry: &PageTableEntry, flags: PageTableFlags) -> bool {
+        let lf = entry.flags();
+        if lf.contains(LAZY_ALLOC) {
+            lf.difference(LAZY_ALLOC).contains(flags)
+        } else if lf.contains(COW) {
+            lf.difference(COW)
+                .union(PageTableFlags::WRITABLE)
+                .contains(flags)
+        } else {
+            true
         }
     }
 
