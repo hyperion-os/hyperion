@@ -1,8 +1,7 @@
 #![no_std]
-#![feature(slice_as_chunks, const_option)]
+#![feature(slice_as_chunks)]
 
 //
 
 pub mod font;
 pub mod framebuffer;
-pub mod logger;

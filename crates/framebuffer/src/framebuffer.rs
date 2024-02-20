@@ -1,6 +1,6 @@
 use core::{
     fmt,
-    ops::{Deref, DerefMut, Range},
+    ops::{Deref, DerefMut},
 };
 
 use hyperion_boot_interface::FramebufferCreateInfo;
@@ -13,10 +13,6 @@ use super::font::FONT;
 
 pub struct Framebuffer {
     buf: &'static mut [u8],
-
-    flush_first: usize,
-    flush_last: usize,
-
     pub info: FramebufferInfo,
 }
 
@@ -31,14 +27,7 @@ pub struct FramebufferInfo {
 
 impl Framebuffer {
     pub fn new(buf: &'static mut [u8], info: FramebufferInfo) -> Self {
-        Self {
-            buf,
-
-            flush_first: 0,
-            flush_last: 0,
-
-            info,
-        }
+        Self { buf, info }
     }
 
     pub fn get() -> Option<&'static Mutex<Framebuffer>> {
@@ -75,8 +64,8 @@ impl Framebuffer {
     }
 
     pub fn pixel(&mut self, x: usize, y: usize, color: Color) {
-        let spot = self.pixel_keep_area(x, y, color);
-        self.flush_area(spot);
+        let spot = x * 4 + y * self.pitch;
+        self.buf[spot..spot + 4].copy_from_slice(&color.as_arr()[..]);
     }
 
     pub fn fill(&mut self, x: usize, y: usize, w: usize, h: usize, color: Color) {
@@ -87,38 +76,21 @@ impl Framebuffer {
                 .0
                 .fill(color.as_arr());
         }
-
-        self.flush_area(x * 4 + y * self.pitch..(x + w) * 4 + (y + h) * self.pitch);
     }
 
     pub fn ascii_char(&mut self, x: usize, y: usize, ch: u8, fg: Color, bg: Color) -> bool {
         let (map, double_wide) = FONT[ch as usize];
 
-        let (w, h) = (if double_wide { 16 } else { 8 }, 8);
+        let w = if double_wide { 16 } else { 8 };
 
         for (yd, row) in map.into_iter().enumerate() {
             for xd in 0..w {
                 let px_col = if (row & 1 << xd) != 0 { fg } else { bg };
-                self.pixel_keep_area(x + xd, y + yd, px_col);
+                self.pixel(x + xd, y + yd, px_col);
             }
         }
 
-        self.flush_area(x * 4 + y * self.pitch..(x + w) * 4 + (y + h) * self.pitch);
-
         double_wide
-    }
-
-    pub fn scroll(&mut self, h: usize) {
-        for y in h..self.height {
-            let _two_rows = &mut self.buf[(y - 1) * self.info.pitch..(y + 1) * self.info.pitch];
-
-            self.buf.copy_within(
-                y * self.info.pitch..(y + 1) * self.info.pitch,
-                (y - h) * self.info.pitch,
-            );
-        }
-
-        self.buf[(self.info.height - h) * self.info.pitch..].fill(0);
     }
 
     pub fn clear(&mut self) {
@@ -127,17 +99,6 @@ impl Framebuffer {
 
     pub fn info(&self) -> FramebufferInfo {
         self.info
-    }
-
-    fn pixel_keep_area(&mut self, x: usize, y: usize, color: Color) -> Range<usize> {
-        let spot = x * 4 + y * self.pitch;
-        self.buf[spot..spot + 4].copy_from_slice(&color.as_arr()[..]);
-        spot..spot + 4
-    }
-
-    fn flush_area(&mut self, area: Range<usize>) {
-        self.flush_first = self.flush_first.min(area.start);
-        self.flush_last = self.flush_last.max(area.end);
     }
 }
 
