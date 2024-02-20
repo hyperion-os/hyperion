@@ -21,7 +21,7 @@ use elf::{
 use elf_wrap::*;
 use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_log::*;
-use hyperion_mem::{is_higher_half, to_higher_half, vmm::PageMapImpl};
+use hyperion_mem::{is_higher_half, vmm::PageMapImpl};
 use hyperion_scheduler::{process, task, task::Process};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -111,7 +111,6 @@ impl<'a> Loader<'a> {
         let v_addr = VirtAddr::new(segment.p_vaddr)
             .align_down(align)
             .align_down(0x1000u64);
-        let align_down_offs = segment.p_vaddr - v_addr.as_u64();
         let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
         let v_size = v_end - v_addr;
 
@@ -152,9 +151,8 @@ impl<'a> Loader<'a> {
             unsafe { slice::from_raw_parts_mut(v_addr.as_mut_ptr(), v_size as usize) };
 
         // fill segment_alloc with segment_data and pad the end with null bytes
-        let (segment_alloc_align_pad, segment_alloc_virtual) =
-            segment_alloc.split_at_mut(align_down_offs as usize);
-        let (segment_alloc_data, segment_alloc_zeros) =
+        let (_, segment_alloc_virtual) = segment_alloc.split_at_mut(align_down_offs as usize);
+        let (segment_alloc_data, _) =
             segment_alloc_virtual.split_at_mut(segment_alloc_virtual.len().min(segment_data.len()));
 
         // the rust compiler will convert these to u64 or even vectors
@@ -203,9 +201,7 @@ impl<'a> Loader<'a> {
         let v_addr = VirtAddr::new(segment.p_vaddr)
             .align_down(align)
             .align_down(0x1000u64);
-        let align_down_offs = segment.p_vaddr - v_addr.as_u64();
         let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
-        let v_size = v_end - v_addr;
         let flags = Self::flags(segment.p_flags);
 
         // println!("remap as {flags:?}");

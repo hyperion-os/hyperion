@@ -298,12 +298,6 @@ impl Process {
     }
 
     pub fn free(&self, n_pages: usize, ptr: VirtAddr) -> Result<(), FreeErr> {
-        let mut bitmap = self.allocs.bitmap();
-
-        let Some(palloc) = self.address_space.page_map.virt_to_phys(ptr) else {
-            return Err(FreeErr::InvalidAddr);
-        };
-
         if !self
             .address_space
             .page_map

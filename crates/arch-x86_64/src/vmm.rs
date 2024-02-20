@@ -22,12 +22,12 @@
 //! User and kernel stack spaces are split into stacks with the size of [`VIRT_STACK_SIZE`].
 
 use alloc::collections::BTreeMap;
-use core::{cmp::Ordering, ops::Range};
+use core::ops::Range;
 
 use hyperion_log::*;
 use hyperion_mem::{
-    from_higher_half, is_higher_half,
-    pmm::{self, PageFrame},
+    from_higher_half,
+    pmm::{self},
     to_higher_half,
     vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
@@ -36,12 +36,9 @@ use x86_64::{
     instructions::tlb,
     registers::control::{Cr3, Cr3Flags},
     structures::paging::{
-        mapper::{
-            MapToError, MappedFrame, MapperFlush, MapperFlushAll, TranslateResult, UnmapError,
-        },
+        mapper::{MapToError, MappedFrame, MapperFlush, MapperFlushAll},
         page_table::{FrameError, PageTableEntry},
-        MappedPageTable, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags,
-        PhysFrame, Size1GiB, Size2MiB, Size4KiB, Translate,
+        Page, PageSize, PageTable, PageTableFlags, PhysFrame, Size1GiB, Size2MiB, Size4KiB,
     },
     PhysAddr, VirtAddr,
 };
@@ -141,7 +138,7 @@ fn page_fault_2mib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResul
 }
 
 fn page_fault_4kib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResult {
-    let mut frame;
+    let frame;
     let mut flags = entry.flags();
 
     if flags.contains(COW) {
@@ -172,10 +169,11 @@ fn alloc_table() -> PhysFrame {
     PhysFrame::<Size4KiB>::from_start_address(frame.physical_addr()).unwrap()
 }
 
-fn free_table(f: PhysFrame) {
+// FIXME: vmm dealloc
+/* fn free_table(f: PhysFrame) {
     let frame = unsafe { PageFrame::new(f.start_address(), 1) };
     pmm::PFA.free(frame)
-}
+} */
 
 //
 
@@ -1033,7 +1031,7 @@ impl LockedPageMap {
         };
 
         let l1e = &l1[v_addr.p1_index()];
-        let phys = match l1e.frame() {
+        match l1e.frame() {
             Ok(p) => p,
             Err(FrameError::FrameNotPresent) => return None,
             Err(FrameError::HugeFrame) => unreachable!("huge page at lvl 1"),
@@ -1310,109 +1308,4 @@ pub enum TryMapError<T: PageSize> {
     WrongSize,
     AlreadyMapped,
     NotMapped,
-}
-
-#[derive(Debug)]
-pub enum TryUnmapError<T: PageSize> {
-    Overflow,
-    NotAligned,
-    MapToError(MapToError<T>),
-    WrongSize,
-    AlreadyMapped,
-}
-
-fn try_map_sized<T>(
-    table: &mut OffsetPageTable,
-    start: VirtAddr,
-    end: VirtAddr,
-    p_addr: PhysAddr,
-    flags: PageTableFlags,
-) -> Result<(), TryMapError<T>>
-where
-    T: PageSize,
-    for<'a> OffsetPageTable<'a>: Mapper<T>,
-{
-    let Some(mapping_end) = start.as_u64().checked_add(T::SIZE - 1) else {
-        return Err(TryMapError::Overflow);
-    };
-
-    if mapping_end > end.as_u64() {
-        return Err(TryMapError::Overflow);
-    }
-
-    if !start.is_aligned(T::SIZE) || !p_addr.is_aligned(T::SIZE) {
-        return Err(TryMapError::NotAligned);
-    }
-
-    let page = Page::<T>::containing_address(start);
-    let frame = PhysFrame::<T>::containing_address(p_addr);
-
-    let result = unsafe {
-        table.map_to_with_table_flags(
-            page,
-            frame,
-            flags,
-            (flags & (PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE))
-                | PageTableFlags::WRITABLE,
-            &mut Pfa,
-        )
-    };
-
-    if let Err(MapToError::PageAlreadyMapped(old_frame)) = result {
-        if old_frame == frame {
-            return Ok(());
-        }
-    }
-
-    result.map_err(|err| TryMapError::MapToError(err))?.flush();
-
-    /* hyperion_log::debug!("mapped 1GiB at 0x{:016x}", start);
-    crash_after_nth(10); */
-
-    Ok(())
-}
-
-fn try_unmap_sized<T>(
-    table: &mut OffsetPageTable,
-    start: VirtAddr,
-    _end: VirtAddr,
-) -> Result<(), TryMapError<T>>
-where
-    T: PageSize,
-    for<'a> OffsetPageTable<'a>: Mapper<T>,
-{
-    let Some(_mapping_end) = start.as_u64().checked_add(T::SIZE - 1) else {
-        return Err(TryMapError::Overflow);
-    };
-
-    /* if mapping_end > end.as_u64() {
-        return Err(TryMapSizedError::Overflow);
-    } */
-
-    if !start.is_aligned(T::SIZE) {
-        return Err(TryMapError::NotAligned);
-    }
-
-    let page = Page::<T>::containing_address(start);
-
-    match table.unmap(page) {
-        Ok((_, ok)) => {
-            ok.flush();
-            Ok(())
-        }
-        Err(UnmapError::PageNotMapped) => {
-            // hyperion_log::debug!("already not mapped");
-            Ok(())
-        }
-        Err(UnmapError::ParentEntryHugePage) => Err(TryMapError::WrongSize),
-        Err(_err) => panic!("{_err:?}"),
-    }
-}
-
-fn v_addr_checked_add(addr: VirtAddr, rhs: u64) -> Option<VirtAddr> {
-    VirtAddr::try_new(addr.as_u64().checked_add(rhs)?).ok()
-}
-
-fn p_addr_checked_add(addr: PhysAddr, rhs: u64) -> Option<PhysAddr> {
-    PhysAddr::try_new(addr.as_u64().checked_add(rhs)?).ok()
 }
