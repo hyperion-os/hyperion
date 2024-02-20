@@ -43,8 +43,14 @@ const PAGE_SIZE: usize = 0x1000; // 4KiB pages
 /// # Safety
 /// todo
 pub unsafe trait PageAlloc {
+    /// # Safety
+    /// the returned pages should always have the requested size,
+    /// the pages must be R/W and they will be exclusively owned by the slab allocator
+    /// the pages should be aligned to 0x1000
     unsafe fn alloc(pages: usize) -> Pages;
 
+    /// # Safety
+    /// the pages are now in an undefined state
     unsafe fn dealloc(frames: Pages);
 }
 

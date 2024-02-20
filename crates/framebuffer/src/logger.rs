@@ -145,7 +145,7 @@ impl Writer {
 
 impl fmt::Write for WriterLock<'_> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.lock.write_bytes(s.as_bytes(), &mut self.fbo);
+        self.lock.write_bytes(s.as_bytes(), self.fbo);
         Ok(())
     }
 }
