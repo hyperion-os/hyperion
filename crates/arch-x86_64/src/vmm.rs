@@ -137,7 +137,7 @@ impl PageMapImpl for PageMap {
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         );
 
-        page_map.debug();
+        // page_map.debug();
 
         page_map
     }
@@ -147,14 +147,10 @@ impl PageMapImpl for PageMap {
     }
 
     fn virt_to_phys(&self, addr: VirtAddr) -> Option<PhysAddr> {
-        if is_higher_half(addr.as_u64()) {
-            Some(from_higher_half(addr))
-        } else {
-            self.inner
-                .read()
-                .translate_addr(addr)
-                .map(|(addr, _, _)| addr)
-        }
+        self.inner
+            .read()
+            .translate_addr(addr)
+            .map(|(addr, _, _)| addr)
     }
 
     fn phys_to_virt(&self, addr: PhysAddr) -> VirtAddr {
@@ -528,12 +524,11 @@ impl LockedPageMap {
 
     fn is_mapped(
         &self,
-        Range { mut start, end }: Range<VirtAddr>,
+        Range { mut start, mut end }: Range<VirtAddr>,
         contains: PageTableFlags,
     ) -> bool {
-        if !start.is_aligned(Size4KiB::SIZE) || !end.is_aligned(Size4KiB::SIZE) {
-            panic!("Not aligned");
-        }
+        start = start.align_down(Size4KiB::SIZE);
+        end = end.align_up(Size4KiB::SIZE);
 
         loop {
             if start >= end {
@@ -594,9 +589,9 @@ impl LockedPageMap {
             Err(FrameError::HugeFrame) => unreachable!("huge page at lvl 1"),
         };
 
-        let f = PhysFrame::from_start_address(l2e.addr()).unwrap();
+        let f = PhysFrame::from_start_address(l1e.addr()).unwrap();
         let addr = f.start_address() + (v_addr.as_u64() & 0o_7777);
-        Some((addr, MappedFrame::Size4KiB(f), l2e.flags()))
+        Some((addr, MappedFrame::Size4KiB(f), l1e.flags()))
     }
 
     fn cr3(&self) -> PhysFrame {

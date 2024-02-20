@@ -16,7 +16,7 @@ use crate::{exit, task, task::TaskInner, tls};
 
 pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFaultResult {
     // debug!(
-    //     "scheduler page fault at {instr:#x} (from {user:?}) (cpu: {})",
+    //     "#PF @{instr:#x} ->{addr:#x} (from {user:?}) (cpu: {})",
     //     cpu_id()
     // );
 
