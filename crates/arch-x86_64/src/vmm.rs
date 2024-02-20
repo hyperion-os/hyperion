@@ -483,6 +483,11 @@ impl LockedPageMap {
         };
         let p3e = &mut p3[from.p3_index()];
 
+        if p3e.flags() == flags && p3e.addr() == to.start_address() {
+            // already mapped but it is already correct
+            return Ok(());
+        }
+
         if !p3e.is_unused() {
             return Err(TryMapError::AlreadyMapped);
         }
@@ -511,6 +516,11 @@ impl LockedPageMap {
             return Err(TryMapError::WrongSize);
         };
         let p2e = &mut p2[from.p2_index()];
+
+        if p2e.flags() == flags && p2e.addr() == to.start_address() {
+            // already mapped but it is already correct
+            return Ok(());
+        }
 
         if !p2e.is_unused() {
             return Err(TryMapError::AlreadyMapped);
