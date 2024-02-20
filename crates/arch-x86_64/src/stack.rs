@@ -56,9 +56,7 @@ impl StackType for KernelStack {
     }
 
     const PAGE_FLAGS: PageTableFlags = PageTableFlags::from_bits_truncate(
-        PageTableFlags::PRESENT.bits()
-            | PageTableFlags::WRITABLE.bits()
-            | PageTableFlags::NO_EXECUTE.bits(),
+        PageTableFlags::WRITABLE.bits() | PageTableFlags::NO_EXECUTE.bits(),
     );
 
     const TY: &'static str = "kernel";
@@ -71,7 +69,6 @@ impl StackType for UserStack {
 
     const PAGE_FLAGS: PageTableFlags = PageTableFlags::from_bits_truncate(
         PageTableFlags::USER_ACCESSIBLE.bits()
-            | PageTableFlags::PRESENT.bits()
             | PageTableFlags::WRITABLE.bits()
             | PageTableFlags::NO_EXECUTE.bits(),
     );

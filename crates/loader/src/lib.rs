@@ -22,7 +22,7 @@ use elf_wrap::*;
 use hyperion_arch::{syscall, vmm::PageMap};
 use hyperion_log::*;
 use hyperion_mem::{is_higher_half, to_higher_half, vmm::PageMapImpl};
-use hyperion_scheduler::{process, task};
+use hyperion_scheduler::{process, task, task::Process};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
@@ -83,23 +83,18 @@ impl<'a> Loader<'a> {
 
         let segments = self.parser.segments().expect("TODO:");
 
-        // let mut master_tls_copy: Option<Layout> = None;
-        // for header in segments.iter().filter(|h| h.p_type == PT_TLS) {
-        //     let master_tls_copy = master_tls_copy.get_or_insert_default();
+        let process = process();
 
-        //     if !header.p_align.is_power_of_two() {
-        //         panic!("align should be power of 2");
-        //     }
-
-        //     let size = align_up(header.p_memsz, header.p_align);
-        //     let align = header.p_align;
-
-        //     master_tls_copy.extend(Layout::from_size_align(size, align));
-        // }
-
-        // TODO: max segments
         for segment in segments.iter() {
-            self.load_segment(segment);
+            self.alloc_segment(&process, segment);
+        }
+
+        for segment in segments.iter() {
+            self.load_segment(&process, segment);
+        }
+
+        for segment in segments.iter() {
+            self.finish_segment(&process, segment);
         }
 
         // TODO: reloactions
@@ -107,7 +102,7 @@ impl<'a> Loader<'a> {
 
     // pub fn load_tls(&self) {}
 
-    pub fn load_segment(&self, segment: ProgramHeader) {
+    fn alloc_segment(&self, proc: &Process, segment: ProgramHeader) {
         if segment.p_type != PT_LOAD && segment.p_type != PT_TLS {
             return;
         }
@@ -117,7 +112,7 @@ impl<'a> Loader<'a> {
             .align_down(align)
             .align_down(0x1000u64);
         let align_down_offs = segment.p_vaddr - v_addr.as_u64();
-        let v_end = (v_addr + segment.p_memsz + align_down_offs).align_up(0x1000u64);
+        let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
         let v_size = v_end - v_addr;
 
         if is_higher_half(v_end.as_u64()) {
@@ -125,27 +120,36 @@ impl<'a> Loader<'a> {
             hyperion_scheduler::exit();
         }
 
-        let flags = Self::flags(segment.p_flags);
+        if proc.name.read().as_str() == "/bin/wm" {
+            let is_tls = segment.p_type == PT_TLS;
+            debug!("alloc_at(is_tls={is_tls} at={v_addr:#x}, up_to={v_end:#x})");
+        }
 
-        // debug!("segment alloc: {v_size:#x} at {v_addr:#x}");
-
-        let process = process();
-
-        let phys = process
-            .alloc_at(v_size as usize / 0x1000, v_addr, flags)
+        proc.alloc_at(v_size as usize / 0x1000, v_addr, PageTableFlags::WRITABLE)
             .unwrap_or_else(|_| {
                 error!("could not load ELF: out of VMEM, killing process");
                 hyperion_scheduler::exit();
             });
+    }
 
-        // using the HHDM address allows writing to a page that the ELF requested to be read only
-        let alloc = to_higher_half(phys);
+    fn load_segment(&self, proc: &Process, segment: ProgramHeader) {
+        if segment.p_type != PT_LOAD && segment.p_type != PT_TLS {
+            return;
+        }
+
+        let align = segment.p_align;
+        let v_addr = VirtAddr::new(segment.p_vaddr)
+            .align_down(align)
+            .align_down(0x1000u64);
+        let align_down_offs = segment.p_vaddr - v_addr.as_u64();
+        let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
+        let v_size = v_end - v_addr;
 
         // debug!("segment phys alloc: {phys:#x} mapped to {alloc:#x}");
 
         let segment_data = self.parser.segment_data(&segment).expect("TODO:");
         let segment_alloc: &mut [MaybeUninit<u8>] =
-            unsafe { slice::from_raw_parts_mut(alloc.as_mut_ptr(), v_size as usize) };
+            unsafe { slice::from_raw_parts_mut(v_addr.as_mut_ptr(), v_size as usize) };
 
         // fill segment_alloc with segment_data and pad the end with null bytes
         let (segment_alloc_align_pad, segment_alloc_virtual) =
@@ -166,28 +170,50 @@ impl<'a> Loader<'a> {
         //     unsafe { ptr::write_volatile(byte, MaybeUninit::zeroed()) };
         // }
 
-        segment_alloc_align_pad.fill(MaybeUninit::zeroed());
-        MaybeUninit::write_slice(segment_alloc_data, segment_data);
-        segment_alloc_zeros.fill(MaybeUninit::zeroed());
+        // segment_alloc_align_pad.fill(MaybeUninit::zeroed());
+        // MaybeUninit::write_slice(segment_alloc_data, segment_data);
+        // segment_alloc_zeros.fill(MaybeUninit::zeroed());
 
         // if it is the TLS segment, save the master TLS copy location + size
         // the scheduler will create copies for each thread
         if segment.p_type == PT_TLS {
-            trace!("TLS {flags:?} {segment:?}");
             let master_tls = (
                 VirtAddr::new(segment.p_vaddr),
+                // Layout::from_size_align(v_size as _, align as _).unwrap(),
                 Layout::from_size_align(align as _, v_size as _).unwrap(),
             );
             let mut loaded = false;
-            process.master_tls.call_once(|| {
+            proc.master_tls.call_once(|| {
                 loaded = true;
                 master_tls
             });
+
+            if !loaded {
+                todo!()
+            }
         }
     }
 
+    fn finish_segment(&self, proc: &Process, segment: ProgramHeader) {
+        if segment.p_type != PT_LOAD {
+            return;
+        }
+
+        let align = segment.p_align;
+        let v_addr = VirtAddr::new(segment.p_vaddr)
+            .align_down(align)
+            .align_down(0x1000u64);
+        let align_down_offs = segment.p_vaddr - v_addr.as_u64();
+        let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
+        let v_size = v_end - v_addr;
+        let flags = Self::flags(segment.p_flags);
+
+        // println!("remap as {flags:?}");
+        proc.address_space.page_map.remap(v_addr..v_end, flags);
+    }
+
     fn flags(p_flags: u32) -> PageTableFlags {
-        let mut flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
+        let mut flags = PageTableFlags::USER_ACCESSIBLE;
         if p_flags & PF_X == 0 {
             flags.insert(PageTableFlags::NO_EXECUTE);
         }

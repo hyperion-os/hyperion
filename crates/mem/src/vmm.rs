@@ -53,6 +53,9 @@ pub trait PageMapImpl {
     /// unmap a range of virtual memory
     fn unmap(&self, v_addr: Range<VirtAddr>);
 
+    /// remap the pages with new flags but the same physical memory
+    fn remap(&self, v_addr: Range<VirtAddr>, new_flags: PageTableFlags);
+
     /// test if a virtual memory range is mapped with (at least) the given flags
     fn is_mapped(&self, v_addr: Range<VirtAddr>, has_at_least: PageTableFlags) -> bool;
 }

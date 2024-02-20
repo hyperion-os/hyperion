@@ -269,11 +269,7 @@ impl Process {
         this
     }
 
-    pub fn alloc(
-        &self,
-        n_pages: usize,
-        flags: PageTableFlags,
-    ) -> Result<(VirtAddr, PhysAddr), AllocErr> {
+    pub fn alloc(&self, n_pages: usize, flags: PageTableFlags) -> Result<VirtAddr, AllocErr> {
         let n_bytes = n_pages * 0x1000;
 
         let Ok(at) = VirtAddr::try_new(self.heap_bottom.fetch_add(n_bytes, Ordering::SeqCst) as _)
@@ -285,9 +281,9 @@ impl Process {
             return Err(AllocErr::OutOfVirtMem);
         }
 
-        let phys = self.alloc_at_keep_heap_bottom(n_pages, at, flags)?;
+        self.alloc_at_keep_heap_bottom(n_pages, at, flags)?;
 
-        Ok((at, phys))
+        Ok(at)
     }
 
     pub fn alloc_at(
@@ -295,7 +291,7 @@ impl Process {
         n_pages: usize,
         at: VirtAddr,
         flags: PageTableFlags,
-    ) -> Result<PhysAddr, AllocErr> {
+    ) -> Result<(), AllocErr> {
         self.heap_bottom
             .fetch_max(at.as_u64() as usize + n_pages * 0x1000, Ordering::SeqCst);
         self.alloc_at_keep_heap_bottom(n_pages, at, flags)
@@ -308,17 +304,14 @@ impl Process {
             return Err(FreeErr::InvalidAddr);
         };
 
-        let page_bottom = palloc.as_u64() as usize / 0x1000;
-        for page in page_bottom..page_bottom + n_pages {
-            if !bitmap.get(page).unwrap() {
-                return Err(FreeErr::InvalidAlloc);
-            }
-
-            bitmap.set(page, false).unwrap();
+        if !self
+            .address_space
+            .page_map
+            .is_mapped(ptr..ptr + n_pages * 0x1000, PageTableFlags::USER_ACCESSIBLE)
+        {
+            return Err(FreeErr::InvalidAlloc);
         }
 
-        let frames = unsafe { PageFrame::new(palloc, n_pages) };
-        pmm::PFA.free(frames);
         self.address_space
             .page_map
             .unmap(ptr..ptr + n_pages * 0x1000);
@@ -331,29 +324,17 @@ impl Process {
         n_pages: usize,
         at: VirtAddr,
         flags: PageTableFlags,
-    ) -> Result<PhysAddr, AllocErr> {
+    ) -> Result<(), AllocErr> {
         let n_bytes = n_pages * 0x1000;
 
         let alloc_bottom = at;
         let alloc_top = at + n_bytes;
 
-        // TODO: split into 1 page chunks
-        let physical_pages = pmm::PFA.alloc(n_pages);
+        self.address_space
+            .page_map
+            .map(alloc_bottom..alloc_top, None, flags);
 
-        self.address_space.page_map.map(
-            alloc_bottom..alloc_top,
-            Some(physical_pages.physical_addr()),
-            flags,
-        );
-
-        let page_bottom = physical_pages.physical_addr().as_u64() as usize / 0x1000;
-
-        let mut bitmap = self.allocs.bitmap();
-        for page in page_bottom..page_bottom + n_pages {
-            bitmap.set(page, true).unwrap();
-        }
-
-        Ok(physical_pages.physical_addr())
+        Ok(())
     }
 }
 
@@ -451,12 +432,10 @@ impl TaskInner {
                 // the alloc is align_up(TLS) + TCB
                 let tls_alloc = align_up(layout.size() as u64, 0x10u64);
                 let n_pages = tls_alloc.div_ceil(0x1000) as usize + 1;
-                let (tls_copy, _) = self
+                let tls_copy = self
                     .alloc(
                         n_pages,
-                        PageTableFlags::USER_ACCESSIBLE
-                            | PageTableFlags::WRITABLE
-                            | PageTableFlags::PRESENT,
+                        PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
                     )
                     .unwrap();
 

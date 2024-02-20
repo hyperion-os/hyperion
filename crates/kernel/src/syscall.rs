@@ -259,11 +259,10 @@ pub fn palloc(args: &mut SyscallRegs) -> Result<usize> {
 
 // #[trace]
 fn _palloc(n_pages: usize) -> Result<VirtAddr> {
-    let flags =
-        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
+    let flags = PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
 
     match process().alloc(n_pages, flags) {
-        Ok((ptr, _)) => Ok(ptr),
+        Ok(ptr) => Ok(ptr),
         Err(AllocErr::OutOfVirtMem) => Err(Error::OUT_OF_VIRTUAL_MEMORY),
     }
 }
@@ -722,11 +721,14 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
     let mut offs = 0u64;
     for phys in phys.into_vec() {
         let bottom = VirtAddr::new(bottom) + offs;
-        debug!("mapping phys page {:018x}", phys.virtual_addr());
+        debug!(
+            "mapping phys page {:#018x} to {bottom:#018x}",
+            phys.physical_addr(),
+        );
         this.address_space.page_map.map(
             bottom..bottom + size,
             Some(phys.physical_addr()),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
+            PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
         );
         offs += size;
     }
