@@ -322,7 +322,11 @@ impl<T: StackType + Debug> Stack<T> {
             self.extra_alloc.push(alloc);
         }
 
-        page_map.map(new_guard_page.end..old_guard_page.end, alloc, T::PAGE_FLAGS);
+        page_map.map(
+            new_guard_page.end..old_guard_page.end,
+            Some(alloc), // the virtual memory manager handles this lazy allocation now, this manual lazy stack is basically useless now
+            T::PAGE_FLAGS,
+        );
         page_map.unmap(new_guard_page);
 
         Ok(())

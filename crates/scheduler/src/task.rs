@@ -342,7 +342,7 @@ impl Process {
 
         self.address_space.page_map.map(
             alloc_bottom..alloc_top,
-            physical_pages.physical_addr(),
+            Some(physical_pages.physical_addr()),
             flags,
         );
 

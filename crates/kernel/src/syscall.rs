@@ -725,7 +725,7 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
         debug!("mapping phys page {:018x}", phys.virtual_addr());
         this.address_space.page_map.map(
             bottom..bottom + size,
-            phys.physical_addr(),
+            Some(phys.physical_addr()),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
         );
         offs += size;
