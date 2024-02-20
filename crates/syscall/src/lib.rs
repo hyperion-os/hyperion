@@ -4,6 +4,7 @@
 //
 
 use core::{
+    fmt::{self, Arguments, Write},
     mem::MaybeUninit,
     ptr::{self, NonNull},
     sync::atomic::AtomicUsize,
@@ -139,6 +140,28 @@ syscall! {
     syscall_3(syscall_id, a0, a1, a2);
     syscall_4(syscall_id, a0, a1, a2, a3);
     syscall_5(syscall_id, a0, a1, a2, a3, a4);
+}
+
+#[macro_export]
+macro_rules! log {
+    ($($t:tt)*) => {
+        $crate::_sys_log(format_args!("{}\n", format_args!($($t)*)));
+    };
+}
+
+//
+
+#[doc(hidden)]
+pub fn _sys_log(args: Arguments) {
+    struct SysLog;
+
+    impl Write for SysLog {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            log(s).map_err(|_| fmt::Error)
+        }
+    }
+
+    _ = SysLog.write_fmt(args);
 }
 
 //
