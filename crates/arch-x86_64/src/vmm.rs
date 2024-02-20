@@ -26,7 +26,7 @@ use core::{cmp::Ordering, ops::Range};
 
 use hyperion_log::*;
 use hyperion_mem::{
-    from_higher_half, is_higher_half, pmm,
+    from_higher_half, is_higher_half,
     pmm::{self, PageFrame},
     to_higher_half,
     vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
@@ -36,7 +36,9 @@ use x86_64::{
     instructions::tlb,
     registers::control::{Cr3, Cr3Flags},
     structures::paging::{
-        mapper::{MapToError, MappedFrame, MapperFlush, TranslateResult, UnmapError},
+        mapper::{
+            MapToError, MappedFrame, MapperFlush, MapperFlushAll, TranslateResult, UnmapError,
+        },
         page_table::{FrameError, PageTableEntry},
         MappedPageTable, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags,
         PhysFrame, Size1GiB, Size2MiB, Size4KiB, Translate,
@@ -120,8 +122,6 @@ fn page_fault_4kib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResul
     Err(Handled)
 }
 
-//
-
 fn alloc_table() -> PhysFrame {
     let frame = pmm::PFA.alloc(1);
     PhysFrame::<Size4KiB>::from_start_address(frame.physical_addr()).unwrap()
@@ -143,8 +143,8 @@ impl PageMapImpl for PageMap {
     fn page_fault(&self, v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
         // TODO: lazy allocs
 
-        let mut offs = self.offs.write();
-        let l4 = offs.level_4_table();
+        let mut inner = self.inner.write();
+        let l4 = inner.l4();
 
         // giant pages
         let l4e = &mut l4[v_addr.p4_index()];
@@ -230,7 +230,7 @@ impl PageMapImpl for PageMap {
 
         assert!(self.is_active());
 
-        let mut offs = self.offs.write();
+        let mut inner = self.inner.write();
         // TODO: CoW page tables also
 
         let hhdm_p4_index: usize = VirtAddr::new(hyperion_boot::hhdm_offset())
@@ -238,7 +238,7 @@ impl PageMapImpl for PageMap {
             .into();
 
         // TODO: iter maps instead of this mess
-        let l4: &mut PageTable = offs.level_4_table();
+        let l4: &mut PageTable = inner.l4();
         for (l4i, l4e) in l4.iter_mut().enumerate() {
             if l4i >= hhdm_p4_index {
                 break;
@@ -344,9 +344,7 @@ impl PageMapImpl for PageMap {
         self.inner.write().map(v_addr, p_addr, flags)
     }
 
-    #[track_caller]
     fn unmap(&self, v_addr: Range<VirtAddr>) {
-        hyperion_log::debug!("({})", core::panic::Location::caller());
         self.inner.write().unmap(v_addr)
     }
 
@@ -393,7 +391,7 @@ impl LockedPageMap {
             panic!("Not aligned");
         }
 
-        hyperion_log::debug!(
+        hyperion_log::trace!(
             "mapping [ 0x{start:016x}..0x{end:016x} ] to 0x{to:016x} with {flags:?}"
         );
 
@@ -427,6 +425,7 @@ impl LockedPageMap {
             hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
             hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
             hyperion_log::error!(" .. 4KiB: {err_4kib:?}");
+            panic!();
         }
     }
 
@@ -439,12 +438,10 @@ impl LockedPageMap {
         };
 
         let Some(limit) = end.as_u64().checked_sub(S::SIZE) else {
-            hyperion_log::debug!("limit calc");
             return Err(TryMapError::Overflow);
         };
 
         if start.as_u64() > limit {
-            hyperion_log::debug!("limit test {start:#018x}..{end:#018x}");
             return Err(TryMapError::Overflow);
         }
 
@@ -547,6 +544,11 @@ impl LockedPageMap {
         };
         let p1e = &mut p1[from.p1_index()];
 
+        if p1e.flags() == flags && p1e.addr() == to.start_address() {
+            // already mapped but it is already correct
+            return Ok(());
+        }
+
         if !p1e.is_unused() {
             return Err(TryMapError::AlreadyMapped);
         }
@@ -563,7 +565,7 @@ impl LockedPageMap {
             panic!("Not aligned");
         }
 
-        hyperion_log::debug!("unmapping [ 0x{start:016x}..0x{end:016x} ]");
+        hyperion_log::trace!("unmapping [ 0x{start:016x}..0x{end:016x} ]");
 
         loop {
             if start == end {
@@ -572,7 +574,7 @@ impl LockedPageMap {
                 panic!("over-unmapped");
             }
 
-            hyperion_log::debug!("unmapping {start:#018x}");
+            hyperion_log::trace!("unmapping {start:#018x}");
 
             let Err(err_1gib) = self.try_unmap_1gib(start..end) else {
                 // could crash if the last possible phys/virt page was mapped
@@ -594,6 +596,7 @@ impl LockedPageMap {
             hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
             hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
             hyperion_log::error!(" .. 4KiB: {err_4kib:?}");
+            panic!();
         }
     }
 
@@ -623,7 +626,6 @@ impl LockedPageMap {
         let p3e = &mut p3[from.p3_index()];
 
         if p3e.is_unused() {
-            hyperion_log::warn!("already unmapped");
             return Ok(());
         }
 
@@ -648,13 +650,11 @@ impl LockedPageMap {
             unreachable!("512GiB maps are not supported");
         };
         let Some(p2) = Self::read_table(&mut p3[from.p3_index()])? else {
-            hyperion_log::warn!("already unmapped");
             return Ok(());
         };
         let p2e = &mut p2[from.p2_index()];
 
         if p2e.is_unused() {
-            hyperion_log::warn!("already unmapped");
             return Ok(());
         }
 
@@ -676,21 +676,17 @@ impl LockedPageMap {
         let (from, _) = Self::is_map_valid(start..end, PhysAddr::new_truncate(0))?;
 
         let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
-            hyperion_log::warn!("already unmapped p3");
             return Ok(());
         };
         let Some(p2) = Self::read_table(&mut p3[from.p3_index()])? else {
-            hyperion_log::warn!("already unmapped p2");
             return Ok(());
         };
         let Some(p1) = Self::read_table(&mut p2[from.p2_index()])? else {
-            hyperion_log::warn!("already unmapped p1");
             return Ok(());
         };
         let p1e = &mut p1[from.p1_index()];
 
         if p1e.is_unused() {
-            hyperion_log::warn!("already unmapped");
             return Ok(());
         }
 

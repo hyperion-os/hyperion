@@ -544,19 +544,13 @@ impl Task {
         let process = Process::new(Pid::next(), name, AddressSpace::new(PageMap::new()));
 
         let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
-        let stack_top = kernel_stack.top;
         let user_stack = process.address_space.take_user_stack_lazy();
 
         let context = UnsafeCell::new(Context::new(
             &process.address_space.page_map,
-            stack_top,
+            kernel_stack.top,
             thread_entry,
         ));
-
-        trace!(
-            "task rsp:{stack_top:#x} cr3:{:#x}",
-            process.address_space.page_map.cr3().start_address()
-        );
 
         TASKS_READY.fetch_add(1, Ordering::Relaxed);
         Self(Arc::new(TaskInner {
@@ -583,12 +577,10 @@ impl Task {
         let user_stack = self.user_stack.lock().clone();
         let address_space = self.address_space.fork(&user_stack);
         let kernel_stack = address_space.take_kernel_stack_prealloc(1);
-        let stack_top = kernel_stack.top;
-        user_stack.remap(&address_space.page_map);
 
         let context = UnsafeCell::new(Context::new(
             &address_space.page_map,
-            stack_top,
+            kernel_stack.top,
             thread_entry,
         ));
 
@@ -621,12 +613,11 @@ impl Task {
         process.threads.fetch_add(1, Ordering::Relaxed);
 
         let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
-        let stack_top = kernel_stack.top;
         let user_stack = process.address_space.take_user_stack_lazy();
 
         let context = UnsafeCell::new(Context::new(
             &process.address_space.page_map,
-            stack_top,
+            kernel_stack.top,
             thread_entry,
         ));
 

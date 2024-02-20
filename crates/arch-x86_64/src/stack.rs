@@ -360,21 +360,6 @@ impl<T: StackType + Debug> Stack<T> {
         Err(Handled)
     }
 
-    pub fn remap(&self, page_map: &PageMap) {
-        for (i, p_addr) in ([self.base_alloc]
-            .into_iter()
-            .chain(self.extra_alloc.iter().copied()))
-        .enumerate()
-        {
-            page_map.map(
-                self.top - i * 0x1000 - 0x1000u64..self.top - i * 0x1000,
-                p_addr,
-                T::PAGE_FLAGS,
-            );
-        }
-        page_map.unmap(Self::page_range(self.guard_page()));
-    }
-
     pub fn cleanup(&mut self, page_map: &PageMap) {
         if self.extent_4k_pages == 0 {
             return;
