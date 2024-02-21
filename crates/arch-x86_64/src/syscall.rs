@@ -1,7 +1,6 @@
-use core::{arch::asm, fmt};
+use core::{arch::asm, fmt, mem::offset_of};
 
 use crossbeam::atomic::AtomicCell;
-use memoffset::offset_of;
 use x86_64::{
     registers::{
         model_specific::{Efer, EferFlags, LStar, SFMask, Star},

@@ -13,7 +13,6 @@ spin.workspace = true
 smallvec.workspace = true
 x86_64.workspace = true
 crossbeam.workspace = true
-memoffset = { version = "0.9", features = ["unstable_const"] }
 
 hyperion-boot-interface.path = "../boot-interface"
 hyperion-boot.path = "../boot"

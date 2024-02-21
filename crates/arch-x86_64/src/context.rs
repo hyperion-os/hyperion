@@ -1,7 +1,10 @@
-use core::{arch::asm, mem::size_of, sync::atomic::Ordering};
+use core::{
+    arch::asm,
+    mem::{offset_of, size_of},
+    sync::atomic::Ordering,
+};
 
 use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
-use memoffset::offset_of;
 use x86_64::{
     registers::{
         model_specific::KernelGsBase,

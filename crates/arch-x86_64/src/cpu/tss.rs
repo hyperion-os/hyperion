@@ -1,10 +1,10 @@
 use core::{
     cell::UnsafeCell,
+    ptr::addr_of_mut,
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
 
 use hyperion_mem::pmm;
-use memoffset::raw_field;
 use x86_64::{structures::tss::TaskStateSegment, VirtAddr};
 
 //
@@ -55,7 +55,7 @@ impl Tss {
     pub unsafe fn set_privilege_stack(&self, ptr: VirtAddr) {
         // force the save immediately
         let pst: *const [VirtAddr; 3] =
-            raw_field!(self.inner.get(), TaskStateSegment, privilege_stack_table);
+            unsafe { addr_of_mut!((*self.inner.get()).privilege_stack_table) };
         let first = pst.cast::<AtomicU64>();
 
         unsafe { &*first }.store(ptr.as_u64(), Ordering::SeqCst);
