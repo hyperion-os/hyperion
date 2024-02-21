@@ -21,6 +21,8 @@
 //!
 //! User and kernel stack spaces are split into stacks with the size of [`VIRT_STACK_SIZE`].
 
+#![allow(clippy::comparison_chain)]
+
 use core::{mem::ManuallyDrop, ops::Range};
 
 use hyperion_mem::{
@@ -1019,14 +1021,14 @@ impl LockedPageMap {
         let l3e = &l3[v_addr.p3_index()];
         let Ok(l2) = Self::translate_layer(l3e)? else {
             let f = PhysFrame::from_start_address(l3e.addr()).unwrap();
-            let addr = f.start_address() + (v_addr.as_u64() & 0o_777_777_7777);
+            let addr = f.start_address() + (v_addr.as_u64() & 0o7_777_777_777);
             return Some((addr, MappedFrame::Size1GiB(f), l3e.flags()));
         };
 
         let l2e = &l2[v_addr.p2_index()];
         let Ok(l1) = Self::translate_layer(l2e)? else {
             let f = PhysFrame::from_start_address(l2e.addr()).unwrap();
-            let addr = f.start_address() + (v_addr.as_u64() & 0o_777_7777);
+            let addr = f.start_address() + (v_addr.as_u64() & 0o7_777_777);
             return Some((addr, MappedFrame::Size2MiB(f), l2e.flags()));
         };
 
@@ -1038,7 +1040,7 @@ impl LockedPageMap {
         };
 
         let f = PhysFrame::from_start_address(l1e.addr()).unwrap();
-        let addr = f.start_address() + (v_addr.as_u64() & 0o_7777);
+        let addr = f.start_address() + (v_addr.as_u64() & 0o7_777);
         Some((addr, MappedFrame::Size4KiB(f), l1e.flags()))
     }
 
