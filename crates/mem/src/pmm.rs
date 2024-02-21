@@ -144,10 +144,9 @@ impl PageFrameAllocator {
     }
 
     /// Free up pages
-    // #[track_caller]
     pub fn free(&self, mut frame: PageFrame) {
         if frame.first.as_u64() == 0 || frame.count == 0 {
-            return;
+            panic!();
         }
 
         frame.as_bytes_mut().fill(0);
@@ -157,7 +156,7 @@ impl PageFrameAllocator {
     /// Free up pages without destroying the data
     pub fn free_no_overwrite(&self, frame: PageFrame) {
         if frame.first.as_u64() == 0 || frame.count == 0 {
-            return;
+            panic!();
         }
 
         let page = frame.first.as_u64() as usize / PAGE_SIZE;

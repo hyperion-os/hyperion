@@ -2,6 +2,7 @@ use alloc::{vec, vec::Vec};
 use core::{
     fmt::Debug,
     marker::PhantomData,
+    mem,
     ops::Range,
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -131,8 +132,9 @@ impl<T: StackType + Debug> Stacks<T> {
         stack
     }
 
-    pub fn free(&self, stack: Stack<T>) {
+    pub fn free(&self, page_map: &PageMap, stack: Stack<T>) {
         self.free_stacks.push(stack.top.as_u64());
+        stack.dealloc(page_map);
     }
 }
 
@@ -171,7 +173,7 @@ impl AddressSpace {
             if try_stack.top == keep_user.top {
                 break;
             }
-            user_stacks.free(try_stack);
+            user_stacks.free_stacks.push(try_stack.top.as_u64());
         }
 
         Self {
@@ -244,20 +246,6 @@ impl<T> Default for Stack<T> {
     }
 }
 
-impl<T> Drop for Stack<T> {
-    fn drop(&mut self) {
-        if !self.base_alloc.is_null() {
-            let page = unsafe { PageFrame::new(self.base_alloc, 1) };
-            pmm::PFA.free(page);
-        }
-
-        for alloc in self.extra_alloc.iter().copied() {
-            let page = unsafe { PageFrame::new(alloc, 1) };
-            pmm::PFA.free(page);
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct StackLimitHit;
 
@@ -285,6 +273,11 @@ impl<T: StackType + Debug> Stack<T> {
 
     fn page_range(page: VirtAddr) -> Range<VirtAddr> {
         page..page + 0x1000u64
+    }
+
+    pub fn dealloc(self, page_map: &PageMap) {
+        page_map.unmap(self.guard_page()..self.top);
+        mem::forget(self);
     }
 
     /// won't allocate the stack,

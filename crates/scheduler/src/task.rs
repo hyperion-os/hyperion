@@ -125,25 +125,6 @@ extern "C" fn thread_entry() -> ! {
 
 //
 
-#[derive(Debug, Default)]
-pub struct PageAllocs {
-    // TODO: a better way to keep track of allocated pages
-    bitmap: Once<Mutex<Bitmap<'static>>>,
-}
-
-impl PageAllocs {
-    pub fn bitmap(&self) -> MutexGuard<Bitmap<'static>> {
-        self.bitmap
-            .call_once(|| {
-                let bitmap_alloc = vec![0u8; pmm::PFA.bitmap_len() / 8 + 1];
-                Mutex::new(Bitmap::new(Vec::leak(bitmap_alloc)))
-            })
-            .lock()
-    }
-}
-
-//
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Pid(usize);
 
@@ -221,10 +202,6 @@ pub struct Process {
     /// process heap beginning, the end of the user process
     pub heap_bottom: AtomicUsize,
 
-    // TODO: the AddressSpace already knows these
-    /// a store for all allocated (and mapped) physical pages
-    pub allocs: PageAllocs,
-
     /// TLS object data, each thread allocates one into the userspace
     /// and the $fs segment register should be set to point to it
     pub master_tls: Once<(VirtAddr, Layout)>,
@@ -258,7 +235,6 @@ impl Process {
             nanos: AtomicU64::new(0),
             address_space,
             heap_bottom: AtomicUsize::new(0x1000),
-            allocs: PageAllocs::default(),
             master_tls: Once::new(),
             ext: Once::new(),
             should_terminate: AtomicBool::new(false),
@@ -335,20 +311,7 @@ impl Process {
 impl Drop for Process {
     fn drop(&mut self) {
         // hyperion_log::debug!("dropping process '{}'", self.name.get_mut());
-
         PROCESSES.lock().remove(&self.pid);
-
-        let Some(bitmap) = self.allocs.bitmap.get_mut() else {
-            return;
-        };
-        let bitmap = bitmap.get_mut();
-
-        for page in bitmap.iter_true() {
-            let phys_page = unsafe { PageFrame::new(PhysAddr::new(page as u64 * 0x1000), 1) };
-            pmm::PFA.free(phys_page);
-        }
-
-        // the page map is dropped, so unmapping pages isn't needed
     }
 }
 
@@ -491,10 +454,11 @@ impl Drop for TaskInner {
 
         self.threads.fetch_sub(1, Ordering::Relaxed);
 
-        let ks = mem::take(&mut self.kernel_stack).into_inner();
-        self.address_space.kernel_stacks.free(ks);
-        let ks = mem::take(&mut self.user_stack).into_inner();
-        self.address_space.user_stacks.free(ks);
+        let k_stack = mem::take(&mut self.kernel_stack).into_inner();
+        let u_stack = mem::take(&mut self.user_stack).into_inner();
+        let spc = &self.address_space;
+        spc.kernel_stacks.free(&spc.page_map, k_stack);
+        spc.user_stacks.free(&spc.page_map, u_stack);
 
         TASKS_DROPPING.fetch_sub(1, Ordering::Relaxed);
     }

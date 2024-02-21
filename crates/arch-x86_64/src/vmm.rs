@@ -22,12 +22,12 @@
 //! User and kernel stack spaces are split into stacks with the size of [`VIRT_STACK_SIZE`].
 
 use alloc::collections::BTreeMap;
-use core::ops::Range;
+use core::{mem::ManuallyDrop, ops::Range};
 
 use hyperion_log::*;
 use hyperion_mem::{
     from_higher_half,
-    pmm::{self},
+    pmm::{self, PageFrame},
     to_higher_half,
     vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
@@ -178,7 +178,7 @@ fn alloc_table() -> PhysFrame {
 //
 
 pub struct PageMap {
-    inner: RwLock<LockedPageMap>,
+    inner: ManuallyDrop<RwLock<LockedPageMap>>,
     owned: bool,
 }
 
@@ -216,7 +216,7 @@ impl PageMapImpl for PageMap {
         let l4: &mut PageTable = unsafe { &mut *to_higher_half(l4.start_address()).as_mut_ptr() };
 
         Self {
-            inner: RwLock::new(LockedPageMap { l4 }),
+            inner: ManuallyDrop::new(RwLock::new(LockedPageMap { l4 })),
             owned: false,
         }
     }
@@ -230,7 +230,7 @@ impl PageMapImpl for PageMap {
         // TODO: Copy on write maps
 
         let page_map = Self {
-            inner: RwLock::new(LockedPageMap { l4 }),
+            inner: ManuallyDrop::new(RwLock::new(LockedPageMap { l4 })),
             owned: true,
         };
 
@@ -243,7 +243,7 @@ impl PageMapImpl for PageMap {
         page_map.map(
             HIGHER_HALF_DIRECT_MAPPING..HIGHER_HALF_DIRECT_MAPPING + 0x100000000u64, // KERNEL_STACKS,
             Some(PhysAddr::new(0x0)),
-            PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+            PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE | NO_FREE,
         );
 
         // FIXME: less dumb kernel mapping
@@ -258,7 +258,7 @@ impl PageMapImpl for PageMap {
         page_map.map(
             kernel..top,
             Some(PhysAddr::new(hyperion_boot::phys_addr() as _)),
-            PageTableFlags::WRITABLE,
+            PageTableFlags::WRITABLE | NO_FREE,
         );
 
         // page_map.debug();
@@ -704,8 +704,14 @@ impl LockedPageMap {
             return Ok(());
         }
 
-        if entry.flags().contains(PageTableFlags::HUGE_PAGE) != should_be_huge_page {
+        let f = entry.flags();
+        if f.contains(PageTableFlags::HUGE_PAGE) != should_be_huge_page {
             return Err(TryMapError::WrongSize);
+        }
+
+        if f.contains(PageTableFlags::PRESENT) && !f.contains(NO_FREE) {
+            let frames = unsafe { PageFrame::new(entry.addr(), S::SIZE as usize / 0x1000) };
+            pmm::PFA.free(frames);
         }
 
         // free_table(PhysFrame::from_start_address(p3e.addr()).unwrap());
@@ -826,7 +832,6 @@ impl LockedPageMap {
             PageTableFlags::PRESENT
                 | PageTableFlags::ACCESSED
                 | PageTableFlags::DIRTY
-                | NO_FREE
                 | COW
                 | LAZY_ALLOC,
         ));
@@ -935,7 +940,7 @@ impl LockedPageMap {
                 return false;
             }
 
-            let l3 = match self.translate_layer(l4) {
+            let l3 = match Self::translate_layer(l4) {
                 Some(Ok(next)) => &next[start.p3_index()],
                 Some(Err(())) => unreachable!(),
                 None => return false,
@@ -944,7 +949,7 @@ impl LockedPageMap {
                 return false;
             }
 
-            let l2 = match self.translate_layer(l3) {
+            let l2 = match Self::translate_layer(l3) {
                 Some(Ok(next)) => &next[start.p2_index()],
                 Some(Err(())) => {
                     // giant page
@@ -961,7 +966,7 @@ impl LockedPageMap {
                 return false;
             }
 
-            let l1 = match self.translate_layer(l2) {
+            let l1 = match Self::translate_layer(l2) {
                 Some(Ok(next)) => &next[start.p1_index()],
                 Some(Err(())) => {
                     // huge page
@@ -999,7 +1004,7 @@ impl LockedPageMap {
         }
     }
 
-    fn translate_layer(&self, entry: &PageTableEntry) -> Option<Result<&PageTable, ()>> {
+    fn translate_layer(entry: &PageTableEntry) -> Option<Result<&PageTable, ()>> {
         match entry.frame() {
             Ok(next) => {
                 let addr = to_higher_half(next.start_address()).as_ptr();
@@ -1012,19 +1017,19 @@ impl LockedPageMap {
 
     fn translate_addr(&self, v_addr: VirtAddr) -> Option<(PhysAddr, MappedFrame, PageTableFlags)> {
         let l4e = &self.l4[v_addr.p4_index()];
-        let Ok(l3) = self.translate_layer(l4e)? else {
+        let Ok(l3) = Self::translate_layer(l4e)? else {
             unreachable!("512GiB maps are not supported");
         };
 
         let l3e = &l3[v_addr.p3_index()];
-        let Ok(l2) = self.translate_layer(l3e)? else {
+        let Ok(l2) = Self::translate_layer(l3e)? else {
             let f = PhysFrame::from_start_address(l3e.addr()).unwrap();
             let addr = f.start_address() + (v_addr.as_u64() & 0o_777_777_7777);
             return Some((addr, MappedFrame::Size1GiB(f), l3e.flags()));
         };
 
         let l2e = &l2[v_addr.p2_index()];
-        let Ok(l1) = self.translate_layer(l2e)? else {
+        let Ok(l1) = Self::translate_layer(l2e)? else {
             let f = PhysFrame::from_start_address(l2e.addr()).unwrap();
             let addr = f.start_address() + (v_addr.as_u64() & 0o_777_7777);
             return Some((addr, MappedFrame::Size2MiB(f), l2e.flags()));
@@ -1050,6 +1055,114 @@ impl LockedPageMap {
 
     fn is_active(&self) -> bool {
         Cr3::read().0 == self.cr3()
+    }
+
+    fn clear(&mut self) {
+        for entry in self.l4.iter_mut() {
+            Self::clear_l3(entry);
+        }
+
+        self.l4.zero();
+    }
+
+    fn as_page_table_mut(
+        entry: &mut PageTableEntry,
+    ) -> Option<Result<(&mut PageTable, PhysFrame), ()>> {
+        match entry.frame() {
+            Ok(next) => {
+                let addr = to_higher_half(next.start_address()).as_mut_ptr();
+                Some(Ok((unsafe { &mut *addr }, next)))
+            }
+            Err(FrameError::FrameNotPresent) => None,
+            Err(FrameError::HugeFrame) => Some(Err(())),
+        }
+    }
+
+    fn clear_l3(entry: &mut PageTableEntry) {
+        let (next, next_frame) = match Self::as_page_table_mut(entry) {
+            Some(Ok(next)) => next,
+            Some(Err(())) => unreachable!(),
+            None => return,
+        };
+
+        for entry in next.iter_mut() {
+            Self::clear_l2(entry);
+        }
+
+        next.zero();
+        _ = next;
+
+        // free the table itself
+        let frame = unsafe { PageFrame::new(next_frame.start_address(), 1) };
+        pmm::PFA.free(frame);
+    }
+
+    fn clear_l2(entry: &mut PageTableEntry) {
+        let (next, next_frame) = match Self::as_page_table_mut(entry) {
+            Some(Ok(next)) => next,
+            Some(Err(())) => {
+                if entry.flags().contains(NO_FREE) {
+                    return;
+                }
+
+                // giant page
+                let frames = unsafe { PageFrame::new(entry.addr(), 512 * 512) };
+                pmm::PFA.free(frames);
+                return;
+            }
+            None => return,
+        };
+
+        for entry in next.iter_mut() {
+            Self::clear_l1(entry);
+        }
+
+        next.zero();
+        _ = next;
+
+        // free the table itself
+        let frame = unsafe { PageFrame::new(next_frame.start_address(), 1) };
+        pmm::PFA.free(frame);
+    }
+
+    fn clear_l1(entry: &mut PageTableEntry) {
+        let (next, next_frame) = match Self::as_page_table_mut(entry) {
+            Some(Ok(next)) => next,
+            Some(Err(())) => {
+                if entry.flags().contains(NO_FREE) {
+                    return;
+                }
+
+                // huge page
+                let frames = unsafe { PageFrame::new(entry.addr(), 512) };
+                pmm::PFA.free(frames);
+                return;
+            }
+            None => return,
+        };
+
+        for entry in next.iter_mut() {
+            if entry.flags().contains(NO_FREE) {
+                continue;
+            }
+
+            match Self::as_page_table_mut(entry) {
+                Some(Ok((_, frame))) => {
+                    // normal page
+                    let frames = unsafe { PageFrame::new(frame.start_address(), 1) };
+                    pmm::PFA.free(frames);
+                }
+                Some(Err(())) => unreachable!(),
+                None => {}
+            }
+        }
+
+        next.zero();
+        _ = next;
+
+        // free the table itself
+        let frame = unsafe { PageFrame::new(next_frame.start_address(), 1) };
+        pmm::PFA.free(frame);
     }
 }
 
@@ -1086,219 +1199,28 @@ impl PageMap {
 
         for (from_l4e, into_l4e) in from_l4.iter_mut().zip(into_l4) {} */
     }
-
-    pub fn debug(&self) {
-        fn travel_level(
-            flags: PageTableFlags,
-            l: WalkTableIterResult,
-            output: &mut BTreeMap<u64, (PageTableFlags, u64)>,
-            v_addr: usize,
-        ) {
-            match l {
-                WalkTableIterResult::Size1GiB(_p_addr) => {
-                    // output.insert(p_addr.as_u64(), (flags, Size1GiB::SIZE));
-                    output.insert(v_addr as u64, (flags, Size1GiB::SIZE));
-                }
-                WalkTableIterResult::Size2MiB(_p_addr) => {
-                    // output.insert(p_addr.as_u64(), (flags, Size2MiB::SIZE));
-                    output.insert(v_addr as u64, (flags, Size2MiB::SIZE));
-                }
-                WalkTableIterResult::Size4KiB(_p_addr) => {
-                    // output.insert(p_addr.as_u64(), (flags, Size4KiB::SIZE));
-                    output.insert(v_addr as u64, (flags, Size4KiB::SIZE));
-                }
-                WalkTableIterResult::Level3(l3) => {
-                    for (i, flags, entry) in l3.iter() {
-                        travel_level(flags, entry, output, v_addr + (i << 12 << 9 << 9));
-                    }
-                }
-                WalkTableIterResult::Level2(l2) => {
-                    for (i, flags, entry) in l2.iter() {
-                        travel_level(flags, entry, output, v_addr + (i << 12 << 9));
-                    }
-                }
-                WalkTableIterResult::Level1(l1) => {
-                    for (i, flags, entry) in l1.iter() {
-                        travel_level(flags, entry, output, v_addr + (i << 12));
-                    }
-                }
-            }
-        }
-
-        let hhdm_p4_index: usize = VirtAddr::new(hyperion_boot::hhdm_offset())
-            .p4_index()
-            .into();
-
-        let inner = self.inner.read();
-
-        println!("BEGIN PAGE TABLE ITER");
-        let mut output = BTreeMap::new();
-        let mut output_hh = BTreeMap::new();
-        let l4 = Level4::from_pml4(inner.l4);
-        for (i, flags, entry) in l4.iter() {
-            let v_addr = i << 12 << 9 << 9 << 9;
-            if i < hhdm_p4_index {
-                travel_level(flags, entry, &mut output, v_addr);
-            } else {
-                travel_level(flags, entry, &mut output_hh, v_addr);
-            }
-        }
-        println!("END PAGE TABLE ITER");
-
-        let print_output = |output: BTreeMap<u64, (PageTableFlags, u64)>| {
-            let mut last = None;
-            for (segment_start, (mut flags, segment_size)) in output {
-                let segment_end = segment_start + segment_size;
-                flags.remove(PageTableFlags::ACCESSED);
-                flags.remove(PageTableFlags::DIRTY);
-                flags.remove(PageTableFlags::HUGE_PAGE);
-
-                if let Some((last_flags, last_start, last_end)) = last.take() {
-                    if last_flags != flags || last_end < segment_start {
-                        println!(
-                            "PAGING SEGMENT [ 0x{last_start:016x}..0x{last_end:016x} ] {:?}",
-                            last_flags
-                        );
-                        last = Some((flags, segment_start, segment_end));
-                    } else {
-                        last = Some((last_flags, last_start, segment_end));
-                    }
-                } else {
-                    last = Some((flags, segment_start, segment_end));
-                }
-            }
-            if let Some((last_flags, last_start, last_end)) = last {
-                println!(
-                    "PAGING SEGMENT [ 0x{last_start:016x}..0x{last_end:016x} ] {:?}",
-                    last_flags
-                );
-            }
-        };
-        println!("BEGIN PAGE TABLE SEGMENTS");
-        print_output(output);
-        println!("BEGIN HIGHER HALF PAGE TABLE SEGMENTS");
-        print_output(output_hh);
-        println!("END PAGE TABLE SEGMENTS");
-    }
 }
 
 impl Drop for PageMap {
     fn drop(&mut self) {
-        fn travel_level(l: WalkTableIterResult) {
-            match l {
-                WalkTableIterResult::Size1GiB(_p_addr) => {}
-                WalkTableIterResult::Size2MiB(_p_addr) => {}
-                WalkTableIterResult::Size4KiB(_p_addr) => {}
-                WalkTableIterResult::Level3(l3) => {
-                    for (_, flags, entry) in l3.iter() {
-                        if !flags.contains(NO_FREE) {
-                            travel_level(entry);
-                        }
-                    }
-
-                    let table = from_higher_half(VirtAddr::new(l3.0 as *const _ as u64));
-                    Pfa.deallocate_frame(PhysFrame::containing_address(table));
-                }
-                WalkTableIterResult::Level2(l2) => {
-                    for (_, flags, entry) in l2.iter() {
-                        if !flags.contains(NO_FREE) {
-                            travel_level(entry);
-                        }
-                    }
-
-                    let table = from_higher_half(VirtAddr::new(l2.0 as *const _ as u64));
-                    Pfa.deallocate_frame(PhysFrame::containing_address(table));
-                }
-                WalkTableIterResult::Level1(l1) => {
-                    for (_, flags, entry) in l1.iter() {
-                        if !flags.contains(NO_FREE) {
-                            travel_level(entry);
-                        }
-                    }
-
-                    let table = from_higher_half(VirtAddr::new(l1.0 as *const _ as u64));
-                    Pfa.deallocate_frame(PhysFrame::containing_address(table));
-                }
-            }
-        }
-
         if !self.owned {
             return;
         }
 
-        assert!(!self.is_active());
+        let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
+        let cr3 = {
+            let inner = self.inner.get_mut();
+            inner.clear();
+            inner.cr3()
+        };
 
-        let l4 = Level4::from_pml4(&self.inner.get_mut().l4);
-        for (_, flags, entry) in l4.iter() {
-            if !flags.contains(NO_FREE) {
-                travel_level(entry);
-            } else {
-                hyperion_log::debug!("skip bit 9");
-            }
-        }
-
-        let table = from_higher_half(VirtAddr::new(self.inner.get_mut().l4 as *const _ as u64));
-        Pfa.deallocate_frame(PhysFrame::containing_address(table));
+        // free the table itself
+        let frame = unsafe { PageFrame::new(cr3.start_address(), 1) };
+        pmm::PFA.free(frame);
     }
 }
 
-/* fn lazy_map(
-    table: &mut OffsetPageTable,
-    v_addr: VirtAddr,
-    region: Range<VirtAddr>,
-    p_addr: PhysAddr,
-    flags: PageTableFlags,
-) -> PageFaultResult {
-    if !region.contains(&v_addr) {
-        return PageFaultResult::NotHandled;
-    }
-
-    if lazy_map_sized::<Size1GiB>(table, v_addr, region.clone(), p_addr, flags)
-        == PageFaultResult::Handled
-    {
-        return PageFaultResult::Handled;
-    }
-    if lazy_map_sized::<Size2MiB>(table, v_addr, region.clone(), p_addr, flags)
-        == PageFaultResult::Handled
-    {
-        return PageFaultResult::Handled;
-    }
-    if lazy_map_sized::<Size4KiB>(table, v_addr, region.clone(), p_addr, flags)
-        == PageFaultResult::Handled
-    {
-        return PageFaultResult::Handled;
-    }
-
-    let _ = region;
-
-    PageFaultResult::NotHandled
-}
-
-fn lazy_map_sized<T>(
-    table: &mut OffsetPageTable,
-    v_addr: VirtAddr,
-    region: Range<VirtAddr>,
-    p_addr: PhysAddr,
-    flags: PageTableFlags,
-) -> PageFaultResult
-where
-    T: PageSize + core::fmt::Debug,
-    for<'a> OffsetPageTable<'a>: Mapper<T>,
-{
-    let map = v_addr.align_down(T::SIZE)..v_addr.align_up(T::SIZE);
-    if !region.contains(&map.start) && region.contains(&map.end) {
-        return PageFaultResult::NotHandled;
-    }
-
-    let p_addr = p_addr - map.start.as_u64();
-
-    if let Err(err) = try_map_sized::<T>(table, map.start, map.end, p_addr, flags) {
-        hyperion_log::error!("map err: {err:?}");
-        return PageFaultResult::NotHandled;
-    }
-
-    PageFaultResult::Handled
-} */
+//
 
 #[derive(Debug)]
 pub enum TryMapError<T: PageSize> {
