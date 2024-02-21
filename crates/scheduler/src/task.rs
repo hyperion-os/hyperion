@@ -2,7 +2,6 @@ use alloc::{
     boxed::Box,
     collections::BTreeMap,
     sync::{Arc, Weak},
-    vec,
     vec::Vec,
 };
 use core::{
@@ -22,17 +21,12 @@ use hyperion_arch::{
     stack::{AddressSpace, KernelStack, Stack, UserStack, USER_HEAP_TOP},
     vmm::PageMap,
 };
-use hyperion_bitmap::Bitmap;
 use hyperion_log::*;
-use hyperion_mem::{
-    pmm::{self, PageFrame},
-    vmm::PageMapImpl,
-};
+use hyperion_mem::vmm::PageMapImpl;
 use hyperion_sync::TakeOnce;
-use spin::{Mutex, MutexGuard, Once, RwLock};
+use spin::{Mutex, Once, RwLock};
 use x86_64::{
-    align_up, registers::model_specific::FsBase, structures::paging::PageTableFlags, PhysAddr,
-    VirtAddr,
+    align_up, registers::model_specific::FsBase, structures::paging::PageTableFlags, VirtAddr,
 };
 
 use crate::{after, cleanup::Cleanup, done, swap_current, task, tls};

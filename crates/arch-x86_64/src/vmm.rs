@@ -21,10 +21,8 @@
 //!
 //! User and kernel stack spaces are split into stacks with the size of [`VIRT_STACK_SIZE`].
 
-use alloc::collections::BTreeMap;
 use core::{mem::ManuallyDrop, ops::Range};
 
-use hyperion_log::*;
 use hyperion_mem::{
     from_higher_half,
     pmm::{self, PageFrame},
@@ -47,9 +45,6 @@ use {
     crate::stack::{AddressSpace, USER_HEAP_TOP, VIRT_STACK_SIZE, VIRT_STACK_SIZE_ALL},
     alloc::sync::Arc,
 };
-
-use super::pmm::Pfa;
-use crate::paging::{Level4, WalkTableIterResult};
 
 //
 
