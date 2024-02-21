@@ -602,10 +602,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperion-bitmap"
-version = "0.3.0"
-
-[[package]]
 name = "hyperion-boot"
 version = "0.3.0"
 dependencies = [

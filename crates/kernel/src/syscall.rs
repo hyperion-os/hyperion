@@ -721,10 +721,6 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
     let mut offs = 0u64;
     for phys in phys.into_vec() {
         let bottom = VirtAddr::new(bottom) + offs;
-        debug!(
-            "mapping phys page {:#018x} to {bottom:#018x}",
-            phys.physical_addr(),
-        );
         this.address_space.page_map.map(
             bottom..bottom + size,
             Some(phys.physical_addr()),

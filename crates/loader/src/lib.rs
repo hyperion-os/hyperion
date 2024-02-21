@@ -121,7 +121,6 @@ impl<'a> Loader<'a> {
 
         if proc.name.read().as_str() == "/bin/wm" {
             let is_tls = segment.p_type == PT_TLS;
-            debug!("alloc_at(is_tls={is_tls} at={v_addr:#x}, up_to={v_end:#x})");
         }
 
         proc.alloc_at(v_size as usize / 0x1000, v_addr, PageTableFlags::WRITABLE)
