@@ -1207,9 +1207,9 @@ impl Drop for PageMap {
             return;
         }
 
-        let inner = unsafe { ManuallyDrop::take(&mut self.inner) };
         let cr3 = {
-            let inner = self.inner.get_mut();
+            let mut inner = unsafe { ManuallyDrop::take(&mut self.inner) };
+            let inner = inner.get_mut();
             inner.clear();
             inner.cr3()
         };
