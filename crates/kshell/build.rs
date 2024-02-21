@@ -15,15 +15,16 @@ fn main() {
 
     let from = "./../../asset";
     travel(from.as_ref(), &mut |path| {
-        let os_canonical = path.canonicalize().unwrap();
-        let path = Path::new("/").join(path.strip_prefix(from).unwrap());
+        if let Ok(os_canonical) = path.canonicalize() {
+            let path = Path::new("/").join(path.strip_prefix(from).unwrap());
 
-        println!("cargo:rerun-if-changed={os_canonical:?}");
-        writeln!(
-            asset_rs_file,
-            "    ({path:?}, include_bytes!({os_canonical:?})),",
-        )
-        .unwrap();
+            println!("cargo:rerun-if-changed={os_canonical:?}");
+            writeln!(
+                asset_rs_file,
+                "    ({path:?}, include_bytes!({os_canonical:?})),",
+            )
+            .unwrap();
+        }
     });
 
     writeln!(asset_rs_file, "];").unwrap();
