@@ -17,8 +17,8 @@ use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
     ipc::pipe::{pipe_with, Channel, Receiver, Sender},
     lock::{Futex, Mutex},
+    proc::{Process, ProcessExt},
     process,
-    task::{Process, ProcessExt},
 };
 use hyperion_syscall::{
     err::{Error, Result},

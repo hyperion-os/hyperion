@@ -27,8 +27,8 @@ use hyperion_mem::{pmm::PageFrame, vmm::PageMapImpl};
 use hyperion_scheduler::{
     futex,
     lock::Mutex,
+    proc::{AllocErr, FreeErr},
     process, schedule, task,
-    task::{AllocErr, FreeErr},
 };
 use hyperion_syscall::{
     err::{Error, Result},

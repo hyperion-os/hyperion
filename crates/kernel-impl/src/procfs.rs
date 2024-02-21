@@ -11,8 +11,8 @@ use core::{
 };
 
 use hyperion_scheduler::{
+    proc::{processes, Pid, Process, PROCESSES},
     process,
-    task::{Pid, Process, PROCESSES},
 };
 use hyperion_vfs::{
     device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
@@ -173,12 +173,10 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
                 name: ArcOrRef::Ref(name),
                 node,
             }),
-            hyperion_scheduler::task::processes()
-                .into_iter()
-                .map(|s| DirEntry {
-                    name: ArcOrRef::Arc(format!("{}", s.pid).into()),
-                    node: Node::new_dir(ProcDir(s)),
-                }),
+            processes().into_iter().map(|s| DirEntry {
+                name: ArcOrRef::Arc(format!("{}", s.pid).into()),
+                node: Node::new_dir(ProcDir(s)),
+            }),
         )))
     }
 

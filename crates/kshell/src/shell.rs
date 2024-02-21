@@ -14,7 +14,7 @@ use hyperion_events::keyboard::{
 };
 use hyperion_futures::{keyboard::keyboard_events, mpmc};
 use hyperion_kernel_impl::{FileDescData, FileDescriptor};
-use hyperion_scheduler::{ipc::pipe::pipe, spawn, task::Pid};
+use hyperion_scheduler::{ipc::pipe::pipe, proc::Pid, spawn};
 use hyperion_vfs::{self, path::PathBuf};
 use spin::Mutex;
 

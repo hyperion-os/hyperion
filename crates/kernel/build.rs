@@ -18,7 +18,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut set = |s| {
         if let Some(already) = bootloader {
             println!("cargo:warning=Bootloaders {s} and {already} are mutually exclusive");
-            panic!();
         } else {
             bootloader = Some(s);
         }

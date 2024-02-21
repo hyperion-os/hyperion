@@ -1,43 +1,37 @@
-use alloc::{
-    boxed::Box,
-    collections::BTreeMap,
-    sync::{Arc, Weak},
-    vec::Vec,
-};
+use alloc::{boxed::Box, sync::Arc};
 use core::{
-    alloc::Layout,
-    any::{type_name_of_val, Any},
+    any::type_name_of_val,
     cell::UnsafeCell,
-    fmt, mem,
+    mem,
     ops::Deref,
     ptr,
-    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use arcstr::ArcStr;
 use crossbeam::atomic::AtomicCell;
 use hyperion_arch::{
     context::{switch as ctx_switch, Context},
-    stack::{AddressSpace, KernelStack, Stack, UserStack, USER_HEAP_TOP},
+    stack::{AddressSpace, KernelStack, Stack, UserStack},
     vmm::PageMap,
 };
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_sync::TakeOnce;
-use spin::{Mutex, Once, RwLock};
+use spin::{Mutex, Once};
 use x86_64::{
     align_up, registers::model_specific::FsBase, structures::paging::PageTableFlags, VirtAddr,
 };
 
-use crate::{after, cleanup::Cleanup, done, swap_current, task, tls};
+use crate::{
+    after,
+    cleanup::Cleanup,
+    done,
+    proc::{Pid, Process},
+    swap_current, task, tls,
+};
 
 //
-
-// static MAGIC_DEBUG_BYTE: Lazy<usize> = Lazy::new(|| hyperion_random::next_fast_rng().gen());
-
-// TODO: get rid of the slow dumbass spinlock mutexes everywhere
-pub static PROCESSES: Mutex<BTreeMap<Pid, Weak<Process>>> = Mutex::new(BTreeMap::new());
-// pub static TASKS: Mutex<Vec<Weak<Process>>> = Mutex::new(Vec::new());
 
 pub static TASKS_RUNNING: AtomicUsize = AtomicUsize::new(0);
 pub static TASKS_SLEEPING: AtomicUsize = AtomicUsize::new(0);
@@ -45,13 +39,6 @@ pub static TASKS_READY: AtomicUsize = AtomicUsize::new(0);
 pub static TASKS_DROPPING: AtomicUsize = AtomicUsize::new(0);
 
 //
-
-pub fn processes() -> Vec<Arc<Process>> {
-    let processes = PROCESSES.lock();
-    // processes.retain(|_, proc| proc.upgrade().is_some());
-
-    processes.values().filter_map(Weak::upgrade).collect()
-}
 
 #[track_caller]
 pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
@@ -120,41 +107,6 @@ extern "C" fn thread_entry() -> ! {
 //
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Pid(usize);
-
-impl Pid {
-    pub const fn new(num: usize) -> Self {
-        Self(num)
-    }
-
-    pub fn next() -> Self {
-        static NEXT_PID: AtomicUsize = AtomicUsize::new(1);
-        Self::new(NEXT_PID.fetch_add(1, Ordering::Relaxed))
-    }
-
-    pub const fn num(self) -> usize {
-        self.0
-    }
-}
-
-impl Pid {
-    pub fn find(self) -> Option<Arc<Process>> {
-        PROCESSES
-            .lock()
-            .get(&self)
-            .and_then(|mem_weak_ref| mem_weak_ref.upgrade())
-    }
-}
-
-impl fmt::Display for Pid {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-//
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Tid(usize);
 
 impl Tid {
@@ -169,154 +121,6 @@ impl Tid {
     pub const fn num(self) -> usize {
         self.0
     }
-}
-
-//
-
-/// A process, each process can have multiple 'tasks' (pthreads)
-pub struct Process {
-    /// process id
-    pub pid: Pid,
-
-    /// next thread id
-    pub next_tid: AtomicUsize,
-
-    /// number of threads in this process
-    pub threads: AtomicUsize,
-
-    /// process name
-    pub name: RwLock<ArcStr>,
-
-    /// cpu time this process (all tasks) has used in nanoseconds
-    pub nanos: AtomicU64,
-
-    /// process address space
-    pub address_space: AddressSpace,
-
-    /// process heap beginning, the end of the user process
-    pub heap_bottom: AtomicUsize,
-
-    /// TLS object data, each thread allocates one into the userspace
-    /// and the $fs segment register should be set to point to it
-    pub master_tls: Once<(VirtAddr, Layout)>,
-
-    /// extra process info added by the kernel (like file descriptors)
-    pub ext: Once<Box<dyn ProcessExt + 'static>>,
-
-    pub should_terminate: AtomicBool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AllocErr {
-    OutOfVirtMem,
-    // TODO:
-    // OutOfMem,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FreeErr {
-    InvalidAddr,
-    InvalidAlloc,
-}
-
-impl Process {
-    pub fn new(pid: Pid, name: ArcStr, address_space: AddressSpace) -> Arc<Self> {
-        let this = Arc::new(Self {
-            pid,
-            next_tid: AtomicUsize::new(0),
-            threads: AtomicUsize::new(1),
-            name: RwLock::new(name),
-            nanos: AtomicU64::new(0),
-            address_space,
-            heap_bottom: AtomicUsize::new(0x1000),
-            master_tls: Once::new(),
-            ext: Once::new(),
-            should_terminate: AtomicBool::new(false),
-        });
-
-        PROCESSES.lock().insert(this.pid, Arc::downgrade(&this));
-
-        this
-    }
-
-    pub fn alloc(&self, n_pages: usize, flags: PageTableFlags) -> Result<VirtAddr, AllocErr> {
-        let n_bytes = n_pages * 0x1000;
-
-        let Ok(at) = VirtAddr::try_new(self.heap_bottom.fetch_add(n_bytes, Ordering::SeqCst) as _)
-        else {
-            return Err(AllocErr::OutOfVirtMem);
-        };
-
-        if (at + n_bytes).as_u64() >= USER_HEAP_TOP {
-            return Err(AllocErr::OutOfVirtMem);
-        }
-
-        self.alloc_at_keep_heap_bottom(n_pages, at, flags)?;
-
-        Ok(at)
-    }
-
-    pub fn alloc_at(
-        &self,
-        n_pages: usize,
-        at: VirtAddr,
-        flags: PageTableFlags,
-    ) -> Result<(), AllocErr> {
-        self.heap_bottom
-            .fetch_max(at.as_u64() as usize + n_pages * 0x1000, Ordering::SeqCst);
-        self.alloc_at_keep_heap_bottom(n_pages, at, flags)
-    }
-
-    pub fn free(&self, n_pages: usize, ptr: VirtAddr) -> Result<(), FreeErr> {
-        if !self
-            .address_space
-            .page_map
-            .is_mapped(ptr..ptr + n_pages * 0x1000, PageTableFlags::USER_ACCESSIBLE)
-        {
-            return Err(FreeErr::InvalidAlloc);
-        }
-
-        self.address_space
-            .page_map
-            .unmap(ptr..ptr + n_pages * 0x1000);
-
-        Ok(())
-    }
-
-    fn alloc_at_keep_heap_bottom(
-        &self,
-        n_pages: usize,
-        at: VirtAddr,
-        flags: PageTableFlags,
-    ) -> Result<(), AllocErr> {
-        let n_bytes = n_pages * 0x1000;
-
-        let alloc_bottom = at;
-        let alloc_top = at + n_bytes;
-
-        self.address_space
-            .page_map
-            .map(alloc_bottom..alloc_top, None, flags);
-
-        Ok(())
-    }
-}
-
-impl Drop for Process {
-    fn drop(&mut self) {
-        // hyperion_log::debug!("dropping process '{}'", self.name.get_mut());
-        PROCESSES.lock().remove(&self.pid);
-    }
-}
-
-//
-
-pub trait ProcessExt: Sync + Send {
-    fn as_any(&self) -> &dyn Any;
-
-    /// close everything before the actual process closes,
-    /// because there might be no tasks to switch to (and that would keep this open)
-    fn close(&self);
 }
 
 //
@@ -573,7 +377,7 @@ impl Task {
         trace!("initializing bootloader task");
 
         let process = Process::new(
-            Pid(0),
+            Pid::new(0),
             "bootloader".into(),
             AddressSpace::new(PageMap::current()),
         );

@@ -28,7 +28,8 @@ use x86_64::VirtAddr;
 
 use crate::{
     cleanup::{Cleanup, CleanupTask},
-    task::{switch_because, Pid, Process, Task, TaskInner, TaskState},
+    proc::{Pid, Process},
+    task::{switch_because, Task, TaskInner, TaskState},
 };
 
 //
@@ -41,6 +42,7 @@ pub mod ipc;
 pub mod condvar;
 pub mod futex;
 pub mod lock;
+pub mod proc;
 pub mod sleep;
 pub mod task;
 
