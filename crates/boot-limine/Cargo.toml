@@ -10,7 +10,6 @@ workspace = true
 
 [dependencies]
 spin.workspace = true
-crossbeam.workspace = true
 limine = "0.1"
 
 hyperion-boot-interface.path = "../boot-interface"

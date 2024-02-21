@@ -59,10 +59,6 @@ event-listener = { version = "4.0", default-features = false }
 version = "0.7"
 default-features = false
 
-[workspace.dependencies.smallvec]
-version = "1.10"
-features = ["const_generics"]
-
 [workspace.dependencies.time]
 version = "0.3"
 default-features = false

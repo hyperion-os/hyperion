@@ -9,15 +9,13 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-spin.workspace = true
-smallvec.workspace = true
 bit_field.workspace = true
-paste.workspace = true
-time.workspace = true
 crossbeam.workspace = true
+heapless.workspace = true
+paste.workspace = true
+spin.workspace = true
 x86_64.workspace = true
 
-hyperion-boot-interface.path = "../boot-interface"
 hyperion-boot.path = "../boot"
 hyperion-clock.path = "../clock"
 hyperion-cpu-id.path = "../cpu-id"

@@ -4,7 +4,6 @@ use core::fmt;
 use hyperion_color::Color;
 use hyperion_escape::decode::{DecodedPart, EscapeDecoder};
 use hyperion_framebuffer::{font::FONT, framebuffer::Framebuffer};
-use hyperion_log::LogLevel;
 
 use super::CHAR_SIZE;
 
@@ -23,7 +22,6 @@ pub struct Term {
 
 impl Term {
     pub fn new() -> Self {
-        hyperion_log_multi::set_fbo(LogLevel::None);
         let Some(vbo) = Framebuffer::get() else {
             // TODO: serial only
             panic!("cannot run kshell without a framebuffer");

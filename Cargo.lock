@@ -147,20 +147,6 @@ name = "bytemuck"
 version = "1.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed2490600f404f2b94c167e31d3ed1d5f3c225a0f3b80230053b3e0b7b962bd9"
-dependencies = [
- "bytemuck_derive",
-]
-
-[[package]]
-name = "bytemuck_derive"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "965ab7eb5f8f97d2a083c799f3a1b994fc397b2fe2da5d1da1626ce15a39f2b1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.48",
-]
 
 [[package]]
 name = "byteorder"
@@ -592,15 +578,12 @@ version = "0.3.0"
 dependencies = [
  "crossbeam",
  "hyperion-boot",
- "hyperion-boot-interface",
  "hyperion-cpu-id",
  "hyperion-driver-acpi",
  "hyperion-interrupts",
  "hyperion-log",
  "hyperion-macros",
  "hyperion-mem",
- "memoffset",
- "smallvec",
  "spin",
  "x86_64",
 ]
@@ -639,7 +622,6 @@ version = "0.3.0"
 name = "hyperion-boot-limine"
 version = "0.3.0"
 dependencies = [
- "crossbeam",
  "hyperion-boot-interface",
  "hyperion-log",
  "limine",
@@ -676,8 +658,8 @@ version = "0.3.0"
 dependencies = [
  "bit_field",
  "crossbeam",
+ "heapless",
  "hyperion-boot",
- "hyperion-boot-interface",
  "hyperion-clock",
  "hyperion-cpu-id",
  "hyperion-driver-pic",
@@ -688,9 +670,7 @@ dependencies = [
  "hyperion-static-str",
  "hyperion-vfs",
  "paste",
- "smallvec",
  "spin",
- "time",
  "x86_64",
 ]
 
@@ -795,8 +775,6 @@ dependencies = [
  "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-color",
- "hyperion-escape",
- "hyperion-macros",
  "image",
  "proc-macro2",
  "quote",
@@ -811,19 +789,11 @@ dependencies = [
  "event-listener",
  "futures",
  "futures-util",
- "hyperion-arch",
- "hyperion-color",
- "hyperion-driver-acpi",
  "hyperion-events",
  "hyperion-instant",
- "hyperion-log",
- "hyperion-mem",
- "hyperion-random",
  "hyperion-scheduler",
- "pin-project",
  "spin",
  "time",
- "x86_64",
 ]
 
 [[package]]
@@ -846,20 +816,13 @@ dependencies = [
 name = "hyperion-kernel"
 version = "0.3.0"
 dependencies = [
- "arcstr",
- "crossbeam",
  "hyperion-arch",
- "hyperion-backtrace",
  "hyperion-boot",
- "hyperion-boot-interface",
- "hyperion-color",
  "hyperion-cpu-id",
  "hyperion-defer",
  "hyperion-drivers",
- "hyperion-framebuffer",
  "hyperion-futures",
  "hyperion-instant",
- "hyperion-interrupts",
  "hyperion-kernel-impl",
  "hyperion-kernel-info",
  "hyperion-kshell",
@@ -867,15 +830,11 @@ dependencies = [
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-mem",
- "hyperion-num-postfix",
- "hyperion-pci",
  "hyperion-random",
  "hyperion-scheduler",
  "hyperion-sync",
  "hyperion-syscall",
  "hyperion-vfs",
- "lock_api",
- "spin",
  "time",
  "x86_64",
 ]
@@ -891,10 +850,8 @@ dependencies = [
  "hyperion-log",
  "hyperion-mem",
  "hyperion-scheduler",
- "hyperion-sync",
  "hyperion-syscall",
  "hyperion-vfs",
- "lock_api",
  "spin",
  "x86_64",
 ]
@@ -911,39 +868,27 @@ name = "hyperion-kshell"
 version = "0.3.0"
 dependencies = [
  "anyhow",
- "arcstr",
  "coreutils",
  "fbtest",
  "futures-util",
- "hyperion-arch",
  "hyperion-color",
- "hyperion-cpu-id",
- "hyperion-driver-acpi",
  "hyperion-escape",
  "hyperion-events",
  "hyperion-framebuffer",
  "hyperion-futures",
- "hyperion-instant",
  "hyperion-kernel-impl",
  "hyperion-kernel-info",
  "hyperion-loader",
  "hyperion-log",
- "hyperion-log-multi",
- "hyperion-mem",
- "hyperion-num-postfix",
  "hyperion-pci",
- "hyperion-random",
  "hyperion-scheduler",
  "hyperion-syscall",
  "hyperion-vfs",
- "itertools",
- "lock_api",
  "sample-elf",
  "serde",
  "serde_json",
  "snafu",
  "spin",
- "time",
 ]
 
 [[package]]
@@ -953,7 +898,6 @@ dependencies = [
  "bitflags 2.4.2",
  "elf",
  "hyperion-arch",
- "hyperion-boot",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-scheduler",
@@ -996,17 +940,12 @@ dependencies = [
 name = "hyperion-mem"
 version = "0.3.0"
 dependencies = [
- "bytemuck",
- "hyperion-bitmap",
  "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-log",
  "hyperion-num-postfix",
  "hyperion-slab-alloc",
- "hyperion-sync",
- "lock_api",
  "spin",
- "volatile 0.5.1",
  "x86_64",
 ]
 
@@ -1027,7 +966,6 @@ name = "hyperion-random"
 version = "0.3.0"
 dependencies = [
  "blake3",
- "hyperion-log",
  "hyperion-macros",
  "rand",
  "rand_chacha",
@@ -1050,16 +988,12 @@ dependencies = [
  "crossbeam-queue",
  "futures-util",
  "hyperion-arch",
- "hyperion-bitmap",
- "hyperion-clock",
- "hyperion-color",
  "hyperion-cpu-id",
  "hyperion-driver-acpi",
  "hyperion-events",
  "hyperion-instant",
  "hyperion-log",
  "hyperion-mem",
- "hyperion-random",
  "hyperion-sync",
  "lock_api",
  "ringbuf",
@@ -1084,12 +1018,6 @@ version = "0.3.0"
 [[package]]
 name = "hyperion-sync"
 version = "0.3.0"
-dependencies = [
- "crossbeam",
- "hyperion-cpu-id",
- "lock_api",
- "spin",
-]
 
 [[package]]
 name = "hyperion-syscall"
@@ -1104,13 +1032,10 @@ dependencies = [
 name = "hyperion-vfs"
 version = "0.3.0"
 dependencies = [
- "crossbeam",
  "hyperion-log",
  "hyperion-mem",
- "hyperion-syscall",
  "lock_api",
  "snafu",
- "spin",
 ]
 
 [[package]]
@@ -1170,15 +1095,6 @@ dependencies = [
  "png",
  "qoi",
  "tiff",
-]
-
-[[package]]
-name = "itertools"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
-dependencies = [
- "either",
 ]
 
 [[package]]
@@ -1260,15 +1176,6 @@ name = "log"
 version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
-
-[[package]]
-name = "memoffset"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
-dependencies = [
- "autocfg",
-]
 
 [[package]]
 name = "miniz_oxide"
@@ -1496,9 +1403,9 @@ checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
 
 [[package]]
 name = "ryu"
-version = "1.0.16"
+version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f98d2aa92eebf49b69786be48e4477826b256916e84a57ff2a4f21923b48eb4c"
+checksum = "e86697c916019a8588c99b5fac3cead74ec0b4b819707a682fd4d23fa0ce1ba1"
 
 [[package]]
 name = "sample-elf"
@@ -1535,9 +1442,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.113"
+version = "1.0.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69801b70b1c3dac963ecb03a364ba0ceda9cf60c71cfe475e99864759c8b8a79"
+checksum = "c5f09b1bd632ef549eaa9f60a1f8de742bdbc698e6cee2095fc84dde5f549ae0"
 dependencies = [
  "itoa",
  "ryu",
@@ -1760,12 +1667,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "442887c63f2c839b346c192d047a7c87e73d0689c9157b00b53dcc27dd5ea793"
 
 [[package]]
-name = "volatile"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9eaac9f9d9b7ae00cdd43e21b15e58ccacd903e6d29131d7536765a61969d25e"
-
-[[package]]
 name = "wasm-bindgen"
 version = "0.2.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1932,7 +1833,7 @@ dependencies = [
  "bit_field",
  "bitflags 2.4.2",
  "rustversion",
- "volatile 0.4.6",
+ "volatile",
 ]
 
 [[package]]

@@ -10,35 +10,22 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
-arcstr.workspace = true
 futures-util.workspace = true
-itertools = { version = "0.11", default-features = false }
-lock_api.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 snafu.workspace = true
 spin.workspace = true
-time.workspace = true
 
-
-hyperion-arch.path = "../arch"
 hyperion-color.path = "../color"
-hyperion-cpu-id.path = "../cpu-id"
-hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-escape.path = "../escape"
 hyperion-events.path = "../events"
 hyperion-framebuffer.path = "../framebuffer"
 hyperion-futures.path = "../futures"
-hyperion-instant.path = "../instant"
 hyperion-kernel-impl.path = "../kernel-impl"
 hyperion-kernel-info.path = "../kernel-info"
 hyperion-loader.path = "../loader"
-hyperion-log-multi.path = "../log-multi"
 hyperion-log.path = "../log"
-hyperion-mem.path = "../mem"
-hyperion-num-postfix.path = "../num-postfix"
 hyperion-pci.path = "../pci"
-hyperion-random.path = "../random"
 hyperion-scheduler.path = "../scheduler"
 hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"

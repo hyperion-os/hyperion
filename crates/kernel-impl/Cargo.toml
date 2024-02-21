@@ -10,7 +10,6 @@ workspace = true
 
 [dependencies]
 spin.workspace = true
-lock_api.workspace = true
 x86_64.workspace = true
 
 hyperion-arch.path = "../arch"
@@ -20,7 +19,6 @@ hyperion-kernel-info.path = "../kernel-info"
 hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"
 hyperion-scheduler.path = "../scheduler"
-hyperion-sync.path = "../sync"
 hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
 

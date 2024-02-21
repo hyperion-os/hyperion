@@ -10,11 +10,9 @@ workspace = true
 
 [dependencies]
 spin.workspace = true
-smallvec.workspace = true
 x86_64.workspace = true
 crossbeam.workspace = true
 
-hyperion-boot-interface.path = "../boot-interface"
 hyperion-boot.path = "../boot"
 hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-interrupts.path = "../interrupts"

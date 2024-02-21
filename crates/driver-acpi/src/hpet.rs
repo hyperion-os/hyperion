@@ -11,6 +11,7 @@ use core::{
 };
 
 use bit_field::BitField;
+use heapless::Vec;
 use hyperion_clock::ClockSource;
 use hyperion_events::timer::wake;
 use hyperion_interrupts::end_of_interrupt;
@@ -20,7 +21,6 @@ use hyperion_vfs::{
     device::FileDevice,
     error::{IoError, IoResult},
 };
-use smallvec::SmallVec;
 use spin::{Lazy, Mutex, MutexGuard};
 use x86_64::PhysAddr;
 
@@ -44,7 +44,7 @@ pub struct Hpet {
     // count_size_cap: bool,
     // rev_id: u8,
     next_timer: AtomicU8,
-    timers: SmallVec<[Mutex<TimerN>; 34]>,
+    timers: Vec<Mutex<TimerN>, 34>,
 }
 
 #[derive(Debug)]
@@ -267,7 +267,7 @@ impl Hpet {
                 current: 0,
             };
             timer.init();
-            self.timers.push(Mutex::new(timer));
+            _ = self.timers.push(Mutex::new(timer));
         }
 
         debug!("Enabling HPET");
