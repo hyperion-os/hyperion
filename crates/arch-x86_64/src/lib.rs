@@ -24,7 +24,6 @@ use x86_64::{
 pub mod context;
 pub mod cpu;
 pub mod paging;
-pub mod pmm;
 pub mod stack;
 pub mod syscall;
 pub mod tls;
