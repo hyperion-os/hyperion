@@ -11,7 +11,7 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use hyperion_arch::syscall::SyscallRegs;
+use hyperion_arch::{syscall::SyscallRegs, vmm::NO_FREE};
 use hyperion_defer::DeferInit;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
@@ -724,7 +724,7 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
         this.address_space.page_map.map(
             bottom..bottom + size,
             Some(phys.physical_addr()),
-            PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
+            PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE | NO_FREE,
         );
         offs += size;
     }

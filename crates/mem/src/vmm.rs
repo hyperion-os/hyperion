@@ -1,4 +1,7 @@
-use core::ops::Range;
+use core::{
+    ops::Range,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
@@ -23,6 +26,60 @@ pub struct NotHandled;
 
 //
 
+#[derive(Debug)]
+pub struct MemoryInfo {
+    /// mapped virtual memory in pages `0x1000` (excluding the higher half)
+    ///
+    /// includes memory that is not yet mapped
+    pub virt_pages: AtomicUsize,
+
+    /// mapped physical memory in pages `0x1000` (excluding the higher half)
+    pub phys_pages: AtomicUsize,
+
+    pub id: usize,
+}
+
+impl MemoryInfo {
+    pub fn zero() -> Self {
+        Self::symmetric(0)
+    }
+
+    pub fn symmetric(n: usize) -> Self {
+        static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+        let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+
+        Self {
+            virt_pages: AtomicUsize::new(n),
+            phys_pages: AtomicUsize::new(n),
+            id,
+        }
+    }
+
+    // FIXME: Relaxed ordering?
+
+    pub fn add_virt(&self, n_pages: usize) {
+        self.virt_pages.fetch_add(n_pages, Ordering::Acquire);
+    }
+
+    pub fn add_phys(&self, n_pages: usize) {
+        self.phys_pages.fetch_add(n_pages, Ordering::Acquire);
+    }
+
+    pub fn sub_virt(&self, n_pages: usize) {
+        if self.virt_pages.fetch_sub(n_pages, Ordering::Release) == 0 {
+            panic!("double free detected");
+        }
+    }
+
+    pub fn sub_phys(&self, n_pages: usize) {
+        if self.phys_pages.fetch_sub(n_pages, Ordering::Release) == 0 {
+            panic!("double free detected");
+        }
+    }
+}
+
+//
+
 pub trait PageMapImpl {
     /// handle a page fault, possibly related to lazy mapping or CoW pages
     fn page_fault(&self, v_addr: VirtAddr, privilege: Privilege) -> PageFaultResult;
@@ -32,6 +89,9 @@ pub trait PageMapImpl {
 
     /// create a new virtual address space
     fn new() -> Self;
+
+    /// statistics on virt/phys memory allocations
+    fn info(&self) -> &MemoryInfo;
 
     /// lazy clone this virtual address space
     fn fork(&self) -> Self;
@@ -59,30 +119,3 @@ pub trait PageMapImpl {
     /// test if a virtual memory range is mapped with (at least) the given flags
     fn is_mapped(&self, v_addr: Range<VirtAddr>, has_at_least: PageTableFlags) -> bool;
 }
-
-//
-
-/* #[cfg(test)]
-mod tests {
-    /* use x86_64::VirtAddr;
-
-    use super::{PageMap, PageMapImpl};
-    use crate::mem::pmm::PageFrameAllocator;
-
-    #[test_case]
-    fn two_virt_to_one_phys() {
-        let map = PageMap::init();
-        let frame = PageFrameAllocator::get().alloc(1);
-        map.unmap(VirtAddr::new(0x1000), 1);
-        map.map(VirtAddr::new(0x0), frame.physical_addr(), 1);
-        map.map(VirtAddr::new(0x1000), frame.physical_addr(), 1);
-
-        let a1 = unsafe { &mut *(0x1 as *mut u8) };
-        let a2 = unsafe { &mut *(0x1001 as *mut u8) };
-
-        *a1 = 50;
-        assert_eq!(a1, a2);
-        *a1 = 150;
-        assert_eq!(a1, a2);
-    } */
-} */

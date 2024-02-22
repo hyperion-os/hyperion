@@ -1,19 +1,14 @@
-use alloc::{vec, vec::Vec};
 use core::{
     fmt::Debug,
     marker::PhantomData,
-    mem,
     ops::Range,
     sync::atomic::{AtomicU64, Ordering},
 };
 
 use crossbeam::queue::SegQueue;
 use hyperion_log::*;
-use hyperion_mem::{
-    pmm::{self, PageFrame},
-    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl},
-};
-use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
+use hyperion_mem::{pmm, vmm::PageMapImpl};
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 use crate::vmm::PageMap;
 
@@ -103,7 +98,7 @@ impl<T: StackType + Debug> Stacks<T> {
     /// # Safety
     ///
     /// the stack is not safe to use before initializing it
-    pub unsafe fn take(&self) -> Stack<T> {
+    pub unsafe fn take_no_init(&self) -> Stack<T> {
         let top = self
             .free_stacks
             .pop()
@@ -116,19 +111,17 @@ impl<T: StackType + Debug> Stacks<T> {
         Stack::new(VirtAddr::new(top))
     }
 
-    pub fn take_lazy(&self, page_map: &PageMap) -> Stack<T> {
+    pub fn take(&self, page_map: &PageMap) -> Stack<T> {
         // SAFETY: the stack gets initialized
-        let stack = unsafe { self.take() };
+        let stack = unsafe { self.take_no_init() };
         stack.init(page_map);
         stack
     }
 
-    pub fn take_prealloc(&self, page_map: &PageMap, size_4k_pages: u64) -> Stack<T> {
+    pub fn take_force_init(&self, page_map: &PageMap, forced_pages: u64) -> Stack<T> {
         // SAFETY: the stack gets initialized
-        let mut stack = unsafe { self.take() };
-        if let Some(grow) = size_4k_pages.checked_sub(stack.extent_4k_pages) {
-            _ = stack.grow(page_map, grow);
-        }
+        let stack = unsafe { self.take_no_init() };
+        stack.force_init(page_map, forced_pages);
         stack
     }
 
@@ -169,7 +162,7 @@ impl AddressSpace {
         loop {
             // TODO: improve this
             // find and lock the correct stack
-            let try_stack = unsafe { user_stacks.take() };
+            let try_stack = unsafe { user_stacks.take_no_init() };
             if try_stack.top == keep_user.top {
                 break;
             }
@@ -183,22 +176,22 @@ impl AddressSpace {
         }
     }
 
-    pub fn take_user_stack_lazy(&self) -> Stack<UserStack> {
-        self.user_stacks.take_lazy(&self.page_map)
+    pub fn take_user_stack(&self) -> Stack<UserStack> {
+        self.user_stacks.take(&self.page_map)
     }
 
-    pub fn take_user_stack_prealloc(&self, size_4k_pages: u64) -> Stack<UserStack> {
+    pub fn take_user_stack_prealloc(&self, forced_pages: u64) -> Stack<UserStack> {
         self.user_stacks
-            .take_prealloc(&self.page_map, size_4k_pages)
+            .take_force_init(&self.page_map, forced_pages)
     }
 
-    pub fn take_kernel_stack_lazy(&self) -> Stack<KernelStack> {
-        self.kernel_stacks.take_lazy(&self.page_map)
+    pub fn take_kernel_stack(&self) -> Stack<KernelStack> {
+        self.kernel_stacks.take(&self.page_map)
     }
 
-    pub fn take_kernel_stack_prealloc(&self, size_4k_pages: u64) -> Stack<KernelStack> {
+    pub fn take_kernel_stack_prealloc(&self, forced_pages: u64) -> Stack<KernelStack> {
         self.kernel_stacks
-            .take_prealloc(&self.page_map, size_4k_pages)
+            .take_force_init(&self.page_map, forced_pages)
     }
 }
 
@@ -209,10 +202,6 @@ impl AddressSpace {
 /// multiple stacks
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Stack<StackType> {
-    /// size of the stack in 4k pages,
-    /// used in PageFault stack growing
-    pub extent_4k_pages: u64,
-
     /// limit how much the stack is allowed to grow,
     /// in 4k pages again
     pub limit_4k_pages: u64,
@@ -220,21 +209,14 @@ pub struct Stack<StackType> {
     /// the location of where the top of the stack is mapped in virtual memory
     pub top: VirtAddr,
 
-    // TODO: init alloc size, default: 1 page
-    pub base_alloc: PhysAddr,
-    pub extra_alloc: Vec<PhysAddr>,
-
     _p: PhantomData<StackType>,
 }
 
 impl<T> Stack<T> {
     pub const fn empty() -> Self {
         Self {
-            extent_4k_pages: 0,
             limit_4k_pages: 0,
             top: VirtAddr::new_truncate(0),
-            base_alloc: PhysAddr::new(0),
-            extra_alloc: Vec::new(),
             _p: PhantomData,
         }
     }
@@ -258,146 +240,53 @@ impl<T: StackType + Debug> Stack<T> {
         limit_4k_pages = limit_4k_pages.min(VIRT_STACK_PAGES);
 
         Self {
-            extent_4k_pages: 0,
             limit_4k_pages,
             top,
-            base_alloc: PhysAddr::new(0),
-            extra_alloc: vec![],
             _p: PhantomData,
         }
     }
 
-    pub fn guard_page(&self) -> VirtAddr {
-        self.top - 0x1000u64 * (self.extent_4k_pages + 1)
-    }
-
-    fn page_range(page: VirtAddr) -> Range<VirtAddr> {
-        page..page + 0x1000u64
-    }
-
     pub fn dealloc(self, page_map: &PageMap) {
-        page_map.unmap(self.guard_page()..self.top);
-        mem::forget(self);
+        let stack_top = self.top;
+        let stack_bottom = stack_top - 0x1000u64 * self.limit_4k_pages;
+        page_map.unmap(stack_bottom..stack_top);
     }
 
-    /// won't allocate the stack,
-    /// this only makes sure the guard page is there
     pub fn init(&self, page_map: &PageMap) {
         trace!("init a stack {:?}", T::PAGE_FLAGS);
 
-        // page_map.activate();
-        page_map.unmap(Self::page_range(self.guard_page()));
+        let stack_top = self.top;
+        let stack_bottom = stack_top - 0x1000u64 * self.limit_4k_pages;
+        let guard_top = stack_bottom;
+        let guard_bottom = guard_top - 0x1000u64;
+
+        // the VMM allocates lazily
+        page_map.map(stack_bottom..stack_top, None, T::PAGE_FLAGS);
+        page_map.unmap(guard_bottom..guard_top);
+        // page_map.map(guard_bottom..guard_top, None, NO_MAP);
     }
 
-    pub fn grow(&mut self, page_map: &PageMap, grow_by_pages: u64) -> Result<(), StackLimitHit> {
-        trace!("growing a stack {:?}", T::PAGE_FLAGS);
+    pub fn force_init(&self, page_map: &PageMap, forced_pages: u64) {
+        trace!("init a stack {:?}", T::PAGE_FLAGS);
 
-        if self.extent_4k_pages + grow_by_pages > self.limit_4k_pages {
-            // stack cannot grow anymore
-            return Err(StackLimitHit);
-        }
+        let alloc_top = self.top;
+        let alloc_bottom = self.top - 0x1000u64 * forced_pages;
+        let stack_top = alloc_bottom;
+        let stack_bottom =
+            alloc_top - 0x1000u64 * self.limit_4k_pages.checked_sub(forced_pages).unwrap();
+        let guard_top = stack_bottom;
+        let guard_bottom = guard_top - 0x1000u64;
 
-        let old_guard_page = Self::page_range(self.guard_page());
-
-        let first_time = self.extent_4k_pages == 0;
-        self.extent_4k_pages += grow_by_pages;
-        let new_guard_page = Self::page_range(self.guard_page());
-
-        let alloc = pmm::PFA.alloc(grow_by_pages as usize).physical_addr();
-
-        if first_time {
-            // TODO: init alloc size, default: 1 page
-            self.base_alloc = alloc;
-        } else {
-            self.extra_alloc.push(alloc);
-        }
+        let alloc = pmm::PFA.alloc(forced_pages as usize);
 
         page_map.map(
-            new_guard_page.end..old_guard_page.end,
-            Some(alloc), // the virtual memory manager handles this lazy allocation now, this manual lazy stack is basically useless now
+            alloc_bottom..alloc_top,
+            Some(alloc.physical_addr()),
             T::PAGE_FLAGS,
         );
-        page_map.unmap(new_guard_page);
-
-        Ok(())
-    }
-
-    pub fn page_fault(&mut self, page_map: &PageMap, addr: u64) -> PageFaultResult {
-        let addr = VirtAddr::new(addr);
-
-        // just making sure the correct page_map was mapped
-        // TODO: assert
-        // page_map.activate();
-        assert!(page_map.is_active());
-
-        trace!("stack page fault test ({})", T::TY);
-
-        let guard_page = self.guard_page();
-
-        if !(guard_page..=guard_page + 0xFFFu64).contains(&addr) {
-            trace!("guard page not hit (0x{guard_page:016x})");
-            // guard page not hit, so its not a stack overflow
-            return Ok(NotHandled);
-        }
-
-        // TODO: configurable grow_by_rate
-        if let Err(StackLimitHit) = self.grow(page_map, 1) {
-            return Ok(NotHandled);
-            // panic!("stack overflow");
-        }
-
-        trace!(
-            "now {addr:018x} maps to {:018x?}",
-            page_map.virt_to_phys(addr)
-        );
-
-        Err(Handled)
-    }
-
-    pub fn cleanup(&mut self, page_map: &PageMap) {
-        if self.extent_4k_pages == 0 {
-            return;
-        }
-
-        page_map.unmap(self.top - self.extent_4k_pages * 0x1000..self.top);
-
-        for alloc in self.extra_alloc.drain(..).chain([self.base_alloc]) {
-            let base_alloc = unsafe { PageFrame::new(alloc, 1) };
-            pmm::PFA.free(base_alloc);
-        }
+        // the VMM allocates lazily
+        page_map.map(stack_bottom..stack_top, None, T::PAGE_FLAGS);
+        page_map.unmap(guard_bottom..guard_top);
+        // page_map.map(guard_bottom..guard_top, None, NO_MAP);
     }
 }
-
-/* use alloc::vec::Vec;
-
-use hyperion_arch::vmm::PageMap;
-use hyperion_mem::{
-    pmm::{PageFrame, PageFrameAllocator},
-    vmm::PageMapImpl,
-};
-use x86_64::PhysAddr;
-
-//
-
-pub struct Stack {
-    frame: Option<PhysAddr>,
-    frames: Vec<PageFrame>,
-}
-
-//
-
-impl Stack {
-    pub fn new(a_spc: &PageMap) -> Self {
-        a_spc.unmap(v_addr);
-    }
-
-    pub fn page_fault_handler(&self, addr: usize) {}
-}
-
-impl Drop for Stack {
-    fn drop(&mut self) {
-        if let Some(frames) = self.frames.take() {
-            PageFrameAllocator::get().free(stack)
-        }
-    }
-} */

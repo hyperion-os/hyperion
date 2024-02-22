@@ -62,7 +62,7 @@ impl Pid {
 
 impl fmt::Display for Pid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -87,6 +87,11 @@ pub struct Process {
 
     /// process address space
     pub address_space: AddressSpace,
+
+    /// the amount of virtual memory the user space is using
+    ///
+    /// this includes the fake lazy allocated memory and shared memory
+    pub virt_mem: AtomicUsize,
 
     /// process heap beginning, the end of the user process
     pub heap_bottom: AtomicUsize,
@@ -123,6 +128,7 @@ impl Process {
             name: RwLock::new(name),
             nanos: AtomicU64::new(0),
             address_space,
+            virt_mem: AtomicUsize::new(0),
             heap_bottom: AtomicUsize::new(0x1000),
             master_tls: Once::new(),
             ext: Once::new(),
@@ -171,9 +177,10 @@ impl Process {
             return Err(FreeErr::InvalidAlloc);
         }
 
-        self.address_space
-            .page_map
-            .unmap(ptr..ptr + n_pages * 0x1000);
+        let n_bytes = n_pages * 0x1000;
+
+        self.virt_mem.fetch_sub(n_bytes, Ordering::Relaxed);
+        self.address_space.page_map.unmap(ptr..ptr + n_bytes);
 
         Ok(())
     }
@@ -186,12 +193,10 @@ impl Process {
     ) -> Result<(), AllocErr> {
         let n_bytes = n_pages * 0x1000;
 
-        let alloc_bottom = at;
-        let alloc_top = at + n_bytes;
-
+        self.virt_mem.fetch_add(n_bytes, Ordering::Relaxed);
         self.address_space
             .page_map
-            .map(alloc_bottom..alloc_top, None, flags);
+            .map(at..at + n_bytes, None, flags);
 
         Ok(())
     }

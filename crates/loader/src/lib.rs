@@ -19,7 +19,7 @@ use elf::{
     ElfBytes,
 };
 use elf_wrap::*;
-use hyperion_arch::{syscall, vmm::PageMap};
+use hyperion_arch::syscall;
 use hyperion_log::*;
 use hyperion_mem::{is_higher_half, vmm::PageMapImpl};
 use hyperion_scheduler::{proc::Process, process, task};
@@ -33,7 +33,6 @@ mod elf_wrap;
 
 pub struct Loader<'a> {
     parser: ElfBytes<'a, AnyEndian>,
-    page_map: PageMap,
 }
 
 //
@@ -46,7 +45,6 @@ impl<'a> Loader<'a> {
     pub fn new(elf_bytes: &'a [u8]) -> Self {
         Self {
             parser: ElfBytes::minimal_parse(elf_bytes).expect("TODO: error handling"),
-            page_map: PageMap::current(),
         }
     }
 
@@ -239,11 +237,10 @@ impl<'a> Loader<'a> {
 
     pub fn finish(self) -> Result<EntryPoint, NoEntryPoint> {
         let entry = self.parser.ehdr.e_entry;
-        let page_map = self.page_map.cr3().start_address().as_u64();
         if entry == 0 {
             Err(NoEntryPoint)
         } else {
-            Ok(EntryPoint { page_map, entry })
+            Ok(EntryPoint { entry })
         }
     }
 }
@@ -251,7 +248,6 @@ impl<'a> Loader<'a> {
 //
 
 pub struct EntryPoint {
-    page_map: u64,
     entry: u64,
 }
 
@@ -260,16 +256,6 @@ impl EntryPoint {
         // TODO: this is HIGHLY unsafe atm.
 
         let entry = self.entry;
-        assert_eq!(
-            self.page_map,
-            process()
-                .address_space
-                .page_map
-                .cr3()
-                .start_address()
-                .as_u64()
-        );
-
         trace!("spawning \"{name}\" with args {args:?}");
 
         let env_args: Vec<&str> = [name.as_str()] // TODO: actually load binaries from vfs

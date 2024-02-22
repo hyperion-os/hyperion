@@ -2,7 +2,7 @@ use alloc::{boxed::Box, sync::Arc};
 use core::{
     any::type_name_of_val,
     cell::UnsafeCell,
-    mem,
+    fmt, mem,
     ops::Deref,
     ptr,
     sync::atomic::{AtomicUsize, Ordering},
@@ -40,7 +40,6 @@ pub static TASKS_DROPPING: AtomicUsize = AtomicUsize::new(0);
 
 //
 
-#[track_caller]
 pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     // debug!("switching to {}", next.name.read().clone());
     if !next.is_valid {
@@ -120,6 +119,12 @@ impl Tid {
 
     pub const fn num(self) -> usize {
         self.0
+    }
+}
+
+impl fmt::Display for Tid {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -239,7 +244,6 @@ impl Deref for TaskInner {
 unsafe impl Sync for TaskInner {}
 
 impl Drop for TaskInner {
-    #[track_caller]
     fn drop(&mut self) {
         assert_eq!(
             self.state.load(),
@@ -279,7 +283,7 @@ impl Task {
         let process = Process::new(Pid::next(), name, AddressSpace::new(PageMap::new()));
 
         let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
-        let user_stack = process.address_space.take_user_stack_lazy();
+        let user_stack = process.address_space.take_user_stack();
 
         let context = UnsafeCell::new(Context::new(
             &process.address_space.page_map,
@@ -348,7 +352,7 @@ impl Task {
         process.threads.fetch_add(1, Ordering::Relaxed);
 
         let kernel_stack = process.address_space.take_kernel_stack_prealloc(1);
-        let user_stack = process.address_space.take_user_stack_lazy();
+        let user_stack = process.address_space.take_user_stack();
 
         let context = UnsafeCell::new(Context::new(
             &process.address_space.page_map,
@@ -386,11 +390,11 @@ impl Task {
         let mut kernel_stack = process
             .address_space
             .kernel_stacks
-            .take_lazy(&process.address_space.page_map);
+            .take(&process.address_space.page_map);
         let mut user_stack = process
             .address_space
             .user_stacks
-            .take_lazy(&process.address_space.page_map);
+            .take(&process.address_space.page_map);
         kernel_stack.limit_4k_pages = 0;
         user_stack.limit_4k_pages = 0;
 

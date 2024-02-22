@@ -174,6 +174,9 @@ impl PageFrameAllocator {
 
     /// mark a page as shared (or make a copy if it if there are too many refs)
     ///
+    // /// `Ok` means that the frame is the same
+    // /// `Err` means that a copy was made
+    ///
     /// # Safety
     /// the pages should not be modified or deallocated during the copy
     ///
@@ -207,6 +210,9 @@ impl PageFrameAllocator {
     }
 
     /// handle a page fault from a forked CoW page
+    ///
+    // /// `Ok` means that the frame is still the same
+    // /// `Err` means that a copy was made
     ///
     /// # Internal
     ///
@@ -279,7 +285,6 @@ impl PageFrameAllocator {
     /// Alloc pages
     ///
     /// Use [`Self::free`] to not leak pages (-> memory)
-    // #[track_caller]
     pub fn alloc(&self, count: usize) -> PageFrame {
         if count == 0 {
             return PageFrame {
@@ -570,6 +575,10 @@ impl PageFrame {
     /// this just takes ownership to give a safe method of getting a static ref to the data
     pub fn leak(mut self) -> &'static mut [u8] {
         unsafe { transmute(self.as_bytes_mut()) }
+    }
+
+    pub fn free(self) {
+        PFA.free(self)
     }
 }
 

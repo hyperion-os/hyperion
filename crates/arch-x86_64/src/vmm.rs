@@ -23,15 +23,20 @@
 
 #![allow(clippy::comparison_chain)]
 
-use core::{mem::ManuallyDrop, ops::Range};
+use core::{
+    arch::asm,
+    mem::ManuallyDrop,
+    ops::Range,
+    sync::atomic::{fence, Ordering},
+};
 
 use hyperion_mem::{
-    from_higher_half,
+    from_higher_half, is_higher_half,
     pmm::{self, PageFrame},
     to_higher_half,
-    vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege},
+    vmm::{Handled, MemoryInfo, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
-use spin::RwLock;
+use spin::{RwLock, RwLockWriteGuard};
 use x86_64::{
     instructions::tlb,
     registers::control::{Cr3, Cr3Flags},
@@ -59,6 +64,8 @@ pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_F
 pub const NO_FREE: PageTableFlags = PageTableFlags::BIT_9;
 /// the page is shared and was originally writeable
 pub const COW: PageTableFlags = PageTableFlags::BIT_10;
+/// the page is not mapped and should not be mapped
+pub const GUARD: PageTableFlags = PageTableFlags::BIT_11;
 /// the page is allocated on first use using a page fault
 pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
 
@@ -90,7 +97,11 @@ fn next_table(entry: &mut PageTableEntry) -> Option<&mut PageTable> {
     Some(unsafe { &mut *to_higher_half(frame.start_address()).as_mut_ptr() })
 }
 
-fn page_fault_1gib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResult {
+fn page_fault_1gib(
+    info: &MemoryInfo,
+    entry: &mut PageTableEntry,
+    addr: VirtAddr,
+) -> PageFaultResult {
     let mut flags = entry.flags();
 
     if flags.contains(COW) {
@@ -100,19 +111,23 @@ fn page_fault_1gib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResul
 
         // convert the 1gib page into 2mib pages and allocate only one of them now
 
-        let l3 = LockedPageMap::create_table(entry).unwrap();
+        let l3 = LockedPageMap::create_table(info, entry).unwrap();
         for l3e in l3.iter_mut() {
             l3e.set_flags(flags); // mark all with the original flags
         }
         let l3e = &mut l3[addr.p3_index()];
 
-        return page_fault_4kib(l3e, addr);
+        return page_fault_2mib(info, l3e, addr);
     }
 
     Ok(NotHandled)
 }
 
-fn page_fault_2mib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResult {
+fn page_fault_2mib(
+    info: &MemoryInfo,
+    entry: &mut PageTableEntry,
+    addr: VirtAddr,
+) -> PageFaultResult {
     let mut flags = entry.flags();
 
     if flags.contains(COW) {
@@ -122,88 +137,124 @@ fn page_fault_2mib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResul
 
         // convert the 2mib page into 4kib pages and allocate only one of them now
 
-        let l2 = LockedPageMap::create_table(entry).unwrap();
+        let l2 = LockedPageMap::create_table(info, entry).unwrap();
         for l2e in l2.iter_mut() {
             l2e.set_flags(flags); // mark all with the original flags
         }
         let l2e = &mut l2[addr.p2_index()];
 
-        return page_fault_4kib(l2e, addr);
+        return page_fault_4kib(info, l2e, addr);
     }
 
     Ok(NotHandled)
 }
 
-fn page_fault_4kib(entry: &mut PageTableEntry, addr: VirtAddr) -> PageFaultResult {
-    let frame;
+fn page_fault_4kib(
+    info: &MemoryInfo,
+    entry: &mut PageTableEntry,
+    addr: VirtAddr,
+) -> PageFaultResult {
     let mut flags = entry.flags();
 
-    if flags.contains(COW) {
+    let new_frame = if flags.contains(COW) {
         // handle a fork CoW
         flags.remove(COW);
         flags.insert(PageTableFlags::WRITABLE);
 
         let page = Page::containing_address(addr);
-        frame = unsafe { pmm::PFA.fork_page_fault(entry.frame().unwrap(), page) };
+        let old = entry.frame().unwrap();
+        unsafe { pmm::PFA.fork_page_fault(old, page) }
     } else if flags.contains(LAZY_ALLOC) {
         // handle a lazy alloc
         flags.remove(LAZY_ALLOC);
         flags.insert(PageTableFlags::PRESENT);
 
-        frame = alloc_table();
+        info.phys_pages.fetch_add(1, Ordering::Relaxed);
+        PhysFrame::from_start_address(pmm::PFA.alloc(1).physical_addr()).unwrap()
     } else {
         return Ok(NotHandled);
-    }
+    };
 
-    entry.set_frame(frame, flags);
+    entry.set_frame(new_frame, flags);
     MapperFlush::new(Page::<Size4KiB>::containing_address(addr)).flush();
 
     Err(Handled)
 }
 
-fn alloc_table() -> PhysFrame {
+fn alloc_table(info: &MemoryInfo) -> PhysFrame {
+    info.add_virt(1);
+    info.add_phys(1);
+
     let frame = pmm::PFA.alloc(1);
     PhysFrame::<Size4KiB>::from_start_address(frame.physical_addr()).unwrap()
 }
 
-// FIXME: vmm dealloc
-/* fn free_table(f: PhysFrame) {
-    let frame = unsafe { PageFrame::new(f.start_address(), 1) };
-    pmm::PFA.free(frame)
-} */
+unsafe fn free_table(info: &MemoryInfo, f: PhysFrame) {
+    unsafe { PageFrame::new(f.start_address(), 1) }.free();
+
+    info.sub_virt(1);
+    info.sub_phys(1);
+}
+
+//
+
+// RwLock safe from lazy stack growing
+struct SafeRwLock<T>(RwLock<T>);
+
+impl<T> SafeRwLock<T> {
+    fn new(t: T) -> Self {
+        SafeRwLock(RwLock::new(t))
+    }
+
+    fn get_mut(&mut self) -> &mut T {
+        self.0.get_mut()
+    }
+
+    fn write(&self) -> RwLockWriteGuard<T> {
+        extern "C" fn stack_test() {
+            let rsp: u64;
+            unsafe { asm!("mov {rsp}, rsp", rsp = out(reg) rsp) };
+            let rsp = (rsp / 8 * 8) as *const u8;
+
+            // a minimum of 2 pages of free stack space should be more than enough
+            unsafe { rsp.read_volatile() };
+            unsafe { rsp.sub(0x1000).read_volatile() };
+            unsafe { rsp.sub(0x2000).read_volatile() };
+        }
+
+        // FIXME: test only if the active page map is being modified
+        stack_test();
+
+        self.write_now()
+    }
+
+    fn write_now(&self) -> RwLockWriteGuard<T> {
+        self.0.write()
+    }
+
+    fn read(&self) -> RwLockWriteGuard<T> {
+        self.0.write()
+    }
+}
 
 //
 
 pub struct PageMap {
-    inner: ManuallyDrop<RwLock<LockedPageMap>>,
+    inner: ManuallyDrop<SafeRwLock<LockedPageMap>>,
     owned: bool,
+    info: MemoryInfo,
 }
 
 impl PageMapImpl for PageMap {
-    fn page_fault(&self, v_addr: VirtAddr, _privilege: Privilege) -> PageFaultResult {
-        let mut inner = self.inner.write();
-        let l4 = inner.l4();
-
-        // giant pages
-        let l4e = &mut l4[v_addr.p4_index()];
-        let Some(l3) = next_table(l4e) else {
+    fn page_fault(&self, v_addr: VirtAddr, privilege: Privilege) -> PageFaultResult {
+        if privilege == Privilege::User && is_higher_half(v_addr.as_u64()) {
+            // the user process shouldn't touch kernel memory anyways
             return Ok(NotHandled);
-        };
+        }
 
-        // huge pages
-        let l3e = &mut l3[v_addr.p3_index()];
-        let Some(l2) = next_table(l3e) else {
-            return page_fault_1gib(l3e, v_addr);
-        };
-
-        // normal pages
-        let l2e = &mut l2[v_addr.p2_index()];
-        let Some(l1) = next_table(l2e) else {
-            return page_fault_2mib(l2e, v_addr);
-        };
-
-        let l1e = &mut l1[v_addr.p1_index()];
-        page_fault_4kib(l1e, v_addr)
+        self.inner
+            .write_now()
+            .page_fault(&self.info, v_addr, privilege)
     }
 
     fn current() -> Self {
@@ -213,13 +264,15 @@ impl PageMapImpl for PageMap {
         let l4: &mut PageTable = unsafe { &mut *to_higher_half(l4.start_address()).as_mut_ptr() };
 
         Self {
-            inner: ManuallyDrop::new(RwLock::new(LockedPageMap { l4 })),
+            inner: ManuallyDrop::new(SafeRwLock::new(LockedPageMap { l4 })),
+            info: MemoryInfo::symmetric(1),
             owned: false,
         }
     }
 
     fn new() -> Self {
-        let cr3 = alloc_table();
+        let info = MemoryInfo::zero();
+        let cr3 = alloc_table(&info);
         let l4: &mut PageTable = unsafe { &mut *to_higher_half(cr3.start_address()).as_mut_ptr() };
 
         l4.zero();
@@ -227,7 +280,8 @@ impl PageMapImpl for PageMap {
         // TODO: Copy on write maps
 
         let page_map = Self {
-            inner: ManuallyDrop::new(RwLock::new(LockedPageMap { l4 })),
+            inner: ManuallyDrop::new(SafeRwLock::new(LockedPageMap { l4 })),
+            info,
             owned: true,
         };
 
@@ -238,8 +292,8 @@ impl PageMapImpl for PageMap {
             hyperion_boot::hhdm_offset()
         );
         page_map.map(
-            HIGHER_HALF_DIRECT_MAPPING..HIGHER_HALF_DIRECT_MAPPING + 0x100000000u64, // KERNEL_STACKS,
-            Some(PhysAddr::new(0x0)),
+            HIGHER_HALF_DIRECT_MAPPING + 0x1000u64..HIGHER_HALF_DIRECT_MAPPING + 0x100000000u64, // KERNEL_STACKS,
+            Some(PhysAddr::new(0x1000u64)),
             PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE | NO_FREE,
         );
 
@@ -258,9 +312,11 @@ impl PageMapImpl for PageMap {
             PageTableFlags::WRITABLE | NO_FREE,
         );
 
-        // page_map.debug();
-
         page_map
+    }
+
+    fn info(&self) -> &MemoryInfo {
+        &self.info
     }
 
     fn fork(&self) -> Self {
@@ -343,13 +399,14 @@ impl PageMapImpl for PageMap {
                         let start = v_addr_from_parts(0, l1i, l2i, l3i, l4i);
 
                         // 4 KiB page
-                        // mark as read only
+
                         let mut l0f = l1e.flags();
                         if l0f.contains(LAZY_ALLOC) {
                             new.map(start..start + Size4KiB::SIZE, None, l0f);
                             continue;
                         }
 
+                        // mark as read only
                         if l0f.contains(PageTableFlags::WRITABLE) {
                             l0f.remove(PageTableFlags::WRITABLE);
                             l0f.insert(COW);
@@ -386,15 +443,15 @@ impl PageMapImpl for PageMap {
     }
 
     fn map(&self, v_addr: Range<VirtAddr>, p_addr: Option<PhysAddr>, flags: PageTableFlags) {
-        self.inner.write().map(v_addr, p_addr, flags)
+        self.inner.write().map(&self.info, v_addr, p_addr, flags);
     }
 
     fn unmap(&self, v_addr: Range<VirtAddr>) {
-        self.inner.write().unmap(v_addr)
+        self.inner.write().unmap(&self.info, v_addr);
     }
 
     fn remap(&self, v_addr: Range<VirtAddr>, new_flags: PageTableFlags) {
-        self.inner.write().remap(v_addr, new_flags)
+        self.inner.write().remap(v_addr, new_flags);
     }
 
     fn is_mapped(&self, v_addr: Range<VirtAddr>, has_at_least: PageTableFlags) -> bool {
@@ -427,8 +484,37 @@ impl LockedPageMap {
         unsafe { Cr3::write(cr3, Cr3Flags::empty()) };
     }
 
+    fn page_fault(
+        &mut self,
+        info: &MemoryInfo,
+        v_addr: VirtAddr,
+        _privilege: Privilege,
+    ) -> PageFaultResult {
+        // giant pages
+        let l4e = &mut self.l4[v_addr.p4_index()];
+        let Some(l3) = next_table(l4e) else {
+            return Ok(NotHandled);
+        };
+
+        // huge pages
+        let l3e = &mut l3[v_addr.p3_index()];
+        let Some(l2) = next_table(l3e) else {
+            return page_fault_1gib(info, l3e, v_addr);
+        };
+
+        // normal pages
+        let l2e = &mut l2[v_addr.p2_index()];
+        let Some(l1) = next_table(l2e) else {
+            return page_fault_2mib(info, l2e, v_addr);
+        };
+
+        let l1e = &mut l1[v_addr.p1_index()];
+        page_fault_4kib(info, l1e, v_addr)
+    }
+
     fn map(
         &mut self,
+        info: &MemoryInfo,
         Range { mut start, end }: Range<VirtAddr>,
         mut to: Option<PhysAddr>,
         flags: PageTableFlags,
@@ -457,20 +543,20 @@ impl LockedPageMap {
                 panic!("over-mapped");
             }
 
-            let Err(err_1gib) = self.try_map_1gib(start..end, to, flags) else {
+            let Err(err_1gib) = self.try_map_1gib(info, start..end, to, flags) else {
                 // could crash if the last possible phys/virt page was mapped
                 start += Size1GiB::SIZE;
                 to = to.map(|to| to + Size1GiB::SIZE);
                 continue;
             };
 
-            let Err(err_2mib) = self.try_map_2mib(start..end, to, flags) else {
+            let Err(err_2mib) = self.try_map_2mib(info, start..end, to, flags) else {
                 start += Size2MiB::SIZE;
                 to = to.map(|to| to + Size2MiB::SIZE);
                 continue;
             };
 
-            let Err(err_4kib) = self.try_map_4kib(start..end, to, flags) else {
+            let Err(err_4kib) = self.try_map_4kib(info, start..end, to, flags) else {
                 start += Size4KiB::SIZE;
                 to = to.map(|to| to + Size4KiB::SIZE);
                 continue;
@@ -514,14 +600,18 @@ impl LockedPageMap {
     }
 
     // None = HugeFrame
-    fn create_table(entry: &mut PageTableEntry) -> Option<&mut PageTable> {
+    fn create_table<'a>(
+        info: &MemoryInfo,
+        entry: &'a mut PageTableEntry,
+    ) -> Option<&'a mut PageTable> {
         let flags =
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
 
+        assert!(!entry.flags().intersects(LAZY_ALLOC | COW));
         let table = match entry.frame() {
             Ok(table) => table,
             Err(FrameError::FrameNotPresent) => {
-                let table = alloc_table();
+                let table = alloc_table(info);
                 entry.set_frame(table, flags);
                 table
             }
@@ -529,11 +619,11 @@ impl LockedPageMap {
         };
 
         let addr = to_higher_half(table.start_address()).as_mut_ptr();
-
         Some(unsafe { &mut *addr })
     }
 
     fn try_map_if_diff<S: PageSize>(
+        info: &MemoryInfo,
         entry: &mut PageTableEntry,
         to: Option<PhysFrame<S>>,
         flags: PageTableFlags,
@@ -561,17 +651,33 @@ impl LockedPageMap {
             // already mapped but it is already correct
             return Ok(());
         }
-
         if !entry.is_unused() {
             return Err(TryMapError::AlreadyMapped);
         }
 
+        let n_pages = S::SIZE as usize / 0x1000;
+        info.add_virt(n_pages);
+        if new.0.contains(NO_FREE) {
+            debug_assert_ne!(new.1.as_u64(), 0);
+        } else if new.0.contains(LAZY_ALLOC) {
+            debug_assert_eq!(new.1.as_u64(), 0);
+        } else if new.0.contains(COW) {
+            debug_assert_ne!(new.1.as_u64(), 0);
+            info.add_phys(n_pages);
+        } else if new.0.contains(PageTableFlags::PRESENT) {
+            debug_assert_ne!(new.1.as_u64(), 0);
+            info.add_phys(n_pages);
+        } else {
+            todo!()
+        }
         entry.set_addr(new.1, new.0);
+
         Ok(())
     }
 
     fn try_map_1gib(
         &mut self,
+        info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
         to: Option<PhysAddr>,
         flags: PageTableFlags,
@@ -579,12 +685,12 @@ impl LockedPageMap {
         let from = Self::is_map_valid(start..end)?;
         let to = Self::is_phys_map_valid(to)?;
 
-        let Some(p3) = Self::create_table(&mut self.l4[from.p4_index()]) else {
+        let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
             unreachable!("512GiB maps are not supported");
         };
         let p3e = &mut p3[from.p3_index()];
 
-        Self::try_map_if_diff(p3e, to, flags | PageTableFlags::HUGE_PAGE)?;
+        Self::try_map_if_diff(info, p3e, to, flags | PageTableFlags::HUGE_PAGE)?;
         tlb::flush(from.start_address());
 
         Ok(())
@@ -592,6 +698,7 @@ impl LockedPageMap {
 
     fn try_map_2mib(
         &mut self,
+        info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
         to: Option<PhysAddr>,
         flags: PageTableFlags,
@@ -599,15 +706,15 @@ impl LockedPageMap {
         let from = Self::is_map_valid(start..end)?;
         let to = Self::is_phys_map_valid(to)?;
 
-        let Some(p3) = Self::create_table(&mut self.l4[from.p4_index()]) else {
+        let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
             unreachable!("512GiB maps are not supported");
         };
-        let Some(p2) = Self::create_table(&mut p3[from.p3_index()]) else {
+        let Some(p2) = Self::create_table(info, &mut p3[from.p3_index()]) else {
             return Err(TryMapError::WrongSize);
         };
         let p2e = &mut p2[from.p2_index()];
 
-        Self::try_map_if_diff(p2e, to, flags | PageTableFlags::HUGE_PAGE)?;
+        Self::try_map_if_diff(info, p2e, to, flags | PageTableFlags::HUGE_PAGE)?;
         tlb::flush(from.start_address());
 
         Ok(())
@@ -615,6 +722,7 @@ impl LockedPageMap {
 
     fn try_map_4kib(
         &mut self,
+        info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
         to: Option<PhysAddr>,
         flags: PageTableFlags,
@@ -622,24 +730,24 @@ impl LockedPageMap {
         let from = Self::is_map_valid(start..end)?;
         let to = Self::is_phys_map_valid(to)?;
 
-        let Some(p3) = Self::create_table(&mut self.l4[from.p4_index()]) else {
+        let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
             unreachable!("512GiB maps are not supported");
         };
-        let Some(p2) = Self::create_table(&mut p3[from.p3_index()]) else {
+        let Some(p2) = Self::create_table(info, &mut p3[from.p3_index()]) else {
             return Err(TryMapError::WrongSize);
         };
-        let Some(p1) = Self::create_table(&mut p2[from.p2_index()]) else {
+        let Some(p1) = Self::create_table(info, &mut p2[from.p2_index()]) else {
             return Err(TryMapError::WrongSize);
         };
         let p1e = &mut p1[from.p1_index()];
 
-        Self::try_map_if_diff(p1e, to, flags)?;
+        Self::try_map_if_diff(info, p1e, to, flags)?;
         tlb::flush(from.start_address());
 
         Ok(())
     }
 
-    fn unmap(&mut self, Range { mut start, end }: Range<VirtAddr>) {
+    fn unmap(&mut self, info: &MemoryInfo, Range { mut start, end }: Range<VirtAddr>) {
         if !start.is_aligned(Size4KiB::SIZE) || !end.is_aligned(Size4KiB::SIZE) {
             panic!("Not aligned");
         }
@@ -655,18 +763,18 @@ impl LockedPageMap {
 
             hyperion_log::trace!("unmapping {start:#018x}");
 
-            let Err(err_1gib) = self.try_unmap_1gib(start..end) else {
+            let Err(err_1gib) = self.try_unmap_1gib(info, start..end) else {
                 // could crash if the last possible phys/virt page was mapped
                 start += Size1GiB::SIZE;
                 continue;
             };
 
-            let Err(err_2mib) = self.try_unmap_2mib(start..end) else {
+            let Err(err_2mib) = self.try_unmap_2mib(info, start..end) else {
                 start += Size2MiB::SIZE;
                 continue;
             };
 
-            let Err(err_4kib) = self.try_unmap_4kib(start..end) else {
+            let Err(err_4kib) = self.try_unmap_4kib(info, start..end) else {
                 start += Size4KiB::SIZE;
                 continue;
             };
@@ -694,6 +802,7 @@ impl LockedPageMap {
     }
 
     fn try_unmap_if_correct_size<S: PageSize>(
+        info: &MemoryInfo,
         entry: &mut PageTableEntry,
         should_be_huge_page: bool,
     ) -> Result<(), TryMapError<S>> {
@@ -706,18 +815,35 @@ impl LockedPageMap {
             return Err(TryMapError::WrongSize);
         }
 
-        if f.contains(PageTableFlags::PRESENT) && !f.contains(NO_FREE) {
-            let frames = unsafe { PageFrame::new(entry.addr(), S::SIZE as usize / 0x1000) };
-            pmm::PFA.free(frames);
+        let n_pages = S::SIZE as usize / 0x1000;
+        let frames = unsafe { PageFrame::new(entry.addr(), n_pages) };
+        if f.contains(NO_FREE) {
+            debug_assert_ne!(entry.addr().as_u64(), 0);
+            // obv don't free
+        } else if f.contains(LAZY_ALLOC) {
+            debug_assert_eq!(entry.addr().as_u64(), 0);
+            // lazy allocs are not allocated yet so they cant be freed yet either
+        } else if f.contains(COW) {
+            debug_assert_ne!(entry.addr().as_u64(), 0);
+            // the PMM handles double frees with CoW maps
+            frames.free();
+            info.sub_phys(n_pages);
+        } else if f.contains(PageTableFlags::PRESENT) {
+            debug_assert_ne!(entry.addr().as_u64(), 0);
+            frames.free();
+            info.sub_phys(n_pages);
+        } else {
+            todo!()
         }
-
-        // free_table(PhysFrame::from_start_address(p3e.addr()).unwrap());
+        info.sub_virt(n_pages);
         entry.set_unused();
+
         Ok(())
     }
 
     fn try_unmap_1gib(
         &mut self,
+        info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
     ) -> Result<(), TryMapError<Size1GiB>> {
         let from = Self::is_map_valid(start..end)?;
@@ -727,7 +853,7 @@ impl LockedPageMap {
         };
         let p3e = &mut p3[from.p3_index()];
 
-        Self::try_unmap_if_correct_size(p3e, true)?;
+        Self::try_unmap_if_correct_size(info, p3e, true)?;
         tlb::flush(from.start_address());
 
         Ok(())
@@ -735,6 +861,7 @@ impl LockedPageMap {
 
     fn try_unmap_2mib(
         &mut self,
+        info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
     ) -> Result<(), TryMapError<Size2MiB>> {
         let from = Self::is_map_valid(start..end)?;
@@ -747,7 +874,7 @@ impl LockedPageMap {
         };
         let p2e = &mut p2[from.p2_index()];
 
-        Self::try_unmap_if_correct_size(p2e, true)?;
+        Self::try_unmap_if_correct_size(info, p2e, true)?;
         tlb::flush(from.start_address());
 
         Ok(())
@@ -755,6 +882,7 @@ impl LockedPageMap {
 
     fn try_unmap_4kib(
         &mut self,
+        info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
     ) -> Result<(), TryMapError<Size4KiB>> {
         let from = Self::is_map_valid(start..end)?;
@@ -770,7 +898,7 @@ impl LockedPageMap {
         };
         let p1e = &mut p1[from.p1_index()];
 
-        Self::try_unmap_if_correct_size(p1e, false)?;
+        Self::try_unmap_if_correct_size(info, p1e, false)?;
         tlb::flush(from.start_address());
 
         Ok(())
@@ -1054,112 +1182,61 @@ impl LockedPageMap {
         Cr3::read().0 == self.cr3()
     }
 
-    fn clear(&mut self) {
-        for entry in self.l4.iter_mut() {
-            Self::clear_l3(entry);
-        }
-
-        self.l4.zero();
+    fn clear(&mut self, info: &MemoryInfo) {
+        Self::free_table(info, 4, self.l4);
     }
 
-    fn as_page_table_mut(
-        entry: &mut PageTableEntry,
-    ) -> Option<Result<(&mut PageTable, PhysFrame), ()>> {
-        match entry.frame() {
-            Ok(next) => {
-                let addr = to_higher_half(next.start_address()).as_mut_ptr();
-                Some(Ok((unsafe { &mut *addr }, next)))
-            }
-            Err(FrameError::FrameNotPresent) => None,
-            Err(FrameError::HugeFrame) => Some(Err(())),
+    fn free_table(info: &MemoryInfo, layer: u8, table: &mut PageTable) {
+        for entry in table.iter_mut() {
+            Self::free_entry(info, layer, entry);
         }
     }
 
-    fn clear_l3(entry: &mut PageTableEntry) {
-        let (next, next_frame) = match Self::as_page_table_mut(entry) {
-            Some(Ok(next)) => next,
-            Some(Err(())) => unreachable!(),
-            None => return,
-        };
-
-        for entry in next.iter_mut() {
-            Self::clear_l2(entry);
+    fn free_entry(info: &MemoryInfo, layer: u8, entry: &mut PageTableEntry) {
+        if entry.is_unused() {
+            return;
         }
 
-        next.zero();
-        _ = next;
+        let f = entry.flags();
 
-        // free the table itself
-        let frame = unsafe { PageFrame::new(next_frame.start_address(), 1) };
-        pmm::PFA.free(frame);
-    }
+        let n_pages = match (layer, f.contains(PageTableFlags::HUGE_PAGE)) {
+            (3, true) => 512 * 512,
+            (2, true) => 512,
+            (1, false) => 1,
+            (2..=4, false) => {
+                // next table
+                let next = entry.frame().unwrap();
+                let addr: *mut PageTable = to_higher_half(next.start_address()).as_mut_ptr();
+                Self::free_table(info, layer - 1, unsafe { &mut *addr });
 
-    fn clear_l2(entry: &mut PageTableEntry) {
-        let (next, next_frame) = match Self::as_page_table_mut(entry) {
-            Some(Ok(next)) => next,
-            Some(Err(())) => {
-                if entry.flags().contains(NO_FREE) {
-                    return;
-                }
-
-                // giant page
-                let frames = unsafe { PageFrame::new(entry.addr(), 512 * 512) };
-                pmm::PFA.free(frames);
+                unsafe { free_table(info, next) };
+                entry.set_unused();
                 return;
             }
-            None => return,
+            (_, _) => unreachable!(),
         };
 
-        for entry in next.iter_mut() {
-            Self::clear_l1(entry);
+        let frames = unsafe { PageFrame::new(entry.addr(), n_pages) };
+        if f.contains(NO_FREE) {
+            debug_assert_ne!(entry.addr().as_u64(), 0);
+            // obv don't free
+        } else if f.contains(LAZY_ALLOC) {
+            debug_assert_eq!(entry.addr().as_u64(), 0);
+            // lazy allocs are not allocated yet so they cant be freed yet either
+        } else if f.contains(COW) {
+            debug_assert_ne!(entry.addr().as_u64(), 0);
+            // the PMM handles double frees with CoW maps
+            frames.free();
+            info.sub_phys(n_pages);
+        } else if f.contains(PageTableFlags::PRESENT) {
+            debug_assert_ne!(entry.addr().as_u64(), 0);
+            frames.free();
+            info.sub_phys(n_pages);
+        } else {
+            todo!()
         }
-
-        next.zero();
-        _ = next;
-
-        // free the table itself
-        let frame = unsafe { PageFrame::new(next_frame.start_address(), 1) };
-        pmm::PFA.free(frame);
-    }
-
-    fn clear_l1(entry: &mut PageTableEntry) {
-        let (next, next_frame) = match Self::as_page_table_mut(entry) {
-            Some(Ok(next)) => next,
-            Some(Err(())) => {
-                if entry.flags().contains(NO_FREE) {
-                    return;
-                }
-
-                // huge page
-                let frames = unsafe { PageFrame::new(entry.addr(), 512) };
-                pmm::PFA.free(frames);
-                return;
-            }
-            None => return,
-        };
-
-        for entry in next.iter_mut() {
-            if entry.flags().contains(NO_FREE) {
-                continue;
-            }
-
-            match Self::as_page_table_mut(entry) {
-                Some(Ok((_, frame))) => {
-                    // normal page
-                    let frames = unsafe { PageFrame::new(frame.start_address(), 1) };
-                    pmm::PFA.free(frames);
-                }
-                Some(Err(())) => unreachable!(),
-                None => {}
-            }
-        }
-
-        next.zero();
-        _ = next;
-
-        // free the table itself
-        let frame = unsafe { PageFrame::new(next_frame.start_address(), 1) };
-        pmm::PFA.free(frame);
+        info.sub_virt(n_pages);
+        entry.set_unused();
     }
 }
 
@@ -1180,6 +1257,17 @@ impl PageMap {
     pub fn cr3(&self) -> PhysFrame {
         self.inner.read().cr3()
     }
+
+    /* /// # Safety
+    /// TODO: not safe
+    pub unsafe fn unsafe_page_fault(
+        &self,
+        addr: VirtAddr,
+        privilege: Privilege,
+    ) -> PageFaultResult {
+        // FIXME: page map entry locking
+        self.inner.force_write_unlock();
+    } */
 
     pub fn fork_into(&self, _into: &Self) {
         /* let mut from_offs = self.offs.write();
@@ -1207,13 +1295,19 @@ impl Drop for PageMap {
         let cr3 = {
             let mut inner = unsafe { ManuallyDrop::take(&mut self.inner) };
             let inner = inner.get_mut();
-            inner.clear();
+            inner.clear(&self.info);
             inner.cr3()
         };
 
-        // free the table itself
-        let frame = unsafe { PageFrame::new(cr3.start_address(), 1) };
-        pmm::PFA.free(frame);
+        unsafe { free_table(&self.info, cr3) };
+
+        fence(Ordering::SeqCst);
+        let virt = self.info.virt_pages.load(Ordering::Relaxed);
+        let phys = self.info.phys_pages.load(Ordering::Relaxed);
+
+        if virt != 0 || phys != 0 {
+            hyperion_log::error!("PageMap leaked memory, virt_pages={virt} phys_pages={phys}");
+        }
     }
 }
 

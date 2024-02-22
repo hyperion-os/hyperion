@@ -1,12 +1,10 @@
 use crossbeam::atomic::AtomicCell;
 use hyperion_log::*;
-use hyperion_mem::vmm::{Handled, NotHandled, PageFaultResult, PageMapImpl, Privilege};
+use hyperion_mem::vmm::{Handled, NotHandled, PageFaultResult, Privilege};
 use x86_64::{
     registers::{control::Cr2, mxcsr},
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},
 };
-
-use crate::vmm::PageMap;
 
 //
 
@@ -98,7 +96,6 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
     };
 
     let res = (|| {
-        PageMap::current().page_fault(addr, privilege)?;
         PAGE_FAULT_HANDLER.load()(
             stack.instruction_pointer.as_u64() as _,
             addr.as_u64() as _,
@@ -114,7 +111,7 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
             panic!();
         }
         Err(Handled) => {
-            // debug!("page fault handled {stack:#?}");
+            // debug!("page fault handled");
         }
     };
 }

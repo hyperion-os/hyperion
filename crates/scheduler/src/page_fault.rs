@@ -1,13 +1,7 @@
-use core::{fmt::Debug, sync::atomic::Ordering};
+use core::sync::atomic::Ordering;
 
-use hyperion_arch::{
-    stack::{Stack, StackType},
-    vmm::PageMap,
-};
-use hyperion_cpu_id::cpu_id;
 use hyperion_log::*;
 use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
-use spin::Mutex;
 use x86_64::VirtAddr;
 
 use crate::{exit, task, task::TaskInner, tls};
@@ -17,7 +11,7 @@ use crate::{exit, task, task::TaskInner, tls};
 pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFaultResult {
     // debug!(
     //     "#PF @{instr:#x} ->{addr:#x} (from {user:?}) (cpu: {})",
-    //     cpu_id()
+    //     hyperion_cpu_id::cpu_id()
     // );
     let v_addr = VirtAddr::new(addr as _);
 
@@ -25,55 +19,60 @@ pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFau
     if !actual_current.is_null() {
         let current: &TaskInner = unsafe { &*actual_current };
 
+        // let page_map = PageMap::current();
+        let page_map = &current.address_space.page_map;
+
+        page_map.page_fault(v_addr, user)?;
+
         // try handling the page fault first if it happened during a task switch
         if user == Privilege::User {
             // `Err(Handled)` short circuits and returns
-            handle_stack_grow(&current.user_stack, addr)?;
+            // handle_stack_grow(&current.address_space.page_map, &current.user_stack, addr)?;
         } else {
-            handle_stack_grow(&current.kernel_stack, addr)?;
-            handle_stack_grow(&current.user_stack, addr)?;
+            // handle_stack_grow(&current.address_space.page_map, &current.kernel_stack, addr)?;
+            // handle_stack_grow(&current.address_space.page_map, &current.user_stack, addr)?;
         }
 
         // otherwise fall back to handling this task's page fault
     }
 
     let current = task();
+    let pid = current.pid;
+    let tid = current.tid;
+
+    current
+        .process
+        .address_space
+        .page_map
+        .page_fault(v_addr, user)?;
 
     if user == Privilege::User {
         // `Err(Handled)` short circuits and returns
-        handle_stack_grow(&current.user_stack, addr)?;
-
-        // current.address_space.page_map.page_fault(v_addr, user)?;
+        // handle_stack_grow(&current.address_space.page_map, &current.user_stack, addr)?;
 
         // user process tried to access memory thats not available to it
         let maps_to = current.address_space.page_map.virt_to_phys(v_addr);
-        hyperion_log::warn!(
-            "killing user-space process, pid:{} tid:{} tried to use {addr:#x} at {instr:#x}",
-            current.pid.num(),
-            current.tid.num(),
-        );
-        hyperion_log::warn!("{addr:#x} maps to {maps_to:#x?}");
+        warn!("SIGSEGV (PID:{pid} TID:{tid}) #{addr:#x} @{instr:#x}",);
+        warn!("{addr:#x} maps to {maps_to:#x?}");
         current.should_terminate.store(true, Ordering::SeqCst);
         exit();
     } else {
-        handle_stack_grow(&current.kernel_stack, addr)?;
-        handle_stack_grow(&current.user_stack, addr)?;
+        // handle_stack_grow(&current.address_space.page_map, &current.kernel_stack, addr)?;
+        // handle_stack_grow(&current.address_space.page_map, &current.user_stack, addr)?;
 
-        hyperion_log::error!("{:?}", current.kernel_stack.lock());
-        hyperion_log::error!("page fault from kernel-space");
+        let maps_to = current.address_space.page_map.virt_to_phys(v_addr);
+        error!("kernel SIGSEGV (PID:{pid} TID:{tid}) #{addr:#x} @{instr:#x}");
+        error!("{addr:#x} maps to {maps_to:#x?}");
     };
-
-    let maps_to = current.address_space.page_map.virt_to_phys(v_addr);
-    hyperion_log::error!("{v_addr:#x} maps to {maps_to:#x?}");
-    error!("couldn't handle a page fault {}", cpu_id());
 
     Ok(NotHandled)
 }
 
-fn handle_stack_grow<T: StackType + Debug>(
-    stack: &Mutex<Stack<T>>,
-    addr: usize,
-) -> PageFaultResult {
-    let page_map = PageMap::current(); // technically maybe perhaps possibly UB
-    stack.lock().page_fault(&page_map, addr as u64)
-}
+// fn handle_stack_grow<T: StackType + Debug>(
+//     _page_map: &PageMap,
+//     stack: &Mutex<Stack<T>>,
+//     addr: usize,
+// ) -> PageFaultResult {
+//     // let page_map = PageMap::current(); // technically maybe perhaps possibly UB
+//     stack.lock().page_fault(&page_map, addr as u64)
+// }

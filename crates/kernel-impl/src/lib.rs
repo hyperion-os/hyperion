@@ -12,7 +12,6 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use hyperion_arch::vmm::PageMap;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
     ipc::pipe::{pipe_with, Channel, Receiver, Sender},
@@ -630,7 +629,11 @@ pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
         return Err(Error::INVALID_ADDRESS);
     };
 
-    if !PageMap::current().is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE) {
+    if !process()
+        .address_space
+        .page_map
+        .is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE)
+    {
         // debug!("{:?} not mapped", start..end);
         return Err(Error::INVALID_ADDRESS);
     }
