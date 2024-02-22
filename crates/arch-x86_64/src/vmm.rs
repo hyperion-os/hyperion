@@ -34,7 +34,7 @@ use hyperion_mem::{
     from_higher_half, is_higher_half,
     pmm::{self, PageFrame},
     to_higher_half,
-    vmm::{Handled, MemoryInfo, NotHandled, PageFaultResult, PageMapImpl, Privilege},
+    vmm::{Handled, MapTarget, MemoryInfo, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
 use spin::{RwLock, RwLockWriteGuard};
 use x86_64::{
@@ -292,9 +292,9 @@ impl PageMapImpl for PageMap {
             hyperion_boot::hhdm_offset()
         );
         page_map.map(
-            HIGHER_HALF_DIRECT_MAPPING + 0x1000u64..HIGHER_HALF_DIRECT_MAPPING + 0x100000000u64, // KERNEL_STACKS,
-            Some(PhysAddr::new(0x1000u64)),
-            PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE | NO_FREE,
+            HIGHER_HALF_DIRECT_MAPPING + 0x1000u64..HIGHER_HALF_DIRECT_MAPPING + 0x100000000u64,
+            MapTarget::Borrowed(PhysAddr::new_truncate(0x1000)),
+            PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
         );
 
         // FIXME: less dumb kernel mapping
@@ -308,8 +308,8 @@ impl PageMapImpl for PageMap {
         hyperion_log::trace!("kernel map {kernel:#018x}");
         page_map.map(
             kernel..top,
-            Some(PhysAddr::new(hyperion_boot::phys_addr() as _)),
-            PageTableFlags::WRITABLE | NO_FREE,
+            MapTarget::Borrowed(PhysAddr::new(hyperion_boot::phys_addr() as _)),
+            PageTableFlags::WRITABLE,
         );
 
         page_map
@@ -401,22 +401,24 @@ impl PageMapImpl for PageMap {
                         // 4 KiB page
 
                         let mut l0f = l1e.flags();
+                        let target;
                         if l0f.contains(LAZY_ALLOC) {
-                            new.map(start..start + Size4KiB::SIZE, None, l0f);
-                            continue;
+                            target = MapTarget::LazyAlloc;
+                        } else {
+                            if l0f.contains(PageTableFlags::WRITABLE) {
+                                // mark writeable pages as read only + CoW
+                                l0f.remove(PageTableFlags::WRITABLE);
+                                l0f.insert(COW);
+                            }
+
+                            // then fork the page
+                            let mapped = Page::from_start_address(start).unwrap();
+                            let new_frame = unsafe { pmm::PFA.fork(l0, mapped) }.start_address();
+                            target = MapTarget::Preallocated(new_frame);
                         }
 
-                        // mark as read only
-                        if l0f.contains(PageTableFlags::WRITABLE) {
-                            l0f.remove(PageTableFlags::WRITABLE);
-                            l0f.insert(COW);
-                        }
                         l1e.set_flags(l0f);
-
-                        let new_frame =
-                            unsafe { pmm::PFA.fork(l0, Page::from_start_address(start).unwrap()) }
-                                .start_address();
-                        new.map(start..start + Size4KiB::SIZE, Some(new_frame), l0f);
+                        new.map(start..start + Size4KiB::SIZE, target, l0f);
                     }
                 }
             }
@@ -442,7 +444,7 @@ impl PageMapImpl for PageMap {
         to_higher_half(addr)
     }
 
-    fn map(&self, v_addr: Range<VirtAddr>, p_addr: Option<PhysAddr>, flags: PageTableFlags) {
+    fn map(&self, v_addr: Range<VirtAddr>, p_addr: MapTarget, flags: PageTableFlags) {
         self.inner.write().map(&self.info, v_addr, p_addr, flags);
     }
 
@@ -516,25 +518,20 @@ impl LockedPageMap {
         &mut self,
         info: &MemoryInfo,
         Range { mut start, end }: Range<VirtAddr>,
-        mut to: Option<PhysAddr>,
+        mut to: MapTarget,
         flags: PageTableFlags,
     ) {
         if !start.is_aligned(Size4KiB::SIZE)
             || !end.is_aligned(Size4KiB::SIZE)
-            || !to.map_or(true, |to| to.is_aligned(Size4KiB::SIZE))
+            || !to.is_aligned(Size4KiB::SIZE)
         {
             panic!("Not aligned");
         }
 
-        if let Some(to) = to {
-            hyperion_log::trace!(
-                "mapping [ 0x{start:016x}..0x{end:016x} ] to 0x{to:016x} with {flags:?}"
-            );
-        } else {
-            hyperion_log::trace!(
-                "mapping [ 0x{start:016x}..0x{end:016x} ] to <lazy> with {flags:?}"
-            );
+        if flags.intersects(PageTableFlags::PRESENT | LAZY_ALLOC) {
+            panic!("PRESENT and LAZY_ALLOC flags are not allowed, the VMM handles them");
         }
+        hyperion_log::trace!("mapping [ 0x{start:016x}..0x{end:016x} ] to {to} with {flags:?}");
 
         loop {
             if start == end {
@@ -546,27 +543,23 @@ impl LockedPageMap {
             let Err(err_1gib) = self.try_map_1gib(info, start..end, to, flags) else {
                 // could crash if the last possible phys/virt page was mapped
                 start += Size1GiB::SIZE;
-                to = to.map(|to| to + Size1GiB::SIZE);
+                to.inc_addr(Size1GiB::SIZE);
                 continue;
             };
 
             let Err(err_2mib) = self.try_map_2mib(info, start..end, to, flags) else {
                 start += Size2MiB::SIZE;
-                to = to.map(|to| to + Size2MiB::SIZE);
+                to.inc_addr(Size2MiB::SIZE);
                 continue;
             };
 
             let Err(err_4kib) = self.try_map_4kib(info, start..end, to, flags) else {
                 start += Size4KiB::SIZE;
-                to = to.map(|to| to + Size4KiB::SIZE);
+                to.inc_addr(Size4KiB::SIZE);
                 continue;
             };
 
-            if let Some(to) = to {
-                hyperion_log::error!("FIXME: failed to map [ 0x{start:016x} to 0x{to:016x} ]");
-            } else {
-                hyperion_log::error!("FIXME: failed to map [ 0x{start:016x} to <lazy> ]");
-            }
+            hyperion_log::error!("FIXME: failed to map [ 0x{start:016x} to {to} ]");
             hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
             hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
             hyperion_log::error!(" .. 4KiB: {err_4kib:?}");
@@ -592,11 +585,15 @@ impl LockedPageMap {
         Ok(page)
     }
 
-    fn is_phys_map_valid<S: PageSize>(
-        to: Option<PhysAddr>,
-    ) -> Result<Option<PhysFrame<S>>, TryMapError<S>> {
-        to.map(|to| PhysFrame::from_start_address(to).map_err(|_| TryMapError::NotAligned))
-            .transpose()
+    fn is_phys_map_valid<S: PageSize>(to: MapTarget) -> Result<(), TryMapError<S>> {
+        match to {
+            MapTarget::Borrowed(to) | MapTarget::Preallocated(to) => {
+                PhysFrame::<S>::from_start_address(to).map_err(|_| TryMapError::NotAligned)?;
+            }
+            MapTarget::LazyAlloc => {}
+        }
+
+        Ok(())
     }
 
     // None = HugeFrame
@@ -625,27 +622,16 @@ impl LockedPageMap {
     fn try_map_if_diff<S: PageSize>(
         info: &MemoryInfo,
         entry: &mut PageTableEntry,
-        to: Option<PhysFrame<S>>,
+        to: MapTarget,
         flags: PageTableFlags,
     ) -> Result<(), TryMapError<S>> {
         let old: (PageTableFlags, PhysAddr) = (entry.flags(), entry.addr());
-        let new: (PageTableFlags, PhysAddr);
 
-        if let Some(to) = to {
-            // map immediately
-            new = (
-                // prevent present maps to be marked as LAZY_ALLOC
-                flags.difference(LAZY_ALLOC) | PageTableFlags::PRESENT,
-                to.start_address(),
-            );
-        } else {
-            // alloc lazily
-            new = (
-                // prevent lazy alloc maps to be marked as PRESENT
-                flags.difference(PageTableFlags::PRESENT) | LAZY_ALLOC,
-                PhysAddr::new_truncate(0),
-            );
-        }
+        let new: (PageTableFlags, PhysAddr) = match to {
+            MapTarget::Borrowed(to) => (flags | PageTableFlags::PRESENT | NO_FREE, to),
+            MapTarget::Preallocated(to) => (flags | PageTableFlags::PRESENT, to),
+            MapTarget::LazyAlloc => (flags | LAZY_ALLOC, PhysAddr::new_truncate(0)),
+        };
 
         if old == new {
             // already mapped but it is already correct
@@ -679,11 +665,11 @@ impl LockedPageMap {
         &mut self,
         info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
-        to: Option<PhysAddr>,
+        to: MapTarget,
         flags: PageTableFlags,
     ) -> Result<(), TryMapError<Size1GiB>> {
         let from = Self::is_map_valid(start..end)?;
-        let to = Self::is_phys_map_valid(to)?;
+        Self::is_phys_map_valid(to)?;
 
         let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
             unreachable!("512GiB maps are not supported");
@@ -700,11 +686,11 @@ impl LockedPageMap {
         &mut self,
         info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
-        to: Option<PhysAddr>,
+        to: MapTarget,
         flags: PageTableFlags,
     ) -> Result<(), TryMapError<Size2MiB>> {
         let from = Self::is_map_valid(start..end)?;
-        let to = Self::is_phys_map_valid(to)?;
+        Self::is_phys_map_valid(to)?;
 
         let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
             unreachable!("512GiB maps are not supported");
@@ -724,11 +710,11 @@ impl LockedPageMap {
         &mut self,
         info: &MemoryInfo,
         Range { start, end }: Range<VirtAddr>,
-        to: Option<PhysAddr>,
+        to: MapTarget,
         flags: PageTableFlags,
     ) -> Result<(), TryMapError<Size4KiB>> {
         let from = Self::is_map_valid(start..end)?;
-        let to = Self::is_phys_map_valid(to)?;
+        Self::is_phys_map_valid(to)?;
 
         let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
             unreachable!("512GiB maps are not supported");

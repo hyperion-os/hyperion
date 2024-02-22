@@ -23,7 +23,10 @@ use hyperion_kernel_impl::{
 };
 use hyperion_loader::Loader;
 use hyperion_log::*;
-use hyperion_mem::{pmm::PageFrame, vmm::PageMapImpl};
+use hyperion_mem::{
+    pmm::PageFrame,
+    vmm::{MapTarget, PageMapImpl},
+};
 use hyperion_scheduler::{
     futex,
     lock::Mutex,
@@ -723,7 +726,7 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
         let bottom = VirtAddr::new(bottom) + offs;
         this.address_space.page_map.map(
             bottom..bottom + size,
-            Some(phys.physical_addr()),
+            MapTarget::Borrowed(phys.physical_addr()),
             PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE | NO_FREE,
         );
         offs += size;

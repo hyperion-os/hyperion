@@ -7,7 +7,10 @@ use core::{
 
 use crossbeam::queue::SegQueue;
 use hyperion_log::*;
-use hyperion_mem::{pmm, vmm::PageMapImpl};
+use hyperion_mem::{
+    pmm,
+    vmm::{MapTarget, PageMapImpl},
+};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 use crate::vmm::PageMap;
@@ -261,7 +264,7 @@ impl<T: StackType + Debug> Stack<T> {
         let guard_bottom = guard_top - 0x1000u64;
 
         // the VMM allocates lazily
-        page_map.map(stack_bottom..stack_top, None, T::PAGE_FLAGS);
+        page_map.map(stack_bottom..stack_top, MapTarget::LazyAlloc, T::PAGE_FLAGS);
         page_map.unmap(guard_bottom..guard_top);
         // page_map.map(guard_bottom..guard_top, None, NO_MAP);
     }
@@ -281,11 +284,11 @@ impl<T: StackType + Debug> Stack<T> {
 
         page_map.map(
             alloc_bottom..alloc_top,
-            Some(alloc.physical_addr()),
+            MapTarget::Preallocated(alloc.physical_addr()),
             T::PAGE_FLAGS,
         );
         // the VMM allocates lazily
-        page_map.map(stack_bottom..stack_top, None, T::PAGE_FLAGS);
+        page_map.map(stack_bottom..stack_top, MapTarget::LazyAlloc, T::PAGE_FLAGS);
         page_map.unmap(guard_bottom..guard_top);
         // page_map.map(guard_bottom..guard_top, None, NO_MAP);
     }

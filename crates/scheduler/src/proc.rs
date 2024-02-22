@@ -13,7 +13,7 @@ use core::{
 
 use arcstr::ArcStr;
 use hyperion_arch::stack::{AddressSpace, USER_HEAP_TOP};
-use hyperion_mem::vmm::PageMapImpl;
+use hyperion_mem::vmm::{MapTarget, PageMapImpl};
 use spin::{Mutex, Once, RwLock};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -196,7 +196,7 @@ impl Process {
         self.virt_mem.fetch_add(n_bytes, Ordering::Relaxed);
         self.address_space
             .page_map
-            .map(at..at + n_bytes, None, flags);
+            .map(at..at + n_bytes, MapTarget::LazyAlloc, flags);
 
         Ok(())
     }

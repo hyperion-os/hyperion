@@ -1,4 +1,5 @@
 use core::{
+    fmt,
     ops::Range,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -80,6 +81,45 @@ impl MemoryInfo {
 
 //
 
+#[derive(Debug, Clone, Copy)]
+pub enum MapTarget {
+    /// pages are mapped immediately but the VMM is not allowed to free them
+    Borrowed(PhysAddr),
+
+    /// pages are mapped immediately and the VMM is allowed to free them
+    Preallocated(PhysAddr),
+
+    /// pages are allocated and mapped lazily
+    LazyAlloc,
+}
+
+impl MapTarget {
+    pub fn inc_addr(&mut self, by: u64) {
+        match self {
+            MapTarget::Borrowed(a) | MapTarget::Preallocated(a) => *a += by,
+            MapTarget::LazyAlloc => {}
+        }
+    }
+
+    pub fn is_aligned(&self, to: u64) -> bool {
+        match self {
+            MapTarget::Borrowed(a) | MapTarget::Preallocated(a) => a.is_aligned(to),
+            MapTarget::LazyAlloc => true,
+        }
+    }
+}
+
+impl fmt::Display for MapTarget {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MapTarget::Borrowed(a) | MapTarget::Preallocated(a) => write!(f, "{a:#018x}"),
+            MapTarget::LazyAlloc => write!(f, "<lazy-alloc>"),
+        }
+    }
+}
+
+//
+
 pub trait PageMapImpl {
     /// handle a page fault, possibly related to lazy mapping or CoW pages
     fn page_fault(&self, v_addr: VirtAddr, privilege: Privilege) -> PageFaultResult;
@@ -108,7 +148,7 @@ pub trait PageMapImpl {
     /// map physical memory into virtual memory
     ///
     /// `p_addr` None means that the pages need to be allocated (possibly lazily on use)
-    fn map(&self, v_addr: Range<VirtAddr>, p_addr: Option<PhysAddr>, flags: PageTableFlags);
+    fn map(&self, v_addr: Range<VirtAddr>, p_addr: MapTarget, flags: PageTableFlags);
 
     /// unmap a range of virtual memory
     fn unmap(&self, v_addr: Range<VirtAddr>);
