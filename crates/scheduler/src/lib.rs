@@ -335,6 +335,7 @@ fn wait() {
     update_cpu_idle();
 }
 
+// post context switch jobs
 fn cleanup() {
     let after = after();
 
@@ -343,6 +344,8 @@ fn cleanup() {
     }
 }
 
+/// per CPU (a physical CPU, not a thread/task) scheduling info,
+/// each CPU has to know the task it is working on and other stuff
 struct SchedulerTls {
     active: Once<Mutex<Task>>,
     after: SegQueue<CleanupTask>,
