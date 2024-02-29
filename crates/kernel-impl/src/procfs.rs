@@ -11,6 +11,7 @@ use core::{
 };
 
 use arcstr::ArcStr;
+use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
     proc::{processes, Pid, Process, PROCESSES},
     process,
@@ -231,6 +232,7 @@ struct ProcStatus {
     pid: Pid,
     threads: usize,
     nanos: u64,
+    vm_size: u64,
 }
 
 impl ProcStatus {
@@ -240,6 +242,7 @@ impl ProcStatus {
             pid: proc.pid,
             threads: proc.threads.load(Ordering::Relaxed),
             nanos: proc.nanos.load(Ordering::Relaxed),
+            vm_size: proc.address_space.page_map.info().virt_size() as u64 >> 10,
         }
     }
 }
@@ -250,6 +253,7 @@ impl fmt::Display for ProcStatus {
         writeln!(f, "Pid: {}", self.pid)?;
         writeln!(f, "Threads: {}", self.threads)?;
         writeln!(f, "Nanos: {}", self.nanos)?;
+        writeln!(f, "VmSize: {} kB", self.vm_size)?;
         Ok(())
     }
 }

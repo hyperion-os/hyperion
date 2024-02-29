@@ -839,6 +839,7 @@ dependencies = [
 name = "hyperion-kernel-impl"
 version = "0.3.0"
 dependencies = [
+ "arcstr",
  "hyperion-arch",
  "hyperion-boot",
  "hyperion-clock",

@@ -77,6 +77,16 @@ impl MemoryInfo {
             panic!("double free detected");
         }
     }
+
+    /// vm bytes
+    pub fn virt_size(&self) -> usize {
+        self.virt_pages.load(Ordering::Relaxed) * 0x1000
+    }
+
+    /// pm bytes
+    pub fn phys_size(&self) -> usize {
+        self.phys_pages.load(Ordering::Relaxed) * 0x1000
+    }
 }
 
 //
