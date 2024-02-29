@@ -15,6 +15,7 @@ mod x86_64;
 
 //
 
+/// a bare metal thread local storage implementation based on cpu_id numbers and an array
 pub struct Tls<T: 'static> {
     inner: Box<[UnsafeCell<T>]>,
 }
