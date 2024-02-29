@@ -27,7 +27,7 @@ use core::{
     arch::asm,
     mem::ManuallyDrop,
     ops::Range,
-    sync::atomic::{fence, Ordering},
+    sync::atomic::{fence, AtomicUsize, Ordering},
 };
 
 use hyperion_mem::{
@@ -36,7 +36,7 @@ use hyperion_mem::{
     to_higher_half,
     vmm::{Handled, MapTarget, MemoryInfo, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
-use spin::{RwLock, RwLockWriteGuard};
+use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::{
     instructions::tlb,
     registers::control::{Cr3, Cr3Flags},
@@ -108,6 +108,7 @@ fn page_fault_1gib(
         todo!()
     } else if flags.contains(LAZY_ALLOC) {
         flags.remove(PageTableFlags::HUGE_PAGE);
+        entry.set_flags(flags.difference(LAZY_ALLOC));
 
         // convert the 1gib page into 2mib pages and allocate only one of them now
 
@@ -134,12 +135,13 @@ fn page_fault_2mib(
         todo!()
     } else if flags.contains(LAZY_ALLOC) {
         flags.remove(PageTableFlags::HUGE_PAGE);
+        entry.set_flags(flags.difference(LAZY_ALLOC));
 
         // convert the 2mib page into 4kib pages and allocate only one of them now
 
         let l2 = LockedPageMap::create_table(info, entry).unwrap();
         for l2e in l2.iter_mut() {
-            l2e.set_flags(flags); // mark all with the original flags
+            l2e.set_flags(flags.union(LAZY_ALLOC)); // mark all with the original flags
         }
         let l2e = &mut l2[addr.p2_index()];
 
@@ -157,6 +159,8 @@ fn page_fault_4kib(
     let mut flags = entry.flags();
 
     let new_frame = if flags.contains(COW) {
+        // hyperion_log::debug!("copy-on-write page hit");
+
         // handle a fork CoW
         flags.remove(COW);
         flags.insert(PageTableFlags::WRITABLE);
@@ -165,6 +169,8 @@ fn page_fault_4kib(
         let old = entry.frame().unwrap();
         unsafe { pmm::PFA.fork_page_fault(old, page) }
     } else if flags.contains(LAZY_ALLOC) {
+        // hyperion_log::debug!("lazy page hit");
+
         // handle a lazy alloc
         flags.remove(LAZY_ALLOC);
         flags.insert(PageTableFlags::PRESENT);
@@ -211,29 +217,36 @@ impl<T> SafeRwLock<T> {
     }
 
     fn write(&self) -> RwLockWriteGuard<T> {
-        extern "C" fn stack_test() {
-            let rsp: u64;
-            unsafe { asm!("mov {rsp}, rsp", rsp = out(reg) rsp) };
-            let rsp = (rsp / 8 * 8) as *const u8;
-
-            // a minimum of 2 pages of free stack space should be more than enough
-            unsafe { rsp.read_volatile() };
-            unsafe { rsp.sub(0x1000).read_volatile() };
-            unsafe { rsp.sub(0x2000).read_volatile() };
-        }
-
-        // FIXME: test only if the active page map is being modified
-        stack_test();
-
+        Self::stack_test();
         self.write_now()
+    }
+
+    fn read(&self) -> RwLockReadGuard<T> {
+        Self::stack_test();
+        self.read_now()
     }
 
     fn write_now(&self) -> RwLockWriteGuard<T> {
         self.0.write()
     }
 
-    fn read(&self) -> RwLockWriteGuard<T> {
-        self.0.write()
+    fn read_now(&self) -> RwLockReadGuard<T> {
+        self.0.read()
+    }
+
+    extern "C" fn stack_test() {
+        // FIXME: test only if the active page map is being modified,
+        // as that is the only time when the page map could deadlock
+        // would be when a page fault happens while reading/writing the page map
+
+        let rsp: u64;
+        unsafe { asm!("mov {rsp}, rsp", rsp = out(reg) rsp) };
+        let rsp = (rsp / 8 * 8) as *const u8;
+
+        // a minimum of 2 pages of free stack space should be more than enough
+        unsafe { rsp.read_volatile() };
+        unsafe { rsp.sub(0x1000).read_volatile() };
+        unsafe { rsp.sub(0x2000).read_volatile() };
     }
 }
 
@@ -401,9 +414,8 @@ impl PageMapImpl for PageMap {
                         // 4 KiB page
 
                         let mut l0f = l1e.flags();
-                        let target;
-                        if l0f.contains(LAZY_ALLOC) {
-                            target = MapTarget::LazyAlloc;
+                        let target = if l0f.contains(LAZY_ALLOC) {
+                            MapTarget::LazyAlloc
                         } else {
                             if l0f.contains(PageTableFlags::WRITABLE) {
                                 // mark writeable pages as read only + CoW
@@ -414,8 +426,8 @@ impl PageMapImpl for PageMap {
                             // then fork the page
                             let mapped = Page::from_start_address(start).unwrap();
                             let new_frame = unsafe { pmm::PFA.fork(l0, mapped) }.start_address();
-                            target = MapTarget::Preallocated(new_frame);
-                        }
+                            MapTarget::Preallocated(new_frame)
+                        };
 
                         l1e.set_flags(l0f);
                         new.map(start..start + Size4KiB::SIZE, target, l0f);
@@ -597,6 +609,7 @@ impl LockedPageMap {
     }
 
     // None = HugeFrame
+    #[track_caller]
     fn create_table<'a>(
         info: &MemoryInfo,
         entry: &'a mut PageTableEntry,
@@ -604,10 +617,14 @@ impl LockedPageMap {
         let flags =
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
 
-        assert!(!entry.flags().intersects(LAZY_ALLOC | COW));
         let table = match entry.frame() {
             Ok(table) => table,
             Err(FrameError::FrameNotPresent) => {
+                assert!(
+                    !entry.flags().intersects(LAZY_ALLOC | COW),
+                    "{:?}",
+                    entry.flags()
+                );
                 let table = alloc_table(info);
                 entry.set_frame(table, flags);
                 table
@@ -647,10 +664,7 @@ impl LockedPageMap {
             debug_assert_ne!(new.1.as_u64(), 0);
         } else if new.0.contains(LAZY_ALLOC) {
             debug_assert_eq!(new.1.as_u64(), 0);
-        } else if new.0.contains(COW) {
-            debug_assert_ne!(new.1.as_u64(), 0);
-            info.add_phys(n_pages);
-        } else if new.0.contains(PageTableFlags::PRESENT) {
+        } else if new.0.contains(COW) || new.0.contains(PageTableFlags::PRESENT) {
             debug_assert_ne!(new.1.as_u64(), 0);
             info.add_phys(n_pages);
         } else {
