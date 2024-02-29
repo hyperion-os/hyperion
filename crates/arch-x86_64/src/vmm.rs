@@ -27,7 +27,7 @@ use core::{
     arch::asm,
     mem::ManuallyDrop,
     ops::Range,
-    sync::atomic::{fence, AtomicUsize, Ordering},
+    sync::atomic::{fence, Ordering},
 };
 
 use hyperion_mem::{
