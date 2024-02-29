@@ -10,6 +10,7 @@ use core::{
     sync::atomic::Ordering,
 };
 
+use arcstr::ArcStr;
 use hyperion_scheduler::{
     proc::{processes, Pid, Process, PROCESSES},
     process,
@@ -226,7 +227,8 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
 //
 
 struct ProcStatus {
-    proc: Arc<Process>,
+    name: ArcStr,
+    pid: Pid,
     threads: usize,
     nanos: u64,
 }
@@ -234,17 +236,18 @@ struct ProcStatus {
 impl ProcStatus {
     pub fn new(proc: Arc<Process>) -> Self {
         Self {
+            name: proc.name.read().clone(),
+            pid: proc.pid,
             threads: proc.threads.load(Ordering::Relaxed),
             nanos: proc.nanos.load(Ordering::Relaxed),
-            proc,
         }
     }
 }
 
 impl fmt::Display for ProcStatus {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Name: {}", self.proc.name.read())?;
-        writeln!(f, "Pid: {}", self.proc.pid.num())?;
+        writeln!(f, "Name: {}", self.name)?;
+        writeln!(f, "Pid: {}", self.pid)?;
         writeln!(f, "Threads: {}", self.threads)?;
         writeln!(f, "Nanos: {}", self.nanos)?;
         Ok(())
