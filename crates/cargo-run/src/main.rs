@@ -44,6 +44,10 @@ struct Args {
     /// run unit tests in QEMU
     #[arg(short, long)]
     test: bool,
+
+    /// start QEMU with -s -S
+    #[arg(short, long)]
+    gdb: bool,
 }
 
 //
@@ -72,6 +76,10 @@ fn main() {
 
     if let Some(debug) = args.debug {
         cmd.arg(format!("DEBUG={debug}"));
+    }
+
+    if args.gdb {
+        cmd.arg("GDB=true");
     }
 
     cmd.arg(format!("KVM={}", args.kvm.unwrap_or(true)));
