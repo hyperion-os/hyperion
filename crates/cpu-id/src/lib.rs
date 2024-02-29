@@ -20,7 +20,7 @@ pub struct Tls<T: 'static> {
     inner: Box<[UnsafeCell<T>]>,
 }
 
-unsafe impl<T: Sync> Sync for Tls<T> {}
+unsafe impl<T> Sync for Tls<T> {}
 
 impl<T: 'static> Tls<T> {
     pub fn new(mut f: impl FnMut() -> T) -> Self {
@@ -46,3 +46,37 @@ impl<T: 'static> Deref for Tls<T> {
         unsafe { &*tls_entry }
     }
 }
+
+//
+
+/* /// a Sync Cell that allows access only to the cpu that first accessed it
+pub struct CpuIdCell<T: ?Sized> {
+    owner: AtomicUsize,
+    inner: UnsafeCell<T>,
+}
+
+impl<T: ?Sized> CpuIdCell<T> {
+    pub const fn new(val: T) -> Self {
+        Self {
+            owner: AtomicUsize::new(usize::MAX),
+            inner: UnsafeCell::new(val),
+        }
+    }
+}
+
+impl<T: ?Sized> Deref for CpuIdCell<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        let id = cpu_id();
+        if id == usize::MAX {
+            panic!();
+        }
+
+        self.owner
+            .compare_exchange(usize::MAX, id, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err();
+
+        todo!()
+    }
+} */

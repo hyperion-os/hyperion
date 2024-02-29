@@ -24,7 +24,6 @@ use x86_64::{
 };
 
 use crate::{
-    after,
     cleanup::Cleanup,
     done,
     proc::{Pid, Process},
@@ -69,7 +68,7 @@ pub fn switch_because(next: Task, new_state: TaskState, cleanup: Cleanup) {
     }
 
     // push the current thread to the drop queue AFTER switching
-    after().push(cleanup.task(prev));
+    tls().set_cleanup_task(cleanup.task(prev));
 
     // SAFETY: `prev` is stored in the queue, `next` is stored in the TLS
     // the box keeps the pointer pinned in memory

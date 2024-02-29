@@ -6,7 +6,7 @@
 use alloc::sync::Arc;
 use core::{
     any::type_name_of_val,
-    cell::UnsafeCell,
+    cell::{Cell, UnsafeCell},
     convert::Infallible,
     mem::{offset_of, swap},
     ops::Deref,
@@ -337,10 +337,8 @@ fn wait() {
 
 // post context switch jobs
 fn cleanup() {
-    let after = after();
-
-    while let Some(next) = after.pop() {
-        next.run();
+    if let Some(cleanup) = tls().take_cleanup_task() {
+        cleanup.run();
     }
 }
 
@@ -348,7 +346,7 @@ fn cleanup() {
 /// each CPU has to know the task it is working on and other stuff
 struct SchedulerTls {
     active: Once<Mutex<Task>>,
-    after: SegQueue<CleanupTask>,
+    after: Cell<Option<CleanupTask>>,
     last_time: AtomicU64,
     idle_time: AtomicU64,
     initialized: AtomicBool,
@@ -357,13 +355,24 @@ struct SchedulerTls {
     switch_last_active: AtomicPtr<TaskInner>,
 }
 
+impl SchedulerTls {
+    fn set_cleanup_task(&self, task: CleanupTask) {
+        let old = self.after.replace(Some(task));
+        debug_assert!(old.is_none());
+    }
+
+    fn take_cleanup_task(&self) -> Option<CleanupTask> {
+        self.after.take()
+    }
+}
+
 static TLS: Once<Tls<SchedulerTls>> = Once::new();
 
 fn tls() -> &'static Tls<SchedulerTls> {
     TLS.call_once(|| {
         Tls::new(|| SchedulerTls {
             active: Once::new(),
-            after: SegQueue::new(),
+            after: Cell::new(None),
             last_time: AtomicU64::new(0),
             idle_time: AtomicU64::new(0),
             initialized: AtomicBool::new(false),
@@ -400,10 +409,6 @@ pub fn running() -> bool {
 
 fn get_task() -> &'static Mutex<Task> {
     tls().active.call_once(|| Mutex::new(Task::bootloader()))
-}
-
-fn after() -> &'static SegQueue<CleanupTask> {
-    &tls().after
 }
 
 fn last_time() -> &'static AtomicU64 {
