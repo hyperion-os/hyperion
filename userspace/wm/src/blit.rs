@@ -64,7 +64,7 @@ pub fn blitter() {
         let mut windows = WINDOWS.lock().unwrap();
 
         // remove all windows
-        for window in windows.iter_mut().filter(|w| w.shmem_ptr.is_some()) {
+        for window in windows.iter_mut() {
             dirty = dirty.union(&Rect::new(
                 window.old_info.x,
                 window.old_info.y,
@@ -84,7 +84,7 @@ pub fn blitter() {
         dirty = dirty.union(&Rect::new(old_cursor.0, old_cursor.1, 16, 16));
         backbuf.volatile_fill(old_cursor.0, old_cursor.1, 16, 16, bg_col);
         // blit all windows
-        for (pixels, window) in windows.iter().filter_map(|w| Some((w.shmem_ptr?, w))) {
+        for window in windows.iter() {
             dirty = dirty.union(&Rect::new(
                 window.info.x,
                 window.info.y,
@@ -92,7 +92,12 @@ pub fn blitter() {
                 window.info.h,
             ));
             let fb = unsafe {
-                Region::new(pixels.as_ptr(), window.info.w, window.info.w, window.info.h)
+                Region::new(
+                    window.shmem_ptr.as_ptr(),
+                    window.info.w,
+                    window.info.w,
+                    window.info.h,
+                )
             };
             backbuf.volatile_copy_from(&fb, window.info.x as isize, window.info.y as isize);
         }

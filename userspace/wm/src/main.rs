@@ -3,6 +3,7 @@
 //
 
 use std::{
+    collections::{BTreeMap, BTreeSet, BinaryHeap},
     fs::File,
     io::{stderr, stdout},
     mem,
@@ -38,8 +39,8 @@ pub struct Window {
     pub old_info: WindowInfo,
 
     conn: MessageStream,
-    shmem: Option<File>,
-    shmem_ptr: Option<NonNull<u32>>,
+    shmem: File,
+    shmem_ptr: NonNull<u32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -86,8 +87,9 @@ impl AtomicCursor {
 
 //
 
-static WINDOWS: LazyLock<Mutex<Vec<Window>>> = LazyLock::new(|| Mutex::new(Vec::new()));
-static ACTIVE: AtomicUsize = AtomicUsize::new(0);
+static WINDOWS: Mutex<
+    Vec<Window>, // Z sorted window ids, furthest is first
+> = Mutex::new(Vec::new());
 static EVENTS: LazyLock<(Sender<Event>, Receiver<Event>)> = LazyLock::new(unbounded);
 static CURSOR: AtomicCursor = AtomicCursor::new((0.0, 0.0));
 
@@ -115,7 +117,7 @@ fn main() {
 fn event_handler() {
     let mut cursor = (0.0, 0.0);
     let mut alt_held = false; // alt instead of super, because I run this in QEMU and I CBA to capture keyboard
-    let mut dragging: Option<((f32, f32), usize)> = None;
+    let mut dragging: Option<(f32, f32)> = None;
 
     while let Ok(ev) = EVENTS.1.recv() {
         // println!("handle ev: {ev:?}");
@@ -129,10 +131,9 @@ fn event_handler() {
                 cursor.1 = (cursor.1 - y).max(0.0);
                 CURSOR.store(cursor);
 
-                if let Some((init, w_id)) = dragging {
+                if let Some(init) = dragging {
                     let mut windows = WINDOWS.lock().unwrap();
-                    if let Some(window @ Window { .. }) = windows.get_mut(w_id) {
-                        // FIXME: the Rust typechecker blows up without @ Window { .. } for some reason
+                    if let Some(window) = windows.last_mut() {
                         window.info.x = (init.0 + cursor.0) as usize;
                         window.info.y = (init.1 + cursor.1) as usize;
                     }
@@ -146,33 +147,32 @@ fn event_handler() {
                 btn: Button::Left,
                 state: ElementState::Pressed,
             }) => {
-                let windows = WINDOWS.lock().unwrap();
-                for (i, window) in windows.iter().enumerate() {
-                    if window.info.x <= cursor.0 as usize
+                let mut l = WINDOWS.lock().unwrap();
+
+                if let Some((hit_idx, _)) = l.iter().enumerate().rfind(|(_, window)| {
+                    window.info.x <= cursor.0 as usize
                         && cursor.0 as usize <= window.info.x + window.info.w
                         && window.info.y <= cursor.1 as usize
                         && cursor.1 as usize <= window.info.y + window.info.h
-                    {
-                        println!("switch active window to {i}");
-                        ACTIVE.store(i, Ordering::Relaxed);
-
-                        if alt_held {
-                            dragging = Some((
-                                (
-                                    window.info.x as f32 - cursor.0,
-                                    window.info.y as f32 - cursor.1,
-                                ),
-                                i,
-                            ));
-                        }
+                }) {
+                    // println!("clicked on {hit_idx}");
+                    let active = l.remove(hit_idx);
+                    // mark the held window
+                    if alt_held {
+                        dragging = Some((
+                            active.info.x as f32 - cursor.0,
+                            active.info.y as f32 - cursor.1,
+                        ));
                     }
+                    // set the window as active
+                    l.push(active);
                 }
             }
             ev => {
                 let windows = WINDOWS.lock().unwrap();
-                if let Some(active_window) = windows.get(ACTIVE.load(Ordering::Relaxed)) {
-                    println!("sending {ev:?}");
-                    active_window.conn.send_message(Message::Event(ev)).unwrap();
+                if let Some(active) = windows.last() {
+                    // println!("sending {ev:?}");
+                    active.conn.send_message(Message::Event(ev)).unwrap();
                 }
             }
         }
@@ -180,24 +180,25 @@ fn event_handler() {
 }
 
 fn handle_client(client: Connection) {
-    let windows = &*WINDOWS;
-
     while let Ok(ev) = client.next_request() {
         match ev {
             Request::NewWindow => {
                 println!("client requested a new window");
 
+                static ID: AtomicUsize = AtomicUsize::new(0);
                 static X: AtomicUsize = AtomicUsize::new(10);
                 static Y: AtomicUsize = AtomicUsize::new(10);
 
+                let id = ID.fetch_add(1, Ordering::Relaxed);
                 let x = X.fetch_add(410, Ordering::Relaxed);
                 let y = Y.load(Ordering::Relaxed);
 
-                let mut _windows = windows.lock().unwrap();
-                let window_id = _windows.len();
-                _windows.push(Window {
+                let (window_file, shmem_ptr) = new_window_framebuffer(400, 400, id);
+
+                let mut windows = WINDOWS.lock().unwrap();
+                windows.push(Window {
                     info: WindowInfo {
-                        id: window_id,
+                        id,
                         x,
                         y,
                         w: 400,
@@ -205,21 +206,13 @@ fn handle_client(client: Connection) {
                     },
                     old_info: WindowInfo::default(),
                     conn: client.clone_tx(),
-                    shmem: None,
-                    shmem_ptr: None,
+                    shmem: window_file,
+                    shmem_ptr,
                 });
-                drop(_windows);
-
-                let (window_file, shmem_ptr) = new_window_framebuffer(400, 400, window_id);
-
-                let mut _windows = windows.lock().unwrap();
-                let window = &mut _windows[window_id];
-                window.shmem = Some(window_file);
-                window.shmem_ptr = Some(shmem_ptr);
-                drop(_windows);
+                drop(windows);
 
                 if client
-                    .send_message(Message::NewWindow { window_id })
+                    .send_message(Message::NewWindow { window_id: id })
                     .is_err()
                 {
                     break;
