@@ -4,46 +4,45 @@
 
 use std::{
     fs::File,
-    io::{stderr, stdout, Read},
+    io::{stderr, stdout},
+    mem,
     ptr::NonNull,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
         LazyLock, Mutex,
     },
     thread,
 };
 
-use hyperion_color::Color;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags},
-    system, timestamp,
+    system,
 };
 use hyperion_windowing::{
-    global::{GlobalFb, Region},
     server::{new_window_framebuffer, Connection, MessageStream, Server},
-    shared::{ElementState, Event, Message, Request},
+    shared::{Button, ElementState, Event, Message, Mouse, Request},
 };
-use pc_keyboard::{
-    layouts::{AnyLayout, Us104Key},
-    DecodedKey, HandleControl, KeyState, Keyboard, ScancodeSet1,
-};
-
-use crate::mouse::get_mouse;
 
 //
 
+mod blit;
+mod keyboard;
 mod mouse;
 
 //
 
 pub struct Window {
-    conn: MessageStream,
     pub info: WindowInfo,
+    // pre-update cache for the blitter
+    pub old_info: WindowInfo,
+
+    conn: MessageStream,
     shmem: Option<File>,
     shmem_ptr: Option<NonNull<u32>>,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct WindowInfo {
     pub id: usize,
     pub x: usize,
@@ -55,8 +54,42 @@ pub struct WindowInfo {
 unsafe impl Sync for Window {}
 unsafe impl Send for Window {}
 
+//
+
+pub struct AtomicCursor {
+    inner: AtomicU64,
+}
+
+impl AtomicCursor {
+    pub const fn new(pos: (f32, f32)) -> Self {
+        Self {
+            inner: AtomicU64::new(Self::pack(pos)),
+        }
+    }
+
+    pub fn load(&self) -> (f32, f32) {
+        Self::unpack(self.inner.load(Ordering::Acquire))
+    }
+
+    pub fn store(&self, pos: (f32, f32)) {
+        self.inner.store(Self::pack(pos), Ordering::Release);
+    }
+
+    const fn pack(pos: (f32, f32)) -> u64 {
+        unsafe { mem::transmute(pos) }
+    }
+
+    const fn unpack(packed: u64) -> (f32, f32) {
+        unsafe { mem::transmute(packed) }
+    }
+}
+
+//
+
 static WINDOWS: LazyLock<Mutex<Vec<Window>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 static ACTIVE: AtomicUsize = AtomicUsize::new(0);
+static EVENTS: LazyLock<(Sender<Event>, Receiver<Event>)> = LazyLock::new(unbounded);
+static CURSOR: AtomicCursor = AtomicCursor::new((0.0, 0.0));
 
 //
 
@@ -65,9 +98,10 @@ fn main() {
 
     let server = Server::new().unwrap();
 
-    thread::spawn(blitter);
-    thread::spawn(keyboard);
+    thread::spawn(blit::blitter);
+    thread::spawn(keyboard::keyboard);
     thread::spawn(mouse::mouse);
+    thread::spawn(event_handler);
 
     system("/bin/term", &[]).unwrap();
     system("/bin/term", &[]).unwrap();
@@ -78,101 +112,70 @@ fn main() {
     }
 }
 
-fn keyboard() {
-    let windows = &*WINDOWS;
+fn event_handler() {
+    let mut cursor = (0.0, 0.0);
+    let mut alt_held = false; // alt instead of super, because I run this in QEMU and I CBA to capture keyboard
+    let mut dragging: Option<((f32, f32), usize)> = None;
 
-    let mut kb_dev = File::open("/dev/keyboard").unwrap();
+    while let Ok(ev) = EVENTS.1.recv() {
+        // println!("handle ev: {ev:?}");
 
-    let mut buf = [0u8; 64];
+        match ev {
+            Event::Keyboard { code: 95, state } => {
+                alt_held = state == ElementState::Pressed;
+            }
+            Event::Mouse(Mouse::Motion { x, y }) => {
+                cursor.0 = (cursor.0 + x).max(0.0);
+                cursor.1 = (cursor.1 - y).max(0.0);
+                CURSOR.store(cursor);
 
-    let mut keyboard = Keyboard::new(
-        ScancodeSet1::new(),
-        AnyLayout::Us104Key(Us104Key),
-        HandleControl::Ignore,
-    );
-
-    loop {
-        let n = kb_dev.read(&mut buf).unwrap();
-
-        // let windows = LazyCell::new(|| windows.lock().unwrap());
-        // let windows = LazyCell::new(|| windows.last());
-
-        let windows = windows.lock().unwrap();
-        if let Some(window) = windows.get(ACTIVE.load(Ordering::Relaxed)) {
-            for byte in &buf[..n] {
-                if let Ok(Some(ev)) = keyboard.add_byte(*byte) {
-                    let code = ev.code as u8;
-                    if ev.state != KeyState::Up {
-                        // down or single shot
-                        _ = window.conn.send_message(Message::Event(Event::Keyboard {
-                            code,
-                            state: ElementState::Pressed,
-                        }));
-                    }
-                    if ev.state != KeyState::Down {
-                        // this is intentionally not an `else if`, single shot presses send both
-                        // up or single shot
-                        _ = window.conn.send_message(Message::Event(Event::Keyboard {
-                            code,
-                            state: ElementState::Released,
-                        }));
-                    }
-                    if let Some(DecodedKey::Unicode(ch)) = keyboard.process_keyevent(ev) {
-                        _ = window.conn.send_message(Message::Event(Event::Text { ch }));
+                if let Some((init, w_id)) = dragging {
+                    let mut windows = WINDOWS.lock().unwrap();
+                    if let Some(window @ Window { .. }) = windows.get_mut(w_id) {
+                        // FIXME: the Rust typechecker blows up without @ Window { .. } for some reason
+                        window.info.x = (init.0 + cursor.0) as usize;
+                        window.info.y = (init.1 + cursor.1) as usize;
                     }
                 }
             }
+            Event::Mouse(Mouse::Button {
+                btn: Button::Left,
+                state: ElementState::Released,
+            }) => dragging = None,
+            Event::Mouse(Mouse::Button {
+                btn: Button::Left,
+                state: ElementState::Pressed,
+            }) => {
+                let windows = WINDOWS.lock().unwrap();
+                for (i, window) in windows.iter().enumerate() {
+                    if window.info.x <= cursor.0 as usize
+                        && cursor.0 as usize <= window.info.x + window.info.w
+                        && window.info.y <= cursor.1 as usize
+                        && cursor.1 as usize <= window.info.y + window.info.h
+                    {
+                        println!("switch active window to {i}");
+                        ACTIVE.store(i, Ordering::Relaxed);
+
+                        if alt_held {
+                            dragging = Some((
+                                (
+                                    window.info.x as f32 - cursor.0,
+                                    window.info.y as f32 - cursor.1,
+                                ),
+                                i,
+                            ));
+                        }
+                    }
+                }
+            }
+            ev => {
+                let windows = WINDOWS.lock().unwrap();
+                if let Some(active_window) = windows.get(ACTIVE.load(Ordering::Relaxed)) {
+                    println!("sending {ev:?}");
+                    active_window.conn.send_message(Message::Event(ev)).unwrap();
+                }
+            }
         }
-        drop(windows);
-    }
-}
-
-fn blitter() {
-    let windows = &*WINDOWS;
-
-    let mut global_fb = GlobalFb::lock_global_fb();
-    let mut global_fb = global_fb.as_region();
-
-    // background
-    global_fb.volatile_fill(
-        0,
-        0,
-        usize::MAX,
-        usize::MAX,
-        Color::from_hex("#141414").unwrap().as_u32(),
-    );
-
-    let mut next_sync = timestamp().unwrap() as u64;
-    loop {
-        // blit cursor
-        let (m_x, m_y) = get_mouse();
-        let (c_x, c_y) = (m_x as usize, m_y as usize);
-        global_fb.volatile_fill(c_x, c_y, 16, 16, Color::WHITE.as_u32());
-
-        // println!("VSYNC");
-        next_sync += 16_666_667;
-        hyperion_syscall::nanosleep_until(next_sync);
-
-        // blit all windows
-        let _windows = windows.lock().unwrap();
-        for (info, pixels) in _windows.iter().filter_map(|w| Some((w.info, w.shmem_ptr?))) {
-            let window = unsafe { Region::new(pixels.as_ptr(), info.w, info.w, info.h) };
-
-            // TODO: smarter blitting to avoid copying every single window every single frame
-            global_fb.volatile_copy_from(&window, info.x as isize, info.y as isize);
-        }
-        drop(_windows);
-
-        // hyperion_syscall::yield_now();
-
-        // remove the old cursor
-        global_fb.volatile_fill(
-            c_x,
-            c_y,
-            16,
-            16,
-            Color::from_hex("#141414").unwrap().as_u32(),
-        );
     }
 }
 
@@ -193,9 +196,6 @@ fn handle_client(client: Connection) {
                 let mut _windows = windows.lock().unwrap();
                 let window_id = _windows.len();
                 _windows.push(Window {
-                    conn: client.clone_tx(),
-                    shmem: None,
-                    shmem_ptr: None,
                     info: WindowInfo {
                         id: window_id,
                         x,
@@ -203,6 +203,10 @@ fn handle_client(client: Connection) {
                         w: 400,
                         h: 400,
                     },
+                    old_info: WindowInfo::default(),
+                    conn: client.clone_tx(),
+                    shmem: None,
+                    shmem_ptr: None,
                 });
                 drop(_windows);
 

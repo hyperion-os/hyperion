@@ -1,27 +1,13 @@
 use std::{
     fs::File,
     io::Read,
-    mem,
-    sync::atomic::{AtomicU64, AtomicU8, Ordering},
+    sync::atomic::{AtomicU8, Ordering},
 };
 
 use heapless::Vec;
-use hyperion_windowing::shared::{Button, ElementState, Event, Message, Mouse};
+use hyperion_windowing::shared::{Button, ElementState, Event, Mouse};
 
-use crate::{ACTIVE, WINDOWS};
-
-//
-
-pub fn get_mouse() -> (f32, f32) {
-    unsafe { mem::transmute(MOUSE_LOC.load(Ordering::Relaxed)) }
-}
-
-pub fn set_mouse((x, y): (f32, f32)) {
-    MOUSE_LOC.store(unsafe { mem::transmute((x, y)) }, Ordering::Relaxed);
-}
-
-// FIXME: AtomicCell to yeet the unsafe code out of here
-static MOUSE_LOC: AtomicU64 = AtomicU64::new(unsafe { mem::transmute((0.0f32, 0.0f32)) });
+use crate::EVENTS;
 
 //
 
@@ -30,8 +16,6 @@ pub fn mouse() {
 
     let mut buf = [0u8; 3];
 
-    let mut mouse_location = (0.0, 0.0);
-
     loop {
         let n = mouse_dev.read(&mut buf).unwrap();
         if n != 3 {
@@ -39,41 +23,7 @@ pub fn mouse() {
         }
 
         for ev in process(buf) {
-            match ev {
-                Mouse::Motion { x, y } => {
-                    mouse_location.0 += x;
-                    mouse_location.1 -= y;
-                    mouse_location.0 = mouse_location.0.max(0.0);
-                    mouse_location.1 = mouse_location.1.max(0.0);
-                    // println!("{mouse_location:?}");
-                    set_mouse(mouse_location);
-                }
-                Mouse::Button {
-                    btn: Button::Left,
-                    state: ElementState::Pressed,
-                } => {
-                    let windows = WINDOWS.lock().unwrap();
-                    for (i, window) in windows.iter().enumerate() {
-                        if window.info.x <= mouse_location.0 as usize
-                            && mouse_location.0 as usize <= window.info.x + window.info.w
-                            && window.info.y <= mouse_location.1 as usize
-                            && mouse_location.1 as usize <= window.info.y + window.info.h
-                        {
-                            println!("switch active window to {i}");
-                            ACTIVE.store(i, Ordering::Relaxed);
-                        }
-                    }
-                }
-                _ => {}
-            }
-
-            let windows = WINDOWS.lock().unwrap();
-            if let Some(window) = windows.get(ACTIVE.load(Ordering::Relaxed)) {
-                _ = window.conn.send_message(Message::Event(Event::Mouse(ev)));
-            }
-            drop(windows);
-
-            // println!("{ev:?}");
+            EVENTS.0.send(Event::Mouse(ev));
         }
     }
 }

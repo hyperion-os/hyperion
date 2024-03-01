@@ -24,7 +24,7 @@ pub enum Event {
 
 //
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ElementState {
     Pressed,
     Released,
@@ -40,7 +40,7 @@ pub enum Mouse {
 
 //
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Button {
     Left,
     Middle,
