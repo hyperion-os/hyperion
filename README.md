@@ -106,7 +106,7 @@ The current kernel side shell:
 ![image](https://github.com/xor-bits/hyperion/assets/42496863/4d59dc17-32fd-478d-91e4-5cb745ff1f2a)
 
 A work in progress window manager + user space shell:
-![image](https://github.com/xor-bits/hyperion/assets/42496863/9dfdfe09-0370-4abf-809f-27c127e154d4)
+![image](https://github.com/xor-bits/hyperion/assets/42496863/1760a3d0-1c6f-450b-84e6-b7724612facf)
 
 ## Related repos:
 
