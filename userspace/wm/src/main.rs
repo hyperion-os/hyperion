@@ -5,7 +5,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet, BinaryHeap},
     fs::File,
-    io::{stderr, stdout},
+    io::{stderr, stdout, Read},
     mem,
     ptr::NonNull,
     sync::{
@@ -106,7 +106,6 @@ fn main() {
     thread::spawn(event_handler);
 
     system("/bin/term", &[]).unwrap();
-    system("/bin/term", &[]).unwrap();
 
     loop {
         let client = server.accept().unwrap();
@@ -120,7 +119,7 @@ fn event_handler() {
     let mut dragging: Option<(f32, f32)> = None;
 
     while let Ok(ev) = EVENTS.1.recv() {
-        // println!("handle ev: {ev:?}");
+        println!("handle ev: {ev:?}");
 
         match ev {
             Event::Keyboard { code: 95, state } => {
@@ -168,6 +167,13 @@ fn event_handler() {
                     l.push(active);
                 }
             }
+            Event::Keyboard {
+                code: 72,
+                state: ElementState::Pressed,
+            } if alt_held => {
+                system("/bin/term", &[]).unwrap();
+            }
+            _ if alt_held => {}
             ev => {
                 let windows = WINDOWS.lock().unwrap();
                 if let Some(active) = windows.last() {
@@ -180,18 +186,25 @@ fn event_handler() {
 }
 
 fn handle_client(client: Connection) {
+    let mut rand_dev = File::open("/dev/random").unwrap();
+    let mut rng = || {
+        let mut b = [0u8; 8];
+        rand_dev.read_exact(&mut b).unwrap();
+        usize::from_ne_bytes(b)
+    };
+
+    let monitor_size = (600, 600); // FIXME:
+
     while let Ok(ev) = client.next_request() {
         match ev {
             Request::NewWindow => {
                 println!("client requested a new window");
 
                 static ID: AtomicUsize = AtomicUsize::new(0);
-                static X: AtomicUsize = AtomicUsize::new(10);
-                static Y: AtomicUsize = AtomicUsize::new(10);
 
                 let id = ID.fetch_add(1, Ordering::Relaxed);
-                let x = X.fetch_add(410, Ordering::Relaxed);
-                let y = Y.load(Ordering::Relaxed);
+                let x = rng() % monitor_size.0;
+                let y = rng() % monitor_size.1;
 
                 let (window_file, shmem_ptr) = new_window_framebuffer(400, 400, id);
 
