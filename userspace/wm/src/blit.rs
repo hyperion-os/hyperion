@@ -6,107 +6,116 @@ use crate::{CURSOR, WINDOWS};
 
 //
 
+#[derive(Debug, Clone, Copy)]
+struct Rect {
+    top_left: (usize, usize),
+    bottom_right: (usize, usize),
+}
+
+impl Rect {
+    fn new(x: usize, y: usize, w: usize, h: usize) -> Self {
+        Self {
+            top_left: (x, y),
+            bottom_right: (x + w, y + h),
+        }
+    }
+
+    fn union(&self, other: &Self) -> Self {
+        Self {
+            top_left: (
+                self.top_left.0.min(other.top_left.0),
+                self.top_left.1.min(other.top_left.1),
+            ),
+            bottom_right: (
+                self.bottom_right.0.max(other.bottom_right.0),
+                self.bottom_right.1.max(other.bottom_right.1),
+            ),
+        }
+    }
+}
+
+//
+
 pub fn blitter() {
     let mut global_fb = GlobalFb::lock_global_fb();
     let mut global_fb = global_fb.as_region();
 
-    // background
-    global_fb.volatile_fill(
-        0,
-        0,
-        usize::MAX,
-        usize::MAX,
-        Color::from_hex("#141414").unwrap().as_u32(),
-    );
+    let mut backbuf = vec![0u32; global_fb.width * global_fb.height];
+    let mut backbuf = unsafe {
+        Region::new(
+            backbuf.as_mut_ptr(),
+            global_fb.width,
+            global_fb.width,
+            global_fb.height,
+        )
+    };
 
-    let depth_buffer = global_fb.width * global_fb.height;
+    // background
+    let bg_col = Color::from_hex("#141414").unwrap().as_u32();
+    backbuf.volatile_fill(0, 0, usize::MAX, usize::MAX, bg_col);
+    global_fb.volatile_copy_from(&backbuf, 0, 0);
 
     let mut old_cursor = (0, 0);
 
     let mut next_sync = timestamp().unwrap() as u64;
     loop {
-        // blit all windows
-        let mut windows = WINDOWS.lock().unwrap();
-        for (pixels, window) in windows.iter_mut().filter_map(|w| Some((w.shmem_ptr?, w))) {
-            if window.old_info != window.info {
-                // remove non overlapping parts of the old window
-                // if window.info.x > window.old_info.x && window.info.y < window.old_info.y {
-                //     global_fb.volatile_fill(
-                //         window.old_info.x,
-                //         window.info.y,
-                //         window.info.x - window.old_info.x,
-                //         window.old_info.y - window.info.y,
-                //         Color::from_hex("#141414").unwrap().as_u32(),
-                //     );
-                // }
-                if window.info.x > window.old_info.x {
-                    global_fb.volatile_fill(
-                        window.old_info.x,
-                        window.old_info.y,
-                        window.info.x - window.old_info.x,
-                        window.old_info.h,
-                        Color::from_hex("#141414").unwrap().as_u32(),
-                    );
-                }
-                if window.old_info.x + window.old_info.w > window.info.x + window.info.w {
-                    global_fb.volatile_fill(
-                        window.info.x + window.info.w,
-                        window.old_info.y,
-                        window.old_info.x + window.old_info.w - window.info.x - window.info.w,
-                        window.old_info.h,
-                        Color::from_hex("#141414").unwrap().as_u32(),
-                    );
-                }
-                if window.info.y > window.old_info.y {
-                    global_fb.volatile_fill(
-                        window.old_info.x,
-                        window.old_info.y,
-                        window.old_info.w,
-                        window.info.y - window.old_info.y,
-                        Color::from_hex("#141414").unwrap().as_u32(),
-                    );
-                }
-                if window.old_info.y + window.old_info.h > window.info.y + window.info.h {
-                    global_fb.volatile_fill(
-                        window.old_info.x,
-                        window.info.y + window.info.h,
-                        window.old_info.w,
-                        window.old_info.y + window.old_info.h - window.info.y - window.info.h,
-                        Color::from_hex("#141414").unwrap().as_u32(),
-                    );
-                }
-                // global_fb.volatile_fill(
-                //     window.old_info.x,
-                //     window.old_info.y,
-                //     window.old_info.w,
-                //     window.old_info.h,
-                //     Color::from_hex("#141414").unwrap().as_u32(),
-                // );
-                window.old_info = window.info;
-            }
+        let mut dirty = Rect::new(0, 0, 0, 0);
 
+        let mut windows = WINDOWS.lock().unwrap();
+
+        // remove all windows
+        for window in windows.iter_mut().filter(|w| w.shmem_ptr.is_some()) {
+            dirty = dirty.union(&Rect::new(
+                window.old_info.x,
+                window.old_info.y,
+                window.old_info.w,
+                window.old_info.h,
+            ));
+            backbuf.volatile_fill(
+                window.old_info.x,
+                window.old_info.y,
+                window.old_info.w,
+                window.old_info.h,
+                bg_col,
+            );
+            window.old_info = window.info;
+        }
+        // remove the cursor
+        dirty = dirty.union(&Rect::new(old_cursor.0, old_cursor.1, 16, 16));
+        backbuf.volatile_fill(old_cursor.0, old_cursor.1, 16, 16, bg_col);
+        // blit all windows
+        for (pixels, window) in windows.iter().filter_map(|w| Some((w.shmem_ptr?, w))) {
+            dirty = dirty.union(&Rect::new(
+                window.info.x,
+                window.info.y,
+                window.info.w,
+                window.info.h,
+            ));
             let fb = unsafe {
                 Region::new(pixels.as_ptr(), window.info.w, window.info.w, window.info.h)
             };
-            // TODO: smarter blitting to avoid copying every single window every single frame
-            global_fb.volatile_copy_from(&fb, window.info.x as isize, window.info.y as isize);
+            backbuf.volatile_copy_from(&fb, window.info.x as isize, window.info.y as isize);
         }
         drop(windows);
-
-        // remove the old cursor
-        global_fb.volatile_fill(
-            old_cursor.0,
-            old_cursor.1,
-            16,
-            16,
-            Color::from_hex("#141414").unwrap().as_u32(),
-        );
-
         // blit cursor
         let (m_x, m_y) = CURSOR.load();
-        let (c_x, c_y) = (m_x as usize, m_y as usize);
-        global_fb.volatile_fill(c_x, c_y, 16, 16, Color::WHITE.as_u32());
-        old_cursor = (c_x, c_y);
+        let cursor = (m_x as usize, m_y as usize);
+        old_cursor = cursor;
+        dirty = dirty.union(&Rect::new(cursor.0, cursor.1, 16, 16));
+        backbuf.volatile_fill(cursor.0, cursor.1, 16, 16, Color::WHITE.as_u32());
+
+        // update
+        let dirty_backbuf = backbuf.subregion(
+            dirty.top_left.0,
+            dirty.top_left.1,
+            dirty.bottom_right.0 - dirty.top_left.0,
+            dirty.bottom_right.1 - dirty.top_left.1,
+        );
+        global_fb.volatile_copy_from(
+            &dirty_backbuf,
+            dirty.top_left.0 as isize,
+            dirty.top_left.1 as isize,
+        );
 
         // println!("VSYNC");
         next_sync += 16_666_667;
@@ -114,3 +123,5 @@ pub fn blitter() {
         // hyperion_syscall::yield_now();
     }
 }
+
+fn blit_chunk() {}

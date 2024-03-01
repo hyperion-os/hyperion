@@ -38,6 +38,16 @@ impl<'a> Region<'a> {
         }
     }
 
+    pub fn subregion(&mut self, x: usize, y: usize, w: usize, h: usize) -> Self {
+        Self {
+            buf: unsafe { self.buf.add(x + y * self.pitch) },
+            pitch: self.pitch,
+            width: self.width.saturating_sub(x),
+            height: self.height.saturating_sub(y),
+            _p: self._p,
+        }
+    }
+
     // fn sub_region(self, x: usize, y: usize, width: usize, height: usize) -> Option<Region> {
     //     if x >= self.pitch {
     //         panic!();
