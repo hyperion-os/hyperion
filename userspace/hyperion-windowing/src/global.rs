@@ -76,13 +76,14 @@ impl<'a> Region<'a> {
         let ymax = ymax_a.min(ymax_b);
 
         let x = xmin;
-        let x_len = xmax - x;
         let y = ymin;
-        let y_len = ymax - y;
 
-        if x_len <= 0 || y_len <= 0 {
+        if x >= xmax || y >= ymax {
             return;
         }
+
+        let x_len = xmax - x;
+        let y_len = ymax - y;
 
         assert!(xmax <= self.width);
         assert!(ymax <= self.height);
