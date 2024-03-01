@@ -19,6 +19,8 @@ pub fn blitter() {
         Color::from_hex("#141414").unwrap().as_u32(),
     );
 
+    let depth_buffer = global_fb.width * global_fb.height;
+
     let mut old_cursor = (0, 0);
 
     let mut next_sync = timestamp().unwrap() as u64;
@@ -27,14 +29,59 @@ pub fn blitter() {
         let mut windows = WINDOWS.lock().unwrap();
         for (pixels, window) in windows.iter_mut().filter_map(|w| Some((w.shmem_ptr?, w))) {
             if window.old_info != window.info {
-                // remove the old window
-                global_fb.volatile_fill(
-                    window.old_info.x,
-                    window.old_info.y,
-                    window.old_info.w,
-                    window.old_info.h,
-                    Color::from_hex("#141414").unwrap().as_u32(),
-                );
+                // remove non overlapping parts of the old window
+                // if window.info.x > window.old_info.x && window.info.y < window.old_info.y {
+                //     global_fb.volatile_fill(
+                //         window.old_info.x,
+                //         window.info.y,
+                //         window.info.x - window.old_info.x,
+                //         window.old_info.y - window.info.y,
+                //         Color::from_hex("#141414").unwrap().as_u32(),
+                //     );
+                // }
+                if window.info.x > window.old_info.x {
+                    global_fb.volatile_fill(
+                        window.old_info.x,
+                        window.old_info.y,
+                        window.info.x - window.old_info.x,
+                        window.old_info.h,
+                        Color::from_hex("#141414").unwrap().as_u32(),
+                    );
+                }
+                if window.old_info.x + window.old_info.w > window.info.x + window.info.w {
+                    global_fb.volatile_fill(
+                        window.info.x + window.info.w,
+                        window.old_info.y,
+                        window.old_info.x + window.old_info.w - window.info.x - window.info.w,
+                        window.old_info.h,
+                        Color::from_hex("#141414").unwrap().as_u32(),
+                    );
+                }
+                if window.info.y > window.old_info.y {
+                    global_fb.volatile_fill(
+                        window.old_info.x,
+                        window.old_info.y,
+                        window.old_info.w,
+                        window.info.y - window.old_info.y,
+                        Color::from_hex("#141414").unwrap().as_u32(),
+                    );
+                }
+                if window.old_info.y + window.old_info.h > window.info.y + window.info.h {
+                    global_fb.volatile_fill(
+                        window.old_info.x,
+                        window.info.y + window.info.h,
+                        window.old_info.w,
+                        window.old_info.y + window.old_info.h - window.info.y - window.info.h,
+                        Color::from_hex("#141414").unwrap().as_u32(),
+                    );
+                }
+                // global_fb.volatile_fill(
+                //     window.old_info.x,
+                //     window.old_info.y,
+                //     window.old_info.w,
+                //     window.old_info.h,
+                //     Color::from_hex("#141414").unwrap().as_u32(),
+                // );
                 window.old_info = window.info;
             }
 
