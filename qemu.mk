@@ -37,7 +37,7 @@ QEMU_RUN_FLAGS  ?=
 QEMU_RUN_FLAGS  += ${QEMU_FLAGS}
 # QEMU_FLAGS      += -vga virtio
 QEMU_RUN_FLAGS  += -vga std
-QEMU_RUN_FLAGS  += -display gtk,show-cursor=on
+QEMU_RUN_FLAGS  += -display gtk,show-cursor=off
 QEMU_RUN_FLAGS  += -usb
 QEMU_RUN_FLAGS  += -device virtio-sound
 

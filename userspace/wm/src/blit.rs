@@ -55,6 +55,20 @@ pub fn blitter() {
     backbuf.volatile_fill(0, 0, usize::MAX, usize::MAX, bg_col);
     global_fb.volatile_copy_from(&backbuf, 0, 0);
 
+    // // cursor icon
+    // let mut cursor_icon = [0u32; 16 * 16];
+    // for y in 0..16 {
+    //     for x in 0..16 {
+    //         cursor_icon[x + y * 16] = if x > y || (x * x) + (y * y) > 15 * 15 {
+    //             Color::BLACK
+    //         } else {
+    //             Color::WHITE
+    //         }
+    //         .as_u32();
+    //     }
+    // }
+    // let mut cursor_icon = unsafe { Region::new(cursor_icon.as_mut_ptr(), 16, 16, 16) };
+
     let mut old_cursor = (0, 0);
 
     let mut next_sync = timestamp().unwrap() as u64;
@@ -107,7 +121,19 @@ pub fn blitter() {
         let cursor = (m_x as usize, m_y as usize);
         old_cursor = cursor;
         dirty = dirty.union(&Rect::new(cursor.0, cursor.1, 16, 16));
-        backbuf.volatile_fill(cursor.0, cursor.1, 16, 16, Color::WHITE.as_u32());
+        for yo in 0..16usize {
+            for xo in 0..16usize {
+                if !(xo > yo || (xo * xo) + (yo * yo) >= 15 * 15) {
+                    backbuf.volatile_fill(
+                        cursor.0 + xo,
+                        cursor.1 + yo,
+                        1,
+                        1,
+                        Color::WHITE.as_u32(),
+                    );
+                }
+            }
+        }
 
         // update
         let dirty_backbuf = backbuf.subregion(
