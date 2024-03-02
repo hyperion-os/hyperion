@@ -111,15 +111,19 @@ pub fn new_window_framebuffer(
 
 fn handle_client(mut socket_r: BufReader<Arc<LocalStream>>, request_buf_tx: Sender<Request>) {
     loop {
-        let Ok(req) = rmp_serde::from_read(&mut socket_r) else {
-            eprintln!("invalid request from a client, closing the connection");
-            break;
-        };
-
-        if request_buf_tx.send(req).is_err() {
-            eprintln!("server closed");
-            // server closed
-            break;
+        match rmp_serde::from_read(&mut socket_r) {
+            Ok(req) => {
+                if request_buf_tx.send(req).is_err() {
+                    eprintln!("server closed");
+                    // server closed
+                    break;
+                }
+            }
+            Err(err) => {
+                eprintln!("invalid request from a client ({err}), closing the connection");
+                _ = request_buf_tx.send(Request::CloseConnection);
+                break;
+            }
         }
     }
 }

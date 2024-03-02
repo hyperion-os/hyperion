@@ -94,6 +94,7 @@ pub fn blitter() {
             );
             window.old_info = window.info;
         }
+        windows.retain(|w| !w.closed);
         // remove the cursor
         dirty = dirty.union(&Rect::new(old_cursor.0, old_cursor.1, 16, 16));
         backbuf.volatile_fill(old_cursor.0, old_cursor.1, 16, 16, bg_col);

@@ -52,4 +52,5 @@ pub enum Button {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Request {
     NewWindow,
+    CloseConnection,
 }

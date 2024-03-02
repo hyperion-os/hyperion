@@ -3,7 +3,7 @@
 //
 
 use std::{
-    collections::{BTreeMap, BTreeSet, BinaryHeap},
+    collections::{BTreeMap, BTreeSet, BinaryHeap, HashSet},
     fs::File,
     io::{stderr, stdout, Read},
     mem,
@@ -37,6 +37,7 @@ pub struct Window {
     pub info: WindowInfo,
     // pre-update cache for the blitter
     pub old_info: WindowInfo,
+    pub closed: bool,
 
     conn: MessageStream,
     shmem: File,
@@ -119,7 +120,7 @@ fn event_handler() {
     let mut dragging: Option<(f32, f32)> = None;
 
     while let Ok(ev) = EVENTS.1.recv() {
-        println!("handle ev: {ev:?}");
+        // println!("handle ev: {ev:?}");
 
         match ev {
             Event::Keyboard { code: 95, state } => {
@@ -178,7 +179,7 @@ fn event_handler() {
                 let windows = WINDOWS.lock().unwrap();
                 if let Some(active) = windows.last() {
                     // println!("sending {ev:?}");
-                    active.conn.send_message(Message::Event(ev)).unwrap();
+                    _ = active.conn.send_message(Message::Event(ev));
                 }
             }
         }
@@ -194,6 +195,8 @@ fn handle_client(client: Connection) {
     };
 
     let monitor_size = (600, 600); // FIXME:
+
+    let mut own_windows = HashSet::new();
 
     while let Ok(ev) = client.next_request() {
         match ev {
@@ -218,11 +221,13 @@ fn handle_client(client: Connection) {
                         h: 400,
                     },
                     old_info: WindowInfo::default(),
+                    closed: false,
                     conn: client.clone_tx(),
                     shmem: window_file,
                     shmem_ptr,
                 });
                 drop(windows);
+                own_windows.insert(id);
 
                 if client
                     .send_message(Message::NewWindow { window_id: id })
@@ -230,6 +235,16 @@ fn handle_client(client: Connection) {
                 {
                     break;
                 }
+            }
+            Request::CloseConnection => {
+                let mut windows = WINDOWS.lock().unwrap();
+                for window in windows.iter_mut() {
+                    if own_windows.contains(&window.info.id) {
+                        window.info = <_>::default();
+                        window.closed = true;
+                    }
+                }
+                break;
             }
         }
     }

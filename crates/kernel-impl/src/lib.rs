@@ -508,6 +508,7 @@ impl ProcessExt for ProcessExtra {
     }
 
     fn close(&self) {
+        // FIXME: called twice with multiple threads + exit
         self.files.lock().inner.clear();
         for f in self.on_close.lock().drain(..) {
             f();
