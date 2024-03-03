@@ -68,6 +68,7 @@ pub mod id {
 
     pub const SYSTEM: usize = 33;
     pub const FORK: usize = 34;
+    pub const WAITPID: usize = 35;
 }
 
 //
@@ -411,4 +412,9 @@ pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<usize
 /// fork the current process and return the PID
 pub fn fork() -> usize {
     unsafe { syscall_0(id::FORK) }.unwrap()
+}
+
+/// wait for a PID to exit
+pub fn waitpid() -> usize {
+    unsafe { syscall_0(id::WAITPID) }.unwrap()
 }
