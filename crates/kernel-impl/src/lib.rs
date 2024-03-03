@@ -35,6 +35,7 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 //
 
 mod procfs;
+// mod sysfs;
 
 //
 
@@ -42,6 +43,7 @@ pub static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(|| {
     let root = Node::new_root();
 
     procfs::init(root.clone());
+    // sysfs::init(root.clone());
 
     root
 });
