@@ -10,7 +10,23 @@ pub struct ConnectionClosed;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Message {
     NewWindow { window_id: usize },
+    // ResizeWindow { window_id: usize },
     Event(Event),
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct Window {
+    /// user data for the window, for window identification in multi-window scenarios
+    pub id: usize,
+    /// window buffer pixel pitch (pixels to the same X at the next Y)
+    pub pitch: usize,
+    /// window visual pixel width
+    pub width: usize,
+    /// window visual pixel height
+    pub height: usize,
+    /// FIXME: should be a file descriptor over socket (sendmsg)
+    /// a file id of the window fb file `/run/wm.window.<id>`
+    pub shmem_file: usize,
 }
 
 //
@@ -52,5 +68,10 @@ pub enum Button {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Request {
     NewWindow,
+    // ResizeWindow {
+    //     window_id: usize,
+    //     width: usize,
+    //     height: usize,
+    // },
     CloseConnection,
 }
