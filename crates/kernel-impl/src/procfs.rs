@@ -25,12 +25,12 @@ use hyperion_vfs::{
 
 //
 
+mod sysctl;
+
+//
+
 pub fn init(root: impl IntoNode) {
     root.into_node().mount("proc", ProcFs::new());
-
-    // let root = root.into_node().find("/proc", true).unwrap();
-
-    // root.install_dev("meminfo", MemInfo);
 }
 
 //
@@ -40,6 +40,7 @@ pub struct ProcFs<Mut> {
     cmdline: Option<Node<Mut>>,
     version: Option<Node<Mut>>,
     cpuinfo: Option<Node<Mut>>,
+    sys: Option<Node<Mut>>,
 }
 
 impl<Mut: AnyMutex> ProcFs<Mut> {
@@ -48,6 +49,7 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
             cmdline: None,
             version: None,
             cpuinfo: None,
+            sys: None,
         }
     }
 
@@ -106,6 +108,12 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
     fn self_dir(&self) -> Node<Mut> {
         Node::new_dir(ProcDir(process()))
     }
+
+    fn sys(&mut self) -> Node<Mut> {
+        self.sys
+            .get_or_insert_with(|| sysctl::sysctl_base())
+            .clone()
+    }
 }
 
 impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
@@ -121,6 +129,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
             "uptime" => Ok(self.uptime()),
             "cpuinfo" => Ok(self.cpuinfo()),
             "self" => Ok(self.self_dir()),
+            "sys" => Ok(self.sys()),
             _ => {
                 if let Some(proc) = name.parse::<usize>().ok().and_then(|pid| {
                     let processes = PROCESSES.lock();
@@ -169,6 +178,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
                 ("uptime", self.uptime()),
                 ("version", self.version()),
                 ("self", self.self_dir()),
+                ("sys", self.sys()),
             ]
             .into_iter()
             .map(|(name, node)| DirEntry {
