@@ -67,6 +67,7 @@ mod page_fault;
 
 pub static READY: SegQueue<Task> = SegQueue::new();
 pub static RUNNING: AtomicBool = AtomicBool::new(false);
+pub static ROUND_ROBIN: AtomicBool = AtomicBool::new(false);
 
 //
 
@@ -120,7 +121,9 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
             exit();
         }
 
-        // yield_now();
+        if ROUND_ROBIN.load(Ordering::Relaxed) {
+            yield_now();
+        }
     });
 
     // init `Once` in TLS
