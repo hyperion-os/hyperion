@@ -1,4 +1,5 @@
 use alloc::sync::Arc;
+use core::sync::atomic::{fence, AtomicUsize, Ordering};
 
 use crate::{condvar::Condvar, lock::Mutex};
 
@@ -27,7 +28,6 @@ pub struct Closed;
 
 //
 
-#[derive(Clone)]
 pub struct Sender<T> {
     inner: Arc<Channel<T>>,
 }
@@ -41,8 +41,8 @@ impl<T> Sender<T> {
         self.inner.recv_closed();
     }
 
-    pub fn close(&self) {
-        self.inner.close_send()
+    pub fn close(&mut self) {
+        self.inner.close()
     }
 }
 
@@ -65,7 +65,6 @@ impl<T> Drop for Sender<T> {
 
 //
 
-#[derive(Clone)]
 pub struct Receiver<T> {
     inner: Arc<Channel<T>>,
 }
@@ -79,8 +78,8 @@ impl<T> Receiver<T> {
         self.inner.send_closed();
     }
 
-    pub fn close(&self) {
-        self.inner.close_recv()
+    pub fn close(&mut self) {
+        self.inner.close()
     }
 }
 
@@ -222,13 +221,10 @@ impl<T> Channel<T> {
         }
     }
 
-    fn close_send(&self) {
+    #[track_caller]
+    fn close(&self) {
+        hyperion_log::debug!("pipe closed {}", core::panic::Location::caller());
         *self.send_closed.lock() = true;
-        self.send_wait.notify_one();
-        self.recv_wait.notify_one();
-    }
-
-    fn close_recv(&self) {
         *self.recv_closed.lock() = true;
         self.send_wait.notify_one();
         self.recv_wait.notify_one();

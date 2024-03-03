@@ -439,7 +439,6 @@ impl FileDescriptor for LocalSocket {
 }
 
 /// local domain socket "pipe"
-#[derive(Clone)]
 pub struct SocketPipe {
     pub send: Sender<u8>,
     pub recv: Receiver<u8>,
@@ -510,6 +509,20 @@ impl ProcessExt for ProcessExtra {
     fn close(&self) {
         // FIXME: called twice with multiple threads + exit
         self.files.lock().inner.clear();
+        /* for (i, fd) in self
+            .files
+            .lock()
+            .inner
+            .drain(..)
+            .enumerate()
+            .flat_map(|(i, s)| Some((i, s?)))
+        {
+            if Arc::strong_count(&fd) == 1 {
+                hyperion_log::debug!("fd:{i} actually closed");
+            } else {
+                hyperion_log::debug!("fd:{i} closed (shared)");
+            }
+        } */
         for f in self.on_close.lock().drain(..) {
             f();
         }
