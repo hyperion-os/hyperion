@@ -221,9 +221,7 @@ impl<T> Channel<T> {
         }
     }
 
-    #[track_caller]
     fn close(&self) {
-        hyperion_log::debug!("pipe closed {}", core::panic::Location::caller());
         *self.send_closed.lock() = true;
         *self.recv_closed.lock() = true;
         self.send_wait.notify_one();

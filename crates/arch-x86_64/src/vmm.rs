@@ -609,7 +609,6 @@ impl LockedPageMap {
     }
 
     // None = HugeFrame
-    #[track_caller]
     fn create_table<'a>(
         info: &MemoryInfo,
         entry: &'a mut PageTableEntry,
