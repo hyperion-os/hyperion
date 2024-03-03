@@ -40,6 +40,7 @@ QEMU_RUN_FLAGS  += -vga std
 QEMU_RUN_FLAGS  += -display gtk,show-cursor=off
 QEMU_RUN_FLAGS  += -usb
 QEMU_RUN_FLAGS  += -device virtio-sound
+QEMU_RUN_FLAGS  += -device usb-tablet
 
 QEMU_TEST_FLAGS ?=
 QEMU_TEST_FLAGS += ${QEMU_FLAGS}
