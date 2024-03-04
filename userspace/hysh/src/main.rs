@@ -1,10 +1,10 @@
 use std::{
     env::args,
     fs::File,
-    io::{stdin, stdout, BufRead, BufReader, Read, StdinLock, Write},
+    io::{stdin, stdout, BufRead, BufReader, Read, Write},
     iter,
     process::{Command, Stdio},
-    slice, str,
+    str,
 };
 
 use hyperion_escape::{
