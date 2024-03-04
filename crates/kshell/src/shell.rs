@@ -8,6 +8,7 @@ use core::{fmt::Write, str, sync::atomic::Ordering};
 
 use anyhow::anyhow;
 use futures_util::{stream::select, Stream};
+use hyperion_escape::encode::{CursorDown, CursorLeft, CursorRight, CursorUp};
 use hyperion_events::keyboard::{
     event::{ElementState, KeyCode, KeyboardEvent},
     layouts, set_layout,
@@ -329,8 +330,8 @@ impl Shell {
                             break;
                         }
                     } else if let Some(unicode) = unicode {
-                        _ = write!(self.term, "{unicode}");
-                        self.term.flush();
+                        // _ = write!(self.term, "{unicode}");
+                        // self.term.flush();
 
                         let mut str = [0; 4];
 
@@ -338,6 +339,22 @@ impl Shell {
 
                         // TODO: buffering
                         if stdin_tx.send_slice(str.as_bytes()).is_err() {
+                            break;
+                        }
+                    } else {
+                        if state != ElementState::Pressed {
+                            continue;
+                        }
+
+                        let escape_bytes = match keycode {
+                            KeyCode::ArrowUp => format!("{}", CursorUp(1)),
+                            KeyCode::ArrowDown => format!("{}", CursorDown(1)),
+                            KeyCode::ArrowLeft => format!("{}", CursorLeft(1)),
+                            KeyCode::ArrowRight => format!("{}", CursorRight(1)),
+                            _ => continue,
+                        };
+
+                        if stdin_tx.send_slice(escape_bytes.as_bytes()).is_err() {
                             break;
                         }
                     }
