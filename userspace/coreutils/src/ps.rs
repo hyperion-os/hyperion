@@ -1,8 +1,11 @@
 use alloc::{format, string::String};
-use core::ops::Deref;
 
 use anyhow::{anyhow, Result};
-use libstd::{eprintln, fs::Dir, println};
+use libstd::{
+    fs::{Dir, File},
+    io::Read,
+    println,
+};
 
 //
 
@@ -16,17 +19,22 @@ pub fn cmd<'a>(_: impl Iterator<Item = &'a str>) -> Result<()> {
         // filter out non-PID entries
         .filter(|ent| ent.file_name.parse::<usize>().is_ok())
     {
-        let contents =
-            match super::read_file_map(&mut buf, &format!("/proc/{}/status", proc.file_name)) {
-                Ok(v) => v,
-                Err(e) => {
-                    eprintln!("{e}");
-                    continue;
-                }
-            };
+        let contents = super::read_file_map(&mut buf, &format!("/proc/{}/status", proc.file_name))
+            .map_err(|err| anyhow!("{err}"))?;
+
+        let mut cmdline_file = File::open(&format!("/proc/{}/cmdline", proc.file_name))
+            .map_err(|err| anyhow!("{err}"))?;
+        let mut cmdline_buf = [255u8; 32];
+        let n = cmdline_file
+            .read(&mut cmdline_buf)
+            .map_err(|err| anyhow!("{err}"))?;
+        for b in cmdline_buf.iter_mut().filter(|s| **s == 0) {
+            // null bytes are cli arg separators
+            *b = b' ';
+        }
+        let cmdline = core::str::from_utf8(&cmdline_buf[..n]).map_err(|err| anyhow!("{err}"))?;
 
         let pid = proc.file_name;
-        let name = contents.get("Name").unwrap().deref();
         let threads = contents.get("Threads").unwrap().parse::<usize>().unwrap();
         let nanos = contents.get("Nanos").unwrap().parse::<usize>().unwrap();
 
@@ -36,7 +44,7 @@ pub fn cmd<'a>(_: impl Iterator<Item = &'a str>) -> Result<()> {
         let time_s = time.whole_seconds() % 60;
         let time_ms = time.whole_milliseconds() % 1000;
 
-        println!("{pid: >6} {threads: >7} {time_m: >2}:{time_s:02}.{time_ms:03} {name}");
+        println!("{pid: >6} {threads: >7} {time_m: >2}:{time_s:02}.{time_ms:03} {cmdline}");
     }
 
     Ok(())
