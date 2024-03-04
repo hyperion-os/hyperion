@@ -23,6 +23,8 @@ use hyperion_vfs::{
     AnyMutex,
 };
 
+use crate::process_ext_with;
+
 //
 
 mod sysctl;
@@ -212,10 +214,25 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
 
 struct ProcDir(Arc<Process>);
 
+impl ProcDir {
+    fn status<Mut: AnyMutex>(&self) -> Node<Mut> {
+        Node::new_file(DisplayFile(ProcStatus::new(self.0.clone())))
+    }
+
+    fn cmdline<Mut: AnyMutex>(&self) -> Node<Mut> {
+        if let Some(cmdline) = process_ext_with(&self.0).cmdline.get().cloned() {
+            Node::new_file(DisplayFile(cmdline))
+        } else {
+            Node::new_file(DisplayFile(""))
+        }
+    }
+}
+
 impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
     fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
         match name {
-            "status" => Ok(Node::new_file(DisplayFile(ProcStatus::new(self.0.clone())))),
+            "status" => Ok(self.status()),
+            "cmdline" => Ok(self.cmdline()),
             _ => Err(IoError::NotFound),
         }
     }
@@ -226,10 +243,16 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
 
     fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
         Ok(Box::new(
-            [DirEntry {
-                name: ArcOrRef::Ref("status"),
-                node: Node::new_file(DisplayFile(ProcStatus::new(self.0.clone()))),
-            }]
+            [
+                DirEntry {
+                    name: ArcOrRef::Ref("status"),
+                    node: self.status(),
+                },
+                DirEntry {
+                    name: ArcOrRef::Ref("cmdline"),
+                    node: self.cmdline(),
+                },
+            ]
             .into_iter(),
         ))
     }

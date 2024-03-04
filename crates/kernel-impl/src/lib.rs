@@ -5,18 +5,21 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{
     any::Any,
-    mem,
+    mem, slice,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use arcstr::ArcStr;
+use hyperion_loader::Loader;
+use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
     ipc::pipe::{pipe_with, Channel, Receiver, Sender},
     lock::{Futex, Mutex},
-    proc::{Process, ProcessExt},
+    proc::{Pid, Process, ProcessExt},
     process,
 };
 use hyperion_syscall::{
@@ -493,13 +496,16 @@ impl FileDevice for BoundSocket {
 pub struct ProcessExtra {
     pub files: Mutex<SparseVec<Arc<dyn FileDescriptor>>>,
     pub on_close: Mutex<Vec<Box<dyn FnOnce() + Send>>>,
+    pub cmdline: Once<ArcStr>,
 }
 
 impl Clone for ProcessExtra {
     fn clone(&self) -> Self {
-        let files = Mutex::new(self.files.lock().clone());
-        let on_close = Mutex::new(Vec::new());
-        Self { files, on_close }
+        Self {
+            files: Mutex::new(self.files.lock().clone()),
+            on_close: Mutex::new(Vec::new()),
+            cmdline: Once::new(),
+        }
     }
 }
 
@@ -538,6 +544,78 @@ impl Drop for ProcessExtra {
 }
 
 //
+
+pub fn exec(
+    program: String,
+    args: Vec<String>,
+    stdin: Arc<dyn FileDescriptor>,
+    stdout: Arc<dyn FileDescriptor>,
+    stderr: Arc<dyn FileDescriptor>,
+    on_close: Option<Box<dyn FnOnce() + Send>>,
+) -> Pid {
+    hyperion_scheduler::schedule(move || {
+        // set its name
+        hyperion_scheduler::rename(program.as_str());
+
+        // set up /proc/self/cmdline
+        let cmdline = slice::from_ref(&program).iter().chain(args.iter()).fold(
+            String::new(),
+            |mut acc, s| {
+                acc.push_str(s);
+                // cli args are null terminated + null separated (for compatibility)
+                acc.push_str("\x00");
+                acc
+            },
+        );
+        hyperion_log::info!(" - cmdline: `{cmdline}`");
+        with_proc_ext(move |ext| {
+            ext.cmdline.call_once(move || cmdline.into());
+        });
+
+        // setup the STDIO
+        fd_replace(FileDesc(0), stdin);
+        fd_replace(FileDesc(1), stdout);
+        fd_replace(FileDesc(2), stderr);
+        if let Some(on_close) = on_close {
+            crate::on_close(on_close);
+        }
+
+        // read the ELF file contents
+        // FIXME: read before schedule and return any read errors
+        let mut elf = Vec::new();
+        let bin = VFS_ROOT
+            .find_file(program.as_str(), false, false)
+            .unwrap_or_else(|err| panic!("could not load ELF `{program}`: {err}"));
+        let bin = bin.lock_arc();
+        loop {
+            let mut buf = [0; 64];
+            let len = bin.read(elf.len(), &mut buf).unwrap();
+            elf.extend_from_slice(&buf[..len]);
+            if len == 0 {
+                break;
+            }
+        }
+        drop(bin);
+
+        // load ..
+        let loader = Loader::new(elf.as_ref());
+        loader.load();
+        let entry = loader.finish();
+
+        // the elf is trying to steal our memory, drop the elf as a revenge
+        drop(elf);
+
+        // .. and exec the binary
+        match entry {
+            Ok(entry) => entry.enter(program, args),
+            Err(_) => {
+                error!("no ELF entrypoint");
+                let stderr = fd_query(FileDesc(2)).unwrap();
+                stderr.write(b"invalid ELF: entry point missing").unwrap();
+            }
+        }
+    })
+}
 
 pub fn on_close(on_close: Box<dyn FnOnce() + Send>) {
     with_proc_ext(|ext| {
@@ -611,6 +689,7 @@ pub fn process_ext_with(proc: &Process) -> &ProcessExtra {
             Box::new(ProcessExtra {
                 files: Mutex::new(SparseVec::new()),
                 on_close: Mutex::new(Vec::new()),
+                cmdline: Once::new(),
             })
         })
         .as_any()

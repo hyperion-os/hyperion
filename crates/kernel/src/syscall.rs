@@ -21,7 +21,6 @@ use hyperion_kernel_impl::{
     read_untrusted_slice, read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo,
     SocketPipe, VFS_ROOT,
 };
-use hyperion_loader::Loader;
 use hyperion_log::*;
 use hyperion_mem::{
     pmm::PageFrame,
@@ -31,7 +30,7 @@ use hyperion_scheduler::{
     futex,
     lock::Mutex,
     proc::{AllocErr, FreeErr},
-    process, schedule, task,
+    process, task,
 };
 use hyperion_syscall::{
     err::{Error, Result},
@@ -805,66 +804,11 @@ pub fn system(args: &mut SyscallRegs) -> Result<usize> {
         .map(ToString::to_string)
         .collect::<Vec<String>>();
 
-    // hyperion_log::debug!("system `{program}` `{args:?}`");
-
-    // static NULL_STDIO: Lazy<Arc<dyn FileDescriptor>> =
-    //     Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
-
-    // let stdin = NULL_STDIO.clone();
-    // // let stdout = NULL_STDIO.clone();
-    // // let stderr = NULL_STDIO.clone();
-    // let stdout = fd_query(FileDesc(1))?;
-    // let stderr = fd_query(FileDesc(2))?;
-
     let stdin = fd_query(stdio.stdin)?;
     let stdout = fd_query(stdio.stdout)?;
     let stderr = fd_query(stdio.stderr)?;
 
-    let pid = schedule(move || {
-        let mut elf = Vec::new();
-
-        let bin = VFS_ROOT
-            .find_file(program.as_str(), false, false)
-            .unwrap_or_else(|err| panic!("could not load ELF `{program}`: {err}"));
-
-        let bin = bin.lock_arc();
-
-        loop {
-            let mut buf = [0; 64];
-            let len = bin.read(elf.len(), &mut buf).unwrap();
-            elf.extend_from_slice(&buf[..len]);
-            if len == 0 {
-                break;
-            }
-        }
-        drop(bin);
-
-        // set its name
-        hyperion_scheduler::rename(program.as_str());
-
-        // setup the STDIO
-        hyperion_kernel_impl::fd_replace(FileDesc(0), stdin);
-        hyperion_kernel_impl::fd_replace(FileDesc(1), stdout);
-        hyperion_kernel_impl::fd_replace(FileDesc(2), stderr);
-
-        // load ..
-        let loader = Loader::new(elf.as_ref());
-        loader.load();
-        let entry = loader.finish();
-
-        // the elf is trying to steal our memory, drop the elf as a revenge
-        drop(elf);
-
-        // .. and exec the binary
-        match entry {
-            Ok(entry) => entry.enter(program, args),
-            Err(_) => {
-                error!("no ELF entrypoint");
-                let stderr = fd_query(FileDesc(2)).unwrap();
-                stderr.write(b"invalid ELF: entry point missing").unwrap();
-            }
-        }
-    });
+    let pid = hyperion_kernel_impl::exec(program, args, stdin, stdout, stderr, None);
 
     Ok(pid.num())
 }

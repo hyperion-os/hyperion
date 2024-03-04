@@ -22,4 +22,5 @@ hyperion-mem.path = "../mem"
 hyperion-scheduler.path = "../scheduler"
 hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
+hyperion-loader.path = "../loader"
 

@@ -2,11 +2,8 @@ use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
 use anyhow::{anyhow, Result};
 use hyperion_futures::mpmc::Sender;
-use hyperion_kernel_impl::{fd_query, FileDescData, FileDescriptor, VFS_ROOT};
-use hyperion_loader::Loader;
-use hyperion_log::*;
-use hyperion_scheduler::{lock::Lazy, schedule};
-use hyperion_syscall::fs::FileDesc;
+use hyperion_kernel_impl::{FileDescData, FileDescriptor, VFS_ROOT};
+use hyperion_scheduler::lock::Lazy;
 
 //
 
@@ -84,39 +81,14 @@ impl Command {
         let stdout = self.stdout.clone().unwrap_or_else(|| NULL_DEV.clone());
         let stderr = self.stderr.clone().unwrap_or_else(|| LOG_DEV.clone());
 
-        schedule(move || {
-            // set its name
-            hyperion_scheduler::rename(program.as_str());
-
-            // setup the STDIO
-            hyperion_kernel_impl::fd_replace(FileDesc(0), stdin);
-            hyperion_kernel_impl::fd_replace(FileDesc(1), stdout);
-            hyperion_kernel_impl::fd_replace(FileDesc(2), stderr);
-            if let Some(on_close) = on_close {
-                hyperion_kernel_impl::on_close(Box::new(move || {
-                    _ = on_close.send(());
-                }));
-            }
-
-            // setup the environment
-
-            // load ..
-            let loader = Loader::new(elf.as_ref());
-            loader.load();
-            let entry = loader.finish();
-
-            drop(elf);
-
-            // .. and exec the binary
-            match entry {
-                Ok(entry) => entry.enter(program, args),
-                Err(_) => {
-                    error!("no ELF entrypoint");
-                    let stderr = fd_query(FileDesc(2)).unwrap();
-                    stderr.write(b"invalid ELF: entry point missing").unwrap();
-                }
-            }
-        });
+        hyperion_kernel_impl::exec(
+            program,
+            args,
+            stdin,
+            stdout,
+            stderr,
+            on_close.map(|sender| Box::new(move || _ = sender.send(())) as _),
+        );
 
         Ok(())
     }
