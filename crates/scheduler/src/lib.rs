@@ -50,24 +50,21 @@ mod page_fault;
 
 //
 
-// /// `T` is extra process data
-// pub struct Scheduler<ProcExt, TaskExt> {
-//     ready: SegQueue<Task<ProcExt, TaskExt>>,
-// }
-
-// impl<P, T> Scheduler<P, T> {
-//     pub const fn new() -> Self {
-//         Self {
-//             ready: SegQueue::new(),
-//         }
-//     }
-// }
-
-// pub static RUNNING: Lazy<Tls<AtomicBool>> = Lazy::new(|| Tls::new(|| AtomicBool::new(false)));
-
 pub static READY: SegQueue<Task> = SegQueue::new();
 pub static RUNNING: AtomicBool = AtomicBool::new(false);
 pub static ROUND_ROBIN: AtomicBool = AtomicBool::new(false);
+
+//
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ExitCode(pub i64);
+
+impl ExitCode {
+    pub const CANNOT_EXECUTE: Self = Self(126);
+    pub const COMMAND_NOT_FOUND: Self = Self(127);
+    pub const FATAL_SIGSEGV: Self = Self(139);
+    pub const INVALID_SYSCALL: Self = Self(140);
+}
 
 //
 
@@ -104,7 +101,7 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
     // init scheduler's custom general protection fault handler
     ints::GP_FAULT_HANDLER.store(|| {
         debug!("GPF self term");
-        exit();
+        exit(ExitCode::FATAL_SIGSEGV);
     });
 
     // init periodic APIC timer interrutpts (optionally for RR-scheduling)
@@ -116,9 +113,9 @@ pub fn init(thread: impl FnOnce() + Send + 'static) -> ! {
             return;
         }
 
-        // inter-processor interrupts instead
-        if process().should_terminate.load(Ordering::Relaxed) {
-            exit();
+        // FIXME: inter-processor interrupts instead
+        if let Some(code) = process().exit_code.get() {
+            exit(*code);
         }
 
         if ROUND_ROBIN.load(Ordering::Relaxed) {
@@ -203,11 +200,11 @@ pub fn done() -> ! {
 
 /// destroy the current process
 /// and switch to another
-pub fn exit() -> ! {
+pub fn exit(code: ExitCode) -> ! {
     update_cpu_usage();
 
     // FIXME: trigger an IPI on all cpu's running for this process
-    process().should_terminate.store(true, Ordering::Release);
+    process().exit_code.call_once(|| code); // won't set the exit code again if exit is called twice
 
     force_close_thread();
 

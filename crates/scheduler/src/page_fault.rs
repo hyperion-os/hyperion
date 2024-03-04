@@ -1,10 +1,10 @@
 use core::sync::atomic::Ordering;
 
 use hyperion_log::*;
-use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
+use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
 use x86_64::VirtAddr;
 
-use crate::{exit, task, task::TaskInner, tls};
+use crate::{exit, task, task::TaskInner, tls, ExitCode};
 
 //
 
@@ -39,22 +39,12 @@ pub fn page_fault_handler(instr: usize, addr: usize, user: Privilege) -> PageFau
         let maps_to = current.address_space.page_map.virt_to_phys(v_addr);
         warn!("SEGMENTATION FAULT (PID:{pid} TID:{tid}) #{addr:#x} @{instr:#x}",);
         warn!("{addr:#x} maps to {maps_to:#x?}");
-        current.should_terminate.store(true, Ordering::SeqCst);
-        exit();
     } else {
         let maps_to = current.address_space.page_map.virt_to_phys(v_addr);
         error!("kernel SEGMENTATION FAULT (PID:{pid} TID:{tid}) #{addr:#x} @{instr:#x}");
         error!("{addr:#x} maps to {maps_to:#x?}");
+        error!("trying to continue with a broken kernel");
     };
 
-    Ok(NotHandled)
+    exit(ExitCode::FATAL_SIGSEGV)
 }
-
-// fn handle_stack_grow<T: StackType + Debug>(
-//     _page_map: &PageMap,
-//     stack: &Mutex<Stack<T>>,
-//     addr: usize,
-// ) -> PageFaultResult {
-//     // let page_map = PageMap::current(); // technically maybe perhaps possibly UB
-//     stack.lock().page_fault(&page_map, addr as u64)
-// }

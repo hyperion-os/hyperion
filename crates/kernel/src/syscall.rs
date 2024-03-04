@@ -29,8 +29,8 @@ use hyperion_mem::{
 use hyperion_scheduler::{
     futex,
     lock::Mutex,
-    proc::{AllocErr, FreeErr},
-    process, task,
+    proc::{AllocErr, FreeErr, Pid},
+    process, task, ExitCode,
 };
 use hyperion_syscall::{
     err::{Error, Result},
@@ -105,10 +105,11 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         id::SYSTEM => call_id(system, args),
         id::FORK => call_id(fork, args),
+        id::WAITPID => call_id(waitpid, args),
 
         other => {
             debug!("invalid syscall ({other})");
-            hyperion_scheduler::exit();
+            hyperion_scheduler::exit(ExitCode::INVALID_SYSCALL);
         }
     };
 }
@@ -150,15 +151,9 @@ fn _log(str: &str) {
 /// exit and kill the current process
 ///
 /// [`hyperion_syscall::exit`]
-pub fn exit(_args: &mut SyscallRegs) -> Result<usize> {
-    _exit();
-    return Ok(0);
-}
-
-// #[trace(split)]
-fn _exit() {
-    // TODO: exit code
-    hyperion_scheduler::exit();
+pub fn exit(args: &mut SyscallRegs) -> Result<usize> {
+    let code = ExitCode(args.arg0 as _);
+    hyperion_scheduler::exit(code);
 }
 
 /// exit and kill the current thread
@@ -831,4 +826,20 @@ pub fn fork(args: &mut SyscallRegs) -> Result<usize> {
         hyperion_arch::syscall::userland_return(&mut args);
     });
     return Ok(pid.num());
+}
+
+/// wait for a process to exit
+///
+/// [`hyperion_syscall::waitpid`]
+pub fn waitpid(args: &mut SyscallRegs) -> Result<usize> {
+    let pid = Pid::new(args.arg0 as _);
+
+    let Some(proc) = pid.find() else {
+        return Err(Error::NO_SUCH_PROCESS);
+    };
+
+    let exit_code = *proc.exit_code.wait();
+
+    // negatives wrap, but the syscaller handles it
+    return Ok(exit_code.0 as usize);
 }

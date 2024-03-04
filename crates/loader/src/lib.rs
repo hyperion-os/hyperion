@@ -22,7 +22,7 @@ use elf_wrap::*;
 use hyperion_arch::syscall;
 use hyperion_log::*;
 use hyperion_mem::{is_higher_half, vmm::PageMapImpl};
-use hyperion_scheduler::{proc::Process, process, task};
+use hyperion_scheduler::{exit, proc::Process, process, task, ExitCode};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
@@ -114,13 +114,13 @@ impl<'a> Loader<'a> {
 
         if is_higher_half(v_end.as_u64()) {
             error!("ELF segments cannot be mapped to higher half");
-            hyperion_scheduler::exit();
+            exit(ExitCode::CANNOT_EXECUTE);
         }
 
         proc.alloc_at(v_size as usize / 0x1000, v_addr, PageTableFlags::WRITABLE)
             .unwrap_or_else(|_| {
                 error!("could not load ELF: out of VMEM, killing process");
-                hyperion_scheduler::exit();
+                exit(ExitCode::CANNOT_EXECUTE);
             });
     }
 

@@ -17,6 +17,8 @@ use hyperion_mem::vmm::{MapTarget, PageMapImpl};
 use spin::{Mutex, Once, RwLock};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
+use crate::ExitCode;
+
 //
 
 // TODO: get rid of the slow dumbass spinlock mutexes everywhere
@@ -103,6 +105,9 @@ pub struct Process {
     /// extra process info added by the kernel (like file descriptors)
     pub ext: Once<Box<dyn ProcessExt + 'static>>,
 
+    /// exit code if the process already exit
+    pub exit_code: crate::lock::Once<ExitCode>,
+
     pub should_terminate: AtomicBool,
 }
 
@@ -132,6 +137,7 @@ impl Process {
             heap_bottom: AtomicUsize::new(0x1000),
             master_tls: Once::new(),
             ext: Once::new(),
+            exit_code: crate::lock::Once::new(),
             should_terminate: AtomicBool::new(false),
         });
 
