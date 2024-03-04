@@ -1,6 +1,7 @@
 use std::{
     env::args,
-    io::{stdin, stdout, Read, Write},
+    fs::File,
+    io::{stdin, stdout, BufRead, BufReader, Read, Write},
     process::{Command, Stdio},
     str,
 };
@@ -14,6 +15,75 @@ fn main() {
     let name = args().next().unwrap();
     let name = name.rsplit('/').next().unwrap();
 
+    if let Some(file) = args().nth(1) {
+        if file.as_str() == "-c" {
+            immediate();
+        } else {
+            script(file)
+        }
+    } else {
+        interactive(name)
+    }
+}
+
+fn run_line(line: &str) {
+    let line = line.trim();
+
+    if line.starts_with('#') {
+        return;
+    }
+
+    let mut parts = line.split(' ').map(|s| s.trim()).filter(|s| !s.is_empty());
+
+    let Some(cmd) = parts.next() else {
+        return;
+    };
+
+    match cmd {
+        "exit" => exit(0),
+        "" => return,
+        _ => {}
+    }
+
+    let cli = format!("/bin/{cmd}");
+
+    let mut cmd = Command::new(cli)
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .args(parts)
+        .spawn()
+        .unwrap();
+
+    cmd.wait().unwrap();
+
+    println!();
+}
+
+fn immediate() {
+    let cmd = args().skip(2).fold(String::new(), |mut acc, s| {
+        acc.push_str(s.as_str());
+        acc.push_str(" ");
+        acc
+    });
+    run_line(&cmd);
+}
+
+fn script(file: String) {
+    let mut script = BufReader::new(File::open(file).unwrap());
+    let mut line = String::new();
+
+    while let Ok(n) = script.read_line(&mut line) {
+        if n == 0 {
+            break;
+        }
+
+        run_line(&line[..n]);
+        line.clear();
+    }
+}
+
+fn interactive(name: &str) {
     let mut stdin = stdin().lock();
 
     prompt(name);
@@ -40,34 +110,9 @@ fn main() {
 
         // TODO: save the characters after \n
         if let Some(n) = line.find('\n') {
-            // run the commandline
-            let cmdline = &line[..n];
-            let mut parts = cmdline.split(' ').filter(|s| !s.is_empty());
+            run_line(&line[..n]);
 
-            let Some(cmd) = parts.next() else {
-                line.clear();
-                prompt(name);
-                continue;
-            };
-
-            if cmd == "exit" {
-                exit(0);
-            }
-
-            let cli = format!("/bin/{cmd}");
-
-            let mut cmd = Command::new(cli)
-                .stdin(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .args(parts)
-                .spawn()
-                .unwrap();
-
-            cmd.wait().unwrap();
-
-            println!();
-
+            // clear the input buffer and start the next cmdline
             line.clear();
             prompt(name);
         }
