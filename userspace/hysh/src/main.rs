@@ -96,6 +96,9 @@ struct Shell<'a> {
     name: &'a str,
     cmdline: String,
     cursor: usize,
+
+    history: Vec<String>,
+    history_selection: usize,
 }
 
 impl<'a> Shell<'a> {
@@ -104,6 +107,9 @@ impl<'a> Shell<'a> {
             name,
             cmdline: String::new(),
             cursor: 0,
+
+            history: Vec::new(),
+            history_selection: 0,
         }
     }
 
@@ -161,14 +167,52 @@ impl<'a> Shell<'a> {
         stdout().flush().unwrap();
     }
 
-    fn up(&mut self) {}
+    fn up(&mut self) {
+        if self.history_selection == 0 {
+            return;
+        }
+        self.select_history(self.history_selection - 1);
+    }
 
-    fn down(&mut self) {}
+    fn down(&mut self) {
+        if self.history_selection == self.history.len() {
+            return;
+        }
+        self.select_history(self.history_selection + 1);
+    }
+
+    fn select_history(&mut self, n: usize) {
+        self.history_selection = n;
+
+        // reset the cursor
+        for _ in 0..self.cmdline.len() {
+            print!("{} {}", CursorLeft(1), CursorLeft(1));
+        }
+        self.cursor = 0;
+
+        // set the cmdline to one from the history buffer
+        self.cmdline.clear(); // don't assign to keep the internal String buffer
+        if let Some(history) = self.history.get(self.history_selection) {
+            // history selection can go up to the length of the history array, which means that no old commands are selected
+            self.cmdline.push_str(history.as_str());
+        }
+
+        // move the cursor to the end
+        print!("{}", self.cmdline);
+        self.cursor = self.cmdline.len();
+        stdout().flush().unwrap();
+    }
 
     fn enter(&mut self) {
         println!();
 
-        run_line(self.cmdline.as_str());
+        // if the cmdline had just whitespaces: clear extra whitespaces but don't append to history
+        if !self.cmdline.trim().is_empty() {
+            run_line(self.cmdline.as_str());
+
+            self.history.push(self.cmdline.clone());
+            self.history_selection += 1;
+        }
 
         // clear the input buffer and start the next cmdline
         self.cmdline.clear();
