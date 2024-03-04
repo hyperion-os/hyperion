@@ -85,6 +85,8 @@ fn script(file: String) {
 
 fn interactive(name: &str) {
     let mut stdin = stdin().lock();
+    // let mut history = Vec::new();
+    // let mut browsing_idx = None;
 
     prompt(name);
 
