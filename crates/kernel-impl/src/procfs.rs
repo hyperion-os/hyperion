@@ -223,7 +223,7 @@ impl ProcDir {
         if let Some(cmdline) = process_ext_with(&self.0).cmdline.get().cloned() {
             Node::new_file(DisplayFile(cmdline))
         } else {
-            Node::new_file(DisplayFile(""))
+            Node::new_file(DisplayFile(self.0.name.read().clone()))
         }
     }
 }
