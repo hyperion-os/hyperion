@@ -71,6 +71,7 @@ pub async fn kshell() {
     VFS_ROOT.install_dev_ref("/bin/ps", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/random", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/sleep", bin.clone());
+    VFS_ROOT.install_dev_ref("/bin/tail", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/top", bin.clone());
     VFS_ROOT.install_dev_ref("/bin/touch", bin.clone());
 

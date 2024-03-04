@@ -16,6 +16,7 @@ mod nproc;
 mod ps;
 mod random;
 mod sleep;
+mod tail;
 mod top;
 mod touch;
 
@@ -48,6 +49,7 @@ fn main() {
         "ps" => ps::cmd(args),
         "random" => random::cmd(args),
         "sleep" => sleep::cmd(args),
+        "tail" => tail::cmd(args),
         "top" => top::cmd(args),
         "touch" => touch::cmd(args),
         _ => {

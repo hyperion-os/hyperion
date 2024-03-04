@@ -416,6 +416,6 @@ pub fn fork() -> usize {
 
 /// wait for a PID to exit
 /// TODO: this should be like https://linux.die.net/man/2/waitpid in the future
-pub fn waitpid() -> usize {
-    unsafe { syscall_0(id::WAITPID) }.unwrap()
+pub fn waitpid(pid: usize) -> usize {
+    unsafe { syscall_1(id::WAITPID, pid) }.unwrap()
 }
