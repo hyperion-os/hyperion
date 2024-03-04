@@ -6,7 +6,11 @@ use std::{
     thread,
 };
 
-use hyperion_windowing::{client::Connection, shared::Event};
+use hyperion_escape::encode::{CursorDown, CursorLeft, CursorRight, CursorUp};
+use hyperion_windowing::{
+    client::Connection,
+    shared::{ElementState, Event},
+};
 use term::Term;
 
 //
@@ -65,16 +69,25 @@ fn main() {
 
     thread::spawn(move || {
         while let Ok(ev) = wm.next_event() {
+            // hyperion_syscall::log!("ev {ev:?}");
             match ev {
-                // TODO: send LEFT,RIGHT,UP,DOWN and others
-                // Event::Keyboard {
-                //     code: 88 | 101, // up or left
-                //     state: ElementState::Pressed,
-                // } => i = i.wrapping_add(1),
-                // Event::Keyboard {
-                //     code: 102 | 103, // down or right
-                //     state: ElementState::Pressed,
-                // } => i = i.wrapping_sub(1),
+                // TODO: send others
+                Event::Keyboard {
+                    code: 88,
+                    state: ElementState::Pressed,
+                } => stdin.write_fmt(format_args!("{}", CursorUp(1))).unwrap(),
+                Event::Keyboard {
+                    code: 101,
+                    state: ElementState::Pressed,
+                } => stdin.write_fmt(format_args!("{}", CursorLeft(1))).unwrap(),
+                Event::Keyboard {
+                    code: 102,
+                    state: ElementState::Pressed,
+                } => stdin.write_fmt(format_args!("{}", CursorDown(1))).unwrap(),
+                Event::Keyboard {
+                    code: 103,
+                    state: ElementState::Pressed,
+                } => stdin.write_fmt(format_args!("{}", CursorRight(1))).unwrap(),
                 Event::Text { ch } => {
                     let mut buf = [0u8; 4];
                     let str = ch.encode_utf8(&mut buf);

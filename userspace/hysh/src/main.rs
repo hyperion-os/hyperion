@@ -1,12 +1,16 @@
 use std::{
     env::args,
     fs::File,
-    io::{stdin, stdout, BufRead, BufReader, Read, Write},
+    io::{stdin, stdout, BufRead, BufReader, Read, StdinLock, Write},
+    iter,
     process::{Command, Stdio},
-    str,
+    slice, str,
 };
 
-use hyperion_escape::encode::*;
+use hyperion_escape::{
+    decode::{DecodedPart, EscapeDecoder},
+    encode::*,
+};
 use hyperion_syscall::exit;
 
 //
@@ -84,44 +88,144 @@ fn script(file: String) {
 }
 
 fn interactive(name: &str) {
-    let mut stdin = stdin().lock();
-    // let mut history = Vec::new();
-    // let mut browsing_idx = None;
-
-    prompt(name);
-
-    let mut line = String::new();
-    let mut buf = [0u8; 1];
-    loop {
-        let n = stdin.read(&mut buf).unwrap();
-        let input = str::from_utf8(&buf[..n]).unwrap();
-
-        // handle backspace
-        if buf[..n] == [8] {
-            if line.pop().is_some() {
-                print!("{} {}", CursorLeft(1), CursorLeft(1));
-                stdout().flush().unwrap();
-            }
-            continue;
-        }
-
-        // print the pressed char
-        print!("{input}");
-        stdout().flush().unwrap();
-        line.push_str(input);
-
-        // TODO: save the characters after \n
-        if let Some(n) = line.find('\n') {
-            run_line(&line[..n]);
-
-            // clear the input buffer and start the next cmdline
-            line.clear();
-            prompt(name);
-        }
-    }
+    Shell::new(name).run();
 }
 
-fn prompt(name: &str) {
-    print!("[{name}]# ");
-    stdout().flush().unwrap();
+#[derive(Debug)]
+struct Shell<'a> {
+    name: &'a str,
+    cmdline: String,
+    cursor: usize,
+}
+
+impl<'a> Shell<'a> {
+    fn new(name: &'a str) -> Self {
+        Self {
+            name,
+            cmdline: String::new(),
+            cursor: 0,
+        }
+    }
+
+    fn run(&mut self) {
+        self.prompt();
+
+        let mut escape_decoder = EscapeDecoder::new();
+        let mut stdin = stdin().lock();
+        let mut buf = [0u8; 1];
+
+        for part in iter::from_fn(move || {
+            let n = stdin.read(&mut buf).unwrap();
+            if n == 0 {
+                return None;
+            }
+
+            Some(buf[0])
+        })
+        .map(move |byte| escape_decoder.next(byte))
+        {
+            // println!("{part:?}");
+            match part {
+                DecodedPart::Byte(b) => self.add_byte(b),
+                DecodedPart::Bytes(bytes) => {
+                    for b in bytes.into_iter().take_while(|b| *b != 0) {
+                        self.add_byte(b)
+                    }
+                }
+                DecodedPart::CursorUp(_) => self.up(),
+                DecodedPart::CursorDown(_) => self.down(),
+                DecodedPart::CursorLeft(_) => self.left(),
+                DecodedPart::CursorRight(_) => self.right(),
+                _ => {}
+            }
+        }
+    }
+
+    fn left(&mut self) {
+        if self.cursor == 0 {
+            return;
+        }
+
+        self.cursor -= 1;
+        print!("{}", CursorLeft(1));
+        stdout().flush().unwrap();
+    }
+
+    fn right(&mut self) {
+        if self.cursor >= self.cmdline.len() {
+            return;
+        }
+
+        self.cursor += 1;
+        print!("{}", CursorRight(1));
+        stdout().flush().unwrap();
+    }
+
+    fn up(&mut self) {}
+
+    fn down(&mut self) {}
+
+    fn enter(&mut self) {
+        println!();
+
+        run_line(self.cmdline.as_str());
+
+        // clear the input buffer and start the next cmdline
+        self.cmdline.clear();
+        self.cursor = 0;
+        self.prompt();
+    }
+
+    fn backspace(&mut self) {
+        // println!("{self:?}");
+        if self.cursor == 0 {
+            return;
+        }
+        self.left();
+        self.cmdline.remove(self.cursor);
+
+        print!("{} ", &self.cmdline[self.cursor..]);
+        for _ in 0..self.cmdline[self.cursor..].len() + 1 {
+            print!("{}", CursorLeft(1));
+        }
+
+        stdout().flush().unwrap();
+    }
+
+    fn delete(&mut self) {
+        if self.cursor >= self.cmdline.len() {
+            return;
+        }
+
+        self.right();
+        self.backspace();
+    }
+
+    fn tab(&mut self) {}
+
+    fn add_byte(&mut self, b: u8) {
+        match b {
+            8 => self.backspace(),
+            127 => self.delete(),
+            b'\n' => self.enter(),
+            b'\t' => self.tab(),
+            _ => {
+                if let Some(ch) = char::from_u32(b as _) {
+                    // print the pressed char
+                    self.cmdline.insert(self.cursor, ch);
+                    print!("{} ", &self.cmdline[self.cursor..]);
+                    for _ in 0..self.cmdline[self.cursor..].len() {
+                        print!("{}", CursorLeft(1));
+                    }
+                    stdout().flush().unwrap();
+                    self.cursor += 1;
+                }
+            }
+        }
+    }
+
+    fn prompt(&self) {
+        print!("[{}]# ", self.name);
+        stdout().flush().unwrap();
+    }
 }
