@@ -52,11 +52,10 @@ fn main() {
 
     let term = Term::new(window.as_region(), font);
 
-    let mut shell = Command::new("/bin/sh")
+    let mut shell = Command::new("/bin/hysh")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .arg("/")
         .spawn()
         .unwrap();
 
