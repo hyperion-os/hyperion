@@ -4,12 +4,15 @@
 
 use std::{
     collections::HashSet,
+    env::args,
     fs::File,
     io::{stderr, stdout, Read},
     mem,
+    path::Path,
+    process::exit,
     ptr::NonNull,
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         LazyLock, Mutex,
     },
     thread,
@@ -21,6 +24,7 @@ use hyperion_syscall::{
     system,
 };
 use hyperion_windowing::{
+    client,
     server::{new_window_framebuffer, Connection, MessageStream, Server},
     shared::{Button, ElementState, Event, Message, Mouse, Request},
 };
@@ -93,11 +97,48 @@ static WINDOWS: Mutex<
 > = Mutex::new(Vec::new());
 static EVENTS: LazyLock<(Sender<Event>, Receiver<Event>)> = LazyLock::new(unbounded);
 static CURSOR: AtomicCursor = AtomicCursor::new((0.0, 0.0));
+static SHOULD_CLOSE: AtomicBool = AtomicBool::new(false);
 
 //
 
 fn main() {
+    let bin = args().next().unwrap();
+    let bin: &Path = bin.as_str().as_ref();
+    match bin.file_name().unwrap().to_str().unwrap() {
+        "wm" => wm_main(bin),
+        "wmctl" => wmctl_main(bin),
+        _ => panic!("invalid binary name `{bin:?}`"),
+    }
+}
+
+fn wmctl_main(_: &Path) {
+    fn usage() -> ! {
+        println!("usage: wmctl [command]");
+        println!();
+        println!("commands:");
+        println!("    kill");
+        exit(0);
+    }
+
+    let Some(subcmd) = args().nth(1) else {
+        usage();
+    };
+
+    match subcmd.as_str() {
+        "kill" => {
+            let wm = client::Connection::new().unwrap();
+            wm.send_request(Request::CloseWm).unwrap();
+            wm.next_event().unwrap();
+        }
+        _ => usage(),
+    }
+}
+
+fn wm_main(bin: &Path) {
     stdio_to_logfile();
+
+    // clone self info /bin/wmctl
+    system("/bin/cp", &[bin.to_str().unwrap(), "/bin/wmctl"]).unwrap();
 
     let server = Server::new().unwrap();
 
@@ -200,6 +241,10 @@ fn handle_client(client: Connection) {
 
     while let Ok(ev) = client.next_request() {
         match ev {
+            Request::CloseWm => {
+                println!("client requested to close the wm");
+                SHOULD_CLOSE.store(true, Ordering::Release);
+            }
             Request::NewWindow => {
                 println!("client requested a new window");
 

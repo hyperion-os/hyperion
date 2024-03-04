@@ -1,8 +1,10 @@
+use std::sync::atomic::Ordering;
+
 use hyperion_color::Color;
-use hyperion_syscall::timestamp;
+use hyperion_syscall::{exit, timestamp};
 use hyperion_windowing::global::{GlobalFb, Region};
 
-use crate::{CURSOR, WINDOWS};
+use crate::{CURSOR, SHOULD_CLOSE, WINDOWS};
 
 //
 
@@ -37,8 +39,8 @@ impl Rect {
 //
 
 pub fn blitter() {
-    let mut global_fb = GlobalFb::lock_global_fb();
-    let mut global_fb = global_fb.as_region();
+    let mut global_fb_lock = GlobalFb::lock_global_fb();
+    let mut global_fb = global_fb_lock.as_region();
 
     let mut backbuf = vec![0u32; global_fb.width * global_fb.height];
     let mut backbuf = unsafe {
@@ -73,6 +75,10 @@ pub fn blitter() {
 
     let mut next_sync = timestamp().unwrap() as u64;
     loop {
+        if SHOULD_CLOSE.load(Ordering::Acquire) {
+            break;
+        }
+
         let mut dirty = Rect::new(0, 0, 0, 0);
 
         let mut windows = WINDOWS.lock().unwrap();
@@ -154,4 +160,15 @@ pub fn blitter() {
         hyperion_syscall::nanosleep_until(next_sync);
         // hyperion_syscall::yield_now();
     }
+
+    global_fb.volatile_fill(
+        0,
+        0,
+        global_fb.width,
+        global_fb.height,
+        Color::BLACK.as_u32(),
+    );
+    // x86_64-unknown-hyperion doesn't have stack unwinding yet, so this has to be dropped manually
+    drop(global_fb_lock);
+    exit(0);
 }

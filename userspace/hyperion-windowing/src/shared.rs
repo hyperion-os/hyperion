@@ -67,6 +67,7 @@ pub enum Button {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Request {
+    CloseWm,
     NewWindow,
     // ResizeWindow {
     //     window_id: usize,
