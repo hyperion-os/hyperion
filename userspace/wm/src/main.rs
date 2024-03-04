@@ -3,7 +3,7 @@
 //
 
 use std::{
-    collections::{BTreeMap, BTreeSet, BinaryHeap, HashSet},
+    collections::HashSet,
     fs::File,
     io::{stderr, stdout, Read},
     mem,
@@ -40,7 +40,7 @@ pub struct Window {
     pub closed: bool,
 
     conn: MessageStream,
-    shmem: File,
+    _shmem: File,
     shmem_ptr: NonNull<u32>,
 }
 
@@ -223,7 +223,7 @@ fn handle_client(client: Connection) {
                     old_info: WindowInfo::default(),
                     closed: false,
                     conn: client.clone_tx(),
-                    shmem: window_file,
+                    _shmem: window_file,
                     shmem_ptr,
                 });
                 drop(windows);

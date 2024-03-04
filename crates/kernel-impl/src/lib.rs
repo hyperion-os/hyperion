@@ -567,7 +567,6 @@ pub fn exec(
                 acc
             },
         );
-        hyperion_log::info!(" - cmdline: `{cmdline}`");
         with_proc_ext(move |ext| {
             ext.cmdline.call_once(move || cmdline.into());
         });

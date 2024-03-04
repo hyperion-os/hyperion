@@ -47,7 +47,7 @@ impl FileDevice for SysCtlToggle {
         1
     }
 
-    fn set_len(&mut self, len: usize) -> IoResult<()> {
+    fn set_len(&mut self, _: usize) -> IoResult<()> {
         Err(IoError::PermissionDenied)
     }
 

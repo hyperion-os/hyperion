@@ -1,5 +1,4 @@
 use alloc::sync::Arc;
-use core::sync::atomic::{fence, AtomicUsize, Ordering};
 
 use crate::{condvar::Condvar, lock::Mutex};
 

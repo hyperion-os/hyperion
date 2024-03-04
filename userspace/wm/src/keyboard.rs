@@ -3,7 +3,7 @@ use std::{fs::File, io::Read};
 use hyperion_windowing::shared::{ElementState, Event};
 use pc_keyboard::{
     layouts::{AnyLayout, Us104Key},
-    DecodedKey, HandleControl, KeyEvent, KeyState, Keyboard, ScancodeSet1,
+    DecodedKey, HandleControl, KeyState, Keyboard, ScancodeSet1,
 };
 
 use crate::EVENTS;

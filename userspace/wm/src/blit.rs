@@ -155,5 +155,3 @@ pub fn blitter() {
         // hyperion_syscall::yield_now();
     }
 }
-
-fn blit_chunk() {}

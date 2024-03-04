@@ -1,8 +1,8 @@
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use hyperion_futures::mpmc::Sender;
-use hyperion_kernel_impl::{FileDescData, FileDescriptor, VFS_ROOT};
+use hyperion_kernel_impl::{FileDescData, FileDescriptor};
 use hyperion_scheduler::lock::Lazy;
 
 //
@@ -73,7 +73,6 @@ impl Command {
     pub fn spawn(&mut self) -> Result<()> {
         let program = self.program.clone();
         let args = self.args.clone();
-        let elf = Self::load_elf(&program)?;
 
         let on_close = self.on_close.clone();
 
@@ -91,26 +90,5 @@ impl Command {
         );
 
         Ok(())
-    }
-
-    fn load_elf(path: &str) -> Result<Vec<u8>> {
-        let mut elf = Vec::new();
-
-        let bin = VFS_ROOT
-            .find_file(path, false, false)
-            .map_err(|err| anyhow!("unknown command `{path}`: {err}"))?;
-
-        let bin = bin.lock_arc();
-
-        loop {
-            let mut buf = [0; 64];
-            let len = bin.read(elf.len(), &mut buf).unwrap();
-            elf.extend_from_slice(&buf[..len]);
-            if len == 0 {
-                break;
-            }
-        }
-
-        Ok(elf)
     }
 }

@@ -42,8 +42,8 @@ impl<'a> Region<'a> {
         Self {
             buf: unsafe { self.buf.add(x + y * self.pitch) },
             pitch: self.pitch,
-            width: self.width.saturating_sub(x),
-            height: self.height.saturating_sub(y),
+            width: self.width.saturating_sub(x).min(w),
+            height: self.height.saturating_sub(y).min(h),
             _p: self._p,
         }
     }
@@ -83,7 +83,7 @@ impl<'a> Region<'a> {
         }
 
         let x_len = xmax - x;
-        let y_len = ymax - y;
+        // let y_len = ymax - y;
 
         assert!(xmax <= self.width);
         assert!(ymax <= self.height);

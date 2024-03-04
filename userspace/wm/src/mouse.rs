@@ -23,7 +23,7 @@ pub fn mouse() {
         }
 
         for ev in process(buf) {
-            EVENTS.0.send(Event::Mouse(ev));
+            EVENTS.0.send(Event::Mouse(ev)).unwrap();
         }
     }
 }
