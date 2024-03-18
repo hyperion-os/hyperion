@@ -4,12 +4,13 @@ use crossbeam::atomic::AtomicCell;
 use x86_64::{
     registers::{
         model_specific::{Efer, EferFlags, LStar, SFMask, Star},
+        mxcsr::{self, MxCsr},
         rflags::RFlags,
     },
-    VirtAddr,
+    PhysAddr, VirtAddr,
 };
 
-use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage};
+use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage, vmm::PageMap};
 
 //
 
@@ -49,8 +50,12 @@ pub fn set_handler(f: fn(&mut SyscallRegs)) {
 
 #[allow(unused)]
 #[repr(C)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone)]
 pub struct SyscallRegs {
+    // fs: ,
+    cr3: PhysAddr,
+    fxsave_reg: [u32; 128],
+
     _r15: u64,
     _r14: u64,
     _r13: u64,
@@ -80,98 +85,93 @@ impl fmt::Display for SyscallRegs {
     }
 }
 
-//
-
-/// jump into the instruction pointer with a given stack and arguments
-///
-/// the processor switches into user privileges so it is safe to call with garbage args
-#[naked]
-#[no_mangle]
-pub extern "sysv64" fn userland(
-    _instr_ptr: VirtAddr,
-    _stack_ptr: VirtAddr,
-    _argc: u64,
-    _argv: u64,
-) -> ! {
-    // rdi = _instr_ptr
-    // rsi = _stack_ptr
-    // rdx = _argc
-    // rcx = _argv
-
-    // SAFETY:
-    // the processor jumps into user space with user privileges so it can't hurt the kernel
-    //
-    // this call won't return
-    unsafe {
-        asm!(
-            "mov r8, rcx", // tmp save argc
-
-            // setup sysretq args
-            "mov rcx, rdi",
-            "mov rsp, rsi",
-            "mov r11, {rflags}",
-
-            // setup argc,argv
-            "mov rsi, r8",
-            "mov rdi, rdx",
-
-            // clear some registers
-            "xor rax, rax",
-            "xor rbx, rbx",
-            // no zeroing rcx, sysreq returns to the address in it (`instr_ptr`)
-            "xor rdx, rdx",
-            // "xor rdi, rdi",
-            // "xor rsi, rsi",
-            "xor rbp, rbp",
-            // no zeroing rsp, a stack is needed
-            "xor r8, r8",
-            "xor r9, r9",
-            "xor r10, r10",
-            // no zeroing r11, it holds RFLAGS
-            "xor r12, r12",
-            "xor r13, r13",
-            "xor r14, r14",
-            "xor r15, r15",
-            "sysretq",
-            rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
-            options(noreturn)
+impl SyscallRegs {
+    pub fn new(ip: u64, sp: u64, page_map: &PageMap) -> Self {
+        let mut mxcsr = mxcsr::read();
+        // ignore exceptions from inexact float ops, why is it even a thing
+        mxcsr.insert(
+            MxCsr::INVALID_OPERATION_MASK
+                | MxCsr::DENORMAL_MASK
+                | MxCsr::DIVIDE_BY_ZERO_MASK
+                | MxCsr::OVERFLOW_MASK
+                | MxCsr::UNDERFLOW_MASK
+                | MxCsr::PRECISION_MASK,
         );
+        let mut fxsave_reg = [0u32; 128];
+        fxsave_reg[6] = mxcsr.bits();
+
+        let cr3 = page_map.cr3().start_address();
+
+        Self {
+            cr3,
+            fxsave_reg,
+            _r15: 0,
+            _r14: 0,
+            _r13: 0,
+            _r12: 0,
+            rflags: RFlags::INTERRUPT_FLAG.bits(),
+            _r10: 0,
+            arg4: 0,
+            arg3: 0,
+            _rbp: 0,
+            arg1: 0,
+            arg0: 0,
+            arg2: 0,
+            user_instr_ptr: ip,
+            _rbx: 0,
+            syscall_id: 0,
+            user_stack_ptr: sp,
+        }
     }
-}
 
-#[naked]
-#[no_mangle]
-pub extern "sysv64" fn userland_return(_args: &mut SyscallRegs) -> ! {
-    // rdi = _args
-    unsafe {
-        asm!(
-            "mov rsp, rdi", // set the stack ptr to point to _args temporarily
+    #[naked]
+    #[no_mangle]
+    pub extern "sysv64" fn enter(&mut self) -> ! {
+        // rdi = _args
+        unsafe {
+            asm!(
+                "mov rsp, rdi", // set the stack ptr to point to _args temporarily
 
-            "pop r15",
-            "pop r14",
-            "pop r13",
-            "pop r12",
-            "pop r11",
-            "pop r10",
-            "pop r9",
-            "pop r8",
-            "pop rbp",
-            "pop rsi",
-            "pop rdi",
-            "pop rdx",
-            "pop rcx",
-            "pop rbx",
-            "pop rax",
+                // load address space
+                "pop rax", // pop cr3 into a temprary register
+                "mov rcx, cr3", // rcx = prev virtual address space
+                "cmp rax, rcx", // cmp for if
+                "je 2f",         // if rax != rcx:
+                "mov cr3, rax", // load next virtual address space
+                // writing cr3, even if the value is the same, triggers a TLB flush (which is bad)
+                "2:",
 
-            "swapgs",
-            "pop QWORD PTR gs:{user_stack}",
-            "mov rsp, gs:{user_stack}",
-            "swapgs",
-            // TODO: fix the sysret vulnerability
-            "sysretq",
-            user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
-            options(noreturn)
-        );
+                // load FPU/SSE/MMX state
+                "add rsp, 512",
+                "fxrstor64 [rsp]",
+
+                // load registers
+                "pop r15",
+                "pop r14",
+                "pop r13",
+                "pop r12",
+                "pop r11",
+                "pop r10",
+                "pop r9",
+                "pop r8",
+                "pop rbp",
+                "pop rsi",
+                "pop rdi",
+                "pop rdx",
+                "pop rcx",
+                "pop rbx",
+                "pop rax",
+
+                "swapgs",
+                "pop QWORD PTR gs:{user_stack}",
+                "mov rsp, gs:{user_stack}",
+                "swapgs",
+                // TODO: fix the sysret vulnerability
+                "sysretq",
+                user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
+                options(noreturn)
+            );
+        }
     }
 }
 
@@ -186,13 +186,13 @@ unsafe extern "C" fn syscall_wrapper() {
     // r11 = rflags
     unsafe {
         asm!(
-            "cli",
             "swapgs", // swap gs and kernelgs to open up a few temporary data locations
             "mov gs:{user_stack}, rsp",   // backup the user stack
             "mov rsp, gs:{kernel_stack}", // switch to the kernel stack
             "push QWORD PTR gs:{user_stack}",
             "swapgs",
 
+            // save registers
             "push rax",
             "push rbx",
             "push rcx",
@@ -209,9 +209,33 @@ unsafe extern "C" fn syscall_wrapper() {
             "push r14",
             "push r15",
 
+            // save FPU/SSE/MMX state
+            "fxsave64 [rsp]",
+            "sub rsp, 512",
+
+            // save address space
+            "mov rcx, cr3",
+            "push rcx",
+
+            // call the real syscall handler
             "mov rdi, rsp",
             "call {syscall}",
+            // return
 
+            // load address space
+            "pop rax", // pop cr3 into a temprary register
+            "mov rcx, cr3", // rcx = prev virtual address space
+            "cmp rax, rcx", // cmp for if
+            "je 2f",         // if rax != rcx:
+            "mov cr3, rax", // load next virtual address space
+            // writing cr3, even if the value is the same, triggers a TLB flush (which is bad)
+            "2:",
+
+            // load FPU/SSE/MMX state
+            "add rsp, 512",
+            "fxrstor64 [rsp]",
+
+            // load registers
             "pop r15",
             "pop r14",
             "pop r13",

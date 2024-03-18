@@ -5,12 +5,8 @@
 
 extern crate alloc;
 
-use alloc::{string::String, vec::Vec};
-use core::{
-    alloc::Layout,
-    mem::{self, MaybeUninit},
-    ptr, slice,
-};
+use alloc::sync::Arc;
+use core::{mem::MaybeUninit, ptr, slice};
 
 use elf::{
     abi::{PF_R, PF_W, PF_X, PT_LOAD, PT_TLS},
@@ -18,91 +14,69 @@ use elf::{
     segment::ProgramHeader,
     ElfBytes,
 };
-use elf_wrap::*;
-use hyperion_arch::syscall;
 use hyperion_log::*;
 use hyperion_mem::{is_higher_half, vmm::PageMapImpl};
-use hyperion_scheduler::{exit, proc::Process, process, task, ExitCode};
+use hyperion_scheduler::{proc::Process, task::RunnableTask};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
-
-//
-
-mod elf_wrap;
 
 //
 
 pub struct Loader<'a> {
     parser: ElfBytes<'a, AnyEndian>,
+    process: Arc<Process>,
+    loaded: bool,
 }
 
 //
 
 pub struct NoEntryPoint;
+pub struct InvalidElf;
+pub struct OutOfVirtMem;
+pub enum LoadError {
+    InvalidElf(InvalidElf),
+    OutOfVirtMem(OutOfVirtMem),
+}
 
 //
 
 impl<'a> Loader<'a> {
-    pub fn new(elf_bytes: &'a [u8]) -> Self {
-        Self {
-            parser: ElfBytes::minimal_parse(elf_bytes).expect("TODO: error handling"),
-        }
+    pub fn new(elf_bytes: &'a [u8], process: Arc<Process>) -> Result<Self, InvalidElf> {
+        Ok(Self {
+            parser: ElfBytes::minimal_parse(elf_bytes).map_err(|_| InvalidElf)?,
+            process,
+            loaded: false,
+        })
     }
 
-    pub fn load(&self) {
+    pub fn load(&mut self) -> Result<(), LoadError> {
         // TODO: at least some safety with malicious ELFs
 
-        let (sections, sections_strtab) = self.parser.section_headers_with_strtab().unwrap();
-
-        let sections = sections.unwrap();
-        let sections_strtab = sections_strtab.unwrap();
-
-        for section in sections
-            .into_iter()
-            .filter_map(|sh| SectionHeader::parse(&self.parser, sh, &sections_strtab))
-        {
-            if section.ty == SectionHeaderType::NOBITS
-                && section.flags.contains(
-                    SectionHeaderFlags::ALLOC | SectionHeaderFlags::WRITE | SectionHeaderFlags::TLS,
-                )
-            {
-                trace!("FOUND .tbss named `{}`", section.name);
-                trace!("{section:?}");
+        if let Some(segments) = self.parser.segments() {
+            for segment in segments.iter() {
+                self.alloc_segment(segment)?;
             }
 
-            if section.ty == SectionHeaderType::PROGBITS
-                && section.flags.contains(
-                    SectionHeaderFlags::ALLOC | SectionHeaderFlags::WRITE | SectionHeaderFlags::TLS,
-                )
-            {
-                trace!("FOUND .tdata named `{}`", section.name);
-                trace!("{section:?}");
+            for segment in segments.iter() {
+                self.load_segment(segment);
             }
-        }
 
-        let segments = self.parser.segments().expect("TODO:");
-
-        let process = process();
-
-        for segment in segments.iter() {
-            self.alloc_segment(&process, segment);
-        }
-
-        for segment in segments.iter() {
-            self.load_segment(&process, segment);
-        }
-
-        for segment in segments.iter() {
-            self.finish_segment(&process, segment);
+            for segment in segments.iter() {
+                self.finish_segment(segment);
+            }
         }
 
         // TODO: reloactions
+
+        self.loaded = true;
+
+        Ok(())
     }
 
     // pub fn load_tls(&self) {}
 
-    fn alloc_segment(&self, proc: &Process, segment: ProgramHeader) {
+    fn alloc_segment(&self, segment: ProgramHeader) -> Result<(), LoadError> {
         if segment.p_type != PT_LOAD && segment.p_type != PT_TLS {
-            return;
+            return Ok(());
         }
 
         let align = segment.p_align;
@@ -111,20 +85,23 @@ impl<'a> Loader<'a> {
             .align_down(0x1000u64);
         let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
         let v_size = v_end - v_addr;
+        let n_pages = v_size as usize / 0x1000;
+        let init_flags = PageTableFlags::WRITABLE;
 
         if is_higher_half(v_end.as_u64()) {
-            error!("ELF segments cannot be mapped to higher half");
-            exit(ExitCode::CANNOT_EXECUTE);
+            warn!("ELF segments cannot be mapped to higher half");
+            return Err(LoadError::InvalidElf(InvalidElf));
         }
 
-        proc.alloc_at(v_size as usize / 0x1000, v_addr, PageTableFlags::WRITABLE)
-            .unwrap_or_else(|_| {
-                error!("could not load ELF: out of VMEM, killing process");
-                exit(ExitCode::CANNOT_EXECUTE);
-            });
+        if let Err(err) = self.process.alloc_at(n_pages, v_addr, init_flags) {
+            error!("could not load ELF: out of VMEM, killing process: {err:?}");
+            return Err(LoadError::OutOfVirtMem(OutOfVirtMem));
+        };
+
+        Ok(())
     }
 
-    fn load_segment(&self, proc: &Process, segment: ProgramHeader) {
+    fn load_segment(&self, segment: ProgramHeader) {
         if segment.p_type != PT_LOAD && segment.p_type != PT_TLS {
             return;
         }
@@ -149,43 +126,34 @@ impl<'a> Loader<'a> {
             segment_alloc_virtual.split_at_mut(segment_alloc_virtual.len().min(segment_data.len()));
 
         // the rust compiler will convert these to u64 or even vectors
-        // already zeroed:
-        // for byte in segment_alloc_align_pad {
-        //     unsafe { ptr::write_volatile(byte, MaybeUninit::zeroed()) };
-        // }
+        // already zeroed: segment_alloc_align_pad
         for (byte, elf_byte) in segment_alloc_data.iter_mut().zip(segment_data) {
             unsafe { ptr::write_volatile(byte, MaybeUninit::new(*elf_byte)) };
         }
-        // already zeroed:
-        // for byte in segment_alloc_zeros {
-        //     unsafe { ptr::write_volatile(byte, MaybeUninit::zeroed()) };
-        // }
-
-        // segment_alloc_align_pad.fill(MaybeUninit::zeroed());
-        // MaybeUninit::write_slice(segment_alloc_data, segment_data);
-        // segment_alloc_zeros.fill(MaybeUninit::zeroed());
+        // already zeroed: segment_alloc_zeros
 
         // if it is the TLS segment, save the master TLS copy location + size
         // the scheduler will create copies for each thread
         if segment.p_type == PT_TLS {
-            let master_tls = (
-                VirtAddr::new(segment.p_vaddr),
-                // Layout::from_size_align(v_size as _, align as _).unwrap(),
-                Layout::from_size_align(align as _, v_size as _).unwrap(),
-            );
-            let mut loaded = false;
-            proc.master_tls.call_once(|| {
-                loaded = true;
-                master_tls
-            });
+            // TODO:
+            // let master_tls = (
+            //     VirtAddr::new(segment.p_vaddr),
+            //     // Layout::from_size_align(v_size as _, align as _).unwrap(),
+            //     Layout::from_size_align(align as _, v_size as _).unwrap(),
+            // );
+            // let mut loaded = false;
+            // self.process.master_tls.call_once(|| {
+            //     loaded = true;
+            //     master_tls
+            // });
 
-            if !loaded {
-                todo!()
-            }
+            // if !loaded {
+            //     todo!()
+            // }
         }
     }
 
-    fn finish_segment(&self, proc: &Process, segment: ProgramHeader) {
+    fn finish_segment(&self, segment: ProgramHeader) {
         if segment.p_type != PT_LOAD {
             return;
         }
@@ -198,7 +166,7 @@ impl<'a> Loader<'a> {
         let flags = Self::flags(segment.p_flags);
 
         // println!("remap as {flags:?}");
-        proc.address_space.page_map.remap(v_addr..v_end, flags);
+        self.process.address_space.remap(v_addr..v_end, flags);
     }
 
     fn flags(p_flags: u32) -> PageTableFlags {
@@ -235,87 +203,12 @@ impl<'a> Loader<'a> {
         }
     }
 
-    pub fn finish(self) -> Result<EntryPoint, NoEntryPoint> {
+    pub fn finish(self) -> Result<RunnableTask, NoEntryPoint> {
         let entry = self.parser.ehdr.e_entry;
         if entry == 0 {
             Err(NoEntryPoint)
         } else {
-            Ok(EntryPoint { entry })
+            Ok(RunnableTask::new_in(entry, 0, self.process))
         }
     }
-}
-
-//
-
-pub struct EntryPoint {
-    entry: u64,
-}
-
-impl EntryPoint {
-    pub fn enter(&self, name: String, args: Vec<String>) {
-        // TODO: this is HIGHLY unsafe atm.
-
-        let entry = self.entry;
-        trace!("spawning \"{name}\" with args {args:?}");
-
-        let env_args: Vec<&str> = [name.as_str()] // TODO: actually load binaries from vfs
-            .into_iter()
-            .chain(args.iter().flat_map(|args| args.split(' ')))
-            .collect();
-
-        let (stack_top, argv) = Self::init_stack(&env_args);
-
-        // now `name`, `args` and `env_args` can be freed, because they are copied into the stack
-        drop(env_args);
-        drop((name, args));
-
-        task().init_tls();
-
-        trace!("Entering userland at 0x{entry:016x} with stack 0x{stack_top:016x} and argv:{argv:#016x}");
-        syscall::userland(VirtAddr::new(entry), stack_top, argv.as_u64(), 0);
-    }
-
-    pub fn init_stack(args: &[&str]) -> (VirtAddr, VirtAddr) {
-        let mut stack_top = hyperion_scheduler::task().user_stack.lock().top;
-
-        let args_len = args.iter().map(|arg| arg.len()).sum::<usize>();
-        let padding = args_len.next_multiple_of(8) - args_len; // for alignment
-        for _ in 0..padding {
-            push(&mut stack_top, 0u8);
-        }
-
-        for arg in args.iter().rev() {
-            for byte in arg.as_bytes().iter().rev() {
-                push(&mut stack_top, *byte);
-            }
-        }
-
-        for arg in args.iter().rev() {
-            push(&mut stack_top, arg.as_bytes().len());
-        }
-
-        push(&mut stack_top, args.len() as u64);
-        let argv = stack_top;
-
-        stack_top = stack_top.align_down(0x10u64); // align the stack to 16
-
-        // push a return address 0 (8-byte) because the _start function expects
-        // that the stack was 16-byte aligned when jumping into it,
-        // but jumping pushes the return address (8-bytes) to effectively unalign it
-        //
-        // we jump into user space with sysretq, which does not push anything to the stack
-        // so this has to be 'emulated'
-        push(&mut stack_top, 0u64);
-
-        (stack_top, argv)
-    }
-}
-
-//
-
-/// push items to the stack
-pub fn push<T: Sized>(top: &mut VirtAddr, v: T) {
-    *top -= mem::size_of::<T>();
-    assert!(top.is_aligned(mem::size_of::<T>() as u64));
-    unsafe { top.as_mut_ptr::<T>().write_volatile(v) };
 }

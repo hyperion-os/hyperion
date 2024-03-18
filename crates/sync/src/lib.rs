@@ -1,4 +1,7 @@
 #![no_std]
+// #![feature(ptr_metadata)]
+
+extern crate alloc;
 
 //
 
@@ -7,6 +10,10 @@ use core::{
     mem::MaybeUninit,
     sync::atomic::{AtomicBool, Ordering},
 };
+
+//
+
+// pub mod aarc;
 
 //
 

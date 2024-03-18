@@ -9,6 +9,7 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bitflags.workspace = true
 spin.workspace = true
 x86_64.workspace = true
 

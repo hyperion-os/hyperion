@@ -16,12 +16,12 @@ use arcstr::ArcStr;
 use hyperion_loader::Loader;
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
-use hyperion_scheduler::{
-    ipc::pipe::{pipe_with, Channel, Receiver, Sender},
-    lock::{Futex, Mutex},
-    proc::{Pid, Process, ProcessExt},
-    process,
-};
+// use hyperion_scheduler::{
+//     ipc::pipe::{pipe_with, Channel, Receiver, Sender},
+//     lock::{Futex, Mutex},
+//     proc::{Pid, Process, ProcessExt},
+//     process,
+// };
 use hyperion_syscall::{
     err::{Error, Result},
     fs::{FileDesc, Seek},
@@ -37,15 +37,15 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
-mod procfs;
+// mod procfs;
 // mod sysfs;
 
 //
 
-pub static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(|| {
+pub static VFS_ROOT: Lazy<Node<spin::Mutex<()>>> = Lazy::new(|| {
     let root = Node::new_root();
 
-    procfs::init(root.clone());
+    // procfs::init(root.clone());
     // sysfs::init(root.clone());
 
     root
@@ -155,7 +155,7 @@ pub trait FileDescriptor: Send + Sync {
 /// file descriptor backend that points to an opened VFS file
 pub struct FileDescData {
     /// VFS node
-    pub file_ref: FileRef<Futex>,
+    pub file_ref: FileRef<spin::Mutex<()>>,
 
     /// the current read/write offset
     pub position: AtomicUsize,

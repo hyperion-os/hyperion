@@ -785,9 +785,9 @@ dependencies = [
  "event-listener",
  "futures",
  "futures-util",
+ "hyperion-arch",
  "hyperion-events",
  "hyperion-instant",
- "hyperion-scheduler",
  "spin",
  "time",
 ]
@@ -904,7 +904,6 @@ dependencies = [
 name = "hyperion-log"
 version = "0.3.0"
 dependencies = [
- "arcstr",
  "hyperion-escape",
  "spin",
 ]
@@ -913,7 +912,6 @@ dependencies = [
 name = "hyperion-log-multi"
 version = "0.3.0"
 dependencies = [
- "arcstr",
  "crossbeam",
  "hyperion-boot",
  "hyperion-driver-qemu",
@@ -936,6 +934,7 @@ dependencies = [
 name = "hyperion-mem"
 version = "0.3.0"
 dependencies = [
+ "bitflags 2.4.2",
  "hyperion-boot",
  "hyperion-boot-interface",
  "hyperion-log",
@@ -981,20 +980,12 @@ version = "0.3.0"
 dependencies = [
  "arcstr",
  "crossbeam",
- "crossbeam-queue",
- "futures-util",
  "hyperion-arch",
  "hyperion-cpu-id",
- "hyperion-driver-acpi",
- "hyperion-events",
- "hyperion-instant",
- "hyperion-log",
+ "hyperion-futures",
  "hyperion-mem",
  "hyperion-sync",
- "lock_api",
- "ringbuf",
  "spin",
- "time",
  "x86_64",
 ]
 
@@ -1345,15 +1336,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
- "crossbeam-utils",
-]
-
-[[package]]
-name = "ringbuf"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79abed428d1fd2a128201cec72c5f6938e2da607c6f3745f769fabea399d950a"
-dependencies = [
  "crossbeam-utils",
 ]
 

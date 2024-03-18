@@ -26,6 +26,8 @@ use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
 
+use crate::syscall::TASKS;
+
 //
 
 pub mod panic;
@@ -57,14 +59,6 @@ extern "C" fn _start() -> ! {
     // wake up all cpus
     arch::wake_cpus();
 
-    // init task per cpu
-    debug!("init CPU-{}", cpu_id());
-    scheduler::init(init);
-}
-
-fn init() {
-    scheduler::rename("<kernel async>");
-
     // init task once
     if sync::once!() {
         // random hw specifics
@@ -80,19 +74,9 @@ fn init() {
         futures::spawn(hyperion_kshell::kshell());
     }
 
-    // The bootloader stuff (like the bootloader stacks and the bootloader page map)
-    // is shared between CPUs, so this makes sure that only the last processor still using it,
-    // is the only one that can delete it.
-    if sync::last!() {
-        // bootloader memory shouldn't be used anymore
-        debug!("freeing bootloader reclaimable memory");
-        unsafe {
-            hyperion_mem::pmm::PFA.free_bootloader();
-        }
-    }
-
-    // start doing kernel things
-    futures::run_tasks();
+    // init scheduling
+    debug!("init CPU-{}", cpu_id());
+    scheduler::init();
 }
 
 // to fix `cargo clippy` without a target

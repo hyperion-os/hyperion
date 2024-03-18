@@ -11,9 +11,11 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use hyperion_arch::{syscall::SyscallRegs, vmm::NO_FREE};
+use hyperion_arch::{context::Context, syscall::SyscallRegs, vmm::NO_FREE};
+use hyperion_cpu_id::cpu_id;
 use hyperion_defer::DeferInit;
 use hyperion_drivers::acpi::hpet::HPET;
+use hyperion_futures::mpmc::Channel;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
@@ -30,7 +32,9 @@ use hyperion_scheduler::{
     futex,
     lock::Mutex,
     proc::{AllocErr, FreeErr, Pid},
-    process, task, ExitCode,
+    process,
+    task::{self, RunnableTask},
+    ExitCode,
 };
 use hyperion_syscall::{
     err::{Error, Result},
@@ -45,22 +49,25 @@ use x86_64::{align_down, align_up, structures::paging::PageTableFlags, VirtAddr}
 
 //
 
-pub fn syscall(args: &mut SyscallRegs) {
-    // static SYSCALL_RESULTS: hyperion_futures::mpmc::Channel<()> =
-    //     hyperion_futures::mpmc::Channel::new();
+pub static TASKS: Channel<SyscallRegs> = Channel::new();
 
+//
+
+pub fn syscall(args: &mut SyscallRegs) {
     // process syscall args
 
     // dispatch / run the syscall
 
-    // hyperion_futures::spawn(async { SYSCALL_RESULTS.send(()) });
+    let task = RunnableTask::active(*args);
+    hyperion_futures::spawn(async move {
+        hyperion_futures::timer::sleep(Duration::milliseconds(100)).await;
+        task.ready();
+    });
 
     // block on syscall futures
 
-    // hyperion_futures::block_on(async {
-    //     let task = SYSCALL_RESULTS.recv().await;
-    //     debug!("recv: {task:?}");
-    // });
+    *args = RunnableTask::next().set_active();
+    return;
 
     // return to the same or another task
 

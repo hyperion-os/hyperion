@@ -1,7 +1,6 @@
 use core::future::IntoFuture;
 
 use crossbeam_queue::SegQueue;
-use hyperion_scheduler::{condvar::Condvar, lock::Mutex};
 
 use crate::task::{JoinHandle, Task};
 
@@ -22,11 +21,11 @@ pub fn run_tasks() -> ! {
     loop {
         while run_once().is_some() {}
 
-        let mut empty = EMPTY.0.lock();
-        *empty = TASK_QUEUE.is_empty();
-        while *empty {
-            empty = EMPTY.1.wait(empty);
-        }
+        // let mut empty = EMPTY.0.lock();
+        // *empty = TASK_QUEUE.is_empty();
+        // while *empty {
+        //     empty = EMPTY.1.wait(empty);
+        // }
     }
 }
 
@@ -38,8 +37,8 @@ pub fn run_once() -> Option<()> {
 pub(crate) fn push_task(task: Task) {
     TASK_QUEUE.push(task);
 
-    *EMPTY.0.lock() = false;
-    EMPTY.1.notify_one();
+    // *EMPTY.0.lock() = false;
+    // EMPTY.1.notify_one();
 }
 
 pub(crate) fn pop_task() -> Option<Task> {
@@ -49,4 +48,4 @@ pub(crate) fn pop_task() -> Option<Task> {
 //
 
 static TASK_QUEUE: SegQueue<Task> = SegQueue::new();
-static EMPTY: (Mutex<bool>, Condvar) = (Mutex::new(true), Condvar::new());
+// static EMPTY: (Mutex<bool>, Condvar) = (Mutex::new(true), Condvar::new());

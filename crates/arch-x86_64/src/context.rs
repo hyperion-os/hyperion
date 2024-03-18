@@ -22,7 +22,6 @@ use crate::{tls::ThreadLocalStorage, vmm::PageMap};
 pub struct Context {
     pub rsp: VirtAddr,
     pub cr3: PhysAddr,
-    pub fs: VirtAddr,
     pub syscall_stack: VirtAddr,
 
     fxsave_reg: [u32; 128],
@@ -84,7 +83,6 @@ impl Context {
         Self {
             cr3: page_map.cr3().start_address(),
             rsp,
-            fs: VirtAddr::new_truncate(0),
             syscall_stack: stack_top,
             fxsave_reg,
         }
@@ -97,7 +95,6 @@ impl Context {
         Self {
             cr3: page_map.cr3().start_address(),
             rsp: VirtAddr::new_truncate(0),
-            fs: VirtAddr::new_truncate(0),
             syscall_stack: VirtAddr::new_truncate(0),
             fxsave_reg: [0; 128],
         }

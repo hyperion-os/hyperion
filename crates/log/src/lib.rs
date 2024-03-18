@@ -6,7 +6,6 @@ extern crate alloc;
 
 use core::fmt::{Arguments, Display};
 
-use arcstr::{literal, ArcStr};
 use hyperion_escape::encode::EscapeEncoder;
 use spin::Once;
 
@@ -129,8 +128,6 @@ impl Default for LogLevel {
 pub trait Logger: Send + Sync {
     fn is_enabled(&self, level: LogLevel) -> bool;
 
-    fn proc_name(&self) -> Option<ArcStr>;
-
     fn print(&self, level: LogLevel, args: Arguments);
 }
 
@@ -150,12 +147,6 @@ pub fn set_logger(new_logger: &'static dyn Logger) {
 
 #[doc(hidden)]
 pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args: Arguments) {
-    let task = logger()
-        .proc_name()
-        .unwrap_or(literal!("pre-scheduler"))
-        .true_lightgrey()
-        .with_reset(false);
-
     let module = module
         .trim_start_matches("hyperion_")
         .true_grey()
@@ -164,7 +155,7 @@ pub fn _print_log_custom(level: LogLevel, pre: impl Display, module: &str, args:
     logger().print(
         level,
         format_args!(
-            "{}{pre}{task} {} {}: {args}",
+            "{}{pre} {} {}: {args}",
             '['.true_grey().with_reset(false),
             module,
             ']'.reset_after(),
@@ -203,10 +194,6 @@ struct NopLogger;
 impl Logger for NopLogger {
     fn is_enabled(&self, _: LogLevel) -> bool {
         false
-    }
-
-    fn proc_name(&self) -> Option<ArcStr> {
-        None
     }
 
     fn print(&self, _: LogLevel, _: Arguments) {}

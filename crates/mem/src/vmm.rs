@@ -4,6 +4,7 @@ use core::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use bitflags::bitflags;
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
@@ -126,6 +127,16 @@ impl fmt::Display for MapTarget {
             MapTarget::LazyAlloc => write!(f, "<lazy-alloc>"),
         }
     }
+}
+
+//
+
+bitflags! {
+pub struct MapFlags: u8 {
+    const WRITE   = 0b0000_0001;
+    const NO_EXEC = 0b0000_0010;
+    const USER    = 0b0000_0100;
+}
 }
 
 //
