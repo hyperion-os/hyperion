@@ -34,6 +34,8 @@ pub fn block_on<F: IntoFuture>(f: F) -> F::Output {
 
         // run other tasks while this task is waiting
         loop {
+            // hyperion_log::debug!("block_on run_once");
+
             while run_once().is_some() {}
 
             if wake

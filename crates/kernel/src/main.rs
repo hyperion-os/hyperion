@@ -16,9 +16,9 @@ extern crate alloc;
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
-use hyperion_drivers as drivers;
+// use hyperion_drivers as drivers;
 use hyperion_futures as futures;
-use hyperion_kernel_impl::VFS_ROOT;
+// use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
@@ -26,12 +26,10 @@ use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
 
-use crate::syscall::TASKS;
-
 //
 
 pub mod panic;
-pub mod syscall;
+// pub mod syscall;
 #[cfg(test)]
 pub mod testfw;
 
@@ -50,7 +48,7 @@ extern "C" fn _start() -> ! {
         debug!("{NAME} {VERSION} was booted with {}", boot::NAME);
 
         // user-space syscall handler
-        arch::syscall::set_handler(syscall::syscall);
+        // arch::syscall::set_handler(syscall::syscall);
     }
 
     // init GDT, IDT, TSS, TLS and cpu_id
@@ -63,16 +61,26 @@ extern "C" fn _start() -> ! {
     if sync::once!() {
         // random hw specifics
         random::provide_entropy(&arch::rng_seed().to_ne_bytes());
-        drivers::lazy_install_early(VFS_ROOT.clone());
-        drivers::lazy_install_late();
+        // drivers::lazy_install_early(VFS_ROOT.clone());
+        // drivers::lazy_install_late();
+        hyperion_clock::set_source_picker(|| Some(&*hyperion_driver_acpi::hpet::HPET));
 
         // os unit tests
         #[cfg(test)]
         test_main();
         // kshell (kernel-space shell) UI task(s)
-        #[cfg(not(test))]
-        futures::spawn(hyperion_kshell::kshell());
+        // #[cfg(not(test))]
+        // futures::spawn(hyperion_kshell::kshell());
     }
+
+    hyperion_futures::spawn(async move {
+        hyperion_log::debug!("running tick task");
+        loop {
+            hyperion_futures::timer::sleep(time::Duration::milliseconds(1000)).await;
+            hyperion_log::debug!("tick (CPU-{})", cpu_id());
+            // scheduler::task::RunnableTask::new(0, 0).ready();
+        }
+    });
 
     // init scheduling
     debug!("init CPU-{}", cpu_id());

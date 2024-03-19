@@ -19,3 +19,5 @@ time.workspace = true
 hyperion-arch.path = "../arch"
 hyperion-events.path = "../events"
 hyperion-instant.path = "../instant"
+
+hyperion-log.path = "../log"
