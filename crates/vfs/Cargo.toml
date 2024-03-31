@@ -11,6 +11,8 @@ workspace = true
 [dependencies]
 snafu.workspace = true
 lock_api.workspace = true
+async-trait = "0.1"
 
+hyperion-futures.path = "../futures"
 hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"

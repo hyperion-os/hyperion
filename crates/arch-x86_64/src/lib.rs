@@ -64,8 +64,6 @@ pub fn wake_cpus() {
     if cpu_id() == 0 {
         hyperion_boot::smp_init();
     }
-
-    hyperion_driver_acpi::init();
 }
 
 pub fn rng_seed() -> u64 {

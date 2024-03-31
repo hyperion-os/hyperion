@@ -7,6 +7,8 @@ use alloc::{
 };
 use core::{any::Any, mem};
 
+use async_trait::async_trait;
+use hyperion_futures::lock::Mutex;
 use hyperion_mem::pmm::{PageFrame, PFA};
 use lock_api::Mutex;
 
@@ -52,41 +54,7 @@ impl File {
     }
 }
 
-impl Drop for File {
-    fn drop(&mut self) {
-        for page in mem::take(&mut self.pages) {
-            page.free();
-        }
-    }
-}
-
-//
-
-pub struct StaticRoFile {
-    bytes: &'static [u8],
-}
-
-impl StaticRoFile {
-    pub const fn new(bytes: &'static [u8]) -> Self {
-        Self { bytes }
-    }
-}
-
-pub struct Directory<Mut: AnyMutex> {
-    pub name: Arc<str>,
-    pub children: BTreeMap<Arc<str>, Node<Mut>>,
-    pub parent: Option<WeakDirRef<Mut>>,
-
-    nodes_cache: Option<Arc<[Arc<str>]>>,
-}
-
-//
-
 impl FileDevice for File {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn len(&self) -> usize {
         self.len
     }
@@ -186,74 +154,88 @@ impl FileDevice for File {
     }
 }
 
-impl FileDevice for StaticRoFile {
-    fn as_any(&self) -> &dyn Any {
-        self
+impl Drop for File {
+    fn drop(&mut self) {
+        for page in mem::take(&mut self.pages) {
+            page.free();
+        }
     }
+}
 
-    fn len(&self) -> usize {
+//
+
+pub struct StaticRoFile {
+    bytes: &'static [u8],
+}
+
+impl StaticRoFile {
+    pub const fn new(bytes: &'static [u8]) -> Self {
+        Self { bytes }
+    }
+}
+
+#[async_trait]
+impl FileDevice for StaticRoFile {
+    async fn len(&self) -> usize {
         self.bytes.len()
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        self.bytes.read(offset, buf)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
+    async fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        self.bytes.read(offset, buf).await
     }
 }
 
-impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
-    fn driver(&self) -> &'static str {
-        "vfs"
-    }
+//
 
-    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
-        if let Some(node) = self.children.get(name) {
-            Ok(node.clone())
-        } else {
-            Err(IoError::NotFound)
-        }
-    }
-
-    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()> {
-        match self.children.entry(name.into()) {
-            Entry::Vacant(entry) => {
-                entry.insert(node);
-                self.nodes_cache = None;
-                Ok(())
-            }
-            Entry::Occupied(_) => Err(IoError::AlreadyExists),
-        }
-    }
-
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
-        Ok(Box::new(self.children.iter().map(|(name, node)| {
-            DirEntry {
-                name: ArcOrRef::Ref(name),
-                node: node.clone(),
-            }
-        })))
-    }
+pub struct Directory {
+    pub name: Arc<str>,
+    children: Mutex<BTreeMap<Arc<str>, Node>>,
 }
 
-impl<Mut: AnyMutex> Directory<Mut> {
+impl Directory {
     pub fn new(name: impl Into<Arc<str>>) -> Self {
         Self {
             name: name.into(),
             children: BTreeMap::new(),
-            parent: None,
-
-            nodes_cache: None,
         }
     }
 
     pub fn new_ref(name: impl Into<Arc<str>>) -> DirRef<Mut> {
         Arc::new(Mutex::new(Self::new(name))) as _
+    }
+}
+
+#[async_trait]
+impl DirectoryDevice for Directory {
+    fn driver(&self) -> &'static str {
+        "vfs"
+    }
+
+    async fn get_node(&self, name: &str) -> IoResult<Node<Mut>> {
+        self.children
+            .lock()
+            .await
+            .get(name)
+            .cloned()
+            .ok_or(IoError::NotFound)
+    }
+
+    async fn create_node(&self, name: &str, node: Node<Mut>) -> IoResult<()> {
+        self.children
+            .lock()
+            .await
+            .try_insert(name.into(), node)
+            .map_err(|_| IoError::AlreadyExists)?;
+
+        Ok(())
+    }
+
+    async fn nodes(&self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+        Ok(Box::new(self.children.lock().await.iter().map(
+            |(name, node)| DirEntry {
+                name: ArcOrRef::Ref(name),
+                node: node.clone(),
+            },
+        )))
     }
 }

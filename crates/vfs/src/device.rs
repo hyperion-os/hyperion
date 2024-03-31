@@ -1,6 +1,7 @@
 use alloc::{boxed::Box, sync::Arc};
 use core::{any::Any, fmt, ops::Deref};
 
+use async_trait::async_trait;
 use hyperion_mem::pmm::PageFrame;
 use lock_api::RawMutex;
 
@@ -11,41 +12,51 @@ use crate::{
 
 //
 
+#[async_trait]
 pub trait FileDevice: Send + Sync {
     fn driver(&self) -> &'static str {
         "unknown"
     }
 
-    fn as_any(&self) -> &dyn Any;
+    /// is the file size 0 bytes?
+    async fn is_empty(&self) -> bool {
+        self.len().await == 0
+    }
 
-    fn len(&self) -> usize;
+    /// file size in bytes
+    async fn len(&self) -> usize;
+    // async fn len(&self) -> usize {
+    //     Err(IoError::PermissionDenied)
+    // }
 
     /// truncate or add zeros to set the length
-    fn set_len(&mut self, len: usize) -> IoResult<()>;
-
-    fn is_empty(&self) -> bool {
-        self.len() == 0
+    async fn set_len(&mut self, len: usize) -> IoResult<()> {
+        _ = len;
+        Err(IoError::PermissionDenied)
     }
 
     /// allocate physical pages + map the file to it OR get the device physical address
     ///
     /// allocated pages are managed by this FileDevice, each [`Self::map_phys`] is paired with
     /// an [`Self::unmap_phys`] and only the last [`Self::unmap_phys`] deallocate the pages
-    fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
+    async fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
         _ = min_bytes;
         Err(IoError::PermissionDenied)
     }
 
     /// see [`Self::map_phys`]
-    fn unmap_phys(&mut self) -> IoResult<()> {
+    async fn unmap_phys(&mut self) -> IoResult<()> {
         Err(IoError::PermissionDenied)
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize>;
+    async fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        _ = (offset, buf);
+        Err(IoError::PermissionDenied)
+    }
 
-    fn read_exact(&self, mut offset: usize, mut buf: &mut [u8]) -> IoResult<()> {
+    async fn read_exact(&self, mut offset: usize, mut buf: &mut [u8]) -> IoResult<()> {
         while !buf.is_empty() {
-            match self.read(offset, buf) {
+            match self.read(offset, buf).await {
                 Ok(0) => break,
                 Ok(n) => {
                     offset += n;
@@ -64,11 +75,14 @@ pub trait FileDevice: Send + Sync {
         }
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize>;
+    async fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+        _ = (offset, buf);
+        Err(IoError::PermissionDenied)
+    }
 
-    fn write_exact(&mut self, mut offset: usize, mut buf: &[u8]) -> IoResult<()> {
+    async fn write_exact(&mut self, mut offset: usize, mut buf: &[u8]) -> IoResult<()> {
         while !buf.is_empty() {
-            match self.write(offset, buf) {
+            match self.write(offset, buf).await {
                 Ok(0) => return Err(IoError::WriteZero),
                 Ok(n) => {
                     offset += n;
@@ -82,23 +96,32 @@ pub trait FileDevice: Send + Sync {
     }
 }
 
-pub trait DirectoryDevice<Mut: RawMutex>: Send + Sync {
+#[async_trait]
+pub trait DirectoryDevice: Send + Sync {
     fn driver(&self) -> &'static str {
         "unknown"
     }
 
-    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>>;
+    async fn get_node(&self, name: &str) -> IoResult<Node> {
+        _ = name;
+        Err(IoError::NotFound)
+    }
 
-    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()>;
+    async fn create_node(&self, name: &str, node: Node) -> IoResult<()> {
+        _ = (name, node);
+        Err(IoError::PermissionDenied)
+    }
 
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>>;
+    async fn nodes(&self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_>> + '_>> {
+        Err(IoError::PermissionDenied)
+    }
 }
 
 //
 
-pub struct DirEntry<'a, Mut> {
+pub struct DirEntry<'a> {
     pub name: ArcOrRef<'a, str>,
-    pub node: Node<Mut>,
+    pub node: Node,
 }
 
 pub enum ArcOrRef<'a, T: ?Sized> {
@@ -119,20 +142,13 @@ impl<'a, T: ?Sized> Deref for ArcOrRef<'a, T> {
 
 //
 
+#[async_trait]
 impl FileDevice for [u8] {
-    fn as_any(&self) -> &dyn Any {
-        panic!()
-    }
-
-    fn len(&self) -> usize {
+    async fn len(&self) -> usize {
         <[u8]>::len(self)
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    async fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
         let len = self
             .len()
             .checked_sub(offset)
@@ -144,7 +160,7 @@ impl FileDevice for [u8] {
         Ok(len)
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+    async fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
         let len = self
             .len()
             .checked_sub(offset)
@@ -157,45 +173,34 @@ impl FileDevice for [u8] {
     }
 }
 
+#[async_trait]
 impl<T: FileDevice> FileDevice for &'static T {
-    fn as_any(&self) -> &dyn Any {
-        self
+    async fn len(&self) -> usize {
+        (**self).len().await
     }
 
-    fn len(&self) -> usize {
-        (**self).len()
-    }
-
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        (**self).read(offset, buf)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
+    async fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        (**self).read(offset, buf).await
     }
 }
 
 //
 
-pub struct FmtWriteFile<'a>(&'a mut dyn FileDevice, usize);
+// pub struct FmtWriteFile<'a>(&'a mut dyn FileDevice, usize);
 
-impl dyn FileDevice {
-    pub fn as_fmt(&mut self, at: usize) -> FmtWriteFile {
-        FmtWriteFile(self, at)
-    }
-}
+// impl dyn FileDevice {
+//     pub fn as_fmt(&mut self, at: usize) -> FmtWriteFile {
+//         FmtWriteFile(self, at)
+//     }
+// }
 
-impl fmt::Write for FmtWriteFile<'_> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        if let Ok(n) = self.0.write(self.1, s.as_bytes()) {
-            self.1 += n;
-            Ok(())
-        } else {
-            Err(fmt::Error)
-        }
-    }
-}
+// impl fmt::Write for FmtWriteFile<'_> {
+//     fn write_str(&mut self, s: &str) -> fmt::Result {
+//         if let Ok(n) = self.0.write(self.1, s.as_bytes()) {
+//             self.1 += n;
+//             Ok(())
+//         } else {
+//             Err(fmt::Error)
+//         }
+//     }
+// }

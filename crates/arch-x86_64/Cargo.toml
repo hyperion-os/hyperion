@@ -14,7 +14,7 @@ x86_64.workspace = true
 crossbeam.workspace = true
 
 hyperion-boot.path = "../boot"
-hyperion-driver-acpi.path = "../driver-acpi"
+# hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-interrupts.path = "../interrupts"
 hyperion-log.path = "../log"
 hyperion-macros.path = "../macros"

@@ -14,26 +14,22 @@ use crate::{
 
 //
 
-pub type FileRef<Mut> = Arc<Mutex<Mut, dyn FileDevice + 'static>>;
-pub type WeakFileRef<Mut> = Weak<Mutex<Mut, dyn FileDevice + 'static>>;
-pub type DirRef<Mut> = Arc<Mutex<Mut, dyn DirectoryDevice<Mut> + 'static>>;
-pub type WeakDirRef<Mut> = Weak<Mutex<Mut, dyn DirectoryDevice<Mut> + 'static>>;
-pub type Root<Mut> = DirRef<Mut>;
+pub type FileRef = Arc<dyn FileDevice + 'static>;
+pub type WeakFileRef = Weak<dyn FileDevice + 'static>;
+pub type DirRef = Arc<dyn DirectoryDevice + 'static>;
+pub type WeakDirRef = Weak<dyn DirectoryDevice + 'static>;
+pub type Root = DirRef;
 
 //
 
 // pub type Ref<T, Mut: AnyMutex> = Arc<Mut::Mutex<T>>;
 
 pub trait IntoRoot: Sized {
-    type Mut: AnyMutex;
-
-    fn into_root(self) -> Root<Self::Mut>;
+    fn into_root(self) -> Root;
 }
 
-impl<Mut: AnyMutex> IntoRoot for Root<Mut> {
-    type Mut = Mut;
-
-    fn into_root(self) -> Root<Self::Mut> {
+impl IntoRoot for Root {
+    fn into_root(self) -> Root {
         self
     }
 }
@@ -46,7 +42,7 @@ pub trait IntoNode: Sized {
     fn into_node(self) -> Node<Self::Mut>;
 }
 
-impl<Mut: AnyMutex> IntoNode for Node<Mut> {
+impl<Mut: AnyMutex> IntoNode for Node {
     type Mut = Mut;
 
     fn into_node(self) -> Node<Self::Mut> {
@@ -56,13 +52,13 @@ impl<Mut: AnyMutex> IntoNode for Node<Mut> {
 
 //
 
-pub enum Node<Mut> {
+pub enum Node {
     /// a normal file, like `/etc/fstab`
     ///
     /// or
     ///
     /// a device mapped to a file, like `/dev/fb0`
-    File(FileRef<Mut>),
+    File(FileRef),
 
     /// a directory with 0 or more files, like `/home/`
     ///
@@ -77,18 +73,18 @@ pub enum Node<Mut> {
     ///
     /// a directory device most likely contains more directory devices, like `/https/archlinux/org`
     /// inside `/https/archlinux/`
-    Directory(DirRef<Mut>),
+    Directory(DirRef),
 }
 
-impl<Mut> Node<Mut> {
-    pub fn try_as_file(&self) -> IoResult<FileRef<Mut>> {
+impl Node {
+    pub fn try_as_file(&self) -> IoResult<FileRef> {
         match self {
             Node::File(f) => Ok(f.clone()),
             Node::Directory(_) => Err(IoError::IsADirectory),
         }
     }
 
-    pub fn try_as_dir(&self) -> IoResult<DirRef<Mut>> {
+    pub fn try_as_dir(&self) -> IoResult<DirRef> {
         match self {
             Node::File(_) => Err(IoError::NotADirectory),
             Node::Directory(d) => Ok(d.clone()),
@@ -96,7 +92,7 @@ impl<Mut> Node<Mut> {
     }
 }
 
-impl<Mut: RawMutex> fmt::Debug for Node<Mut> {
+impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Node::File(v) => f.debug_tuple("File").field(&v.lock().driver()).finish(),
@@ -108,7 +104,7 @@ impl<Mut: RawMutex> fmt::Debug for Node<Mut> {
     }
 }
 
-impl<Mut> Clone for Node<Mut> {
+impl Clone for Node {
     fn clone(&self) -> Self {
         match self {
             Node::File(v) => Node::File(v.clone()),
@@ -119,7 +115,7 @@ impl<Mut> Clone for Node<Mut> {
 
 //
 
-impl<Mut: AnyMutex> Node<Mut> {
+impl Node {
     pub fn new_root() -> Self {
         Node::Directory(Directory::new_ref(""))
     }
@@ -128,7 +124,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         Self::File(Arc::new(Mutex::new(f)))
     }
 
-    pub fn new_dir(f: impl DirectoryDevice<Mut> + 'static) -> Self {
+    pub fn new_dir(f: impl DirectoryDevice + 'static) -> Self {
         Self::Directory(Arc::new(Mutex::new(f)))
     }
 
@@ -158,7 +154,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         path: impl AsRef<Path>,
         make_dirs: bool,
         create: bool,
-    ) -> IoResult<DirRef<Mut>> {
+    ) -> IoResult<DirRef> {
         let path = path.as_ref();
         let (parent, target_dir) = path.split();
 
@@ -194,7 +190,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         path: impl AsRef<Path>,
         make_dirs: bool,
         create: bool,
-    ) -> IoResult<FileRef<Mut>> {
+    ) -> IoResult<FileRef> {
         let path = path.as_ref();
         let (parent, file) = path.split();
 
@@ -223,21 +219,16 @@ impl<Mut: AnyMutex> Node<Mut> {
         &self,
         path: impl AsRef<Path>,
         make_dirs: bool,
-        dev: FileRef<Mut>,
+        dev: FileRef,
     ) -> IoResult<()> {
         self.insert(path, make_dirs, Node::File(dev))
     }
 
-    pub fn insert_dir(
-        &self,
-        path: impl AsRef<Path>,
-        make_dirs: bool,
-        dev: DirRef<Mut>,
-    ) -> IoResult<()> {
+    pub fn insert_dir(&self, path: impl AsRef<Path>, make_dirs: bool, dev: DirRef) -> IoResult<()> {
         self.insert(path, make_dirs, Node::Directory(dev))
     }
 
-    pub fn insert(&self, path: impl AsRef<Path>, make_dirs: bool, node: Node<Mut>) -> IoResult<()> {
+    pub fn insert(&self, path: impl AsRef<Path>, make_dirs: bool, node: Node) -> IoResult<()> {
         let path = path.as_ref();
         let (parent_dir, target_name) = path.split();
 
@@ -246,11 +237,11 @@ impl<Mut: AnyMutex> Node<Mut> {
             .create_node(target_name, node)
     }
 
-    pub fn mount(&self, path: impl AsRef<Path>, dev: impl DirectoryDevice<Mut> + 'static) {
+    pub fn mount(&self, path: impl AsRef<Path>, dev: impl DirectoryDevice + 'static) {
         self.mount_ref(path, Arc::new(Mutex::new(dev)))
     }
 
-    pub fn mount_ref(&self, path: impl AsRef<Path>, dev: DirRef<Mut>) {
+    pub fn mount_ref(&self, path: impl AsRef<Path>, dev: DirRef) {
         let path = path.as_ref();
         trace!("mounting VFS device at {path:?}");
         if let Err(err) = self.insert_dir(path, true, dev) {
@@ -262,7 +253,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         self.install_dev_ref(path, Arc::new(Mutex::new(dev)) as _);
     }
 
-    pub fn install_dev_ref(&self, path: impl AsRef<Path>, dev: FileRef<Mut>) {
+    pub fn install_dev_ref(&self, path: impl AsRef<Path>, dev: FileRef) {
         let path = path.as_ref();
         trace!("installing VFS device at {path:?}");
         if let Err(err) = self.insert_file(path, true, dev) {

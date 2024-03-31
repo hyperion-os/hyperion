@@ -54,6 +54,9 @@ extern "C" fn _start() -> ! {
     // init GDT, IDT, TSS, TLS and cpu_id
     arch::init();
 
+    // init ACPI
+    hyperion_driver_acpi::init();
+
     // wake up all cpus
     arch::wake_cpus();
 

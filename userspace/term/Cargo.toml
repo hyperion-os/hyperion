@@ -7,7 +7,7 @@ edition.workspace = true
 
 [dependencies]
 libm = "0.2"
-image = "0.24"
+image = { version = "0.25", default-features = false, features = ["bmp"] }
 # libstd.path = "../libstd"
 hyperion-color.path = "../../crates/color"
 hyperion-escape.path = "../../crates/escape"

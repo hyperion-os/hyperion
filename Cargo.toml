@@ -45,7 +45,7 @@ heapless = "0.8"
 pin-project = "1.1"
 bitflags = "2.4"
 # rpds = { version = "1.1", default-features = false }
-# image = "0.24"
+# image = "0.25"
 # bitvec = "1.0.1"
 # tracing = { version = "0.1.37", default-features = false }
 
