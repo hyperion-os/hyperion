@@ -21,6 +21,10 @@ fn main() {
             path.canonicalize().unwrap()
         };
 
+        if !os_canonical.exists() {
+            return;
+        }
+
         let path = Path::new("/").join(path.strip_prefix(from).unwrap());
 
         println!("cargo:rerun-if-changed={os_canonical:?}");
