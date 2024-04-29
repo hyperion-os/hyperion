@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(pointer_is_aligned)]
 
 //
 

@@ -1,5 +1,10 @@
 #![no_std]
-#![feature(pointer_is_aligned, allocator_api, maybe_uninit_slice, core_intrinsics)]
+#![feature(
+    pointer_is_aligned_to,
+    allocator_api,
+    maybe_uninit_slice,
+    core_intrinsics
+)]
 #![allow(internal_features)]
 
 //
