@@ -10,7 +10,7 @@
 
 #![no_std]
 #![feature(
-    pointer_is_aligned,
+    pointer_is_aligned_to,
     const_pointer_is_aligned,
     strict_provenance_atomic_ptr,
     const_ptr_is_null,

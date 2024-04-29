@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(pointer_is_aligned, box_into_boxed_slice)]
+#![feature(pointer_is_aligned_to, box_into_boxed_slice)]
 
 //
 
