@@ -11,7 +11,7 @@ use futures_util::StreamExt;
 use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_log::*;
 use hyperion_scheduler::lock::Mutex;
-use hyperion_vfs::{error::IoError, path::PathBuf, ramdisk::StaticRoFile};
+use hyperion_vfs::{error::IoError, path::PathBuf, ramfs::StaticRoFile};
 use snafu::Snafu;
 
 use crate::{shell::Shell, term::Term};

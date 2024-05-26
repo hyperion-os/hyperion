@@ -9,10 +9,9 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-snafu.workspace = true
-lock_api.workspace = true
 async-trait = "0.1"
 
-hyperion-futures.path = "../futures"
-hyperion-log.path = "../log"
-hyperion-mem.path = "../mem"
+hyperion-syscall.path = "../syscall" # Error enum
+hyperion-futures.path = "../futures" # async Mutex
+hyperion-log.path = "../log" # logging
+# hyperion-mem.path = "../mem" # memory mapping

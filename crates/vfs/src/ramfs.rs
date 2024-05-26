@@ -9,14 +9,11 @@ use core::{any::Any, mem};
 
 use async_trait::async_trait;
 use hyperion_futures::lock::Mutex;
-use hyperion_mem::pmm::{PageFrame, PFA};
-use lock_api::Mutex;
 
 use crate::{
     device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
     error::{IoError, IoResult},
-    tree::{DirRef, FileRef, Node, WeakDirRef},
-    AnyMutex,
+    Ref,
 };
 
 //
@@ -64,29 +61,29 @@ impl FileDevice for File {
         Ok(())
     }
 
-    fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
-        let mut pages_left = min_bytes.div_ceil(0x1000);
-        let pages = self
-            .pages
-            .iter()
-            .filter_map(move |page| {
-                if pages_left == 0 {
-                    return None;
-                }
+    // fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
+    //     let mut pages_left = min_bytes.div_ceil(0x1000);
+    //     let pages = self
+    //         .pages
+    //         .iter()
+    //         .filter_map(move |page| {
+    //             if pages_left == 0 {
+    //                 return None;
+    //             }
 
-                let n = pages_left.min(page.len());
-                pages_left = pages_left.saturating_sub(page.len());
+    //             let n = pages_left.min(page.len());
+    //             pages_left = pages_left.saturating_sub(page.len());
 
-                Some(unsafe { PageFrame::new(page.physical_addr(), n) })
-            })
-            .collect::<Box<[PageFrame]>>();
+    //             Some(unsafe { PageFrame::new(page.physical_addr(), n) })
+    //         })
+    //         .collect::<Box<[PageFrame]>>();
 
-        Ok(pages)
-    }
+    //     Ok(pages)
+    // }
 
-    fn unmap_phys(&mut self) -> IoResult<()> {
-        Ok(())
-    }
+    // fn unmap_phys(&mut self) -> IoResult<()> {
+    //     Ok(())
+    // }
 
     fn read(&self, offset: usize, mut buf: &mut [u8]) -> IoResult<usize> {
         if let Some(buf_limit) = self.len.checked_sub(offset) {
@@ -188,20 +185,24 @@ impl FileDevice for StaticRoFile {
 //
 
 pub struct Directory {
-    pub name: Arc<str>,
     children: Mutex<BTreeMap<Arc<str>, Node>>,
 }
 
 impl Directory {
-    pub fn new(name: impl Into<Arc<str>>) -> Self {
+    pub const fn new() -> Self {
         Self {
-            name: name.into(),
             children: BTreeMap::new(),
         }
     }
 
-    pub fn new_ref(name: impl Into<Arc<str>>) -> DirRef<Mut> {
-        Arc::new(Mutex::new(Self::new(name))) as _
+    pub fn new_ref() -> DirRef {
+        Ref::new(Self::new())
+    }
+}
+
+impl Default for Directory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -211,7 +212,7 @@ impl DirectoryDevice for Directory {
         "vfs"
     }
 
-    async fn get_node(&self, name: &str) -> IoResult<Node<Mut>> {
+    async fn get(&self, name: &str) -> IoResult<Node<Mut>> {
         self.children
             .lock()
             .await
@@ -220,7 +221,7 @@ impl DirectoryDevice for Directory {
             .ok_or(IoError::NotFound)
     }
 
-    async fn create_node(&self, name: &str, node: Node<Mut>) -> IoResult<()> {
+    async fn insert(&self, name: &str, node: Node<Mut>) -> IoResult<()> {
         self.children
             .lock()
             .await
@@ -230,7 +231,7 @@ impl DirectoryDevice for Directory {
         Ok(())
     }
 
-    async fn nodes(&self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+    async fn entries(&self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
         Ok(Box::new(self.children.lock().await.iter().map(
             |(name, node)| DirEntry {
                 name: ArcOrRef::Ref(name),

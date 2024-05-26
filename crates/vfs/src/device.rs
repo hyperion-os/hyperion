@@ -2,13 +2,11 @@ use alloc::{boxed::Box, sync::Arc};
 use core::{any::Any, fmt, ops::Deref};
 
 use async_trait::async_trait;
-use hyperion_mem::pmm::PageFrame;
-use lock_api::RawMutex;
 
-use crate::{
-    error::{IoError, IoResult},
-    tree::Node,
-};
+//
+
+#[derive(Debug, Clone, Copy)]
+pub struct PhysicalAddress(pub usize);
 
 //
 
@@ -30,26 +28,38 @@ pub trait FileDevice: Send + Sync {
     // }
 
     /// truncate or add zeros to set the length
-    async fn set_len(&mut self, len: usize) -> IoResult<()> {
+    async fn set_len(&self, len: usize) -> IoResult<()> {
         _ = len;
         Err(IoError::PermissionDenied)
     }
+
+    // /// Is the underlying file data already in a physical address?
+    // /// If so, where?
+    // async fn memory_mapped_to() -> Option<PhysicalAddress> {}
+
+    /* /// If the file data isn't already memory mapped, map it here
+    async fn memory_map_to(to: &mut [u8]) ->
 
     /// allocate physical pages + map the file to it OR get the device physical address
     ///
     /// allocated pages are managed by this FileDevice, each [`Self::map_phys`] is paired with
     /// an [`Self::unmap_phys`] and only the last [`Self::unmap_phys`] deallocate the pages
-    async fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
+    async fn map_phys(&self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
         _ = min_bytes;
         Err(IoError::PermissionDenied)
     }
 
     /// see [`Self::map_phys`]
-    async fn unmap_phys(&mut self) -> IoResult<()> {
+    async fn unmap_phys(&self) -> IoResult<()> {
+        Err(IoError::PermissionDenied)
+    } */
+
+    async fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+        _ = (offset, buf);
         Err(IoError::PermissionDenied)
     }
 
-    async fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    async fn write(&self, offset: usize, buf: &[u8]) -> IoResult<usize> {
         _ = (offset, buf);
         Err(IoError::PermissionDenied)
     }
@@ -75,12 +85,7 @@ pub trait FileDevice: Send + Sync {
         }
     }
 
-    async fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
-        _ = (offset, buf);
-        Err(IoError::PermissionDenied)
-    }
-
-    async fn write_exact(&mut self, mut offset: usize, mut buf: &[u8]) -> IoResult<()> {
+    async fn write_exact(&self, mut offset: usize, mut buf: &[u8]) -> IoResult<()> {
         while !buf.is_empty() {
             match self.write(offset, buf).await {
                 Ok(0) => return Err(IoError::WriteZero),
@@ -96,23 +101,40 @@ pub trait FileDevice: Send + Sync {
     }
 }
 
+async fn default_read_exact() {}
+
 #[async_trait]
 pub trait DirectoryDevice: Send + Sync {
     fn driver(&self) -> &'static str {
         "unknown"
     }
 
-    async fn get_node(&self, name: &str) -> IoResult<Node> {
+    /// get an entry
+    async fn get(&self, name: &str) -> IoResult<Node> {
         _ = name;
-        Err(IoError::NotFound)
+        Err(IoError::PermissionDenied)
     }
 
-    async fn create_node(&self, name: &str, node: Node) -> IoResult<()> {
+    /// get or insert an entry
+    async fn get_or_insert(&self, name: &str) -> IoResult<Node> {
+        _ = name;
+        Err(IoError::PermissionDenied)
+    }
+
+    /// insert an entry
+    async fn insert(&self, name: &str, node: Node) -> IoResult<()> {
         _ = (name, node);
         Err(IoError::PermissionDenied)
     }
 
-    async fn nodes(&self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_>> + '_>> {
+    /// remove an entry
+    async fn remove(&self, name: &str) -> IoResult<Node> {
+        _ = name;
+        Err(IoError::PermissionDenied)
+    }
+
+    async fn entries(&self, callback: &mut dyn FnMut(DirEntry) -> bool) -> IoResult<()> {
+        _ = callback;
         Err(IoError::PermissionDenied)
     }
 }

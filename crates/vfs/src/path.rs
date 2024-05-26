@@ -36,7 +36,7 @@ impl Path {
             .unwrap_or(("".as_ref(), self.as_str()))
     }
 
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
         &self.0
     }
 

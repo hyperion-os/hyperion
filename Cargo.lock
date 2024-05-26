@@ -929,9 +929,7 @@ dependencies = [
  "async-trait",
  "hyperion-futures",
  "hyperion-log",
- "hyperion-mem",
- "lock_api",
- "snafu",
+ "hyperion-syscall",
 ]
 
 [[package]]
