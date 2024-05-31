@@ -1,10 +1,9 @@
 [package]
-name = "kernel"
+name = "loader-info"
 version.workspace = true
 edition.workspace = true
 
+[dependencies]
+
 [lints]
 workspace = true
-
-[dependencies]
-loader-info.workspace = true

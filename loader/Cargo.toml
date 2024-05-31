@@ -1,0 +1,15 @@
+[package]
+name = "loader"
+version.workspace = true
+edition.workspace = true
+default-run = "loader"
+
+[dependencies]
+spin.workspace = true
+heapless.workspace = true
+xmas-elf.workspace = true
+
+log.workspace = true
+mem.workspace = true
+util.workspace = true
+kernel.workspace = true

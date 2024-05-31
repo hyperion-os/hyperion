@@ -3,9 +3,12 @@ runner = """qemu-system-riscv64
   -cpu rv64
   -machine virt
   -serial mon:stdio
-  -m 150M
+  -m 80M
   -s
   -vga virtio
   -append 'hello'
   -kernel"""
 # -nographic
+
+[unstable]
+bindeps = true

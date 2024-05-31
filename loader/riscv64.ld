@@ -1,6 +1,7 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
-KERNEL_BASE = 0xffffffff80000000; /* this is a higher half kernel */
+KERNEL_BASE = 0x80200000; 
+/* KERNEL_BASE = 0x80040000; */  /* this works, but might not work in the future */
 
 SECTIONS {
   . = KERNEL_BASE;

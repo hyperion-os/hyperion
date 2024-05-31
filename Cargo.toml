@@ -6,7 +6,7 @@ edition = "2021"
 
 [workspace]
 resolver = "2"
-members = ["kernel"]
+members = ["crates/*", "kernel", "loader"]
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "forbid"
@@ -27,3 +27,10 @@ strip = true
 [workspace.dependencies]
 spin = "0.9"
 heapless = "0.8"
+xmas-elf = "0.9" # or elf
+
+log.path = "./crates/log"
+mem.path = "./crates/mem"
+util.path = "./crates/util"
+loader-info.path = "./crates/loader-info"
+kernel = { path = "./kernel", artifact = "bin" }

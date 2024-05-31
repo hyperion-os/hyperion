@@ -1,5 +1,5 @@
 [package]
-name = "kernel"
+name = "util"
 version.workspace = true
 edition.workspace = true
 
@@ -7,4 +7,4 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-loader-info.workspace = true
+heapless.workspace = true

@@ -1,15 +1,7 @@
-use core::{
-    ffi::CStr,
-    fmt,
-    mem::{self, MaybeUninit},
-    num::NonZero,
-    ptr, str,
-};
+use core::{ffi::CStr, fmt, iter, mem, num::NonZero, ptr, str};
 
-use heapless::Vec;
-use spin::{Mutex, Once};
-
-use crate::println;
+use log::println;
+use util::rle::{Region, RleMemory};
 
 //
 
@@ -117,220 +109,6 @@ impl fmt::Display for Property<'_> {
     }
 }
 
-/// run-length encoded memory regions
-///
-/// the last segment is always usable,
-/// because everything is reserved by default
-#[derive(Debug, Clone)]
-pub struct RleMemory {
-    segments: Vec<Segment, 64>,
-}
-
-impl RleMemory {
-    pub const fn new() -> Self {
-        Self {
-            segments: Vec::new(),
-        }
-    }
-
-    pub fn min_usable_addr(&self) -> usize {
-        let Some(first) = self.segments.first() else {
-            return 0;
-        };
-
-        if first.ty == SegmentType::Reserved {
-            first.size.get()
-        } else {
-            0
-        }
-    }
-
-    pub fn max_usable_addr(&self) -> usize {
-        self.end_addr()
-    }
-
-    pub fn iter_usable(&self) -> impl Iterator<Item = Region> + '_ {
-        self.iter_segments()
-            .filter(|(_, ty)| *ty == SegmentType::Usable)
-            .map(|(reg, _)| reg)
-    }
-
-    pub fn iter_segments(&self) -> impl Iterator<Item = (Region, SegmentType)> + '_ {
-        self.segments.iter().scan(0usize, |acc, segment| {
-            let now = *acc;
-            *acc += segment.size.get();
-            Some((
-                Region {
-                    addr: now,
-                    size: segment.size,
-                },
-                segment.ty,
-            ))
-        })
-    }
-
-    pub fn end_addr(&self) -> usize {
-        self.iter_segments().last().map_or(0, |(last_region, ty)| {
-            assert_eq!(ty, SegmentType::Usable);
-            last_region.addr + last_region.size.get()
-        })
-    }
-
-    /// add usable memory
-    pub fn insert(&mut self, region: Region) {
-        self.insert_segment_at(region, SegmentType::Usable);
-    }
-
-    /// reserve unusable memory
-    pub fn remove(&mut self, region: Region) {
-        self.insert_segment_at(region, SegmentType::Reserved);
-    }
-
-    fn insert_segment_at(&mut self, region: Region, region_ty: SegmentType) {
-        let new_addr = region.addr;
-        let new_end_addr = new_addr + region.size.get();
-
-        let mut current_segment_addr = 0usize;
-        let mut i = 0usize;
-        while i < self.segments.len() {
-            let segment = self.segments[i];
-            let current_segment_end_addr = current_segment_addr + segment.size.get();
-
-            if new_addr >= current_segment_end_addr {
-                // no overlaps, continue
-                i += 1;
-                current_segment_addr += segment.size.get();
-                continue;
-            } else if current_segment_addr >= new_end_addr {
-                // the segment is already past the new region, so no more overlaps can come
-                current_segment_addr += segment.size.get();
-                break;
-            } else if segment.ty == region_ty {
-                // both segments are the same, so it is technically already merged
-                i += 1;
-                current_segment_addr += segment.size.get();
-                continue;
-            }
-
-            // overlap detected, split the original one into up to 3 pieces
-
-            let segment_split_left_size = new_addr.checked_sub(current_segment_addr).unwrap_or(0);
-            let segment_split_right_size = current_segment_end_addr
-                .checked_sub(new_end_addr)
-                .unwrap_or(0);
-
-            // FIXME: remove(i) followed by insert(i)
-            self.segments.remove(i);
-
-            if let Some(size) = NonZero::new(segment_split_left_size) {
-                self.segments.insert(
-                    i,
-                    Segment {
-                        size,
-                        ty: segment.ty,
-                    },
-                );
-                i += 1;
-            }
-            if let Some(size) = NonZero::new(
-                segment.size.get() - segment_split_left_size - segment_split_right_size,
-            ) {
-                self.segments.insert(
-                    i,
-                    Segment {
-                        size,
-                        ty: region_ty,
-                    },
-                );
-                i += 1;
-            }
-            if let Some(size) = NonZero::new(segment_split_right_size) {
-                self.segments.insert(
-                    i,
-                    Segment {
-                        size,
-                        ty: segment.ty,
-                    },
-                );
-                i += 1;
-            }
-
-            current_segment_addr += segment.size.get();
-        }
-
-        if region_ty == SegmentType::Usable {
-            if let Some(leftover) = new_end_addr
-                .checked_sub(new_addr.max(current_segment_addr))
-                .and_then(NonZero::new)
-            {
-                if let Some(padding) = new_addr
-                    .checked_sub(current_segment_addr)
-                    .and_then(NonZero::new)
-                {
-                    self.segments.push(Segment {
-                        size: padding,
-                        ty: SegmentType::Reserved,
-                    });
-                }
-
-                self.segments.push(Segment {
-                    size: leftover,
-                    ty: SegmentType::Usable,
-                });
-            }
-        }
-
-        // FIXME: shouln't be needed
-        self.fixup();
-    }
-
-    fn fixup(&mut self) {
-        // FIXME: there shouldnt be any Reserved entries in the end
-        if let Some(Segment {
-            ty: SegmentType::Reserved,
-            ..
-        }) = self.segments.last()
-        {
-            self.segments.pop();
-        }
-
-        // FIXME: all segments should already be merged
-        let mut i = 0usize;
-        while i + 1 < self.segments.len() {
-            let right = self.segments[i + 1];
-            let left = &mut self.segments[i];
-
-            if left.ty == right.ty {
-                left.size = left.size.checked_add(right.size.get()).unwrap();
-                self.segments.remove(i + 1);
-            } else {
-                i += 1;
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Region {
-    pub addr: usize,
-    pub size: NonZero<usize>,
-}
-
-/// one piece of run-length encoded memory regions
-#[derive(Debug, Clone, Copy)]
-pub struct Segment {
-    // FIXME: idk y, but rustc cannot squeeze SegmentType and NonZero<usize> into one u64
-    // the same way as it can squeeze Option<NonZero<usize>> into one u64
-    pub size: NonZero<usize>,
-    pub ty: SegmentType,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SegmentType {
-    Reserved,
-    Usable,
-}
-
 //
 
 impl<'a> Property<'a> {
@@ -378,7 +156,7 @@ impl Fdt {
         Ok(Self { addr: a1, header })
     }
 
-    /* pub fn iter_reserved_memory(&self) -> impl Iterator<Item = FdtReserveEntry> {
+    pub fn iter_reserved_memory(&self) -> impl Iterator<Item = FdtReserveEntry> {
         let mut next_entry = unsafe { self.addr.byte_add(self.header.off_mem_rsvmap as usize) }
             as *const FdtReserveEntry;
 
@@ -396,10 +174,10 @@ impl Fdt {
                 Some(next)
             }
         })
-    } */
+    }
 
     // FIXME: remove the limitation of memory regions
-    pub fn usable_memory(&mut self) -> Vec<*mut [u8], 8> {
+    pub fn usable_memory(&mut self) -> RleMemory {
         let strings = unsafe { self.addr.byte_add(self.header.off_dt_strings as usize) } as _;
         let tokens = unsafe { self.addr.byte_add(self.header.off_dt_struct as usize) } as _;
 
@@ -413,30 +191,8 @@ impl Fdt {
 
         let mut memory = RleMemory::new();
 
-        // memory.insert(Region {
-        //     addr: 10,
-        //     size: 10.try_into().unwrap(),
-        // });
-        // memory.insert(Region {
-        //     addr: 30,
-        //     size: 10.try_into().unwrap(),
-        // });
-        // memory.insert(Region {
-        //     addr: 50,
-        //     size: 10.try_into().unwrap(),
-        // });
-        // println!("{memory:#?}");
-        // memory.remove(Region {
-        //     addr: 15,
-        //     size: 5.try_into().unwrap(),
-        // });
-        // panic!("{memory:#?}");
-
         tokens.clone().parse_root(
             |region| {
-                // println!("memory:   {:#x?}..{:#x?}", region, unsafe {
-                //     (region as *mut u8).add(region.len())
-                // });
                 if let Some(size) = NonZero::new(region.len()) {
                     memory.insert(Region {
                         addr: region as *mut u8 as usize,
@@ -455,37 +211,19 @@ impl Fdt {
                         size,
                     });
                 }
-                // println!("reserved: {:#x?}..{:#x?}", region, unsafe {
-                //     (region as *mut u8).add(region.len())
-                // });
             },
         );
 
-        println!("{memory:#x?}");
+        for extra in self.iter_reserved_memory() {
+            if let Some(size) = NonZero::new(extra.size as usize) {
+                memory.remove(Region {
+                    addr: extra.address as usize,
+                    size,
+                });
+            }
+        }
 
-        println!("bitmap allocator minimum = {:#x}", memory.min_usable_addr());
-        println!("bitmap allocator maximum = {:#x}", memory.max_usable_addr());
-
-        let bitmap_size = (memory.max_usable_addr() - memory.min_usable_addr()).div_ceil(8);
-        let bitmap_region = memory
-            .iter_usable()
-            .find(|usable| usable.size.get() >= bitmap_size)
-            .expect("not enough contiguous memory for the bitmap allocator");
-
-        // let bitmap =
-        //     ptr::slice_from_raw_parts_mut(bitmap_region.addr as *mut MaybeUninit<u8>, bitmap_size);
-        // let bitmap = unsafe { &mut *bitmap };
-        // bitmap.fill(MaybeUninit::new(0));
-        // let bitmap = unsafe { MaybeUninit::slice_assume_init_mut(bitmap) };
-
-        // static BITMAP: Once<Mutex<&mut [u8]>> = Once::new();
-        // BITMAP.call_once(|| Mutex::new(bitmap));
-
-        // TODO: this will be replaced with the original hyperion PMM
-
-        // usable_memory
-
-        todo!()
+        memory
     }
 }
 
