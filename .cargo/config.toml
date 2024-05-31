@@ -1,16 +1,11 @@
-[build]
-# this is so that rust-analyzer wouldn't fight me constantly
-# target = "x86_64-unknown-none"
-rustflags = [
-    # TODO: remove and implement DWARF info based stack tracing
-    #"-C", "no-redzone=y",
-    #"-Z", "threads=32",
-    #"-C", "force-frame-pointers=y",
-    #"-C", "code-model=kernel",
-    #"-C", "relocation-model=static",
-    #"-C", "linker=clang-16",
-    #"-C", "link-arg=-fuse-ld=lld"
-]
-
-[unstable]
-bindeps = true
+[target.riscv64gc-unknown-none-elf]
+runner = """qemu-system-riscv64
+  -cpu rv64
+  -machine virt
+  -serial mon:stdio
+  -m 150M
+  -s
+  -vga virtio
+  -append 'hello'
+  -kernel"""
+# -nographic

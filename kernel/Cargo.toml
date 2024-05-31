@@ -1,0 +1,8 @@
+[package]
+name = "kernel"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+spin.workspace = true
+heapless.workspace = true

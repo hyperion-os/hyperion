@@ -1,5 +1,5 @@
-# file target/hyperion/x86_64/iso/hyperion
+file ~/.local/share/cargo/target/riscv64gc-unknown-none-elf/debug/kernel
 
-# target remote localhost:1234
+target remote localhost:1234
 
-# symbol-file target/hyperion/x86_64/iso/hyperion
+# symbol-file ~/.local/share/cargo/target/riscv64gc-unknown-none-elf/debug/kernel

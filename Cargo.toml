@@ -1,15 +1,14 @@
 [workspace.package]
-version = "0.3.0"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
 resolver = "2"
-members = ["crates/*", "userspace/*"]
+members = ["kernel"]
 
 [workspace.lints.rust]
-#![forbid(unsafe_op_in_unsafe_fn)]
 unsafe_op_in_unsafe_fn = "forbid"
 
 [profile.release]
@@ -26,72 +25,5 @@ strip = true
 # keep all dependencies here to keep the version same and make it easier to keep them up to date
 
 [workspace.dependencies]
-anyhow = { version = "1", default-features = false }
-arcstr = "1.1"
 spin = "0.9"
-volatile = "0.5"
-x86_64 = "0.14"
-uart_16550 = "0.3"
-#pc-keyboard = "0.7"
-pc-keyboard = { git = "https://github.com/rust-embedded-community/pc-keyboard", rev = "4aa5ef6d41fead096c96879ca53497c9ec4ffc30" }
-paste = "1.0"       # macro ident concat
-bit_field = "0.10"
-bytemuck = { version = "1.13", features = ["derive"] }
-lock_api = { version = "0.4", features = ["arc_lock"] }
-ringbuf = { version = "0.3", default-features = false, features = ["alloc"] }
-rand = { version = "0.8", default-features = false, features = ["rand_chacha"] }
-rand_chacha = { version = "0.3", default-features = false }
 heapless = "0.8"
-pin-project = "1.1"
-bitflags = "2.4"
-# rpds = { version = "1.1", default-features = false }
-# image = "0.24"
-# bitvec = "1.0.1"
-# tracing = { version = "0.1.37", default-features = false }
-
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-
-event-listener = { version = "4.0", default-features = false }
-
-# backtrace symbol lookup
-[workspace.dependencies.elf]
-version = "0.7"
-default-features = false
-
-[workspace.dependencies.time]
-version = "0.3"
-default-features = false
-# features = ["alloc"]
-
-[workspace.dependencies.crossbeam-queue]
-version = "0.3"
-default-features = false
-features = ["alloc"]
-
-[workspace.dependencies.crossbeam]
-version = "0.8"
-default-features = false
-features = ["alloc"]
-
-[workspace.dependencies.futures]
-version = "0.3"
-default-features = false
-features = ["alloc"]
-
-[workspace.dependencies.futures-util]
-version = "0.3"
-default-features = false
-features = ["alloc"]
-
-# no_std thiserrror alternative
-[workspace.dependencies.snafu]
-version = "0.7"
-default-features = false
-features = ["rust_1_46"]
-
-# backtracing with DWARF
-# [workspace.dependencies.gimli]
-# version = "0.28"
-# default-features = false
-# features = ["read"]
