@@ -2,18 +2,16 @@ use core::fmt;
 
 use spin::Mutex;
 
-use crate::Uart;
+use uart_16550::Uart;
 
 //
 
 pub fn init_logger() {
-    LOG.0.lock().init();
+    static LOG: UartLog = UartLog(Mutex::new(Uart::new()));
     log::init_logger(&LOG);
 }
 
 //
-
-static LOG: UartLog = UartLog(Mutex::new(Uart::new()));
 
 struct UartLog(Mutex<Uart>);
 

@@ -8,10 +8,6 @@
 
 //
 
-mod logger;
-
-//
-
 use core::{arch::asm, fmt, num::NonZero, panic::PanicInfo, str};
 
 use loader_info::LoaderInfo;
@@ -21,95 +17,6 @@ use util::rle::{Region, RleMemory};
 use xmas_elf::ElfFile;
 
 use riscv64_vmm::{PageFlags, PageTable, VirtAddr};
-
-//
-
-pub struct Uart {
-    _p: (),
-}
-
-impl Uart {
-    pub fn write(&mut self, byte: u8) {
-        unsafe { Self::base().write_volatile(byte) };
-    }
-
-    pub fn read(&mut self) -> Option<u8> {
-        let base = Self::base();
-
-        // anything to read? <- LSR line status
-        let avail = unsafe { base.add(5).read_volatile() } & 0b1 != 0;
-        // let avail = false;
-
-        if avail {
-            Some(unsafe { base.read_volatile() })
-        } else {
-            None
-        }
-    }
-
-    const fn new() -> Self {
-        Self { _p: () }
-    }
-
-    fn init(&mut self) {
-        let base = Self::base();
-
-        unsafe {
-            // data size to 2^0b11=2^3=8 bits -> IER interrupt enable
-            base.add(3).write_volatile(0b11);
-            // enable FIFO                    -> FCR FIFO control
-            base.add(2).write_volatile(0b1);
-            // enable interrupts              -> LCR line control
-            base.add(1).write_volatile(0b1);
-
-            // TODO (HARDWARE): real UART
-        }
-    }
-
-    const fn base() -> *mut u8 {
-        0x1000_0000 as _
-    }
-}
-
-impl fmt::Write for Uart {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        for byte in s.bytes() {
-            self.write(byte);
-        }
-        Ok(())
-    }
-}
-
-//
-
-pub struct Syscon {
-    _p: (),
-}
-
-impl Syscon {
-    pub fn poweroff(&mut self) -> ! {
-        unsafe { Self::base().write_volatile(0x5555) };
-        halt_and_catch_fire();
-    }
-
-    pub fn reboot(&mut self) -> ! {
-        unsafe { Self::base().write_volatile(0x7777) };
-        halt_and_catch_fire();
-    }
-
-    const fn init() -> Self {
-        Self { _p: () }
-    }
-
-    const fn base() -> *mut u32 {
-        0x10_0000 as _
-    }
-}
-
-//
-
-// pub static UART: Lazy<Mutex<Uart>> = Lazy::new(|| Mutex::new(Uart::init()));
-pub static SYSCON: Mutex<Syscon> = Mutex::new(Syscon::init());
 
 //
 
@@ -147,7 +54,7 @@ unsafe extern "C" fn _start() -> ! {
 }
 
 extern "C" fn entry(_a0: usize, a1: usize) -> ! {
-    logger::init_logger();
+    uart_16550::install_logger();
 
     // FIXME: at least try the standard addresses for SYSCON and UART,
     // instead of just panicing after failing to parse the devicetree
@@ -170,28 +77,6 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
         addr: kernel_beg,
         size: NonZero::new(kernel_end - kernel_beg).unwrap(),
     });
-
-    println!("{memory:#x?}");
-
-    // // test fill whole memory space with zeros
-    // for usable in memory.iter_usable() {
-    //     let region: *mut [MaybeUninit<u64>] =
-    //         ptr::slice_from_raw_parts_mut(usable.addr as _, usable.size.get() / 8);
-    //     let region = unsafe { &mut *region };
-
-    //     for p in region {
-    //         // println!("write {:x}", p as *const _ as usize);
-    //         p.write(0);
-    //     }
-    // }
-
-    // mem::init_frame_allocator(memory);
-
-    // let x = unsafe { &_kernel_end } as *const () as *mut u8;
-    // for i in 0.. {
-    //     println!("probing {:#x}", x as usize + i * 0x1000);
-    //     unsafe { x.add(i * 0x1000).write(5) };
-    // }
 
     let page_table = PageTable::alloc_page_table(&mut memory);
 
@@ -287,22 +172,8 @@ fn load_kernel(
     Ok(())
 }
 
-/// HCF instruction
-fn halt_and_catch_fire() -> ! {
-    loop {
-        wait_for_interrupts();
-    }
-}
-
-/// WFI instruction
-extern "C" fn wait_for_interrupts() {
-    unsafe {
-        asm!("wfi");
-    }
-}
-
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     println!("{info}");
-    SYSCON.lock().poweroff();
+    riscv64_util::halt_and_catch_fire();
 }

@@ -5,77 +5,48 @@
 
 use loader_info::LoaderInfo;
 use log::println;
+use riscv64_util::halt_and_catch_fire;
+use spin::Mutex;
 use util::rle::SegmentType;
 
 use core::{fmt, panic::PanicInfo};
 
 //
 
-mod logger;
-
-//
-
-pub struct Uart {
+pub struct Syscon {
     _p: (),
 }
 
-impl Uart {
-    pub fn write(&mut self, byte: u8) {
-        unsafe { Self::base().write_volatile(byte) };
-    }
-
-    pub fn read(&mut self) -> Option<u8> {
-        let base = Self::base();
-
-        // anything to read? <- LSR line status
-        let avail = unsafe { base.add(5).read_volatile() } & 0b1 != 0;
-        // let avail = false;
-
-        if avail {
-            Some(unsafe { base.read_volatile() })
-        } else {
-            None
-        }
-    }
-
-    const fn new() -> Self {
+impl Syscon {
+    pub const unsafe fn init() -> Self {
         Self { _p: () }
     }
 
-    fn init(&mut self) {
-        let base = Self::base();
-
-        unsafe {
-            // data size to 2^0b11=2^3=8 bits -> IER interrupt enable
-            base.add(3).write_volatile(0b11);
-            // enable FIFO                    -> FCR FIFO control
-            base.add(2).write_volatile(0b1);
-            // enable interrupts              -> LCR line control
-            base.add(1).write_volatile(0b1);
-
-            // TODO (HARDWARE): real UART
-        }
+    pub fn poweroff(&mut self) -> ! {
+        unsafe { Self::base().write_volatile(0x5555) };
+        halt_and_catch_fire();
     }
 
-    const fn base() -> *mut u8 {
-        0x1000_0000 as _
+    pub fn reboot(&mut self) -> ! {
+        unsafe { Self::base().write_volatile(0x7777) };
+        halt_and_catch_fire();
+    }
+
+    const fn base() -> *mut u32 {
+        // TODO: get the address from devicetree
+        0x10_0000 as _
     }
 }
 
-impl fmt::Write for Uart {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        for byte in s.bytes() {
-            self.write(byte);
-        }
-        Ok(())
-    }
-}
+//
+
+pub static SYSCON: Mutex<Syscon> = Mutex::new(unsafe { Syscon::init() });
 
 //
 
 #[panic_handler]
 fn panic_handler(_info: &PanicInfo) -> ! {
-    loop {}
+    halt_and_catch_fire();
 }
 
 #[no_mangle]
@@ -83,7 +54,7 @@ fn panic_handler(_info: &PanicInfo) -> ! {
 extern "C" fn _start(this: usize, info: *const LoaderInfo) -> ! {
     assert_eq!(this, _start as _);
 
-    logger::init_logger();
+    uart_16550::install_logger();
     println!("hello from kernel");
 
     let info = unsafe { *info };
@@ -99,5 +70,6 @@ extern "C" fn _start(this: usize, info: *const LoaderInfo) -> ! {
 
     println!("total system memory = {total_usable_memory}");
 
-    loop {}
+    println!("done");
+    SYSCON.lock().poweroff();
 }

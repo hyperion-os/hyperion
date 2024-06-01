@@ -24,17 +24,22 @@ strip = true
 
 # keep all dependencies here to keep the version same and make it easier to keep them up to date
 
-[workspace.dependencies]
+[workspace.dependencies] # all dependencies is split into 3 groups
+# external dependencies, from crates.io
 spin = "0.9"
 heapless = "0.8"
 xmas-elf = "0.9" # or elf
 bitflags = "2.5"
 
+# internal dependencies
 devicetree.path = "./crates/devicetree"
 loader-info.path = "./crates/loader-info"
 log.path = "./crates/log"
 mem.path = "./crates/mem"
+riscv64-util.path = "./crates/riscv64-util"
 riscv64-vmm.path = "./crates/riscv64-vmm"
 util.path = "./crates/util"
+uart-16550.path = "./crates/uart-16550"
 
+# artifact (ELF) dependencies, for embedded binaries
 kernel = { path = "./kernel", artifact = "bin" }

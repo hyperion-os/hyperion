@@ -10,6 +10,8 @@ use heapless::Vec;
 /// because everything is reserved by default
 #[derive(Debug, Clone)]
 pub struct RleMemory {
+    // TODO: this could be placed into memory right after the loader,
+    // and then only the used region can be reserved
     segments: Vec<Segment, 64>,
 }
 

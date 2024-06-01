@@ -186,7 +186,7 @@ impl Fdt {
 
         let mut tokens = unsafe { StructureParser::from_raw(strings, tokens) };
 
-        tokens.clone().print_tree(0);
+        // tokens.clone().print_tree(0);
 
         let Some(Token::BeginNode("")) = tokens.next() else {
             panic!("invalid device tree");
