@@ -30,6 +30,7 @@ heapless = "0.8"
 xmas-elf = "0.9" # or elf
 bitflags = "2.5"
 
+devicetree.path = "./crates/devicetree"
 loader-info.path = "./crates/loader-info"
 log.path = "./crates/log"
 mem.path = "./crates/mem"

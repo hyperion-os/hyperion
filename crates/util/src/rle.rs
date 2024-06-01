@@ -1,7 +1,6 @@
 use core::num::NonZero;
 
 use heapless::Vec;
-use log::println;
 
 //
 
@@ -19,6 +18,10 @@ impl RleMemory {
         Self {
             segments: Vec::new(),
         }
+    }
+
+    pub fn as_slice(&self) -> &[Segment] {
+        &self.segments
     }
 
     pub fn min_usable_addr(&self) -> usize {
@@ -255,6 +258,7 @@ pub struct Region {
 
 /// one piece of run-length encoded memory regions
 #[derive(Debug, Clone, Copy)]
+#[repr(C)]
 pub struct Segment {
     // FIXME: idk y, but rustc cannot squeeze SegmentType and NonZero<usize> into one u64
     // the same way as it can squeeze Option<NonZero<usize>> into one u64
@@ -263,6 +267,7 @@ pub struct Segment {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
 pub enum SegmentType {
     Reserved,
     Usable,

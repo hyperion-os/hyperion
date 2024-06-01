@@ -1,3 +1,6 @@
+#![no_std]
+#![feature(generic_nonzero)]
+
 use core::{ffi::CStr, fmt, iter, mem, num::NonZero, ptr, str};
 
 use log::println;
@@ -8,17 +11,17 @@ use util::rle::{Region, RleMemory};
 // https://github.com/devicetree-org/devicetree-specification/releases/tag/v0.4
 #[derive(Debug)]
 #[repr(C)]
-struct FdtHeader {
-    magic: u32,
-    totalsize: u32,
-    off_dt_struct: u32,
-    off_dt_strings: u32,
-    off_mem_rsvmap: u32,
-    version: u32,
-    last_comp_version: u32,
-    boot_cpuid_phys: u32,
-    size_dt_strings: u32,
-    size_dt_struct: u32,
+pub struct FdtHeader {
+    pub magic: u32,
+    pub totalsize: u32,
+    pub off_dt_struct: u32,
+    pub off_dt_strings: u32,
+    pub off_mem_rsvmap: u32,
+    pub version: u32,
+    pub last_comp_version: u32,
+    pub boot_cpuid_phys: u32,
+    pub size_dt_strings: u32,
+    pub size_dt_struct: u32,
 }
 
 impl FdtHeader {
@@ -50,7 +53,7 @@ pub struct FdtReserveEntry {
 }
 
 #[derive(Debug)]
-struct Stringlist<'a>(&'a str);
+pub struct Stringlist<'a>(&'a str);
 
 impl fmt::Display for Stringlist<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -138,11 +141,11 @@ impl<'a> Property<'a> {
 #[derive(Debug)]
 pub struct Fdt {
     addr: *const (),
-    header: FdtHeader,
+    pub header: FdtHeader,
 }
 
 impl Fdt {
-    /// SAFETY:
+    /// # Safety
     /// a1 must point to a readable and
     /// correctly aligned flattened device tree blob
     pub unsafe fn read(a1: *const ()) -> Result<Self, &'static str> {
@@ -191,28 +194,22 @@ impl Fdt {
 
         let mut memory = RleMemory::new();
 
-        tokens.clone().parse_root(
-            |region| {
-                if let Some(size) = NonZero::new(region.len()) {
-                    memory.insert(Region {
-                        addr: region as *mut u8 as usize,
-                        size,
-                    });
-                }
-            },
-            |_| {},
-        );
-        tokens.clone().parse_root(
-            |_| {},
-            |region| {
-                if let Some(size) = NonZero::new(region.len()) {
-                    memory.remove(Region {
-                        addr: region as *mut u8 as usize,
-                        size,
-                    });
-                }
-            },
-        );
+        tokens.clone().parse_root_memory(|region| {
+            if let Some(size) = NonZero::new(region.len()) {
+                memory.insert(Region {
+                    addr: region as *mut u8 as usize,
+                    size,
+                });
+            }
+        });
+        tokens.clone().parse_root_reserved_memory(|region| {
+            if let Some(size) = NonZero::new(region.len()) {
+                memory.remove(Region {
+                    addr: region as *mut u8 as usize,
+                    size,
+                });
+            }
+        });
 
         for extra in self.iter_reserved_memory() {
             if let Some(size) = NonZero::new(extra.size as usize) {
@@ -228,13 +225,13 @@ impl Fdt {
 }
 
 #[derive(Clone)]
-struct StructureParser {
+pub struct StructureParser {
     strings: *const u8,
     next_token: *const u8,
 }
 
 impl StructureParser {
-    fn print_tree(&mut self, depth: usize) {
+    pub fn print_tree(&mut self, depth: usize) {
         loop {
             match self.next() {
                 Some(Token::BeginNode(name)) => {
@@ -256,11 +253,80 @@ impl StructureParser {
         }
     }
 
-    fn parse_root(
-        &mut self,
-        mut memory_callback: impl FnMut(*mut [u8]),
-        mut reserved_memory_callback: impl FnMut(*mut [u8]),
-    ) {
+    /// skip until a matching EndNode is found,
+    /// assuming that the BeginNode was already found
+    pub fn skip_node(&mut self) {
+        let mut n = 1;
+        while n != 0 {
+            match self.next() {
+                Some(Token::BeginNode(_)) => n += 1,
+                Some(Token::EndNode) => n -= 1,
+                None => panic!("invalid device tree"),
+                _ => {}
+            }
+        }
+    }
+
+    // fn parse_root_uart(&mut self, mut uart_callback: impl FnMut(*mut [u8])) {
+    //     loop {
+    //         match self.next() {
+    //             Some(Token::BeginNode("soc")) => self.parse_soc_uart(&mut uart_callback),
+    //             Some(Token::BeginNode(_)) => {
+    //                 self.skip_node();
+    //             }
+    //             Some(Token::Prop(..)) => {}
+    //             Some(Token::EndNode) => return,
+    //             None => panic!("invalid device tree"),
+    //         }
+    //     }
+    // }
+
+    // fn parse_soc_uart(&mut self, uart_callback: &mut impl FnMut(*mut [u8])) {
+    //     let mut address_cells = 2u32;
+    //     let mut size_cells = 1u32;
+
+    //     loop {
+    //         match self.next() {
+    //             Some(Token::BeginNode(memory)) if memory.starts_with("memory@") => {
+    //                 self.parse_memory(&mut memory_callback, address_cells, size_cells)
+    //             }
+    //             Some(Token::BeginNode(_)) => {
+    //                 self.skip_node();
+    //             }
+    //             Some(Token::Prop(name, val)) => match Property::from_prop(name, val) {
+    //                 Property::AddressCells(c) => address_cells = c,
+    //                 Property::SizeCells(c) => size_cells = c,
+    //                 _ => {}
+    //             },
+    //             Some(Token::EndNode) => return,
+    //             None => panic!("invalid device tree"),
+    //         }
+    //     }
+    // }
+
+    // fn parse_soc_device_uart(
+    //     &mut self,
+    //     uart_callback: &mut impl FnMut(*mut [u8]),
+    //     address_cells: u32,
+    //     size_cells: u32,
+    // ) {
+    //     loop {
+    //         match self.next() {
+    //             Some(Token::BeginNode(_)) => {
+    //                 self.skip_node();
+    //             }
+    //             Some(Token::Prop(name, val)) => match Property::from_prop(name, val) {
+    //                 Property::AddressCells(c) => address_cells = c,
+    //                 Property::SizeCells(c) => size_cells = c,
+    //                 _ => {}
+    //             },
+    //             Some(Token::EndNode) => return,
+    //             None => panic!("invalid device tree"),
+    //         }
+    //     }
+    // }
+
+    fn parse_root_memory(&mut self, mut memory_callback: impl FnMut(*mut [u8])) {
         let mut address_cells = 2u32;
         let mut size_cells = 1u32;
 
@@ -269,31 +335,30 @@ impl StructureParser {
                 Some(Token::BeginNode(memory)) if memory.starts_with("memory@") => {
                     self.parse_memory(&mut memory_callback, address_cells, size_cells)
                 }
-                Some(Token::BeginNode("reserved-memory")) => {
-                    self.parse_reserved_memory(&mut reserved_memory_callback)
-                }
-                Some(Token::BeginNode("soc")) => {
-                    self.parse_reserved_memory(&mut reserved_memory_callback)
-                }
                 Some(Token::BeginNode(_)) => {
-                    // other device
-
-                    // skip it, for now
-                    let mut n = 1;
-                    while n != 0 {
-                        match self.next() {
-                            Some(Token::BeginNode(_)) => n += 1,
-                            Some(Token::EndNode) => n -= 1,
-                            None => panic!("invalid device tree"),
-                            _ => {}
-                        }
-                    }
+                    self.skip_node();
                 }
                 Some(Token::Prop(name, val)) => match Property::from_prop(name, val) {
                     Property::AddressCells(c) => address_cells = c,
                     Property::SizeCells(c) => size_cells = c,
                     _ => {}
                 },
+                Some(Token::EndNode) => return,
+                None => panic!("invalid device tree"),
+            }
+        }
+    }
+
+    fn parse_root_reserved_memory(&mut self, mut reserved_memory_callback: impl FnMut(*mut [u8])) {
+        loop {
+            match self.next() {
+                Some(Token::BeginNode("reserved-memory")) => {
+                    self.parse_reserved_memory(&mut reserved_memory_callback)
+                }
+                Some(Token::BeginNode(_)) => {
+                    self.skip_node();
+                }
+                Some(Token::Prop(..)) => {}
                 Some(Token::EndNode) => return,
                 None => panic!("invalid device tree"),
             }
@@ -438,13 +503,13 @@ impl Iterator for StructureParser {
 
                 Some(Token::Prop(name, val))
             }
-            FDT_END | _ => None,
+            _ => None,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Token {
+pub enum Token {
     BeginNode(&'static str),
     Prop(&'static str, &'static [u8]),
     EndNode,
@@ -471,7 +536,7 @@ fn next_token(tokens: &mut *const u8) -> u32 {
     tok
 }
 
-fn next_cstr<'a, 'b>(tokens: &'a mut *const u8) -> &'b CStr {
+fn next_cstr<'a>(tokens: &mut *const u8) -> &'a CStr {
     let name = unsafe { CStr::from_ptr(tokens.cast()) };
     *tokens = unsafe { tokens.add(name.count_bytes() + 1) };
     align(tokens);

@@ -8,13 +8,13 @@
 
 //
 
-mod fdt;
 mod logger;
 
 //
 
 use core::{arch::asm, fmt, num::NonZero, panic::PanicInfo, str};
 
+use loader_info::LoaderInfo;
 use log::println;
 use spin::Mutex;
 use util::rle::{Region, RleMemory};
@@ -151,9 +151,14 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
 
     // FIXME: at least try the standard addresses for SYSCON and UART,
     // instead of just panicing after failing to parse the devicetree
-    let mut tree = unsafe { fdt::Fdt::read(a1 as _) }.expect("Devicetree is invalid");
+    let mut tree = unsafe { devicetree::Fdt::read(a1 as _) }.expect("Devicetree is invalid");
 
     let mut memory = tree.usable_memory();
+
+    memory.remove(Region {
+        addr: a1,
+        size: (tree.header.totalsize as usize).try_into().unwrap(),
+    });
 
     // reserve the kernel memory from the usable memory
     let kernel_beg = unsafe { &_kernel_beg } as *const _ as usize;
@@ -220,8 +225,13 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
     println!("enabling paging");
     unsafe { PageTable::activate(page_table as _) };
 
+    let loader_info = LoaderInfo {
+        device_tree_blob: a1 as _,
+        memory: memory.as_slice(),
+    };
+
     println!("far jump to kernel");
-    unsafe { enter(entry as usize) };
+    unsafe { enter(entry as usize, &loader_info as *const _ as usize) };
 
     // println!("done, poweroff");
     // SYSCON.lock().poweroff();
@@ -230,7 +240,10 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
 #[link_section = ".text.trampoline"]
 #[no_mangle]
 #[naked]
-unsafe extern "C" fn enter(entry: usize) -> ! {
+unsafe extern "C" fn enter(
+    entry: usize,       /* VirtAddr */
+    loader_info: usize, /* LoaderInfo */
+) -> ! {
     unsafe {
         asm!(
             "jalr x0, 0(a0)", // far jump (no-return) to `entry` without saving the return address (x0)

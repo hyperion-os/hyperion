@@ -7,4 +7,7 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
+spin.workspace = true
+
+log.workspace = true
 loader-info.workspace = true

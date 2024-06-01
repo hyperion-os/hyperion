@@ -9,6 +9,8 @@ spin.workspace = true
 heapless.workspace = true
 xmas-elf.workspace = true
 
+devicetree.workspace = true
+loader-info.workspace = true
 log.workspace = true
 mem.workspace = true
 riscv64-vmm.workspace = true

@@ -4,8 +4,13 @@
 //
 
 use loader_info::LoaderInfo;
+use log::println;
 
 use core::{fmt, panic::PanicInfo};
+
+//
+
+mod logger;
 
 //
 
@@ -74,13 +79,12 @@ fn panic_handler(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.boot"]
-extern "C" fn _start(info: *const LoaderInfo) -> ! {
+extern "C" fn _start(this: usize, info: *const LoaderInfo) -> ! {
+    assert_eq!(this, _start as _);
+
+    logger::init_logger();
+
     let info = unsafe { *info };
-
-    let mut uart = Uart::new();
-
-    use core::fmt::Write;
-    uart.write_fmt(format_args!("hello from kernel\n"));
-
+    println!("hello from kernel {info:#x?}");
     loop {}
 }

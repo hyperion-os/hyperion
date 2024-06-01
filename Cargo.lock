@@ -21,6 +21,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
+name = "devicetree"
+version = "0.2.0"
+dependencies = [
+ "log",
+ "util",
+]
+
+[[package]]
 name = "hash32"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -44,14 +52,18 @@ name = "kernel"
 version = "0.2.0"
 dependencies = [
  "loader-info",
+ "log",
+ "spin",
 ]
 
 [[package]]
 name = "loader"
 version = "0.2.0"
 dependencies = [
+ "devicetree",
  "heapless",
  "kernel",
+ "loader-info",
  "log",
  "mem",
  "riscv64-vmm",
@@ -63,6 +75,9 @@ dependencies = [
 [[package]]
 name = "loader-info"
 version = "0.2.0"
+dependencies = [
+ "util",
+]
 
 [[package]]
 name = "lock_api"

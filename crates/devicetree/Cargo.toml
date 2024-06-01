@@ -1,5 +1,5 @@
 [package]
-name = "loader-info"
+name = "devicetree"
 version.workspace = true
 edition.workspace = true
 
@@ -7,4 +7,5 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
+log.workspace = true
 util.workspace = true
