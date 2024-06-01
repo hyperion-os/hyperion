@@ -77,6 +77,9 @@ impl RleMemory {
         self.insert_segment_at(region, SegmentType::Reserved);
     }
 
+    // TODO: these allocations cannot be freed,
+    // because it gets treated the same as hw reserved memory,
+    // which will be reserved forever
     /// reserve the first usable 4K and get the address
     pub fn alloc(&mut self) -> usize {
         let mut addr = 0usize;
