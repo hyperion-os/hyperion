@@ -155,9 +155,12 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
 
     let mut memory = tree.usable_memory();
 
+    let dtb_bottom = VirtAddr::new(a1).align_down();
+    let dtb_top = VirtAddr::new(a1 + tree.header.totalsize as usize).align_up();
+    let dtb_size = dtb_top.as_usize() - dtb_bottom.as_usize();
     memory.remove(Region {
-        addr: a1,
-        size: (tree.header.totalsize as usize).try_into().unwrap(),
+        addr: dtb_bottom.as_usize(),
+        size: dtb_size.try_into().unwrap(),
     });
 
     // reserve the kernel memory from the usable memory
