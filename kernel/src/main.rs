@@ -5,6 +5,7 @@
 
 use loader_info::LoaderInfo;
 use log::println;
+use util::rle::SegmentType;
 
 use core::{fmt, panic::PanicInfo};
 
@@ -83,8 +84,20 @@ extern "C" fn _start(this: usize, info: *const LoaderInfo) -> ! {
     assert_eq!(this, _start as _);
 
     logger::init_logger();
+    println!("hello from kernel");
 
     let info = unsafe { *info };
-    println!("hello from kernel {info:#x?}");
+    println!("{info:#x?}");
+    let memory = unsafe { &*info.memory };
+    println!("{memory:#x?}");
+
+    let total_usable_memory = memory
+        .iter()
+        .filter(|s| s.ty == SegmentType::Usable)
+        .map(|s| s.size.get())
+        .sum::<usize>();
+
+    println!("total system memory = {total_usable_memory}");
+
     loop {}
 }

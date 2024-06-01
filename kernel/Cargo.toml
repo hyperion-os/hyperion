@@ -11,3 +11,4 @@ spin.workspace = true
 
 log.workspace = true
 loader-info.workspace = true
+util.workspace = true

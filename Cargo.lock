@@ -54,6 +54,7 @@ dependencies = [
  "loader-info",
  "log",
  "spin",
+ "util",
 ]
 
 [[package]]
