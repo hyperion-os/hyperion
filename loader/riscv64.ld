@@ -9,8 +9,11 @@ SECTIONS {
 
   .text : {
     PROVIDE(_text_beg = .);
+    PROVIDE(_trampoline_beg = .);
     *(.text.boot)
-    . = ALIGN(16);
+    *(.text.trampoline)
+    . = ALIGN(0x1000);
+    PROVIDE(_trampoline_end = .);
     *(.text .text.*)
     . = ALIGN(0x1000);
     PROVIDE(_text_end = .);

@@ -5,7 +5,65 @@
 
 use loader_info::LoaderInfo;
 
-use core::panic::PanicInfo;
+use core::{fmt, panic::PanicInfo};
+
+//
+
+pub struct Uart {
+    _p: (),
+}
+
+impl Uart {
+    pub fn write(&mut self, byte: u8) {
+        unsafe { Self::base().write_volatile(byte) };
+    }
+
+    pub fn read(&mut self) -> Option<u8> {
+        let base = Self::base();
+
+        // anything to read? <- LSR line status
+        let avail = unsafe { base.add(5).read_volatile() } & 0b1 != 0;
+        // let avail = false;
+
+        if avail {
+            Some(unsafe { base.read_volatile() })
+        } else {
+            None
+        }
+    }
+
+    const fn new() -> Self {
+        Self { _p: () }
+    }
+
+    fn init(&mut self) {
+        let base = Self::base();
+
+        unsafe {
+            // data size to 2^0b11=2^3=8 bits -> IER interrupt enable
+            base.add(3).write_volatile(0b11);
+            // enable FIFO                    -> FCR FIFO control
+            base.add(2).write_volatile(0b1);
+            // enable interrupts              -> LCR line control
+            base.add(1).write_volatile(0b1);
+
+            // TODO (HARDWARE): real UART
+        }
+    }
+
+    const fn base() -> *mut u8 {
+        0x1000_0000 as _
+    }
+}
+
+impl fmt::Write for Uart {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        for byte in s.bytes() {
+            self.write(byte);
+        }
+        Ok(())
+    }
+}
 
 //
 
@@ -15,8 +73,14 @@ fn panic_handler(_info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
+#[link_section = ".text.boot"]
 extern "C" fn _start(info: *const LoaderInfo) -> ! {
     let info = unsafe { *info };
+
+    let mut uart = Uart::new();
+
+    use core::fmt::Write;
+    uart.write_fmt(format_args!("hello from kernel\n"));
 
     loop {}
 }

@@ -28,9 +28,12 @@ strip = true
 spin = "0.9"
 heapless = "0.8"
 xmas-elf = "0.9" # or elf
+bitflags = "2.5"
 
+loader-info.path = "./crates/loader-info"
 log.path = "./crates/log"
 mem.path = "./crates/mem"
+riscv64-vmm.path = "./crates/riscv64-vmm"
 util.path = "./crates/util"
-loader-info.path = "./crates/loader-info"
+
 kernel = { path = "./kernel", artifact = "bin" }

@@ -5,9 +5,10 @@ runner = """qemu-system-riscv64
   -serial mon:stdio
   -m 80M
   -s
-  -vga virtio
+  -device VGA
   -append 'hello'
   -kernel"""
+
 # -nographic
 
 [unstable]

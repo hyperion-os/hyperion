@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(naked_functions, format_args_nl, generic_nonzero, maybe_uninit_slice)]
+#![feature(naked_functions, format_args_nl, generic_nonzero)]
 
 //! hyperion kernel loader for RISC-V
 //!
@@ -13,19 +13,14 @@ mod logger;
 
 //
 
-use core::{
-    arch::asm,
-    fmt::{self},
-    mem::MaybeUninit,
-    num::NonZero,
-    panic::PanicInfo,
-    ptr, str,
-};
+use core::{arch::asm, fmt, num::NonZero, panic::PanicInfo, str};
 
-use log::{print, println};
-use spin::{Lazy, Mutex};
-use util::rle::Region;
+use log::println;
+use spin::Mutex;
+use util::rle::{Region, RleMemory};
 use xmas_elf::ElfFile;
+
+use riscv64_vmm::{PageFlags, PageTable, VirtAddr};
 
 //
 
@@ -121,6 +116,9 @@ pub static SYSCON: Mutex<Syscon> = Mutex::new(Syscon::init());
 extern "C" {
     static _kernel_beg: ();
     static _kernel_end: ();
+
+    static _trampoline_beg: ();
+    static _trampoline_end: ();
 }
 
 #[no_mangle]
@@ -187,25 +185,90 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
     //     unsafe { x.add(i * 0x1000).write(5) };
     // }
 
+    let page_table = PageTable::alloc_page_table(&mut memory);
+
+    println!("map hardware");
+    // syscon
+    page_table.map_identity(
+        &mut memory,
+        VirtAddr::new(Syscon::base() as usize)..VirtAddr::new(Syscon::base() as usize + 0x1000),
+        PageFlags::R | PageFlags::W,
+    );
+    // uart
+    page_table.map_identity(
+        &mut memory,
+        VirtAddr::new(Uart::base() as usize)..VirtAddr::new(Uart::base() as usize + 0x1000),
+        PageFlags::R | PageFlags::W,
+    );
+
+    println!("map loader");
+    // only .text.trampoline needs to be mapped tho
+    page_table.map_identity(
+        &mut memory,
+        VirtAddr::new(kernel_beg)..VirtAddr::new(kernel_end),
+        PageFlags::R | PageFlags::W | PageFlags::X,
+    );
+
     static KERNEL_ELF: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_KERNEL"));
     let kernel_elf = ElfFile::new(&KERNEL_ELF).expect("invalid ELF");
+    println!("load kernel");
+    load_kernel(&kernel_elf, page_table, &mut memory);
 
+    let entry = kernel_elf.header.pt2.entry_point();
+    assert_eq!(entry, 0xffffffff80000000);
+
+    println!("enabling paging");
+    unsafe { PageTable::activate(page_table as _) };
+
+    println!("far jump to kernel");
+    unsafe { enter(entry as usize) };
+
+    // println!("done, poweroff");
+    // SYSCON.lock().poweroff();
+}
+
+#[link_section = ".text.trampoline"]
+#[no_mangle]
+#[naked]
+unsafe extern "C" fn enter(entry: usize) -> ! {
+    unsafe {
+        asm!(
+            "jalr x0, 0(a0)", // far jump (no-return) to `entry` without saving the return address (x0)
+            options(noreturn)
+        )
+    }
+}
+
+fn load_kernel(
+    kernel_elf: &ElfFile,
+    table: &mut PageTable,
+    memory: &mut RleMemory,
+) -> Result<(), &'static str> {
     for program in kernel_elf.program_iter() {
-        println!("load {program:?}");
-        if let Some(xmas_elf::program::Type::Load) = program.get_type() {
-            let data = program.get_data(&kernel_elf);
+        if let xmas_elf::program::Type::Load = program.get_type()? {
+            let virt_beg = VirtAddr::new_truncate(program.virtual_addr() as usize);
+            let virt_end = virt_beg + program.mem_size() as usize;
 
-            program.virtual_addr();
-            program.align();
+            let file_beg = program.offset() as usize;
+            let file_end = file_beg + program.file_size() as usize;
+
+            let mut page_flags = PageFlags::empty();
+            if program.flags().is_read() {
+                page_flags |= PageFlags::R;
+            }
+            if program.flags().is_write() {
+                page_flags |= PageFlags::W;
+            }
+            if program.flags().is_execute() {
+                page_flags |= PageFlags::X;
+            }
+
+            let data = &kernel_elf.input[file_beg..file_end];
+            table.map(memory, virt_beg..virt_end, page_flags, data);
         }
     }
 
-    let entry = kernel_elf.header.pt2.entry_point();
-
-    println!("entry={entry:#x}");
-
-    println!("done, poweroff");
-    SYSCON.lock().poweroff();
+    Ok(())
 }
 
 /// HCF instruction

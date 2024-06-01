@@ -11,5 +11,7 @@ xmas-elf.workspace = true
 
 log.workspace = true
 mem.workspace = true
+riscv64-vmm.workspace = true
 util.workspace = true
+
 kernel.workspace = true

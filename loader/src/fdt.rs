@@ -272,6 +272,9 @@ impl StructureParser {
                 Some(Token::BeginNode("reserved-memory")) => {
                     self.parse_reserved_memory(&mut reserved_memory_callback)
                 }
+                Some(Token::BeginNode("soc")) => {
+                    self.parse_reserved_memory(&mut reserved_memory_callback)
+                }
                 Some(Token::BeginNode(_)) => {
                     // other device
 

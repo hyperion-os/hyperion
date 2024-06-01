@@ -1,5 +1,5 @@
 [package]
-name = "util"
+name = "riscv64-vmm"
 version.workspace = true
 edition.workspace = true
 
@@ -7,6 +7,7 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-heapless.workspace = true
+bitflags.workspace = true
 
-log.workspace = true
+util.workspace = true
+# log.workspace = true

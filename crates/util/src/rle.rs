@@ -1,6 +1,7 @@
 use core::num::NonZero;
 
 use heapless::Vec;
+use log::println;
 
 //
 
@@ -71,6 +72,41 @@ impl RleMemory {
     /// reserve unusable memory
     pub fn remove(&mut self, region: Region) {
         self.insert_segment_at(region, SegmentType::Reserved);
+    }
+
+    /// reserve the first usable 4K and get the address
+    pub fn alloc(&mut self) -> usize {
+        let mut addr = 0usize;
+        let Some(mut first) = self.segments.first_mut() else {
+            return 0;
+        };
+
+        if first.ty == SegmentType::Reserved {
+            addr = first.size.get();
+            first = &mut self.segments[1];
+            assert_eq!(first.ty, SegmentType::Usable);
+        }
+
+        // TODO (assert): all memory region sizes should be multiples of (1 << 12)
+        let left = first.size.get() - (1 << 12);
+        if let Some(size) = NonZero::new(left) {
+            first.size = size;
+            self.segments
+                .insert(
+                    0,
+                    Segment {
+                        size: unsafe { NonZero::new_unchecked(1 << 12) },
+                        ty: SegmentType::Reserved,
+                    },
+                )
+                .expect("memory too segmented");
+        } else {
+            first.ty = SegmentType::Reserved;
+        }
+
+        self.fixup();
+
+        addr
     }
 
     fn insert_segment_at(&mut self, region: Region, region_ty: SegmentType) {

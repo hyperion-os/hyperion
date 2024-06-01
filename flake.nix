@@ -19,6 +19,8 @@
         # `nix develop`
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
+            coreboot-toolchain.riscv
+
             pkg-config
             openssl
             # (rust-bin.nightly.latest.default.override {
