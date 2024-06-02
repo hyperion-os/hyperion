@@ -59,7 +59,7 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
 
     // FIXME: at least try the standard addresses for SYSCON and UART,
     // instead of just panicing after failing to parse the devicetree
-    let mut tree = unsafe { devicetree::Fdt::read(a1 as _) }.expect("Devicetree is invalid");
+    let tree = unsafe { devicetree::Fdt::read(a1 as _) }.expect("Devicetree is invalid");
 
     let mut memory = tree.usable_memory();
 

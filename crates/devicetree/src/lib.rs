@@ -180,7 +180,7 @@ impl Fdt {
     }
 
     // FIXME: remove the limitation of memory regions
-    pub fn usable_memory(&mut self) -> RleMemory {
+    pub fn usable_memory(&self) -> RleMemory {
         let strings = unsafe { self.addr.byte_add(self.header.off_dt_strings as usize) } as _;
         let tokens = unsafe { self.addr.byte_add(self.header.off_dt_struct as usize) } as _;
 
