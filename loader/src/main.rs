@@ -8,11 +8,10 @@
 
 //
 
-use core::{arch::asm, fmt, num::NonZero, panic::PanicInfo, str};
+use core::{arch::asm, ffi, num::NonZero, panic::PanicInfo, str};
 
 use loader_info::LoaderInfo;
 use log::println;
-use spin::Mutex;
 use syscon::Syscon;
 use uart_16550::Uart;
 use util::rle::{Region, RleMemory};
@@ -23,11 +22,11 @@ use riscv64_vmm::{PageFlags, PageTable, VirtAddr};
 //
 
 extern "C" {
-    static _kernel_beg: ();
-    static _kernel_end: ();
+    static _kernel_beg: ffi::c_void;
+    static _kernel_end: ffi::c_void;
 
-    static _trampoline_beg: ();
-    static _trampoline_end: ();
+    static _trampoline_beg: ffi::c_void;
+    static _trampoline_end: ffi::c_void;
 }
 
 #[no_mangle]
@@ -105,9 +104,9 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
     );
 
     static KERNEL_ELF: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_KERNEL"));
-    let kernel_elf = ElfFile::new(&KERNEL_ELF).expect("invalid ELF");
+    let kernel_elf = ElfFile::new(KERNEL_ELF).expect("invalid ELF");
     println!("load kernel");
-    load_kernel(&kernel_elf, page_table, &mut memory);
+    load_kernel(&kernel_elf, page_table, &mut memory).expect("failed to load the kernel");
 
     let entry = kernel_elf.header.pt2.entry_point();
     assert_eq!(entry, 0xffffffff80000000);

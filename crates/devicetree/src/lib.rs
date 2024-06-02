@@ -477,33 +477,37 @@ impl Iterator for StructureParser {
         const FDT_NOP: u32 = 0x4;
         const FDT_END: u32 = 0x9;
 
-        match next_token(&mut self.next_token) {
-            FDT_BEGIN_NODE => {
-                let name = next_cstr(&mut self.next_token)
-                    .to_str()
-                    .unwrap_or("<invalid-utf8>");
+        loop {
+            return match next_token(&mut self.next_token) {
+                FDT_BEGIN_NODE => {
+                    let name = next_cstr(&mut self.next_token)
+                        .to_str()
+                        .unwrap_or("<invalid-utf8>");
 
-                Some(Token::BeginNode(name))
-            }
-            FDT_END_NODE => Some(Token::EndNode),
-            FDT_PROP => {
-                let len = next_token(&mut self.next_token);
-                let nameoff = next_token(&mut self.next_token);
+                    Some(Token::BeginNode(name))
+                }
+                FDT_END_NODE => Some(Token::EndNode),
+                FDT_PROP => {
+                    let len = next_token(&mut self.next_token);
+                    let nameoff = next_token(&mut self.next_token);
 
-                let name = unsafe { CStr::from_ptr(self.strings.add(nameoff as usize).cast()) }
-                    .to_str()
-                    .unwrap_or("<invalid-utf8>");
+                    let name = unsafe { CStr::from_ptr(self.strings.add(nameoff as usize).cast()) }
+                        .to_str()
+                        .unwrap_or("<invalid-utf8>");
 
-                let val = ptr::slice_from_raw_parts(self.next_token, len as usize);
-                let val = unsafe { &*val };
-                // let val = Property::from_prop(name, val);
+                    let val = ptr::slice_from_raw_parts(self.next_token, len as usize);
+                    let val = unsafe { &*val };
+                    // let val = Property::from_prop(name, val);
 
-                self.next_token = unsafe { self.next_token.add(len as usize) };
-                align(&mut self.next_token);
+                    self.next_token = unsafe { self.next_token.add(len as usize) };
+                    align(&mut self.next_token);
 
-                Some(Token::Prop(name, val))
-            }
-            _ => None,
+                    Some(Token::Prop(name, val))
+                }
+                FDT_END => None,
+                FDT_NOP => continue,
+                other => panic!("unexpected token {other:#x}"),
+            };
         }
     }
 }
