@@ -8,7 +8,7 @@ use loader_info::LoaderInfo;
 use log::println;
 use riscv64_util::halt_and_catch_fire;
 use syscon::Syscon;
-use util::rle::SegmentType;
+use util::{postifx::NumberPostfix, rle::SegmentType};
 
 use core::{arch::asm, panic::PanicInfo};
 
@@ -59,7 +59,8 @@ extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
         .map(|s| s.size.get())
         .sum::<usize>();
 
-    println!("total system memory = {total_usable_memory}");
+    println!("my address    = {:#x}", entry as usize);
+    println!("usable memory = {}B", total_usable_memory.postfix_binary());
 
     println!("done, poweroff");
     Syscon::poweroff();
