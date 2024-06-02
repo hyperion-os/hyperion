@@ -32,6 +32,8 @@ SECTIONS {
     . = ALIGN(16);
     *(.sdata .sdata.*)
     . = ALIGN(0x1000);
+    . += 0x8000; /* temporary boot stack */
+    PROVIDE(_boot_stack_top = .);
     PROVIDE(_data_end = .);
   }
 
@@ -44,8 +46,5 @@ SECTIONS {
     PROVIDE(_bss_end = .);
   }
 
-  /* temporary boot stack */
-  . += 0x8000;
-  PROVIDE(_boot_stack_top = .);
   PROVIDE(_kernel_end = .);
 }
