@@ -55,6 +55,7 @@ dependencies = [
  "log",
  "riscv64-util",
  "spin",
+ "syscon",
  "uart-16550",
  "util",
 ]
@@ -72,6 +73,7 @@ dependencies = [
  "riscv64-util",
  "riscv64-vmm",
  "spin",
+ "syscon",
  "uart-16550",
  "util",
  "xmas-elf",
@@ -142,6 +144,13 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
+
+[[package]]
+name = "syscon"
+version = "0.2.0"
+dependencies = [
+ "riscv64-util",
+]
 
 [[package]]
 name = "uart-16550"

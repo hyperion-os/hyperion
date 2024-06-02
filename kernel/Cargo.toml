@@ -12,5 +12,6 @@ spin.workspace = true
 loader-info.workspace = true
 log.workspace = true
 riscv64-util.workspace = true
+syscon.workspace = true
 uart-16550.workspace = true
 util.workspace = true

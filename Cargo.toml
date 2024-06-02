@@ -38,8 +38,9 @@ log.path = "./crates/log"
 mem.path = "./crates/mem"
 riscv64-util.path = "./crates/riscv64-util"
 riscv64-vmm.path = "./crates/riscv64-vmm"
-util.path = "./crates/util"
+syscon.path = "./crates/syscon"
 uart-16550.path = "./crates/uart-16550"
+util.path = "./crates/util"
 
 # artifact (ELF) dependencies, for embedded binaries
 kernel = { path = "./kernel", artifact = "bin" }

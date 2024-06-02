@@ -52,7 +52,7 @@ impl Uart {
         }
     }
 
-    const fn base() -> *mut u8 {
+    pub const fn base() -> *mut u8 {
         0x1000_0000 as _
     }
 }

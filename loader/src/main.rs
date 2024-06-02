@@ -13,6 +13,8 @@ use core::{arch::asm, fmt, num::NonZero, panic::PanicInfo, str};
 use loader_info::LoaderInfo;
 use log::println;
 use spin::Mutex;
+use syscon::Syscon;
+use uart_16550::Uart;
 use util::rle::{Region, RleMemory};
 use xmas_elf::ElfFile;
 

@@ -1,0 +1,10 @@
+[package]
+name = "syscon"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+riscv64-util.workspace = true
