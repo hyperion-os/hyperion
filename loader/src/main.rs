@@ -135,7 +135,10 @@ unsafe extern "C" fn enter(
 ) -> ! {
     unsafe {
         asm!(
-            "jalr x0, 0(a0)", // far jump (no-return) to `entry` without saving the return address (x0)
+            // reset stack
+            "la sp, _boot_stack_top",
+            // far jump (no-return) to `entry` without saving the return address (x0)
+            "jalr x0, 0(a0)",
             options(noreturn)
         )
     }
