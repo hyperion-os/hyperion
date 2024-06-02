@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(naked_functions)]
 
 //
 
@@ -9,7 +10,7 @@ use riscv64_util::halt_and_catch_fire;
 use syscon::Syscon;
 use util::rle::SegmentType;
 
-use core::panic::PanicInfo;
+use core::{arch::asm, panic::PanicInfo};
 
 //
 
@@ -18,9 +19,30 @@ fn panic_handler(_info: &PanicInfo) -> ! {
     halt_and_catch_fire();
 }
 
+#[naked]
 #[no_mangle]
 #[link_section = ".text.boot"]
-extern "C" fn _start(this: usize, info: *const LoaderInfo) -> ! {
+extern "C" fn _start(_this: usize, _info: *const LoaderInfo) -> ! {
+    unsafe {
+        asm!(
+            // init global pointer
+            ".option push",
+            ".option norelax",
+            "la gp, _global_pointer",
+            ".option pop",
+
+            // init stack
+            "la sp, _boot_stack_top",
+
+            // call rust code
+            "tail {entry}",
+            entry = sym entry,
+            options(noreturn)
+        );
+    }
+}
+
+extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
     assert_eq!(this, _start as _);
 
     uart_16550::install_logger();
