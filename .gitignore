@@ -1,5 +1,7 @@
-/target
-/.direnv
-/asset/*
-/asset/!splash
-/asset/!font.bmp
+target/
+.direnv/
+asset/*
+asset/!splash
+asset/!font.bmp
+
+.gdb_history
