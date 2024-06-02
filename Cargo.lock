@@ -54,6 +54,7 @@ dependencies = [
  "devicetree",
  "loader-info",
  "log",
+ "mem",
  "riscv64-util",
  "spin",
  "syscon",

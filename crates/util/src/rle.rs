@@ -1,33 +1,25 @@
-use core::num::NonZero;
+use core::{mem, num::NonZero, ops::Deref};
 
 use heapless::Vec;
 
 //
 
-/// run-length encoded memory regions
-///
-/// the last segment is always usable,
-/// because everything is reserved by default
-#[derive(Debug, Clone)]
-pub struct RleMemory {
-    // TODO: this could be placed into memory right after the loader,
-    // and then only the used region can be reserved
-    segments: Vec<Segment, 64>,
-}
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct RleMemoryRef([Segment]);
 
-impl RleMemory {
-    pub const fn new() -> Self {
-        Self {
-            segments: Vec::new(),
-        }
+impl RleMemoryRef {
+    pub fn from_slice(slice: &[Segment]) -> &Self {
+        // SAFETY: the data is the exact same, because of the #[repr(transparent)]
+        unsafe { mem::transmute(slice) }
     }
 
     pub fn as_slice(&self) -> &[Segment] {
-        &self.segments
+        &self.0
     }
 
     pub fn min_usable_addr(&self) -> usize {
-        let Some(first) = self.segments.first() else {
+        let Some(first) = self.0.first() else {
             return 0;
         };
 
@@ -49,7 +41,7 @@ impl RleMemory {
     }
 
     pub fn iter_segments(&self) -> impl Iterator<Item = (Region, SegmentType)> + '_ {
-        self.segments.iter().scan(0usize, |acc, segment| {
+        self.0.iter().scan(0usize, |acc, segment| {
             let now = *acc;
             *acc += segment.size.get();
             Some((
@@ -67,6 +59,27 @@ impl RleMemory {
             assert_eq!(ty, SegmentType::Usable);
             last_region.addr + last_region.size.get()
         })
+    }
+}
+
+//
+
+/// run-length encoded memory regions
+///
+/// the last segment is always usable,
+/// because everything is reserved by default
+#[derive(Debug, Clone)]
+pub struct RleMemory {
+    // TODO: this could be placed into memory right after the loader,
+    // and then only the used region can be reserved
+    segments: Vec<Segment, 64>,
+}
+
+impl RleMemory {
+    pub const fn new() -> Self {
+        Self {
+            segments: Vec::new(),
+        }
     }
 
     /// add usable memory
@@ -246,6 +259,14 @@ impl RleMemory {
                 i += 1;
             }
         }
+    }
+}
+
+impl Deref for RleMemory {
+    type Target = RleMemoryRef;
+
+    fn deref(&self) -> &Self::Target {
+        RleMemoryRef::from_slice(&self.segments)
     }
 }
 

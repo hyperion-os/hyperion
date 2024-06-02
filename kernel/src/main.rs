@@ -8,7 +8,10 @@ use loader_info::LoaderInfo;
 use log::println;
 use riscv64_util::halt_and_catch_fire;
 use syscon::Syscon;
-use util::{postifx::NumberPostfix, rle::SegmentType};
+use util::{
+    postifx::NumberPostfix,
+    rle::{RleMemoryRef, SegmentType},
+};
 
 use core::{arch::asm, panic::PanicInfo};
 
@@ -50,22 +53,19 @@ extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
 
     let info = unsafe { *info };
     println!("{info:#x?}");
-    let memory = unsafe { &*info.memory };
+    let memory = RleMemoryRef::from_slice(unsafe { &*info.memory });
     println!("{memory:#x?}");
 
-    let fdt =
-        unsafe { devicetree::Fdt::read(info.device_tree_blob as _) }.expect("invalid device tree");
+    // let fdt =
+    //     unsafe { devicetree::Fdt::read(info.device_tree_blob as _) }.expect("invalid device tree");
+    // fdt.structure_parser().print_tree(0);
 
-    fdt.structure_parser().print_tree(0);
-
-    let total_usable_memory = memory
-        .iter()
-        .filter(|s| s.ty == SegmentType::Usable)
-        .map(|s| s.size.get())
-        .sum::<usize>();
+    let total_usable_memory = memory.iter_usable().map(|s| s.size.get()).sum::<usize>();
 
     println!("my address    = {:#x}", entry as usize);
     println!("usable memory = {}B", total_usable_memory.postfix_binary());
+
+    mem::init_frame_allocator(memory);
 
     println!("done, poweroff");
     Syscon::poweroff();
