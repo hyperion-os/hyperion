@@ -53,6 +53,11 @@ extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
     let memory = unsafe { &*info.memory };
     println!("{memory:#x?}");
 
+    let fdt =
+        unsafe { devicetree::Fdt::read(info.device_tree_blob as _) }.expect("invalid device tree");
+
+    fdt.structure_parser().print_tree(0);
+
     let total_usable_memory = memory
         .iter()
         .filter(|s| s.ty == SegmentType::Usable)

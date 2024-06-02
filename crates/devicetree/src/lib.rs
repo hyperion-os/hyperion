@@ -222,6 +222,13 @@ impl Fdt {
 
         memory
     }
+
+    pub fn structure_parser(&self) -> StructureParser {
+        let strings = unsafe { self.addr.byte_add(self.header.off_dt_strings as usize) } as _;
+        let tokens = unsafe { self.addr.byte_add(self.header.off_dt_struct as usize) } as _;
+
+        unsafe { StructureParser::from_raw(strings, tokens) }
+    }
 }
 
 #[derive(Clone)]

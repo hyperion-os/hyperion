@@ -94,6 +94,12 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
         VirtAddr::new(Uart::base() as usize)..VirtAddr::new(Uart::base() as usize + 0x1000),
         PageFlags::R | PageFlags::W,
     );
+    // not hw, flattened devicetree
+    page_table.map_identity(
+        &mut memory,
+        dtb_bottom..dtb_top,
+        PageFlags::R | PageFlags::W,
+    );
 
     println!("map loader");
     // only .text.trampoline needs to be mapped tho

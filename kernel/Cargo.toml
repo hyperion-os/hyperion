@@ -9,6 +9,7 @@ workspace = true
 [dependencies]
 spin.workspace = true
 
+devicetree.workspace = true
 loader-info.workspace = true
 log.workspace = true
 riscv64-util.workspace = true

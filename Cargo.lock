@@ -51,6 +51,7 @@ dependencies = [
 name = "kernel"
 version = "0.2.0"
 dependencies = [
+ "devicetree",
  "loader-info",
  "log",
  "riscv64-util",
