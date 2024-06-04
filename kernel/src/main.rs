@@ -7,18 +7,20 @@
 use loader_info::LoaderInfo;
 use log::println;
 use riscv64_util::halt_and_catch_fire;
+use riscv64_vmm::PhysAddr;
 use syscon::Syscon;
 use util::{
     postifx::NumberPostfix,
     rle::{RleMemoryRef, SegmentType},
 };
 
-use core::{arch::asm, panic::PanicInfo};
+use core::{arch::asm, panic::PanicInfo, slice};
 
 //
 
 #[panic_handler]
-fn panic_handler(_info: &PanicInfo) -> ! {
+fn panic_handler(info: &PanicInfo) -> ! {
+    println!("{info}");
     halt_and_catch_fire();
 }
 
@@ -48,13 +50,35 @@ extern "C" fn _start(_this: usize, _info: *const LoaderInfo) -> ! {
 extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
     assert_eq!(this, _start as _);
 
-    uart_16550::install_logger();
+    let uart = PhysAddr::new_truncate(0x1000_0000)
+        .to_higher_half()
+        .as_ptr_mut();
+    unsafe { uart_16550::install_logger(uart) };
     println!("hello from kernel");
 
     let info = unsafe { *info };
     println!("{info:#x?}");
     let memory = RleMemoryRef::from_slice(unsafe { &*info.memory });
     println!("{memory:#x?}");
+
+    for usable in memory.iter_usable() {
+        // println!("filling {:#x}", usable.addr);
+        let usable = unsafe {
+            slice::from_raw_parts_mut(
+                PhysAddr::new(usable.addr)
+                    .to_higher_half()
+                    .as_ptr_mut::<[u64; 512]>(),
+                usable.size.get() / core::mem::size_of::<[u64; 512]>(),
+            )
+        };
+
+        for b in usable {
+            println!("filling {:#x}", b as *mut _ as usize);
+            *b = [0; 512];
+        }
+    }
+
+    println!("memtest done");
 
     // let fdt =
     //     unsafe { devicetree::Fdt::read(info.device_tree_blob as _) }.expect("invalid device tree");

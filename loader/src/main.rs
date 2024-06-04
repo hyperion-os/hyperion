@@ -17,7 +17,7 @@ use uart_16550::Uart;
 use util::rle::{Region, RleMemory};
 use xmas_elf::ElfFile;
 
-use riscv64_vmm::{PageFlags, PageTable, VirtAddr};
+use riscv64_vmm::{PageFlags, PageTable, PhysAddr, VirtAddr};
 
 //
 
@@ -55,14 +55,19 @@ unsafe extern "C" fn _start() -> ! {
 }
 
 extern "C" fn entry(_a0: usize, a1: usize) -> ! {
-    uart_16550::install_logger();
+    let uart = PhysAddr::new_truncate(0x1000_0000).as_ptr_mut();
+    unsafe { uart_16550::install_logger(uart) };
+
+    println!("loader entry");
 
     // FIXME: at least try the standard addresses for SYSCON and UART,
     // instead of just panicing after failing to parse the devicetree
     let tree = unsafe { devicetree::Fdt::read(a1 as _) }.expect("Devicetree is invalid");
 
+    // figure out usable memory
     let mut memory = tree.usable_memory();
 
+    // reserve the devicetree blob memory from the usable memory
     let dtb_bottom = VirtAddr::new(a1).align_down();
     let dtb_top = VirtAddr::new(a1 + tree.header.totalsize as usize).align_up();
     let dtb_size = dtb_top.as_usize() - dtb_bottom.as_usize();
@@ -71,7 +76,7 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
         size: dtb_size.try_into().unwrap(),
     });
 
-    // reserve the kernel memory from the usable memory
+    // reserve the kernel memory
     let kernel_beg = unsafe { &_kernel_beg } as *const _ as usize;
     let kernel_end = unsafe { &_kernel_end } as *const _ as usize;
     memory.remove(Region {
@@ -79,39 +84,48 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
         size: NonZero::new(kernel_end - kernel_beg).unwrap(),
     });
 
+    // set up vmm for the kernel
+    let memory_end = memory.max_usable_addr();
     let page_table = PageTable::alloc_page_table(&mut memory);
 
-    println!("map hardware");
-    // syscon
+    println!(
+        "{:?},{:?},{:?}",
+        VirtAddr::new(0xffff800080000000).table_indices(),
+        VirtAddr::new(0xffff800080414000).table_indices(),
+        VirtAddr::new(0xffff800081000000).table_indices()
+    );
+
+    println!("map HHDM");
+    page_table.map_offset(
+        &mut memory,
+        VirtAddr::HHDM..VirtAddr::HHDM + memory_end,
+        PageFlags::RW,
+        PhysAddr::null(),
+    );
+    println!("map syscon");
     page_table.map_identity(
         &mut memory,
         VirtAddr::new(Syscon::base() as usize)..VirtAddr::new(Syscon::base() as usize + 0x1000),
-        PageFlags::R | PageFlags::W,
+        PageFlags::RW,
     );
-    // uart
+    println!("map uart");
     page_table.map_identity(
         &mut memory,
-        VirtAddr::new(Uart::base() as usize)..VirtAddr::new(Uart::base() as usize + 0x1000),
-        PageFlags::R | PageFlags::W,
+        VirtAddr::new(uart as usize)..VirtAddr::new(uart as usize + 0x1000),
+        PageFlags::RW,
     );
-    // not hw, flattened devicetree
-    page_table.map_identity(
-        &mut memory,
-        dtb_bottom..dtb_top,
-        PageFlags::R | PageFlags::W,
-    );
-
-    println!("map loader");
-    // only .text.trampoline needs to be mapped tho
+    println!("map devicetree");
+    page_table.map_identity(&mut memory, dtb_bottom..dtb_top, PageFlags::RW);
+    println!("map loader (self)");
     page_table.map_identity(
         &mut memory,
         VirtAddr::new(kernel_beg)..VirtAddr::new(kernel_end),
-        PageFlags::R | PageFlags::W | PageFlags::X,
+        PageFlags::RWX,
     );
 
     static KERNEL_ELF: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_KERNEL"));
     let kernel_elf = ElfFile::new(KERNEL_ELF).expect("invalid ELF");
-    println!("load kernel");
+    println!("map kernel");
     load_kernel(&kernel_elf, page_table, &mut memory).expect("failed to load the kernel");
 
     let entry = kernel_elf.header.pt2.entry_point();
