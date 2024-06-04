@@ -337,7 +337,15 @@ impl PhysAddr {
         Self(addr & ((1 << 52) - 1))
     }
 
-    pub const fn to_higher_half(self) -> VirtAddr {
+    pub const fn from_hhdm(v: VirtAddr) -> PhysAddr {
+        if VirtAddr::HHDM.0 <= v.0 && v.0 < VirtAddr::KERNEL.0 {
+            PhysAddr::new(v.0 + VirtAddr::HHDM.0)
+        } else {
+            panic!("not a HHDM address");
+        }
+    }
+
+    pub const fn to_hhdm(self) -> VirtAddr {
         VirtAddr::new(self.0 + VirtAddr::HHDM.0)
     }
 
@@ -350,7 +358,7 @@ impl PhysAddr {
     }
 
     /// DOESN'T DO ANY ADDRESS TRANSLATIONS
-    pub fn from_ptr<T>(ptr: *const T) -> Self {
+    pub fn from_phys_ptr<T>(ptr: *const T) -> Self {
         Self::new(ptr as _)
     }
 
@@ -359,12 +367,12 @@ impl PhysAddr {
     }
 
     /// DOESN'T DO ANY ADDRESS TRANSLATIONS
-    pub const fn as_ptr<T>(self) -> *const T {
+    pub const fn as_phys_ptr<T>(self) -> *const T {
         self.0 as _
     }
 
     /// DOESN'T DO ANY ADDRESS TRANSLATIONS
-    pub const fn as_ptr_mut<T>(self) -> *mut T {
+    pub const fn as_phys_ptr_mut<T>(self) -> *mut T {
         self.0 as _
     }
 
@@ -423,8 +431,8 @@ impl VirtAddr {
     pub const OFFSET_MASK: usize = (1 << 12) - 1;
     pub const INDEX_MASK: usize = (1 << 9) - 1;
 
-    pub const KERNEL: Self = Self::new(0xffffffff80000000);
     pub const HHDM: Self = Self::new(0xFFFF800000000000);
+    pub const KERNEL: Self = Self::new(0xffffffff80000000);
 
     pub const fn new(addr: usize) -> Self {
         match Self::try_from(addr) {

@@ -13,7 +13,6 @@ use core::{arch::asm, ffi, num::NonZero, panic::PanicInfo, str};
 use loader_info::LoaderInfo;
 use log::println;
 use syscon::Syscon;
-use uart_16550::Uart;
 use util::rle::{Region, RleMemory};
 use xmas_elf::ElfFile;
 
@@ -55,7 +54,7 @@ unsafe extern "C" fn _start() -> ! {
 }
 
 extern "C" fn entry(_a0: usize, a1: usize) -> ! {
-    let uart = PhysAddr::new_truncate(0x1000_0000).as_ptr_mut();
+    let uart = PhysAddr::new_truncate(0x1000_0000).as_phys_ptr_mut();
     unsafe { uart_16550::install_logger(uart) };
 
     println!("loader entry");

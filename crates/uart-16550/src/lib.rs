@@ -4,7 +4,7 @@
 
 use core::fmt;
 
-use spin::{Lazy, Mutex, Once};
+use spin::{Mutex, Once};
 
 //
 
