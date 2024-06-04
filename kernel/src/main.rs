@@ -7,7 +7,7 @@
 use loader_info::LoaderInfo;
 use log::println;
 use riscv64_util::halt_and_catch_fire;
-use riscv64_vmm::PhysAddr;
+use riscv64_vmm::{PageTable, PhysAddr};
 use syscon::Syscon;
 use util::{prefix::NumberFmt, rle::RleMemoryRef};
 
@@ -66,6 +66,17 @@ extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
     println!("usable memory = {}B", total_usable_memory.binary());
 
     mem::frame_alloc::init(memory);
+
+    let frame = mem::frame_alloc::alloc();
+
+    println!("page map = {}", PageTable::get_active().to_hhdm());
+
+    let page_map: &mut PageTable = unsafe { &mut *PageTable::get_active().to_hhdm().as_ptr_mut() };
+    println!(
+        "{:?} == {:?}",
+        frame.addr(),
+        page_map.walk(frame.addr().to_hhdm())
+    );
 
     println!("done, poweroff");
     Syscon::poweroff();

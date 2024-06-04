@@ -13,12 +13,37 @@
 
 use bitflags::bitflags;
 use core::{
+    any::type_name,
     arch::asm,
     fmt,
     mem::MaybeUninit,
     ops::{Add, AddAssign, Range},
 };
 use util::rle::RleMemory;
+
+//
+
+pub trait PhysAddrAccess: Clone + Copy {
+    fn phys_to_ptr<T>(&self, phys: PhysAddr) -> *mut T;
+}
+
+#[derive(Clone, Copy)]
+pub struct Hhdm;
+
+impl PhysAddrAccess for Hhdm {
+    fn phys_to_ptr<T>(&self, phys: PhysAddr) -> *mut T {
+        phys.to_hhdm().as_ptr_mut()
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct NoPaging;
+
+impl PhysAddrAccess for NoPaging {
+    fn phys_to_ptr<T>(&self, phys: PhysAddr) -> *mut T {
+        phys.as_phys_ptr_mut()
+    }
+}
 
 //
 
@@ -36,10 +61,20 @@ impl PageTable {
         Self::EMPTY
     }
 
+    pub fn get_active() -> PhysAddr {
+        let satp: usize;
+        unsafe { asm!("csrr {satp}, satp", satp = out(reg) satp) };
+        let satp_mode = satp >> 60;
+        let satp_ppn = satp << 12;
+
+        assert_eq!(satp_mode, 9);
+        PhysAddr::new(satp_ppn)
+    }
+
     /// # Safety
     /// everything has to be mapped correctly, good luck
-    pub unsafe fn activate(this: *mut Self) {
-        let satp_ppn = this as usize >> 12;
+    pub unsafe fn activate(this: PhysAddr) {
+        let satp_ppn = this.as_usize() >> 12;
         let satp_mode = 9 << 60; // 8=Sv39 , 9=Sv48 , 10=Sv57 , 11=Sv64
         let satp = satp_mode | satp_ppn;
 
@@ -49,9 +84,30 @@ impl PageTable {
     pub fn map(
         &mut self,
         memory: &mut RleMemory,
+        to: Range<VirtAddr>,
+        flags: PageFlags,
+        from: &[u8],
+    ) {
+        self._map(memory, to, flags, from, Hhdm)
+    }
+
+    pub fn map_without_paging(
+        &mut self,
+        memory: &mut RleMemory,
+        to: Range<VirtAddr>,
+        flags: PageFlags,
+        from: &[u8],
+    ) {
+        self._map(memory, to, flags, from, NoPaging)
+    }
+
+    fn _map(
+        &mut self,
+        memory: &mut RleMemory,
         mut to: Range<VirtAddr>,
         flags: PageFlags,
         mut from: &[u8],
+        ty: impl PhysAddrAccess,
     ) {
         let mut padding = to.start.offset();
         to.start = to.start.align_down();
@@ -62,20 +118,17 @@ impl PageTable {
             .div_ceil(1 << 12);
 
         for i in 0..n_4k_pages {
-            let entry = self.create_entry(memory, VirtAddr(to.start.0 + i * 0x1000), Depth::Lvl3);
+            let entry =
+                self.create_entry(memory, VirtAddr(to.start.0 + i * 0x1000), Depth::Lvl3, ty);
 
             if !entry.flags().contains(PageFlags::VALID) {
-                Self::create_table_for_entry(memory, entry);
+                Self::create_table_for_entry(memory, entry, ty);
                 entry.set_flags(PageFlags::VALID | flags);
             }
 
             let phys_page = entry.addr();
-
-            // // zero the page
-            // let phys_page_ptr = phys_page.0 as *mut MaybeUninit<PageTable>;
-            // MaybeUninit::write(unsafe { &mut *phys_page_ptr }, PageTable::EMPTY);
-
-            let phys_page = unsafe { &mut *(phys_page.0 as *mut [MaybeUninit<u8>; 0x1000]) };
+            let phys_page: &mut [MaybeUninit<u8>; 0x1000] =
+                unsafe { &mut *ty.phys_to_ptr(phys_page) };
 
             let copied;
             (copied, from) = from.split_at(from.len().min(0x1000 - padding));
@@ -88,16 +141,56 @@ impl PageTable {
     }
 
     pub fn map_identity(&mut self, memory: &mut RleMemory, to: Range<VirtAddr>, flags: PageFlags) {
+        self._map_identity(memory, to, flags, Hhdm)
+    }
+
+    pub fn map_identity_without_paging(
+        &mut self,
+        memory: &mut RleMemory,
+        to: Range<VirtAddr>,
+        flags: PageFlags,
+    ) {
+        self._map_identity(memory, to, flags, NoPaging)
+    }
+
+    fn _map_identity(
+        &mut self,
+        memory: &mut RleMemory,
+        to: Range<VirtAddr>,
+        flags: PageFlags,
+        ty: impl PhysAddrAccess,
+    ) {
         let from = PhysAddr::new_truncate(to.start.0);
-        self.map_offset(memory, to, flags, from);
+        self._map_offset(memory, to, flags, from, ty);
     }
 
     pub fn map_offset(
         &mut self,
         memory: &mut RleMemory,
+        to: Range<VirtAddr>,
+        flags: PageFlags,
+        from: PhysAddr,
+    ) {
+        self._map_offset(memory, to, flags, from, Hhdm)
+    }
+
+    pub fn map_offset_without_paging(
+        &mut self,
+        memory: &mut RleMemory,
+        to: Range<VirtAddr>,
+        flags: PageFlags,
+        from: PhysAddr,
+    ) {
+        self._map_offset(memory, to, flags, from, NoPaging)
+    }
+
+    fn _map_offset(
+        &mut self,
+        memory: &mut RleMemory,
         mut to: Range<VirtAddr>,
         flags: PageFlags,
         mut from: PhysAddr,
+        ty: impl PhysAddrAccess,
     ) {
         to.start = to.start.align_down();
         to.end = to.end.align_up();
@@ -140,11 +233,12 @@ impl PageTable {
                 (SIZE_4KIB, Depth::Lvl3)
             };
 
-            // println!(
-            //     "mapping {size} ({depth:?}) {:#x}->{:#x}",
-            //     to.start.0, from.0
-            // );
-            let entry = self.create_entry(memory, to.start, depth);
+            log::println!(
+                "mapping {size} ({depth:?}) {:#x}->{:#x}",
+                to.start.0,
+                from.0
+            );
+            let entry = self.create_entry(memory, to.start, depth, ty);
 
             if entry.flags().contains(PageFlags::VALID) {
                 panic!("already mapped");
@@ -159,36 +253,15 @@ impl PageTable {
         }
     }
 
-    pub fn create_entry<'a>(
-        &'a mut self,
-        memory: &mut RleMemory,
-        at: VirtAddr,
-        depth: Depth,
-        // flags: PageFlags,
-    ) -> &'a mut PageTableEntry {
-        let mut table = self;
-
-        for (i, idx) in at.table_indices().into_iter().enumerate() {
-            let entry = &mut table.entries[idx];
-
-            if i == depth as usize {
-                return entry;
-            }
-
-            if !entry.flags().contains(PageFlags::VALID) {
-                // initialize the next lvl table
-                table = Self::create_table_for_entry(memory, entry);
-            } else {
-                // the next lvl table is already initialized, or so it seems
-                let next_table_ptr = entry.addr().0 as *mut PageTable;
-                table = unsafe { &mut *next_table_ptr };
-            }
-        }
-
-        unreachable!()
+    pub fn walk(&self, addr: VirtAddr) -> (Option<PhysAddr>, PageFlags) {
+        self._walk(addr, Hhdm)
     }
 
-    pub fn walk(&self, addr: VirtAddr) -> (Option<PhysAddr>, PageFlags) {
+    pub fn walk_without_paging(&self, addr: VirtAddr) -> (Option<PhysAddr>, PageFlags) {
+        self._walk(addr, NoPaging)
+    }
+
+    fn _walk(&self, addr: VirtAddr, ty: impl PhysAddrAccess) -> (Option<PhysAddr>, PageFlags) {
         let mut table = self;
 
         for idx in addr.table_indices() {
@@ -202,31 +275,61 @@ impl PageTable {
                 return (Some(entry.addr()), entry.flags());
             }
 
-            let next_table_ptr = entry.addr().0 as *mut PageTable;
-            table = unsafe { &mut *next_table_ptr };
+            table = unsafe { &mut *ty.phys_to_ptr(entry.addr()) };
         }
 
         unreachable!()
     }
 
-    pub fn create_table_for_entry<'a>(
+    pub fn alloc_page_table(
+        memory: &mut RleMemory,
+        ty: impl PhysAddrAccess,
+    ) -> &'static mut PageTable {
+        let page = PhysAddr::new(memory.alloc());
+        unsafe { &mut *ty.phys_to_ptr::<MaybeUninit<PageTable>>(page) }.write(PageTable::EMPTY)
+    }
+
+    fn create_entry<'a>(
+        &'a mut self,
+        memory: &mut RleMemory,
+        at: VirtAddr,
+        depth: Depth,
+        ty: impl PhysAddrAccess,
+    ) -> &'a mut PageTableEntry {
+        let mut table = self;
+
+        for (i, idx) in at.table_indices().into_iter().enumerate() {
+            let entry = &mut table.entries[idx];
+
+            if i == depth as usize {
+                return entry;
+            }
+
+            if !entry.flags().contains(PageFlags::VALID) {
+                // initialize the next lvl table
+                table = Self::create_table_for_entry(memory, entry, ty);
+            } else {
+                // the next lvl table is already initialized, or so it seems
+                table = unsafe { &mut *ty.phys_to_ptr(entry.addr()) };
+            }
+        }
+
+        unreachable!()
+    }
+
+    fn create_table_for_entry<'a>(
         memory: &mut RleMemory,
         entry: &'a mut PageTableEntry,
+        ty: impl PhysAddrAccess,
     ) -> &'a mut PageTable {
         entry.set_flags(PageFlags::VALID);
         entry.set_addr(PhysAddr(memory.alloc()));
 
-        let next_table_ptr = entry.addr().0 as *mut MaybeUninit<PageTable>;
+        let next_table_ptr = ty.phys_to_ptr(entry.addr());
         core::hint::black_box(MaybeUninit::write(
             unsafe { &mut *next_table_ptr },
             PageTable::EMPTY,
         ))
-    }
-
-    pub fn alloc_page_table(memory: &mut RleMemory) -> &'static mut PageTable {
-        let page = memory.alloc();
-        let page_ptr = page as *mut MaybeUninit<PageTable>;
-        unsafe { &mut *page_ptr }.write(PageTable::EMPTY)
     }
 }
 
@@ -314,7 +417,7 @@ impl PageFlags {
 
 //
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysAddr(usize);
 
 impl PhysAddr {
@@ -409,6 +512,14 @@ impl AddAssign<usize> for PhysAddr {
     }
 }
 
+impl fmt::Debug for PhysAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple(type_name::<Self>())
+            .field(&format_args!("p{:#x}", self.0))
+            .finish()
+    }
+}
+
 impl fmt::Display for PhysAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "p{:#x}", self.0)
@@ -424,7 +535,7 @@ impl fmt::Display for PhysAddr {
 /// - `21..=29` : level-1 index
 /// - `12..=20` : level-0 index
 /// - ` 0..=11` : byte offset
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtAddr(usize);
 
 impl VirtAddr {
@@ -524,6 +635,14 @@ impl AddAssign for VirtAddr {
 impl AddAssign<usize> for VirtAddr {
     fn add_assign(&mut self, rhs: usize) {
         *self = self.add(rhs);
+    }
+}
+
+impl fmt::Debug for VirtAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple(type_name::<Self>())
+            .field(&format_args!("p{:#x}", self.0))
+            .finish()
     }
 }
 

@@ -10,4 +10,4 @@ workspace = true
 bitflags.workspace = true
 
 util.workspace = true
-# log.workspace = true
+log.workspace = true

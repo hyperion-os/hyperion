@@ -106,16 +106,19 @@ pub fn try_allocator() -> Option<&'static FrameAllocator> {
 
 //
 
+#[derive(Debug)]
 pub struct Frame {
     addr: PhysAddr,
 }
 
 impl Frame {
+    /// # Safety
+    /// the `addr` has to be page aligned and point to an owned page
     pub const unsafe fn new(addr: PhysAddr) -> Self {
         Self { addr }
     }
 
-    pub const unsafe fn from_idx(idx: usize) -> Self {
+    const unsafe fn from_idx(idx: usize) -> Self {
         unsafe { Self::new(PhysAddr::new(idx * PAGE_SIZE)) }
     }
 
@@ -304,9 +307,11 @@ impl FrameAllocator {
             let idx = at % self.pages.len();
             let page = &self.pages[idx];
 
+            println!("trying {idx}");
             if !page.alloc() {
                 continue;
             }
+            println!("found");
 
             // zeroing shouldn't be needed,
             // all memory given to the frame allocator should already be safe to allocate
@@ -320,14 +325,13 @@ impl FrameAllocator {
 
     pub fn init(memory: &RleMemoryRef) -> Self {
         // usable system memory
-        let mut usable = memory.iter_usable().map(|r| r.size.get()).sum::<usize>();
+        let usable = memory.iter_usable().map(|r| r.size.get()).sum::<usize>();
 
         // total system memory
         let total: usize = memory.max_usable_addr(); // FIXME: should be max (not usable) addr
 
         let usable_pages = (memory.max_usable_addr() - memory.min_usable_addr()) / PAGE_SIZE;
         let metadata_block_size = align_up(usable_pages * mem::size_of::<PageInfo>(), PAGE_SIZE);
-        usable -= metadata_block_size;
 
         let metadata_block_region = memory
             .iter_usable()
@@ -368,6 +372,7 @@ impl FrameAllocator {
             let mut size = usable.size.get();
 
             if addr == metadata_block_region.addr {
+                println!("skipping {addr:#x}");
                 addr += metadata_block_size;
                 size -= metadata_block_size;
             }

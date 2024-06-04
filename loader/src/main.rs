@@ -16,7 +16,7 @@ use syscon::Syscon;
 use util::rle::{Region, RleMemory};
 use xmas_elf::ElfFile;
 
-use riscv64_vmm::{PageFlags, PageTable, PhysAddr, VirtAddr};
+use riscv64_vmm::{NoPaging, PageFlags, PageTable, PhysAddr, VirtAddr};
 
 //
 
@@ -85,38 +85,31 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
 
     // set up vmm for the kernel
     let memory_end = memory.max_usable_addr();
-    let page_table = PageTable::alloc_page_table(&mut memory);
-
-    println!(
-        "{:?},{:?},{:?}",
-        VirtAddr::new(0xffff800080000000).table_indices(),
-        VirtAddr::new(0xffff800080414000).table_indices(),
-        VirtAddr::new(0xffff800081000000).table_indices()
-    );
+    let mut page_table = PageTable::alloc_page_table(&mut memory, NoPaging);
 
     println!("map HHDM");
-    page_table.map_offset(
+    page_table.map_offset_without_paging(
         &mut memory,
         VirtAddr::HHDM..VirtAddr::HHDM + memory_end,
         PageFlags::RW,
         PhysAddr::null(),
     );
     println!("map syscon");
-    page_table.map_identity(
+    page_table.map_identity_without_paging(
         &mut memory,
         VirtAddr::new(Syscon::base() as usize)..VirtAddr::new(Syscon::base() as usize + 0x1000),
         PageFlags::RW,
     );
     println!("map uart");
-    page_table.map_identity(
+    page_table.map_identity_without_paging(
         &mut memory,
         VirtAddr::new(uart as usize)..VirtAddr::new(uart as usize + 0x1000),
         PageFlags::RW,
     );
     println!("map devicetree");
-    page_table.map_identity(&mut memory, dtb_bottom..dtb_top, PageFlags::RW);
+    page_table.map_identity_without_paging(&mut memory, dtb_bottom..dtb_top, PageFlags::RW);
     println!("map loader (self)");
-    page_table.map_identity(
+    page_table.map_identity_without_paging(
         &mut memory,
         VirtAddr::new(kernel_beg)..VirtAddr::new(kernel_end),
         PageFlags::RWX,
@@ -125,13 +118,13 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
     static KERNEL_ELF: &[u8] = include_bytes!(env!("CARGO_BIN_FILE_KERNEL"));
     let kernel_elf = ElfFile::new(KERNEL_ELF).expect("invalid ELF");
     println!("map kernel");
-    load_kernel(&kernel_elf, page_table, &mut memory).expect("failed to load the kernel");
+    load_kernel(&kernel_elf, &mut page_table, &mut memory).expect("failed to load the kernel");
 
     let entry = kernel_elf.header.pt2.entry_point();
     assert_eq!(entry, 0xffffffff80000000);
 
     println!("enabling paging");
-    unsafe { PageTable::activate(page_table as _) };
+    unsafe { PageTable::activate(PhysAddr::from_phys_ptr(page_table as *const _)) };
 
     let loader_info = LoaderInfo {
         device_tree_blob: a1 as _,
@@ -188,7 +181,7 @@ fn load_kernel(
             }
 
             let data = &kernel_elf.input[file_beg..file_end];
-            table.map(memory, virt_beg..virt_end, page_flags, data);
+            table.map_without_paging(memory, virt_beg..virt_end, page_flags, data);
         }
     }
 
