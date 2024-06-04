@@ -7,13 +7,16 @@
     maybe_uninit_write_slice
 )]
 
+//! https://riscv.org/wp-content/uploads/2019/08/riscv-privileged-20190608-1.pdf
+
 //
 
 use bitflags::bitflags;
 use core::{
     arch::asm,
+    fmt,
     mem::MaybeUninit,
-    ops::{Add, Range},
+    ops::{Add, AddAssign, Range},
 };
 use util::rle::RleMemory;
 
@@ -59,11 +62,11 @@ impl PageTable {
             .div_ceil(1 << 12);
 
         for i in 0..n_4k_pages {
-            let entry = self.create_entry(memory, VirtAddr(to.start.0 + i * 0x1000));
+            let entry = self.create_entry(memory, VirtAddr(to.start.0 + i * 0x1000), Depth::Lvl3);
 
-            if !entry.flags().contains(PageFlags::PRESENT) {
+            if !entry.flags().contains(PageFlags::VALID) {
                 Self::create_table_for_entry(memory, entry);
-                entry.set_flags(PageFlags::PRESENT | flags);
+                entry.set_flags(PageFlags::VALID | flags);
             }
 
             let phys_page = entry.addr();
@@ -84,26 +87,75 @@ impl PageTable {
         }
     }
 
-    pub fn map_identity(
+    pub fn map_identity(&mut self, memory: &mut RleMemory, to: Range<VirtAddr>, flags: PageFlags) {
+        let from = PhysAddr::new_truncate(to.start.0);
+        self.map_offset(memory, to, flags, from);
+    }
+
+    pub fn map_offset(
         &mut self,
         memory: &mut RleMemory,
         mut to: Range<VirtAddr>,
         flags: PageFlags,
+        mut from: PhysAddr,
     ) {
         to.start = to.start.align_down();
         to.end = to.end.align_up();
+        from = from.align_down();
 
-        let n_4k_pages = (to.end.0 - to.start.0) >> 12;
+        // println!(
+        //     "mapping {size} ({depth:?}) {:#x}->{:#x}",
+        //     to.start.0, from.0
+        // );
 
-        for i in 0..n_4k_pages {
-            let entry = self.create_entry(memory, VirtAddr(to.start.0 + i * 0x1000));
+        while to.start < to.end {
+            // map the biggest possible page type that fits, and is aligned
+            // these are 4KiB (the last layer), 2MiB (the 2nd last layer),
+            // 1GiB (the 2nd layer) or 512GiB (the 1st layer)
 
-            if entry.flags().contains(PageFlags::PRESENT) {
+            const SIZE_4KIB: usize = 0x1000;
+            const SIZE_2MIB: usize = 0x1000 * 0x200;
+            const SIZE_1GIB: usize = 0x1000 * 0x200 * 0x200;
+            const SIZE_512GIB: usize = 0x1000 * 0x200 * 0x200 * 0x200;
+
+            // FIXME: alignment can be checked just once before the loop
+
+            let (size, depth) = if to.end.0.abs_diff(to.start.0) >= SIZE_512GIB
+                && is_aligned(to.start.0, SIZE_512GIB)
+                && is_aligned(from.0, SIZE_512GIB)
+            {
+                (SIZE_512GIB, Depth::Lvl0)
+            } else if to.end.0.abs_diff(to.start.0) >= SIZE_1GIB
+                && is_aligned(to.start.0, SIZE_1GIB)
+                && is_aligned(from.0, SIZE_1GIB)
+            {
+                (SIZE_1GIB, Depth::Lvl1)
+            } else if to.end.0.abs_diff(to.start.0) >= SIZE_2MIB
+                && is_aligned(to.start.0, SIZE_2MIB)
+                && is_aligned(from.0, SIZE_2MIB)
+            {
+                assert!(to.start.table_indices()[3] == 0);
+                (SIZE_2MIB, Depth::Lvl2)
+            } else {
+                (SIZE_4KIB, Depth::Lvl3)
+            };
+
+            // println!(
+            //     "mapping {size} ({depth:?}) {:#x}->{:#x}",
+            //     to.start.0, from.0
+            // );
+            let entry = self.create_entry(memory, to.start, depth);
+
+            if entry.flags().contains(PageFlags::VALID) {
                 panic!("already mapped");
             }
 
-            entry.set_flags(PageFlags::PRESENT | flags);
-            entry.set_addr(PhysAddr(to.start.0 + i * 0x1000));
+            entry.set_flags(PageFlags::VALID | flags);
+            entry.set_addr(from);
+            core::hint::black_box(entry);
+
+            to.start += size;
+            from += size;
         }
     }
 
@@ -111,6 +163,7 @@ impl PageTable {
         &'a mut self,
         memory: &mut RleMemory,
         at: VirtAddr,
+        depth: Depth,
         // flags: PageFlags,
     ) -> &'a mut PageTableEntry {
         let mut table = self;
@@ -118,11 +171,11 @@ impl PageTable {
         for (i, idx) in at.table_indices().into_iter().enumerate() {
             let entry = &mut table.entries[idx];
 
-            if i == 3 {
+            if i == depth as usize {
                 return entry;
             }
 
-            if !entry.flags().contains(PageFlags::PRESENT) {
+            if !entry.flags().contains(PageFlags::VALID) {
                 // initialize the next lvl table
                 table = Self::create_table_for_entry(memory, entry);
             } else {
@@ -133,26 +186,47 @@ impl PageTable {
         }
 
         unreachable!()
+    }
 
-        // debug_assert!(entry.flags().contains(PageFlags::PRESENT));
-        // entry.set_flags(PageFlags::PRESENT | flags);
-        // entry.addr()
+    pub fn walk(&self, addr: VirtAddr) -> (Option<PhysAddr>, PageFlags) {
+        let mut table = self;
+
+        for idx in addr.table_indices() {
+            let entry = table.entries[idx];
+
+            if !entry.flags().contains(PageFlags::VALID) {
+                return (None, PageFlags::empty());
+            }
+
+            if entry.flags().is_leaf() {
+                return (Some(entry.addr()), entry.flags());
+            }
+
+            let next_table_ptr = entry.addr().0 as *mut PageTable;
+            table = unsafe { &mut *next_table_ptr };
+        }
+
+        unreachable!()
     }
 
     pub fn create_table_for_entry<'a>(
         memory: &mut RleMemory,
         entry: &'a mut PageTableEntry,
     ) -> &'a mut PageTable {
-        entry.set_flags(PageFlags::PRESENT);
+        entry.set_flags(PageFlags::VALID);
         entry.set_addr(PhysAddr(memory.alloc()));
 
         let next_table_ptr = entry.addr().0 as *mut MaybeUninit<PageTable>;
-        MaybeUninit::write(unsafe { &mut *next_table_ptr }, PageTable::EMPTY)
+        core::hint::black_box(MaybeUninit::write(
+            unsafe { &mut *next_table_ptr },
+            PageTable::EMPTY,
+        ))
     }
 
     pub fn alloc_page_table(memory: &mut RleMemory) -> &'static mut PageTable {
         let page = memory.alloc();
-        unsafe { &mut *(page as *mut PageTable) }
+        let page_ptr = page as *mut MaybeUninit<PageTable>;
+        unsafe { &mut *page_ptr }.write(PageTable::EMPTY)
     }
 }
 
@@ -160,6 +234,17 @@ impl Default for PageTable {
     fn default() -> Self {
         Self::new()
     }
+}
+
+//
+
+#[derive(Debug, Clone, Copy)]
+#[repr(usize)]
+pub enum Depth {
+    Lvl0 = 0,
+    Lvl1 = 1,
+    Lvl2 = 2,
+    Lvl3 = 3,
 }
 
 //
@@ -201,11 +286,30 @@ impl PageTableEntry {
 bitflags! {
 #[derive(Debug, Clone, Copy)]
 pub struct PageFlags: u16 {
-    const PRESENT = 1 << 0;
+    const VALID = 1 << 0;
     const R = 1 << 1;
     const W = 1 << 2;
     const X = 1 << 3;
+    const USER = 1 << 4;
+    const GLOBAL = 1 << 5;
+    const ACCESSED = 1 << 6;
+    const DIRTY = 1 << 7;
+
+    const RW = Self::R.bits() | Self::W.bits();
+    const RX = Self::R.bits() | Self::X.bits();
+    const WX = Self::W.bits() | Self::X.bits();
+    const RWX = Self::R.bits() | Self::W.bits() | Self::X.bits();
 }
+}
+
+impl PageFlags {
+    pub const fn is_branch(self) -> bool {
+        self.intersection(Self::RWX).is_empty()
+    }
+
+    pub const fn is_leaf(self) -> bool {
+        !self.is_branch()
+    }
 }
 
 //
@@ -233,6 +337,10 @@ impl PhysAddr {
         Self(addr & ((1 << 52) - 1))
     }
 
+    pub const fn to_higher_half(self) -> VirtAddr {
+        VirtAddr::new(self.0 + VirtAddr::HHDM.0)
+    }
+
     pub const fn align_up(self) -> Self {
         Self::new(align_up(self.0, 1 << 12))
     }
@@ -256,7 +364,7 @@ impl PhysAddr {
     }
 
     /// DOESN'T DO ANY ADDRESS TRANSLATIONS
-    pub const fn as_mut_ptr<T>(self) -> *mut T {
+    pub const fn as_ptr_mut<T>(self) -> *mut T {
         self.0 as _
     }
 
@@ -265,7 +373,7 @@ impl PhysAddr {
     }
 }
 
-impl Add<PhysAddr> for PhysAddr {
+impl Add for PhysAddr {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -281,6 +389,24 @@ impl Add<usize> for PhysAddr {
     }
 }
 
+impl AddAssign for PhysAddr {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = self.add(rhs);
+    }
+}
+
+impl AddAssign<usize> for PhysAddr {
+    fn add_assign(&mut self, rhs: usize) {
+        *self = self.add(rhs);
+    }
+}
+
+impl fmt::Display for PhysAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "p{:#x}", self.0)
+    }
+}
+
 //
 
 /// Sv48:
@@ -290,12 +416,15 @@ impl Add<usize> for PhysAddr {
 /// - `21..=29` : level-1 index
 /// - `12..=20` : level-0 index
 /// - ` 0..=11` : byte offset
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtAddr(usize);
 
 impl VirtAddr {
     pub const OFFSET_MASK: usize = (1 << 12) - 1;
     pub const INDEX_MASK: usize = (1 << 9) - 1;
+
+    pub const KERNEL: Self = Self::new(0xffffffff80000000);
+    pub const HHDM: Self = Self::new(0xFFFF800000000000);
 
     pub const fn new(addr: usize) -> Self {
         match Self::try_from(addr) {
@@ -317,6 +446,8 @@ impl VirtAddr {
         Self(((addr << 16) as isize >> 16) as _)
     }
 
+    // pub const fn
+
     pub const fn align_up(self) -> Self {
         Self::new(align_up(self.0, 1 << 12))
     }
@@ -337,7 +468,7 @@ impl VirtAddr {
         self.0 as _
     }
 
-    pub const fn as_mut_ptr<T>(self) -> *mut T {
+    pub const fn as_ptr_mut<T>(self) -> *mut T {
         self.0 as _
     }
 
@@ -360,7 +491,7 @@ impl VirtAddr {
     }
 }
 
-impl Add<VirtAddr> for VirtAddr {
+impl Add for VirtAddr {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
@@ -373,6 +504,24 @@ impl Add<usize> for VirtAddr {
 
     fn add(self, rhs: usize) -> Self::Output {
         Self::new(self.0.checked_add(rhs).unwrap())
+    }
+}
+
+impl AddAssign for VirtAddr {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = self.add(rhs);
+    }
+}
+
+impl AddAssign<usize> for VirtAddr {
+    fn add_assign(&mut self, rhs: usize) {
+        *self = self.add(rhs);
+    }
+}
+
+impl fmt::Display for VirtAddr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "v{:#x}", self.0)
     }
 }
 
@@ -398,4 +547,9 @@ pub const fn align_down(addr: usize, align: usize) -> usize {
     assert!(align.is_power_of_two(), "align has to be a power of 2");
     let mask = align - 1;
     addr & !mask
+}
+
+pub const fn is_aligned(addr: usize, align: usize) -> bool {
+    assert!(align.is_power_of_two(), "align has to be a power of 2");
+    addr % align == 0
 }
