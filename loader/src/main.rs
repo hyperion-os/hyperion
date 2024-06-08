@@ -54,8 +54,8 @@ unsafe extern "C" fn _start() -> ! {
 }
 
 extern "C" fn entry(_a0: usize, a1: usize) -> ! {
-    let uart = PhysAddr::new_truncate(0x1000_0000).as_phys_ptr_mut();
-    unsafe { uart_16550::install_logger(uart) };
+    // let uart = PhysAddr::new_truncate(0x1000_0000).as_phys_ptr_mut();
+    // unsafe { uart_16550::install_logger(uart) };
 
     println!("loader entry");
 
@@ -94,20 +94,20 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
         PageFlags::RW,
         PhysAddr::null(),
     );
-    println!("map syscon");
-    page_table.map_identity_without_paging(
-        &mut memory,
-        VirtAddr::new(Syscon::base() as usize)..VirtAddr::new(Syscon::base() as usize + 0x1000),
-        PageFlags::RW,
-    );
-    println!("map uart");
-    page_table.map_identity_without_paging(
-        &mut memory,
-        VirtAddr::new(uart as usize)..VirtAddr::new(uart as usize + 0x1000),
-        PageFlags::RW,
-    );
-    println!("map devicetree");
-    page_table.map_identity_without_paging(&mut memory, dtb_bottom..dtb_top, PageFlags::RW);
+    // println!("map syscon");
+    // page_table.map_identity_without_paging(
+    //     &mut memory,
+    //     VirtAddr::new(Syscon::base() as usize)..VirtAddr::new(Syscon::base() as usize + 0x1000),
+    //     PageFlags::RW,
+    // );
+    // println!("map uart");
+    // page_table.map_identity_without_paging(
+    //     &mut memory,
+    //     VirtAddr::new(uart as usize)..VirtAddr::new(uart as usize + 0x1000),
+    //     PageFlags::RW,
+    // );
+    // println!("map devicetree");
+    // page_table.map_identity_without_paging(&mut memory, dtb_bottom..dtb_top, PageFlags::RW);
     println!("map loader (self)");
     page_table.map_identity_without_paging(
         &mut memory,
