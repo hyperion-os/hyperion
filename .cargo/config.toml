@@ -5,7 +5,7 @@ runner = """qemu-system-riscv64
   -serial mon:stdio
   -m 80M
   -s
-  -device VGA
+  -device ramfb
   -append 'hello'
   -kernel"""
 

@@ -56,8 +56,14 @@ extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
     let memory = RleMemoryRef::from_slice(unsafe { &*info.memory });
     println!("{memory:#x?}");
 
-    // let fdt =
-    //     unsafe { devicetree::Fdt::read(info.device_tree_blob as _) }.expect("invalid device tree");
+    // let fdt = unsafe {
+    //     devicetree::Fdt::read(
+    //         PhysAddr::from_phys_ptr(info.device_tree_blob)
+    //             .to_hhdm()
+    //             .as_ptr(),
+    //     )
+    // }
+    // .expect("invalid device tree");
     // fdt.structure_parser().print_tree(0);
 
     let total_usable_memory = memory.iter_usable().map(|s| s.size.get()).sum::<usize>();
