@@ -53,7 +53,7 @@ impl PhysAddr {
     }
 
     pub const fn from_hhdm(v: VirtAddr) -> PhysAddr {
-        if VirtAddr::HHDM.0 <= v.0 && v.0 < VirtAddr::KERNEL.0 {
+        if VirtAddr::HHDM.0 <= v.0 && v.0 < VirtAddr::KHEAP.0 {
             PhysAddr::new(v.0 + VirtAddr::HHDM.0)
         } else {
             panic!("not a HHDM address");
@@ -61,7 +61,11 @@ impl PhysAddr {
     }
 
     pub const fn to_hhdm(self) -> VirtAddr {
-        VirtAddr::new(self.0 + VirtAddr::HHDM.0)
+        if self.0 < VirtAddr::KHEAP.0 - VirtAddr::HHDM.0 {
+            VirtAddr::new(self.0 + VirtAddr::HHDM.0)
+        } else {
+            panic!("not HHDM mappable")
+        }
     }
 
     pub const fn abs_diff(self, other: Self) -> usize {
@@ -177,7 +181,11 @@ impl VirtAddr {
     pub const OFFSET_MASK: usize = (1 << 12) - 1;
     pub const INDEX_MASK: usize = (1 << 9) - 1;
 
+    /// higher half direct mapping address (64TiB)
     pub const HHDM: Self = Self::new(0xFFFF800000000000);
+    /// kernel heap bottom address (64TiB)
+    pub const KHEAP: Self = Self::new(0xFFFFC00000000000);
+    /// kernel executable address (2GiB)
     pub const KERNEL: Self = Self::new(0xffffffff80000000);
 
     pub const fn new(addr: usize) -> Self {

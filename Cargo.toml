@@ -33,6 +33,7 @@ bitflags = "2.5"
 
 # internal dependencies
 devicetree.path = "./crates/devicetree"
+kalloc.path = "./crates/kalloc"
 loader-info.path = "./crates/loader-info"
 log.path = "./crates/log"
 mem.path = "./crates/mem"

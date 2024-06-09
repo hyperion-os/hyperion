@@ -2,8 +2,11 @@
 #![no_main]
 #![feature(naked_functions)]
 
+extern crate alloc;
+
 //
 
+use alloc::vec::Vec;
 use loader_info::LoaderInfo;
 use log::println;
 use riscv64_util::{halt_and_catch_fire, PhysAddr};
@@ -83,6 +86,17 @@ extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
         frame.addr(),
         page_map.walk(frame.addr().to_hhdm())
     );
+
+    let v = (0..512).collect::<Vec<_>>();
+    println!("{v:?} = {:?}", v.as_ptr());
+    let v = (0..512).collect::<Vec<_>>();
+    println!("{v:?} = {:?}", v.as_ptr());
+    let v = (0..512).collect::<Vec<_>>();
+    println!("{v:?} = {:?}", v.as_ptr());
+    let v = (0..512).collect::<Vec<_>>();
+    println!("{v:?} = {:?}", v.as_ptr());
+
+    &kalloc::KALLOC;
 
     println!("done, poweroff");
     Syscon::poweroff();

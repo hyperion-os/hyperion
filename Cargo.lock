@@ -48,10 +48,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kalloc"
+version = "0.2.0"
+dependencies = [
+ "mem",
+ "riscv64-util",
+ "riscv64-vmm",
+]
+
+[[package]]
 name = "kernel"
 version = "0.2.0"
 dependencies = [
  "devicetree",
+ "kalloc",
  "loader-info",
  "log",
  "mem",
@@ -129,6 +139,7 @@ version = "0.2.0"
 dependencies = [
  "bitflags",
  "log",
+ "mem",
  "riscv64-util",
  "util",
 ]

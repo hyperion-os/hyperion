@@ -10,6 +10,7 @@ workspace = true
 spin.workspace = true
 
 devicetree.workspace = true
+kalloc.workspace = true
 loader-info.workspace = true
 log.workspace = true
 mem.workspace = true

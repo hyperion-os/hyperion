@@ -462,7 +462,7 @@ impl PageTableEntry {
 //
 
 bitflags! {
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PageFlags: u16 {
     const VALID = 1 << 0;
     const R = 1 << 1;

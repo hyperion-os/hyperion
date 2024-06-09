@@ -1,0 +1,12 @@
+[package]
+name = "kalloc"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+mem.workspace = true
+riscv64-util.workspace = true
+riscv64-vmm.workspace = true
