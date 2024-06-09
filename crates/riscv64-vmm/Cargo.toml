@@ -9,5 +9,6 @@ workspace = true
 [dependencies]
 bitflags.workspace = true
 
-util.workspace = true
 log.workspace = true
+riscv64-util.workspace = true
+util.workspace = true

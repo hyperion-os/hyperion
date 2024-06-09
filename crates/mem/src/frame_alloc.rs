@@ -7,9 +7,9 @@ use core::{
 };
 
 use log::println;
-use riscv64_vmm::{align_up, PhysAddr};
+use riscv64_util::PhysAddr;
 use spin::Once;
-use util::{prefix::NumberFmt, rle::RleMemoryRef};
+use util::{align_up, prefix::NumberFmt, rle::RleMemoryRef};
 
 //
 

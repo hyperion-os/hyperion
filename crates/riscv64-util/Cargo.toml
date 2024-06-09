@@ -3,7 +3,8 @@ name = "riscv64-util"
 version.workspace = true
 edition.workspace = true
 
-[dependencies]
-
 [lints]
 workspace = true
+
+[dependencies]
+util.workspace = true

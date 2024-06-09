@@ -10,5 +10,5 @@ workspace = true
 spin.workspace = true
 
 log.workspace = true
-riscv64-vmm.workspace = true
+riscv64-util.workspace = true
 util.workspace = true

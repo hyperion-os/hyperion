@@ -6,8 +6,8 @@
 
 use loader_info::LoaderInfo;
 use log::println;
-use riscv64_util::halt_and_catch_fire;
-use riscv64_vmm::{PageTable, PhysAddr};
+use riscv64_util::{halt_and_catch_fire, PhysAddr};
+use riscv64_vmm::PageTable;
 use syscon::Syscon;
 use util::{prefix::NumberFmt, rle::RleMemoryRef};
 

@@ -111,7 +111,7 @@ name = "mem"
 version = "0.2.0"
 dependencies = [
  "log",
- "riscv64-vmm",
+ "riscv64-util",
  "spin",
  "util",
 ]
@@ -119,6 +119,9 @@ dependencies = [
 [[package]]
 name = "riscv64-util"
 version = "0.2.0"
+dependencies = [
+ "util",
+]
 
 [[package]]
 name = "riscv64-vmm"
@@ -126,6 +129,7 @@ version = "0.2.0"
 dependencies = [
  "bitflags",
  "log",
+ "riscv64-util",
  "util",
 ]
 

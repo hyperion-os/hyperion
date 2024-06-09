@@ -12,11 +12,11 @@ use core::{arch::asm, ffi, num::NonZero, panic::PanicInfo, str};
 
 use loader_info::LoaderInfo;
 use log::println;
-use syscon::Syscon;
 use util::rle::{Region, RleMemory};
 use xmas_elf::ElfFile;
 
-use riscv64_vmm::{NoPaging, PageFlags, PageTable, PhysAddr, VirtAddr};
+use riscv64_util::{PhysAddr, VirtAddr};
+use riscv64_vmm::{NoPaging, PageFlags, PageTable};
 
 //
 
