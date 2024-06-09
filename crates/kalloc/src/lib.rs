@@ -52,14 +52,10 @@ unsafe impl GlobalAlloc for Kalloc {
         for i in 0..pages {
             // FIXME: unmap
 
-            if let (Some(phys_frame), flags) = vmm.walk(addr + i * 0x1000) {
-                assert_eq!(flags, PageFlags::RW);
-
+            if let (Some(phys_frame), _flags) = vmm.walk(addr + i * 0x1000) {
                 frame_alloc::free(unsafe { Frame::new(phys_frame) });
             }
         }
-
-        todo!()
     }
 }
 
