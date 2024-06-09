@@ -191,7 +191,7 @@ impl PageTable {
             // FIXME: alignment can be checked just once before the loop
 
             let (size, depth) = Self::select_page_size(to.clone(), from);
-            log::println!("mapping {size} ({depth:?}) {}->{}", to.start, from);
+            // log::println!("mapping {size} ({depth:?}) {}->{}", to.start, from);
 
             let entry = self.create_entry(to.start, depth);
             if entry.flags().contains(PageFlags::VALID) {
@@ -226,7 +226,7 @@ impl PageTable {
             // FIXME: alignment can be checked just once before the loop
 
             let (size, depth) = Self::select_page_size(to.clone(), from);
-            log::println!("mapping {size} ({depth:?}) {}->{}", to.start, from);
+            // log::println!("mapping {size} ({depth:?}) {}->{}", to.start, from);
 
             let entry = self.create_entry_loader(memory, to.start, depth);
             if entry.flags().contains(PageFlags::VALID) {

@@ -307,11 +307,11 @@ impl FrameAllocator {
             let idx = at % self.pages.len();
             let page = &self.pages[idx];
 
-            println!("trying {idx}");
+            // println!("trying {idx}");
             if !page.alloc() {
                 continue;
             }
-            println!("found");
+            // println!("found");
 
             // zeroing shouldn't be needed,
             // all memory given to the frame allocator should already be safe to allocate
