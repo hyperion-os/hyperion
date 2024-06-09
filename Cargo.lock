@@ -239,6 +239,7 @@ version = "0.2.0"
 dependencies = [
  "crossbeam-queue",
  "futures",
+ "log",
  "spin",
 ]
 

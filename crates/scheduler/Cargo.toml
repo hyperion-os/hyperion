@@ -10,3 +10,5 @@ workspace = true
 spin.workspace = true
 crossbeam-queue.workspace = true
 futures.workspace = true
+
+log.workspace = true

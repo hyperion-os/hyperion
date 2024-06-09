@@ -89,9 +89,20 @@ extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
         page_map.walk(frame.addr().to_hhdm())
     );
 
-    scheduler::spawn(async {
-        println!("hello from async");
-    });
+    for i in 0..10 {
+        scheduler::spawn(async move {
+            println!("hello {i}");
+            let mut ready = core::task::Poll::Pending;
+            core::future::poll_fn(move |cx| {
+                let r = ready;
+                cx.waker().wake_by_ref();
+                ready = core::task::Poll::Ready(());
+                r
+            })
+            .await;
+            println!("done  {i}");
+        });
+    }
 
     scheduler::run_forever();
 

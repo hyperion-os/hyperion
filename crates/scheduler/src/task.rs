@@ -1,8 +1,4 @@
-use core::{
-    future::Future,
-    pin::{self, pin, Pin},
-    task::Context,
-};
+use core::{future::Future, pin::Pin, task::Context};
 
 use alloc::{boxed::Box, sync::Arc};
 use futures::{
@@ -35,7 +31,7 @@ impl Task {
         let waker = futures::task::waker_ref(&self.0);
         let mut cx = Context::from_waker(&waker);
 
-        fut.as_mut().poll(&mut cx);
+        _ = fut.as_mut().poll(&mut cx);
     }
 }
 
