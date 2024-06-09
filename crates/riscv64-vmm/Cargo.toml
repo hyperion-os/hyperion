@@ -10,5 +10,6 @@ workspace = true
 bitflags.workspace = true
 
 log.workspace = true
+mem.workspace = true
 riscv64-util.workspace = true
 util.workspace = true

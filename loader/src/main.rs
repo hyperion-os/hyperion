@@ -88,7 +88,7 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
     let mut page_table = PageTable::alloc_page_table(&mut memory, NoPaging);
 
     println!("map HHDM");
-    page_table.map_offset_without_paging(
+    page_table.map_offset_loader(
         &mut memory,
         VirtAddr::HHDM..VirtAddr::HHDM + memory_end,
         PageFlags::RW,
@@ -109,7 +109,7 @@ extern "C" fn entry(_a0: usize, a1: usize) -> ! {
     // println!("map devicetree");
     // page_table.map_identity_without_paging(&mut memory, dtb_bottom..dtb_top, PageFlags::RW);
     println!("map loader (self)");
-    page_table.map_identity_without_paging(
+    page_table.map_identity_loader(
         &mut memory,
         VirtAddr::new(kernel_beg)..VirtAddr::new(kernel_end),
         PageFlags::RWX,
@@ -181,7 +181,7 @@ fn load_kernel(
             }
 
             let data = &kernel_elf.input[file_beg..file_end];
-            table.map_without_paging(memory, virt_beg..virt_end, page_flags, data);
+            table.map_data_loader(memory, virt_beg..virt_end, page_flags, data);
         }
     }
 
