@@ -14,7 +14,7 @@
 use bitflags::bitflags;
 use core::{arch::asm, mem::MaybeUninit, ops::Range};
 use mem::frame_alloc;
-use riscv64_util::{PhysAddr, VirtAddr};
+use riscv64_util::{reg::Satp, PhysAddr, VirtAddr};
 use util::rle::RleMemory;
 
 //
@@ -66,8 +66,7 @@ impl PageTable {
     }
 
     pub fn get_active() -> PhysAddr {
-        let satp: usize;
-        unsafe { asm!("csrr {satp}, satp", satp = out(reg) satp) };
+        let satp = Satp::read();
         let satp_mode = satp >> 60;
         let satp_ppn = satp << 12;
 
@@ -92,7 +91,8 @@ impl PageTable {
         let satp_mode = 9 << 60; // 8=Sv39 , 9=Sv48 , 10=Sv57 , 11=Sv64
         let satp = satp_mode | satp_ppn;
 
-        unsafe { asm!("csrw satp, {satp}", satp = in(reg) satp) };
+        // SAFETY: the page table should be correct™
+        unsafe { Satp::write(satp) };
     }
 
     pub fn map_data(&mut self, mut to: Range<VirtAddr>, flags: PageFlags, mut data: &[u8]) {

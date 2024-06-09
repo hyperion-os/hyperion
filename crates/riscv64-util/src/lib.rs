@@ -13,6 +13,10 @@ use util::{align_down, align_up, is_aligned};
 
 //
 
+pub mod reg;
+
+//
+
 /// HCF instruction
 pub fn halt_and_catch_fire() -> ! {
     loop {
