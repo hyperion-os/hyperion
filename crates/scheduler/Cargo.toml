@@ -1,0 +1,12 @@
+[package]
+name = "scheduler"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+spin.workspace = true
+crossbeam-queue.workspace = true
+futures.workspace = true

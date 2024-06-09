@@ -50,6 +50,8 @@ extern "C" fn _start(_this: usize, _info: *const LoaderInfo) -> ! {
 extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
     assert_eq!(this, _start as _);
 
+    &kalloc::KALLOC;
+
     let uart = PhysAddr::new_truncate(0x1000_0000).to_hhdm().as_ptr_mut();
     unsafe { uart_16550::install_logger(uart) };
     println!("hello from kernel");
@@ -87,16 +89,11 @@ extern "C" fn entry(this: usize, info: *const LoaderInfo) -> ! {
         page_map.walk(frame.addr().to_hhdm())
     );
 
-    let v = (0..512).collect::<Vec<_>>();
-    println!("{v:?} = {:?}", v.as_ptr());
-    let v = (0..512).collect::<Vec<_>>();
-    println!("{v:?} = {:?}", v.as_ptr());
-    let v = (0..512).collect::<Vec<_>>();
-    println!("{v:?} = {:?}", v.as_ptr());
-    let v = (0..512).collect::<Vec<_>>();
-    println!("{v:?} = {:?}", v.as_ptr());
+    scheduler::spawn(async {
+        println!("hello from async");
+    });
 
-    &kalloc::KALLOC;
+    scheduler::run_forever();
 
     println!("done, poweroff");
     Syscon::poweroff();

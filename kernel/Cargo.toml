@@ -16,6 +16,7 @@ log.workspace = true
 mem.workspace = true
 riscv64-util.workspace = true
 riscv64-vmm.workspace = true
+scheduler.workspace = true
 syscon.workspace = true
 uart-16550.workspace = true
 util.workspace = true
