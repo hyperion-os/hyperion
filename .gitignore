@@ -3,5 +3,6 @@ target/
 asset/*
 asset/!splash
 asset/!font.bmp
+rustc-ice*
 
 .gdb_history
