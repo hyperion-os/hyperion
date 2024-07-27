@@ -137,6 +137,7 @@ fn wmctl_main(_: &Path) {
 fn wm_main(bin: &Path) {
     stdio_to_logfile();
 
+    // FIXME: use a link instead
     // clone self info /bin/wmctl
     system("/bin/cp", &[bin.to_str().unwrap(), "/bin/wmctl"]).unwrap();
 
