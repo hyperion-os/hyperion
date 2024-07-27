@@ -3,3 +3,4 @@
 /asset/*
 /asset/!splash
 /asset/!font.bmp
+rustc-ice-*
