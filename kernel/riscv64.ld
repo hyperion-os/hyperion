@@ -15,7 +15,10 @@ SECTIONS {
     PROVIDE(_text_end = .);
   }
 
+  . += 0x800;
   PROVIDE(_global_pointer = .);
+  . += 0x800;
+  . = ALIGN(0x1000);
 
   .rodata : {
     PROVIDE(_rodata_beg = .);

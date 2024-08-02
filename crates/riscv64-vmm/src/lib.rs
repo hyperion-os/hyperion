@@ -12,7 +12,7 @@
 //
 
 use bitflags::bitflags;
-use core::{arch::asm, mem::MaybeUninit, ops::Range};
+use core::{mem::MaybeUninit, ops::Range};
 use mem::frame_alloc;
 use riscv64_util::{reg::Satp, PhysAddr, VirtAddr};
 use util::rle::RleMemory;
@@ -312,7 +312,7 @@ impl PageTable {
         unsafe { &mut *ty.phys_to_ptr::<MaybeUninit<PageTable>>(page) }.write(PageTable::EMPTY)
     }
 
-    fn create_entry<'a>(&'a mut self, at: VirtAddr, depth: Depth) -> &'a mut PageTableEntry {
+    fn create_entry(&mut self, at: VirtAddr, depth: Depth) -> &mut PageTableEntry {
         let mut table = self;
 
         for (i, idx) in at.table_indices().into_iter().enumerate() {
@@ -386,7 +386,7 @@ impl PageTable {
     //     unreachable!()
     // }
 
-    fn create_table_for_entry<'a>(entry: &'a mut PageTableEntry) -> &'a mut PageTable {
+    fn create_table_for_entry(entry: &mut PageTableEntry) -> &mut PageTable {
         entry.set_flags(PageFlags::VALID);
         entry.set_addr(frame_alloc::alloc().addr());
         unsafe { Self::init_entry_as_table(entry.addr().to_hhdm().as_ptr_mut()) }

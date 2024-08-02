@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 default-run = "loader"
 
+[features]
+default = []
+log = []
+
 [dependencies]
 spin.workspace = true
 heapless.workspace = true
