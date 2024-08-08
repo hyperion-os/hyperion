@@ -40,7 +40,9 @@ ARCH_DIR         := crates/kernel/src/arch/${ARCH}
 BOOT_DIR         := crates/boot-${BOOTLOADER}/src
 CARGO_DIR        := ${TARGET_DIR}/${RUST_T_${ARCH}}/${PROFILE}
 ISO_DIR          := ${HYPER_DIR}/iso-root
-ISO_TESTING_DIR  := ${HYPER_DIR}/iso-testing
+ISO_TESTING_DIR  := ${HYPER_DIR}/iso-root-testing
+INITFS_DIR       := ${HYPER_DIR}/initfs-root
+INITFS           := ${HYPER_DIR}/initfs-root.tar.gz
 
 # artefacts
 HYPERION         := ${HYPER_DIR}/hyperion.iso
@@ -53,11 +55,13 @@ RUST_F_release-lto:= --profile=release-lto
 CARGO_FLAGS      ?=
 CARGO_FLAGS      += ${RUST_F_${PROFILE}}
 CARGO_FLAGS      += --target=${RUST_T_${ARCH}}
-CARGO_FLAGS      += --package=hyperion-kernel
+CARGO_FLAGS      += 
 KERNEL           := ${CARGO_DIR}/hyperion-kernel
 KERNEL_TESTING   := ${KERNEL}-testing
 #KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion-kernel.d))
 KERNEL_SRC       := $(shell find crates -name *.rs) $(shell find userspace -name *.rs) $(shell find asset -type f)
+BOOTSTRAP        := ${CARGO_DIR}/bootstrap
+BOOTSTRAP_SRC    := $(shell find userspace -name *.rs)
 
 # gdb
 override GDB_FLAGS += --eval-command="target remote localhost:1234"
@@ -66,17 +70,20 @@ override GDB_FLAGS += --eval-command="symbol-file ${KERNEL}"
 #${CARGO_DIR}/hyperion-kernel.d:
 #	${CARGO} build ${CARGO_FLAGS}
 
-#${KERNEL_SRC}:
+# hyperion bootstrap compile
+${BOOTSTRAP}: ${BOOTSTRAP_SRC} Makefile Cargo.toml Cargo.lock
+	@echo -e "\n\033[32m--[[ building Hyperion bootstrap ]]--\033[0m"
+	${CARGO} build ${CARGO_FLAGS} --package=bootstrap
 
 # hyperion kernel compilation
 ${KERNEL}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 	@echo -e "\n\033[32m--[[ building Hyperion ]]--\033[0m"
-	${CARGO} build ${CARGO_FLAGS}
+	${CARGO} build ${CARGO_FLAGS} --package=hyperion-kernel
 	#@touch ${KERNEL}
 
 ${KERNEL_TESTING}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
 	@echo -e "\n\033[32m--[[ building Hyperion-Testing ]]--\033[0m"
-	@${CARGO} test --no-run ${CARGO_FLAGS} # first one prints human readable errors
+	@${CARGO} test --no-run ${CARGO_FLAGS} --package=hyperion-kernel # first one prints human readable errors
 	${CARGO} test --no-run --message-format=json ${CARGO_FLAGS} | \
 		jq -r "select(.profile.test == true) | .filenames[]" | \
 		xargs -I % cp "%" ${KERNEL_TESTING}

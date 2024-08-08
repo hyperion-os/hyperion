@@ -137,7 +137,9 @@ impl<'a> Loader<'a> {
         let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
         let v_size = v_end - v_addr;
 
-        // debug!("segment phys alloc: {phys:#x} mapped to {alloc:#x}");
+        if v_addr.as_u64() == 0 {
+            panic!("PIE CODE LOADING IS NOT SUPPORTED");
+        }
 
         let segment_data = self.parser.segment_data(&segment).expect("TODO:");
         let segment_alloc: &mut [MaybeUninit<u8>] =
@@ -252,7 +254,11 @@ pub struct EntryPoint {
 }
 
 impl EntryPoint {
-    pub fn enter(&self, name: String, args: Vec<String>) {
+    pub const fn as_ptr(&self) -> *const u8 {
+        self.entry as _
+    }
+
+    pub fn enter(&self, name: String, args: Vec<String>) -> ! {
         // TODO: this is HIGHLY unsafe atm.
 
         let entry = self.entry;

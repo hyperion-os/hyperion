@@ -4,15 +4,18 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, format, string::String, sync::Arc, vec, vec::Vec};
 use core::{
     any::Any,
-    mem, slice,
+    mem,
+    ptr::copy_nonoverlapping,
+    slice,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use arcstr::ArcStr;
-use hyperion_loader::Loader;
+use hyperion_arch::syscall;
+use hyperion_loader::{EntryPoint, Loader};
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
@@ -613,6 +616,63 @@ pub fn exec(
             }
         }
     })
+}
+
+pub fn exec_bootstrap(bootstrap_elf: &'static [u8], initfs: &'static [u8]) {
+    hyperion_scheduler::schedule(move || {
+        // debug!("loading bootstrap");
+
+        hyperion_scheduler::rename("<bootstrap>");
+
+        pub static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
+            Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
+        pub static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
+            Lazy::new(|| Arc::new(FileDescData::open("/dev/log").unwrap()));
+
+        let stdin = NULL_DEV.clone();
+        let stdout = LOG_DEV.clone();
+        let stderr = LOG_DEV.clone();
+        fd_replace(FileDesc(0), stdin);
+        fd_replace(FileDesc(1), stdout);
+        fd_replace(FileDesc(2), stderr);
+
+        // load ..
+        let loader = Loader::new(bootstrap_elf);
+        loader.load();
+        let entry = loader
+            .finish()
+            .unwrap_or_else(|_| panic!("no bootstrap entrypoint"));
+
+        // debug!("allocating initfs copy");
+        let initfs_copy = process()
+            .alloc(
+                initfs.len().div_ceil(0x1000),
+                PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
+            )
+            .unwrap();
+        // debug!("copying initfs to {initfs_copy:#x}");
+        unsafe { copy_nonoverlapping(initfs.as_ptr(), initfs_copy.as_mut_ptr(), initfs.len()) };
+
+        // debug!("enter bootstrap");
+        entry.enter(
+            String::new(),
+            vec![format!(
+                "initfs={:#x}+{:#x}",
+                initfs_copy.as_u64(),
+                initfs.len()
+            )],
+        );
+
+        // let (stack_top, _) = EntryPoint::init_stack(&[]);
+
+        // debug!("entering bootstrap");
+        // syscall::userland(
+        //     VirtAddr::from_ptr(entry.as_ptr()),
+        //     stack_top,
+        //     initfs.as_ptr() as usize as _,
+        //     initfs.len() as _,
+        // );
+    });
 }
 
 pub fn on_close(on_close: Box<dyn FnOnce() + Send>) {

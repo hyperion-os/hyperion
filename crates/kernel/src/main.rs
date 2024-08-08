@@ -76,6 +76,22 @@ fn init() {
             debug!("MODULE: {module:x?}");
         }
 
+        let initfs = boot::modules().find_map(|module| {
+            (module.cmdline == Some("initfs")).then_some(unsafe {
+                core::ptr::slice_from_raw_parts::<u8>(module.addr as _, module.size)
+            })
+        });
+
+        let bootstrap = boot::modules().find_map(|module| {
+            (module.cmdline == Some("")).then_some(unsafe {
+                core::ptr::slice_from_raw_parts::<u8>(module.addr as _, module.size)
+            })
+        });
+
+        let initfs = unsafe { &*initfs.expect("no initfs") };
+        let bootstrap = unsafe { &*bootstrap.expect("no bootstrap") };
+        hyperion_kernel_impl::exec_bootstrap(bootstrap, initfs);
+
         // os unit tests
         #[cfg(test)]
         test_main();
