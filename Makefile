@@ -39,7 +39,7 @@ HYPER_DIR        := ${TARGET_DIR}/hyperion/${BOOTLOADER}/${ARCH}
 ARCH_DIR         := crates/kernel/src/arch/${ARCH}
 BOOT_DIR         := crates/boot-${BOOTLOADER}/src
 CARGO_DIR        := ${TARGET_DIR}/${RUST_T_${ARCH}}/${PROFILE}
-ISO_DIR          := ${HYPER_DIR}/iso
+ISO_DIR          := ${HYPER_DIR}/iso-root
 ISO_TESTING_DIR  := ${HYPER_DIR}/iso-testing
 
 # artefacts

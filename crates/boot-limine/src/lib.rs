@@ -7,6 +7,7 @@ pub use cmdline::cmdline;
 pub use framebuffer::{framebuffer, init_fb};
 pub use kernel::kernel_file;
 pub use mem::memmap;
+pub use module::{modules, Module};
 pub use rsdp::rsdp;
 pub use smp::{boot_cpu, cpu_count, lapics, smp_init};
 
@@ -17,6 +18,7 @@ mod cmdline;
 mod framebuffer;
 mod kernel;
 mod mem;
+mod module;
 mod rsdp;
 mod smp;
 

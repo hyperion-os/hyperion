@@ -47,14 +47,27 @@ static KERNEL_ADDR: Lazy<KernelAddress> = Lazy::new(|| {
         .get()
         .expect("Cannot get LimineHHDM response");
 
-    let mut memmap_iter = memmap().filter(|map| map.is_kernel_and_modules());
-    let kernel_map = memmap_iter.next().unwrap();
-    assert_eq!(memmap_iter.next(), None);
-    let size = kernel_map.len;
+    let memmap_iter = memmap().filter(|map| map.is_kernel_and_modules());
+
+    let mut min = usize::MAX;
+    let mut max = usize::MIN;
+
+    for kernel_map in memmap_iter {
+        min = min.min(kernel_map.base);
+        max = max.max(kernel_map.base + kernel_map.len);
+    }
+
+    if max <= min {
+        panic!("kernel memmap missing");
+    }
+
+    if !(min..=max).contains(&(resp.physical_base as usize)) {
+        panic!("kernel is not in kernel memmap");
+    }
 
     KernelAddress {
-        phys: resp.physical_base as _,
-        virt: resp.virtual_base as _,
-        size,
+        phys: min,
+        virt: resp.virtual_base as usize - (resp.physical_base as usize - min),
+        size: max - min,
     }
 });

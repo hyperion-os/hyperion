@@ -72,6 +72,10 @@ fn init() {
         drivers::lazy_install_early(VFS_ROOT.clone());
         drivers::lazy_install_late();
 
+        for module in boot::modules() {
+            debug!("MODULE: {module:x?}");
+        }
+
         // os unit tests
         #[cfg(test)]
         test_main();
