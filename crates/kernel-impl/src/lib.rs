@@ -53,6 +53,16 @@ pub static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(|| {
     root
 });
 
+pub static INITFS: Once<(VirtAddr, usize)> = Once::new();
+/// bootstrap process
+pub static BOOTSTRAP: Once<Arc<Process>> = Once::new();
+/// process manager process
+pub static PM: Once<Arc<Process>> = Once::new();
+/// virtual filesystem process
+pub static VFS: Once<Arc<Process>> = Once::new();
+/// virtual memory process
+pub static VM: Once<Arc<Process>> = Once::new();
+
 //
 
 #[derive(Clone)]
@@ -618,11 +628,9 @@ pub fn exec(
     })
 }
 
-pub fn exec_bootstrap(bootstrap_elf: &'static [u8], initfs: &'static [u8]) {
-    hyperion_scheduler::schedule(move || {
-        // debug!("loading bootstrap");
-
-        hyperion_scheduler::rename("<bootstrap>");
+pub fn exec_system(elf: &'static [u8], program: String, args: Vec<String>) -> Arc<Process> {
+    let pid = hyperion_scheduler::schedule(move || {
+        hyperion_scheduler::rename(program.clone());
 
         pub static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
             Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
@@ -637,42 +645,17 @@ pub fn exec_bootstrap(bootstrap_elf: &'static [u8], initfs: &'static [u8]) {
         fd_replace(FileDesc(2), stderr);
 
         // load ..
-        let loader = Loader::new(bootstrap_elf);
+        let loader = Loader::new(elf);
         loader.load();
         let entry = loader
             .finish()
             .unwrap_or_else(|_| panic!("no bootstrap entrypoint"));
 
-        // debug!("allocating initfs copy");
-        let initfs_copy = process()
-            .alloc(
-                initfs.len().div_ceil(0x1000),
-                PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
-            )
-            .unwrap();
-        // debug!("copying initfs to {initfs_copy:#x}");
-        unsafe { copy_nonoverlapping(initfs.as_ptr(), initfs_copy.as_mut_ptr(), initfs.len()) };
-
         // debug!("enter bootstrap");
-        entry.enter(
-            String::new(),
-            vec![format!(
-                "initfs={:#x}+{:#x}",
-                initfs_copy.as_u64(),
-                initfs.len()
-            )],
-        );
-
-        // let (stack_top, _) = EntryPoint::init_stack(&[]);
-
-        // debug!("entering bootstrap");
-        // syscall::userland(
-        //     VirtAddr::from_ptr(entry.as_ptr()),
-        //     stack_top,
-        //     initfs.as_ptr() as usize as _,
-        //     initfs.len() as _,
-        // );
+        entry.enter(program, args);
     });
+
+    pid.find().expect("a critical system component crashed")
 }
 
 pub fn on_close(on_close: Box<dyn FnOnce() + Send>) {

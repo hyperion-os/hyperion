@@ -7,7 +7,7 @@ use alloc::{
 use core::{
     fmt::Write,
     ops::Deref,
-    ptr::NonNull,
+    ptr::{self, NonNull},
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -19,7 +19,7 @@ use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
     read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
     read_untrusted_slice, read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo,
-    SocketPipe, VFS_ROOT,
+    SocketPipe, BOOTSTRAP, INITFS, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::{
@@ -106,6 +106,8 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::SYSTEM => call_id(system, args),
         id::FORK => call_id(fork, args),
         id::WAITPID => call_id(waitpid, args),
+
+        id::SYS_MAP_INITFS => call_id(sys_map_initfs, args),
 
         other => {
             debug!("invalid syscall ({other})");
@@ -842,4 +844,46 @@ pub fn waitpid(args: &mut SyscallRegs) -> Result<usize> {
 
     // negatives wrap, but the syscaller handles it
     return Ok(exit_code.0 as usize);
+}
+
+/// maps (copies) initfs to memory, this is bootstrap specific
+///
+/// [`hyperion_syscall::sys_map_initfs`]
+pub fn sys_map_initfs(args: &mut SyscallRegs) -> Result<usize> {
+    let [addr, size]: &mut [usize; 2] = read_untrusted_mut(args.arg0)?;
+
+    let real = BOOTSTRAP
+        .get()
+        .expect("a critical system component crashed");
+    let proc = process();
+
+    if !Arc::ptr_eq(&proc, real) {
+        return Err(Error::PERMISSION_DENIED);
+    }
+
+    let Some((initfs_addr, initfs_size)) = INITFS.get().copied() else {
+        return Err(Error::NOT_FOUND);
+    };
+
+    // initfs data might be overlapping with something else,
+    // this is done only once per boot so idc if its a copy
+    let initfs_copy_base = proc
+        .alloc(
+            initfs_size.div_ceil(0x1000),
+            PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
+        )
+        .map_err(|err| match err {
+            AllocErr::OutOfVirtMem => Error::OUT_OF_VIRTUAL_MEMORY,
+        })?;
+
+    unsafe {
+        initfs_addr
+            .as_ptr::<u8>()
+            .copy_to_nonoverlapping(initfs_copy_base.as_mut_ptr(), initfs_size);
+    }
+
+    *addr = initfs_copy_base.as_u64() as usize;
+    *size = initfs_size;
+
+    return Ok(0);
 }

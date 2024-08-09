@@ -13,6 +13,8 @@
 
 extern crate alloc;
 
+use alloc::vec;
+
 use hyperion_arch as arch;
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
@@ -25,6 +27,7 @@ use hyperion_log_multi as log_multi;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
+use x86_64::VirtAddr;
 
 //
 
@@ -32,6 +35,26 @@ pub mod panic;
 pub mod syscall;
 #[cfg(test)]
 pub mod testfw;
+
+//
+
+// FIXME: prob flat binaries instead of ELF binaries,
+// because ELF brings additional and unnecessary complexity.
+// maybe a build script could objcopy them or something
+/// load critical user-space system process binaries
+macro_rules! load_elf {
+    ($bin:literal) => {
+        load_elf_from!(env!(concat!("CARGO_BIN_FILE_", $bin)))
+    };
+}
+
+macro_rules! load_elf_from {
+    ($($t:tt)*) => {{
+        const FILE: &[u8] = include_bytes!($($t)*);
+        trace!("ELF from {}", $($t)*);
+        FILE
+    }};
+}
 
 //
 
@@ -76,21 +99,18 @@ fn init() {
             debug!("MODULE: {module:x?}");
         }
 
-        let initfs = boot::modules().find_map(|module| {
-            (module.cmdline == Some("initfs")).then_some(unsafe {
-                core::ptr::slice_from_raw_parts::<u8>(module.addr as _, module.size)
-            })
+        hyperion_kernel_impl::INITFS.try_call_once(|| {
+            boot::modules()
+                .find_map(|module| {
+                    (module.cmdline == Some("initfs"))
+                        .then_some(unsafe { (VirtAddr::new(module.addr as _), module.size) })
+                })
+                .ok_or(())
         });
 
-        let bootstrap = boot::modules().find_map(|module| {
-            (module.cmdline == Some("")).then_some(unsafe {
-                core::ptr::slice_from_raw_parts::<u8>(module.addr as _, module.size)
-            })
+        hyperion_kernel_impl::BOOTSTRAP.call_once(|| {
+            hyperion_kernel_impl::exec_system(load_elf!("BOOTSTRAP"), "<bootstrap>".into(), vec![])
         });
-
-        let initfs = unsafe { &*initfs.expect("no initfs") };
-        let bootstrap = unsafe { &*bootstrap.expect("no bootstrap") };
-        hyperion_kernel_impl::exec_bootstrap(bootstrap, initfs);
 
         // os unit tests
         #[cfg(test)]

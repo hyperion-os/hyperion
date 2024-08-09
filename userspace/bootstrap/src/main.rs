@@ -42,25 +42,31 @@ static INITFS_ROOT: Once<Dir> = Once::new();
 fn main() {
     println!("hello from bootstrap");
 
-    let initfs_arg = libstd::env::args()
-        .find_map(|s| s.strip_prefix("initfs="))
-        .expect("no initfs argument");
+    // let initfs_arg = libstd::env::args()
+    //     .find_map(|s| s.strip_prefix("initfs="))
+    //     .expect("no initfs argument");
 
-    let (addr, size) = initfs_arg.split_once('+').expect("invalid initfs argument");
-    let (addr, size) = (
-        usize::from_str_radix(addr.trim_start_matches("0x"), 16).expect("invalid addr"),
-        usize::from_str_radix(size.trim_start_matches("0x"), 16).expect("invalid size"),
-    );
+    // let (addr, size) = initfs_arg.split_once('+').expect("invalid initfs argument");
+    // let (addr, size) = (
+    //     usize::from_str_radix(addr.trim_start_matches("0x"), 16).expect("invalid addr"),
+    //     usize::from_str_radix(size.trim_start_matches("0x"), 16).expect("invalid size"),
+    // );
 
-    println!("loading initfs from {addr:#x} ({size} bytes)");
+    let initfs = libstd::sys::sys_map_initfs().expect("failed to map initfs.tar.gz");
 
-    let initfs_tar_gz: &[u8] = unsafe { slice::from_raw_parts(addr as _, size) };
+    println!("unpacking initfs");
+
+    let initfs_tar_gz: &[u8] = unsafe { &*initfs };
     let tree = parse::parse_tar_gz(initfs_tar_gz);
     // println!("collected initfs: {tree:?}");
 
     INITFS_ROOT.call_once(move || tree);
 
     println!("/bin/init: {:?}", open("/bin/init"));
+
+    // loop {
+    //     libstd::sys::yield_now();
+    // }
 }
 
 fn open(path: &str) -> Option<&[u8]> {

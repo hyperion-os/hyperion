@@ -69,6 +69,10 @@ pub mod id {
     pub const SYSTEM: usize = 33;
     pub const FORK: usize = 34;
     pub const WAITPID: usize = 35;
+
+    // system service specific syscalls
+
+    pub const SYS_MAP_INITFS: usize = 1001;
 }
 
 //
@@ -418,4 +422,14 @@ pub fn fork() -> usize {
 /// TODO: this should be like https://linux.die.net/man/2/waitpid in the future
 pub fn waitpid(pid: usize) -> usize {
     unsafe { syscall_1(id::WAITPID, pid) }.unwrap()
+}
+
+/// bootstrap specific syscall, maps initfs into memory
+/// only bootstrap can use this syscall
+pub fn sys_map_initfs() -> Result<*const [u8]> {
+    let mut result = [0usize; 2];
+    unsafe { syscall_1(id::SYS_MAP_INITFS, &mut result as *mut _ as usize) }.map(|_| {
+        let [addr, size] = result;
+        core::ptr::slice_from_raw_parts(addr as _, size)
+    })
 }
