@@ -21,7 +21,7 @@ ${LIM_FILES}:
 	cd ${LIM_DIR}; make
 
 # create initfs.tar.gz
-${INITFS}:
+${INITFS}: ${INITFS_DIR}
 	@echo -e "\n\033[32m--[[ creating Hyperion initfs ]]--\033[0m"
 	mkdir -p ${INITFS_DIR}
 	cd ${INITFS_DIR} && tar -czf ${INITFS} .
