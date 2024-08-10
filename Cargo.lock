@@ -825,6 +825,7 @@ dependencies = [
 name = "hyperion-kernel"
 version = "0.3.0"
 dependencies = [
+ "bootstrap",
  "hyperion-arch",
  "hyperion-boot",
  "hyperion-cpu-id",
@@ -1107,6 +1108,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "init"
+version = "0.3.0"
+dependencies = [
+ "libstd",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1259,6 +1267,13 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "pm"
+version = "0.3.0"
+dependencies = [
+ "libstd",
+]
 
 [[package]]
 name = "png"
@@ -1675,6 +1690,20 @@ name = "utf8parse"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
+
+[[package]]
+name = "vfs"
+version = "0.3.0"
+dependencies = [
+ "libstd",
+]
+
+[[package]]
+name = "vm"
+version = "0.3.0"
+dependencies = [
+ "libstd",
+]
 
 [[package]]
 name = "volatile"

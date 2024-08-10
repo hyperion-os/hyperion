@@ -1,0 +1,10 @@
+[package]
+name = "vm"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+libstd.path = "../../crates/libstd"

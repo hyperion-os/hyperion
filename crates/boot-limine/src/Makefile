@@ -20,12 +20,6 @@ ${LIM_FILES}:
 	git clone "${LIM_GIT}" --depth=1 --branch v3.0-branch-binary ${LIM_DIR}
 	cd ${LIM_DIR}; make
 
-# create initfs.tar.gz
-${INITFS}: ${INITFS_DIR}
-	@echo -e "\n\033[32m--[[ creating Hyperion initfs ]]--\033[0m"
-	mkdir -p ${INITFS_DIR}
-	cd ${INITFS_DIR} && tar -czf ${INITFS} .
-
 # create ISO
 ${HYPERION}: ${KERNEL} ${INITFS} ${BOOTSTRAP} ${LIM_CFG} ${LIM_FILES} Makefile
 	@echo -e "\n\033[32m--[[ creating Hyperion ISO ]]--\033[0m"

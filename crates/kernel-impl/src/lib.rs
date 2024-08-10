@@ -58,10 +58,10 @@ pub static INITFS: Once<(VirtAddr, usize)> = Once::new();
 pub static BOOTSTRAP: Once<Arc<Process>> = Once::new();
 /// process manager process
 pub static PM: Once<Arc<Process>> = Once::new();
-/// virtual filesystem process
-pub static VFS: Once<Arc<Process>> = Once::new();
 /// virtual memory process
 pub static VM: Once<Arc<Process>> = Once::new();
+/// virtual filesystem process
+pub static VFS: Once<Arc<Process>> = Once::new();
 
 //
 

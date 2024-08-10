@@ -59,29 +59,51 @@ CARGO_FLAGS      +=
 KERNEL           := ${CARGO_DIR}/hyperion-kernel
 KERNEL_TESTING   := ${KERNEL}-testing
 #KERNEL_SRC       := $(filter-out %: ,$(file < ${CARGO_DIR}/hyperion-kernel.d))
-KERNEL_SRC       := $(shell find crates -name *.rs) $(shell find userspace -name *.rs) $(shell find asset -type f)
+KERNEL_SRC       := $(shell find ./ -name *.ld) \
+					$(shell find crates -name *.rs) \
+					$(shell find userspace -name *.rs) \
+					$(shell find asset -type f) \
+					Makefile Cargo.toml Cargo.lock
+
+# bootstrap code + initfs
 BOOTSTRAP        := ${CARGO_DIR}/bootstrap
-BOOTSTRAP_SRC    := $(shell find userspace -name *.rs)
+VM               := ${CARGO_DIR}/vm
+PM               := ${CARGO_DIR}/pm
+VFS              := ${CARGO_DIR}/vfs
+INIT             := ${CARGO_DIR}/init
 
 # gdb
 override GDB_FLAGS += --eval-command="target remote localhost:1234"
 override GDB_FLAGS += --eval-command="symbol-file ${KERNEL}"
 
-#${CARGO_DIR}/hyperion-kernel.d:
-#	${CARGO} build ${CARGO_FLAGS}
+${VM}: ${KERNEL_SRC}
+	${CARGO} build ${CARGO_FLAGS} --package=vm
+${PM}: ${KERNEL_SRC}
+	${CARGO} build ${CARGO_FLAGS} --package=pm
+${VFS}: ${KERNEL_SRC}
+	${CARGO} build ${CARGO_FLAGS} --package=vfs
+${INIT}: ${KERNEL_SRC}
+	${CARGO} build ${CARGO_FLAGS} --package=init
+
+# create initfs.tar.gz
+${INITFS}: ${VM} ${PM} ${VFS} ${INIT}
+	@echo -e "\n\033[32m--[[ creating Hyperion initfs ]]--\033[0m"
+	mkdir -p "${INITFS_DIR}/sbin"
+	cp "${VM}" "${PM}" "${VFS}" "${INIT}" "${INITFS_DIR}/sbin"
+	cd "${INITFS_DIR}" && tar -czf "${INITFS}" .
 
 # hyperion bootstrap compile
-${BOOTSTRAP}: ${BOOTSTRAP_SRC} Makefile Cargo.toml Cargo.lock
+${BOOTSTRAP}: ${KERNEL_SRC}
 	@echo -e "\n\033[32m--[[ building Hyperion bootstrap ]]--\033[0m"
 	${CARGO} build ${CARGO_FLAGS} --package=bootstrap
 
 # hyperion kernel compilation
-${KERNEL}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
+${KERNEL}: ${KERNEL_SRC}
 	@echo -e "\n\033[32m--[[ building Hyperion ]]--\033[0m"
 	${CARGO} build ${CARGO_FLAGS} --package=hyperion-kernel
 	#@touch ${KERNEL}
 
-${KERNEL_TESTING}: ${KERNEL_SRC} Makefile Cargo.toml Cargo.lock
+${KERNEL_TESTING}: ${KERNEL_SRC}
 	@echo -e "\n\033[32m--[[ building Hyperion-Testing ]]--\033[0m"
 	@${CARGO} test --no-run ${CARGO_FLAGS} --package=hyperion-kernel # first one prints human readable errors
 	${CARGO} test --no-run --message-format=json ${CARGO_FLAGS} | \

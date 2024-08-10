@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::btree_map::BTreeMap};
-use core::slice;
+use core::fmt;
 
 use libstd::println;
 use spin::Once;
@@ -17,20 +17,29 @@ mod parse;
 
 //
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 enum Node {
     Dir(Dir),
     File(File),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct Dir {
     nodes: BTreeMap<Box<str>, Node>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct File {
     data: Box<[u8]>,
+}
+
+impl fmt::Debug for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Node::Dir(dir) => f.debug_tuple("Dir").field(&dir.nodes).finish(),
+            Node::File(file) => f.debug_tuple("File").field(&file.data.len()).finish(),
+        }
+    }
 }
 
 //
@@ -58,15 +67,23 @@ fn main() {
 
     let initfs_tar_gz: &[u8] = unsafe { &*initfs };
     let tree = parse::parse_tar_gz(initfs_tar_gz);
-    // println!("collected initfs: {tree:?}");
+    // println!("initfs tree:\n{:#?}", Node::Dir(tree));
 
     INITFS_ROOT.call_once(move || tree);
 
-    println!("/bin/init: {:?}", open("/bin/init"));
+    // TODO: start the initfs server
 
-    // loop {
-    //     libstd::sys::yield_now();
-    // }
+    // TODO: start VM
+    // println!("/sbin/vm: {:?}", open("/sbin/vm"));
+
+    // TODO: start PM
+    // println!("/sbin/pm: {:?}", open("/sbin/pm"));
+
+    // TODO: start VFS
+    // println!("/sbin/vfs: {:?}", open("/sbin/vfs"));
+
+    // TODO: start init
+    // println!("/sbin/init: {:?}", open("/sbin/init"));
 }
 
 fn open(path: &str) -> Option<&[u8]> {
