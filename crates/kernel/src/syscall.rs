@@ -1013,9 +1013,13 @@ pub fn send_msg(args: &mut SyscallRegs) -> Result<usize> {
         }
 
         *target = Some(message);
+        ext.message_sent.notify_one();
+
+        while target.is_some() {
+            target = ext.message_can_recv.wait(target);
+        }
 
         drop(target);
-        ext.message_sent.notify_one();
     }
     drop(_g);
 
