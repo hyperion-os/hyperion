@@ -1,3 +1,19 @@
+//! bootstrap sets up initfs, loads some critical software from there and forks into initfsd and init
+//!
+//! ```
+//! <bootstrap>
+//!  |
+//!  +- /sbin/vm
+//!  +- /sbin/pm
+//!  +- /sbin/vfs
+//!  |
+//!  +-----------+
+//!  |           |
+//! <initfsd>   /sbin/init
+//!              |
+//!             ...
+//! ```
+
 #![no_std]
 #![feature(array_chunks, str_split_remainder)]
 
@@ -8,7 +24,10 @@ extern crate alloc;
 use alloc::{boxed::Box, collections::btree_map::BTreeMap};
 use core::fmt;
 
-use libstd::println;
+use libstd::{
+    println,
+    sys::{self, MessagePayload, Pid},
+};
 use spin::Once;
 
 //
@@ -49,19 +68,9 @@ static INITFS_ROOT: Once<Dir> = Once::new();
 //
 
 fn main() {
-    println!("hello from bootstrap");
+    println!("bootstrap: hello from");
 
-    // let initfs_arg = libstd::env::args()
-    //     .find_map(|s| s.strip_prefix("initfs="))
-    //     .expect("no initfs argument");
-
-    // let (addr, size) = initfs_arg.split_once('+').expect("invalid initfs argument");
-    // let (addr, size) = (
-    //     usize::from_str_radix(addr.trim_start_matches("0x"), 16).expect("invalid addr"),
-    //     usize::from_str_radix(size.trim_start_matches("0x"), 16).expect("invalid size"),
-    // );
-
-    let initfs = libstd::sys::sys_map_initfs().expect("failed to map initfs.tar.gz");
+    let initfs = sys::sys_map_initfs().expect("failed to map initfs.tar.gz");
 
     println!("unpacking initfs");
 
@@ -71,16 +80,24 @@ fn main() {
 
     INITFS_ROOT.call_once(move || tree);
 
-    // TODO: start the initfs server
+    // FIXME: map the stack from here
+    // FIXME: map the ELFs from here
 
     // TODO: start VM
-    // println!("/sbin/vm: {:?}", open("/sbin/vm"));
+    sys::sys_bootstrap_provide_vm(open("/sbin/vm").expect("initfs doesn't have vm"))
+        .expect("could not start vm");
 
     // TODO: start PM
-    // println!("/sbin/pm: {:?}", open("/sbin/pm"));
+    sys::sys_bootstrap_provide_pm(open("/sbin/pm").expect("initfs doesn't have pm"))
+        .expect("could not start pm");
 
     // TODO: start VFS
-    // println!("/sbin/vfs: {:?}", open("/sbin/vfs"));
+    sys::sys_bootstrap_provide_vfs(open("/sbin/vfs").expect("initfs doesn't have vfs"))
+        .expect("could not start vfs");
+
+    sys::send_msg(Pid::PM, MessagePayload::Raw([1; 54])).unwrap();
+
+    // TODO: now fork and start the initfs server in the new process and exec init from here
 
     // TODO: start init
     // println!("/sbin/init: {:?}", open("/sbin/init"));

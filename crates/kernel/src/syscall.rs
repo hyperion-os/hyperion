@@ -1,7 +1,9 @@
 use alloc::{
+    borrow::{Cow, ToOwned},
     boxed::Box,
     string::{String, ToString},
     sync::Arc,
+    vec,
     vec::Vec,
 };
 use core::{
@@ -17,19 +19,20 @@ use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
-    read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
-    read_untrusted_slice, read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo,
-    SocketPipe, BOOTSTRAP, INITFS, VFS_ROOT,
+    process_ext_with, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut,
+    read_untrusted_ref, read_untrusted_slice, read_untrusted_str, with_proc_ext, BoundSocket,
+    FileDescData, LocalSocket, MessagePtr, SocketInfo, SocketPipe, BOOTSTRAP, INITFS, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::{
     pmm::PageFrame,
+    to_higher_half,
     vmm::{MapTarget, PageMapImpl},
 };
 use hyperion_scheduler::{
     futex,
     lock::Mutex,
-    proc::{AllocErr, FreeErr, Pid},
+    proc::{AllocErr, FreeErr, Pid, Process},
     process, task, ExitCode,
 };
 use hyperion_syscall::{
@@ -37,7 +40,7 @@ use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags, Metadata, Seek},
     id,
     net::{Protocol, SocketDomain, SocketType},
-    LaunchConfig,
+    LaunchConfig, Message, MessagePayload,
 };
 use hyperion_vfs::{path::Path, ramdisk, tree::Node};
 use time::Duration;
@@ -108,6 +111,13 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::WAITPID => call_id(waitpid, args),
 
         id::SYS_MAP_INITFS => call_id(sys_map_initfs, args),
+        id::SYS_PROVIDE_VM => call_id(sys_bootstrap_provide_vm, args),
+        id::SYS_PROVIDE_PM => call_id(sys_bootstrap_provide_pm, args),
+        id::SYS_PROVIDE_VFS => call_id(sys_bootstrap_provide_vfs, args),
+
+        id::SEND_MSG => call_id(send_msg, args),
+        id::RECV_MSG => call_id(recv_msg, args),
+        id::SEND_RECV_MSG => call_id(send_recv_msg, args),
 
         other => {
             debug!("invalid syscall ({other})");
@@ -846,12 +856,7 @@ pub fn waitpid(args: &mut SyscallRegs) -> Result<usize> {
     return Ok(exit_code.0 as usize);
 }
 
-/// maps (copies) initfs to memory, this is bootstrap specific
-///
-/// [`hyperion_syscall::sys_map_initfs`]
-pub fn sys_map_initfs(args: &mut SyscallRegs) -> Result<usize> {
-    let [addr, size]: &mut [usize; 2] = read_untrusted_mut(args.arg0)?;
-
+fn ensure_bootstrap() -> Result<Arc<Process>> {
     let real = BOOTSTRAP
         .get()
         .expect("a critical system component crashed");
@@ -860,6 +865,17 @@ pub fn sys_map_initfs(args: &mut SyscallRegs) -> Result<usize> {
     if !Arc::ptr_eq(&proc, real) {
         return Err(Error::PERMISSION_DENIED);
     }
+
+    Ok(proc)
+}
+
+/// maps (copies) initfs to memory, this is bootstrap specific
+///
+/// [`hyperion_syscall::sys_map_initfs`]
+pub fn sys_map_initfs(args: &mut SyscallRegs) -> Result<usize> {
+    let [addr, size]: &mut [usize; 2] = read_untrusted_mut(args.arg0)?;
+
+    let proc = ensure_bootstrap()?;
 
     let Some((initfs_addr, initfs_size)) = INITFS.get().copied() else {
         return Err(Error::NOT_FOUND);
@@ -886,4 +902,186 @@ pub fn sys_map_initfs(args: &mut SyscallRegs) -> Result<usize> {
     *size = initfs_size;
 
     return Ok(0);
+}
+
+/// loads VM, this is bootstrap specific
+///
+/// [`hyperion_syscall::sys_bootstrap_provide_vm`]
+pub fn sys_bootstrap_provide_vm(args: &mut SyscallRegs) -> Result<usize> {
+    let proc = ensure_bootstrap()?;
+    let elf = read_untrusted_bytes(args.arg0, args.arg1)?
+        .to_owned()
+        .into();
+
+    debug!("vm init");
+    let mut already = true;
+    hyperion_kernel_impl::VM.call_once(|| {
+        already = false;
+        hyperion_kernel_impl::exec_system(elf, "<vm>".into(), vec![])
+    });
+
+    if already {
+        return Err(Error::ALREADY_EXISTS);
+    }
+
+    return Ok(0);
+}
+
+/// loads PM, this is bootstrap specific
+///
+/// [`hyperion_syscall::sys_bootstrap_provide_pm`]
+pub fn sys_bootstrap_provide_pm(args: &mut SyscallRegs) -> Result<usize> {
+    let proc = ensure_bootstrap()?;
+    let elf = read_untrusted_bytes(args.arg0, args.arg1)?
+        .to_owned()
+        .into();
+
+    debug!("pm init");
+    let mut already = true;
+    hyperion_kernel_impl::PM.call_once(|| {
+        already = false;
+        hyperion_kernel_impl::exec_system(elf, "<pm>".into(), vec![])
+    });
+
+    let pm = hyperion_kernel_impl::PM.get().unwrap();
+
+    if already {
+        return Err(Error::ALREADY_EXISTS);
+    }
+
+    return Ok(0);
+}
+
+/// loads VFS, this is bootstrap specific
+///
+/// [`hyperion_syscall::sys_bootstrap_provide_vfs`]
+pub fn sys_bootstrap_provide_vfs(args: &mut SyscallRegs) -> Result<usize> {
+    let proc = ensure_bootstrap()?;
+    let elf = read_untrusted_bytes(args.arg0, args.arg1)?
+        .to_owned()
+        .into();
+
+    debug!("vfs init");
+    let mut already = true;
+    hyperion_kernel_impl::VFS.call_once(|| {
+        already = false;
+        hyperion_kernel_impl::exec_system(elf, "<vfs>".into(), vec![])
+    });
+
+    if already {
+        return Err(Error::ALREADY_EXISTS);
+    }
+
+    return Ok(0);
+}
+
+pub fn send_msg(args: &mut SyscallRegs) -> Result<usize> {
+    let proc = match hyperion_syscall::Pid::from_raw(args.arg0) {
+        // FIXME: a static array for processes on kernel side, the old Arc<Process> monolithic shit will be removed soon
+        hyperion_syscall::Pid::BOOTSTRAP => hyperion_kernel_impl::BOOTSTRAP
+            .get()
+            .ok_or(Error::NO_SUCH_PROCESS)?
+            .clone(),
+        hyperion_syscall::Pid::VM => hyperion_kernel_impl::VM
+            .get()
+            .ok_or(Error::NO_SUCH_PROCESS)?
+            .clone(),
+        hyperion_syscall::Pid::PM => hyperion_kernel_impl::PM
+            .get()
+            .ok_or(Error::NO_SUCH_PROCESS)?
+            .clone(),
+        hyperion_syscall::Pid::VFS => hyperion_kernel_impl::VFS
+            .get()
+            .ok_or(Error::NO_SUCH_PROCESS)?
+            .clone(),
+        pid if pid.is_special() => return Err(Error::INVALID_ARGUMENT),
+        _ => todo!(),
+    };
+
+    // FIXME: a race condition (kernel segfault) is possible if another thread deallocates the page
+    let payload: MessagePayload = *read_untrusted_ref(args.arg1)?;
+    let message = Message {
+        from: hyperion_syscall::Pid::new(process().pid.num() as _, 0), // FIXME: kernel PID and this PID are different
+        payload,
+    };
+
+    debug!("SENDING {message:?}");
+
+    let ext = process_ext_with(&proc);
+
+    let _g = ext.message_sender.lock();
+    {
+        let mut target = ext.message_target.lock();
+
+        let recv_is_waiting: NonNull<Message> = loop {
+            // check the target ptr, until its a vaild pointer indicating that a receiver is waiting
+            if let Some(recv_is_waiting) = *target {
+                break recv_is_waiting.0;
+            }
+
+            target = ext.message_can_recv.wait(target);
+        };
+
+        debug!("SENDING TO {recv_is_waiting:#x?}");
+
+        // the receiver is now waiting for an answer
+
+        unsafe { *recv_is_waiting.as_ptr() = message };
+        *target = None;
+
+        drop(target);
+        ext.message_sent.notify_one();
+    }
+    drop(_g);
+
+    return Ok(0);
+}
+
+pub fn recv_msg(args: &mut SyscallRegs) -> Result<usize> {
+    // TODO: source PID argument
+
+    let message: &mut Message = read_untrusted_mut(args.arg1)?;
+    let message: *mut Message = to_higher_half( // copy the data
+        process()
+            .address_space
+            .page_map
+            .virt_to_phys(VirtAddr::from_ptr(message))
+            .unwrap(),
+    )
+    .as_mut_ptr();
+
+    let message = NonNull::new(message).unwrap();
+
+    debug!("RECEIVING TO {message:#x?}");
+
+    with_proc_ext(|ext| {
+        let _g = ext.message_receiver.lock();
+
+        // set up things for the sender
+
+        let mut target = ext.message_target.lock();
+
+        if target.is_some() {
+            panic!("message_target was left as non-null by a previous ipc");
+        }
+        *target = Some(MessagePtr(message));
+
+        drop(target);
+        ext.message_can_recv.notify_one();
+
+        // read the sent message
+
+        let mut target = ext.message_target.lock();
+        while target.is_some() {
+            target = ext.message_sent.wait(target);
+        }
+
+        drop(_g);
+    });
+
+    return Ok(0);
+}
+
+pub fn send_recv_msg(args: &mut SyscallRegs) -> Result<usize> {
+    todo!();
 }

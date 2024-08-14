@@ -1,5 +1,5 @@
 #![no_std]
 
 fn main() {
-    libstd::println!("hello world");
+    libstd::println!("VFS: hello world");
 }

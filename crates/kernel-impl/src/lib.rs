@@ -4,11 +4,18 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, format, string::String, sync::Arc, vec, vec::Vec};
+use alloc::{
+    borrow::Cow,
+    boxed::Box,
+    format,
+    string::String,
+    sync::Arc,
+    vec::{self, Vec},
+};
 use core::{
     any::Any,
     mem,
-    ptr::copy_nonoverlapping,
+    ptr::{copy_nonoverlapping, NonNull},
     slice,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -19,6 +26,7 @@ use hyperion_loader::{EntryPoint, Loader};
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
+    condvar::Condvar,
     ipc::pipe::{pipe_with, Channel, Receiver, Sender},
     lock::{Futex, Mutex},
     proc::{Pid, Process, ProcessExt},
@@ -28,6 +36,7 @@ use hyperion_syscall::{
     err::{Error, Result},
     fs::{FileDesc, Seek},
     net::{Protocol, SocketDomain, SocketType},
+    Message,
 };
 use hyperion_vfs::{
     device::FileDevice,
@@ -56,10 +65,10 @@ pub static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(|| {
 pub static INITFS: Once<(VirtAddr, usize)> = Once::new();
 /// bootstrap process
 pub static BOOTSTRAP: Once<Arc<Process>> = Once::new();
-/// process manager process
-pub static PM: Once<Arc<Process>> = Once::new();
 /// virtual memory process
 pub static VM: Once<Arc<Process>> = Once::new();
+/// process manager process
+pub static PM: Once<Arc<Process>> = Once::new();
 /// virtual filesystem process
 pub static VFS: Once<Arc<Process>> = Once::new();
 
@@ -509,6 +518,44 @@ pub struct ProcessExtra {
     pub files: Mutex<SparseVec<Arc<dyn FileDescriptor>>>,
     pub on_close: Mutex<Vec<Box<dyn FnOnce() + Send>>>,
     pub cmdline: Once<ArcStr>,
+
+    /// this is a mutex for multiple other processes trying to send messages to this process
+    /// only one process can send at a time and others will make a queue
+    pub message_sender: Mutex<()>,
+
+    /// same as `message_sender` but for receivers
+    pub message_receiver: Mutex<()>,
+
+    // /// if the value is 0, the receiver is doing something else,
+    // /// otherwise it's a pointer to where the message should be written to
+    // pub message_recv_waiting: AtomicUsize,
+    // pub message_sent: AtomicUsize,
+    /// this is the actual data that the sender (other proc) and receiver (this proc)
+    /// can both read/write
+    pub message_can_recv: Condvar,
+    pub message_target: Mutex<Option<MessagePtr>>,
+    pub message_sent: Condvar,
+}
+
+#[derive(Clone, Copy)]
+pub struct MessagePtr(pub NonNull<Message>);
+
+unsafe impl Send for MessagePtr {}
+
+impl ProcessExtra {
+    pub const fn new() -> Self {
+        ProcessExtra {
+            files: Mutex::new(SparseVec::new()),
+            on_close: Mutex::new(Vec::new()),
+            cmdline: Once::new(),
+
+            message_sender: Mutex::new(()),
+            message_receiver: Mutex::new(()),
+            message_can_recv: Condvar::new(),
+            message_target: Mutex::new(None),
+            message_sent: Condvar::new(),
+        }
+    }
 }
 
 impl Clone for ProcessExtra {
@@ -517,6 +564,15 @@ impl Clone for ProcessExtra {
             files: Mutex::new(self.files.lock().clone()),
             on_close: Mutex::new(Vec::new()),
             cmdline: Once::new(),
+
+            message_sender: Mutex::new(()),
+            message_receiver: Mutex::new(()),
+
+            // message_recv_waiting: AtomicUsize::new(0),
+            // message_sent: AtomicUsize::new(0),
+            message_can_recv: Condvar::new(),
+            message_target: Mutex::new(None),
+            message_sent: Condvar::new(),
         }
     }
 }
@@ -628,7 +684,7 @@ pub fn exec(
     })
 }
 
-pub fn exec_system(elf: &'static [u8], program: String, args: Vec<String>) -> Arc<Process> {
+pub fn exec_system(elf: Cow<'static, [u8]>, program: String, args: Vec<String>) -> Arc<Process> {
     let pid = hyperion_scheduler::schedule(move || {
         hyperion_scheduler::rename(program.clone());
 
@@ -645,11 +701,14 @@ pub fn exec_system(elf: &'static [u8], program: String, args: Vec<String>) -> Ar
         fd_replace(FileDesc(2), stderr);
 
         // load ..
-        let loader = Loader::new(elf);
+        let loader = Loader::new(elf.as_ref());
         loader.load();
         let entry = loader
             .finish()
             .unwrap_or_else(|_| panic!("no bootstrap entrypoint"));
+
+        // the elf is trying to steal our memory, drop the elf as a revenge
+        drop(elf);
 
         // debug!("enter bootstrap");
         entry.enter(program, args);
@@ -726,13 +785,7 @@ pub fn with_proc_ext<F: FnOnce(&ProcessExtra) -> T, T>(f: F) -> T {
 
 pub fn process_ext_with(proc: &Process) -> &ProcessExtra {
     proc.ext
-        .call_once(|| {
-            Box::new(ProcessExtra {
-                files: Mutex::new(SparseVec::new()),
-                on_close: Mutex::new(Vec::new()),
-                cmdline: Once::new(),
-            })
-        })
+        .call_once(|| Box::new(ProcessExtra::new()))
         .as_any()
         .downcast_ref()
         .unwrap()

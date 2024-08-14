@@ -73,6 +73,13 @@ pub mod id {
     // system service specific syscalls
 
     pub const SYS_MAP_INITFS: usize = 1001;
+    pub const SYS_PROVIDE_VM: usize = 1002;
+    pub const SYS_PROVIDE_PM: usize = 1003;
+    pub const SYS_PROVIDE_VFS: usize = 1004;
+
+    pub const SEND_MSG: usize = 2001;
+    pub const RECV_MSG: usize = 2002;
+    pub const SEND_RECV_MSG: usize = 2003;
 }
 
 //
@@ -84,6 +91,95 @@ pub struct LaunchConfig {
     pub stdin: FileDesc,
     pub stdout: FileDesc,
     pub stderr: FileDesc,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum InvalidPid {
+    SlotCannotBeZero,
+    GenCannotBeMax,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct Pid(u64);
+
+impl Pid {
+    pub const BOOTSTRAP: Self = Self(2); // TODO: will be 1
+    pub const VM: Self = Self(3);
+    pub const PM: Self = Self(4);
+    pub const VFS: Self = Self(5);
+
+    /// received from an unknown process
+    pub const NONE: Self = Self(0);
+
+    /// receive from any process
+    pub const ANY: Self = Self(u64::MAX);
+
+    pub const fn new(slot: u32, generation: u32) -> Self {
+        match Self::try_from(slot, generation) {
+            Ok(v) => v,
+            Err(InvalidPid::SlotCannotBeZero) => panic!("slot cannot be 0"),
+            Err(InvalidPid::GenCannotBeMax) => panic!("gen cannot be u32::MAX"),
+        }
+    }
+
+    pub const fn from_raw(raw: u64) -> Self {
+        Self(raw)
+    }
+
+    // pub const fn try_from_raw(raw: u64) {
+    //     if raw == Self::NONE.0 || raw == Self::ANY.0 {}
+    // }
+
+    pub const fn try_from(slot: u32, generation: u32) -> Result<Self, InvalidPid> {
+        if slot == 0 {
+            return Err(InvalidPid::SlotCannotBeZero);
+        }
+        if generation == u32::MAX {
+            return Err(InvalidPid::GenCannotBeMax);
+        }
+
+        let (slot, gen) = (slot as u64, generation as u64);
+        Ok(Self(slot | (gen << 32)))
+    }
+
+    pub const fn is_special(&self) -> bool {
+        self.slot() == 0 || self.generation() == u32::MAX
+    }
+
+    pub const fn is_normal(&self) -> bool {
+        !self.is_special()
+    }
+
+    pub const fn slot(&self) -> u32 {
+        self.0 as u32
+    }
+
+    pub const fn generation(&self) -> u32 {
+        (self.0 >> 32) as u32
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct Message {
+    pub from: Pid,
+    pub payload: MessagePayload,
+}
+
+impl Message {
+    pub const fn empty() -> Self {
+        Self {
+            from: Pid::NONE,
+            payload: MessagePayload::Raw([0; 54]),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C, u16)]
+pub enum MessagePayload {
+    Raw([u8; 54]),
 }
 
 //
@@ -431,5 +527,65 @@ pub fn sys_map_initfs() -> Result<*const [u8]> {
     unsafe { syscall_1(id::SYS_MAP_INITFS, &mut result as *mut _ as usize) }.map(|_| {
         let [addr, size] = result;
         core::ptr::slice_from_raw_parts(addr as _, size)
+    })
+}
+
+/// bootstrap specific syscall, launches VM from the provided ELF
+/// only bootstrap can use this syscall
+pub fn sys_bootstrap_provide_vm(elf_bytes: &[u8]) -> Result<()> {
+    unsafe {
+        syscall_2(
+            id::SYS_PROVIDE_VM,
+            elf_bytes.as_ptr() as usize,
+            elf_bytes.len(),
+        )
+        .map(|_| {})
+    }
+}
+
+/// bootstrap specific syscall, launches PM from the provided ELF
+/// only bootstrap can use this syscall
+pub fn sys_bootstrap_provide_pm(elf_bytes: &[u8]) -> Result<()> {
+    unsafe {
+        syscall_2(
+            id::SYS_PROVIDE_PM,
+            elf_bytes.as_ptr() as usize,
+            elf_bytes.len(),
+        )
+        .map(|_| {})
+    }
+}
+
+/// bootstrap specific syscall, launches VFS from the provided ELF
+/// only bootstrap can use this syscall
+pub fn sys_bootstrap_provide_vfs(elf_bytes: &[u8]) -> Result<()> {
+    unsafe {
+        syscall_2(
+            id::SYS_PROVIDE_VFS,
+            elf_bytes.as_ptr() as usize,
+            elf_bytes.len(),
+        )
+        .map(|_| {})
+    }
+}
+
+/// send a small message to a process
+pub fn send_msg(dest: Pid, msg: MessagePayload) -> Result<()> {
+    unsafe { syscall_2(id::SEND_MSG, dest.0 as usize, &msg as *const _ as usize).map(|_| {}) }
+}
+
+/// receive a small message
+pub fn recv_msg(src: Pid) -> Result<Message> {
+    let mut msg: Message = Message::empty();
+    unsafe { syscall_2(id::RECV_MSG, src.0 as usize, &mut msg as *mut _ as usize) }?;
+    Ok(msg)
+}
+
+/// send a small message to a process and then receive a result
+pub fn send_recv_msg(dest: Pid, mut msg: MessagePayload) -> Result<Message> {
+    unsafe { syscall_2(id::SEND_MSG, dest.0 as usize, &mut msg as *mut _ as usize) }?;
+    Ok(Message {
+        from: dest,
+        payload: msg,
     })
 }

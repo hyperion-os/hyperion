@@ -109,7 +109,11 @@ fn init() {
         });
 
         hyperion_kernel_impl::BOOTSTRAP.call_once(|| {
-            hyperion_kernel_impl::exec_system(load_elf!("BOOTSTRAP"), "<bootstrap>".into(), vec![])
+            hyperion_kernel_impl::exec_system(
+                load_elf!("BOOTSTRAP").into(),
+                "<bootstrap>".into(),
+                vec![],
+            )
         });
 
         // os unit tests
