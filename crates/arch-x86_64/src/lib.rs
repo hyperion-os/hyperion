@@ -61,7 +61,7 @@ fn init_features() {
 }
 
 pub fn wake_cpus(start: extern "C" fn() -> !) {
-    hyperion_boot::smp_init(start);
+    hyperion_boot::smp_init(cpu_id::cpu_id() == 0, start);
     hyperion_driver_acpi::init();
 }
 

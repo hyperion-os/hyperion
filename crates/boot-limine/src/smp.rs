@@ -10,30 +10,45 @@ use spin::{Lazy, Once};
 
 //
 
-pub fn smp_init(start: extern "C" fn() -> !) {
+pub fn smp_init(i_am_bsp: bool, start: extern "C" fn() -> !) {
     let boot = boot_cpu();
+    let cpu_count = cpu_count();
 
     // each cpu wakes up the next 2 CPUs to snowball the CPU waking
     static NEXT_CPU_TO_WAKE: AtomicUsize = AtomicUsize::new(0);
 
-    let at = NEXT_CPU_TO_WAKE.fetch_add(2, Ordering::Relaxed);
+    let mut next;
+    while {
+        next = NEXT_CPU_TO_WAKE.fetch_add(1, Ordering::Relaxed);
+        next < cpu_count
+    } {
+        let did_start_ap = wake_nth(next, boot.processor_id, start);
 
-    for cpu in REQ
-        .get_response()
-        .get_mut()
-        .into_iter()
-        .flat_map(|resp| resp.cpus().iter_mut())
-        .skip(at)
-        .take(2)
-        .filter(|cpu| boot.processor_id != cpu.processor_id)
-    {
+        if did_start_ap && i_am_bsp {
+            // bsp can go do something else while the APs are snowballing
+            return;
+        }
+    }
+}
+
+/// returns `true` only if an AP was started
+fn wake_nth(n: usize, bsp_id: u32, start: extern "C" fn() -> !) -> bool {
+    if let Some(resp) = REQ.get_response().get_mut() {
+        let cpu = &mut resp.cpus()[n];
+        if cpu.processor_id == bsp_id {
+            return false;
+        }
+
         // SAFETY: afaik it is safe to transmute one of the arguments away,
         // it is in a specific register and gets ignored
         cpu.goto_address = unsafe {
             transmute::<extern "C" fn() -> !, extern "C" fn(*const limine::SmpInfo) -> !>(start)
         };
-        // AtomicU64::from_mut(&mut cpu.extra_argument).store(, );
+
+        return true;
     }
+
+    false
 }
 
 pub fn cpu_count() -> usize {
