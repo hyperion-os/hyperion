@@ -78,7 +78,7 @@ extern "C" fn _start() -> ! {
     arch::init();
 
     // wake up all cpus
-    arch::wake_cpus();
+    arch::wake_cpus(_start);
 
     // init task per cpu
     debug!("init CPU-{}", cpu_id());

@@ -1,4 +1,7 @@
-use core::mem::transmute;
+use core::{
+    mem::transmute,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use hyperion_boot_interface::Cpu;
 use hyperion_log::{debug, error};
@@ -7,17 +10,29 @@ use spin::{Lazy, Once};
 
 //
 
-pub fn smp_init() {
+pub fn smp_init(start: extern "C" fn() -> !) {
     let boot = boot_cpu();
+
+    // each cpu wakes up the next 2 CPUs to snowball the CPU waking
+    static NEXT_CPU_TO_WAKE: AtomicUsize = AtomicUsize::new(0);
+
+    let at = NEXT_CPU_TO_WAKE.fetch_add(2, Ordering::Relaxed);
 
     for cpu in REQ
         .get_response()
         .get_mut()
         .into_iter()
         .flat_map(|resp| resp.cpus().iter_mut())
+        .skip(at)
+        .take(2)
         .filter(|cpu| boot.processor_id != cpu.processor_id)
     {
-        cpu.goto_address = unsafe { transmute(_start as usize) };
+        // SAFETY: afaik it is safe to transmute one of the arguments away,
+        // it is in a specific register and gets ignored
+        cpu.goto_address = unsafe {
+            transmute::<extern "C" fn() -> !, extern "C" fn(*const limine::SmpInfo) -> !>(start)
+        };
+        // AtomicU64::from_mut(&mut cpu.extra_argument).store(, );
     }
 }
 
@@ -57,12 +72,6 @@ pub fn lapics() -> impl Iterator<Item = u32> {
         .into_iter()
         .flat_map(|resp| resp.cpus().iter())
         .map(|cpu| cpu.lapic_id)
-}
-
-//
-
-extern "C" {
-    fn _start() -> !;
 }
 
 //
