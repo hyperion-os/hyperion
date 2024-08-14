@@ -1002,8 +1002,6 @@ pub fn send_msg(args: &mut SyscallRegs) -> Result<usize> {
         payload,
     };
 
-    debug!("SENDING {message:?}");
-
     let ext = process_ext_with(&proc);
 
     let _g = ext.message_sender.lock();
