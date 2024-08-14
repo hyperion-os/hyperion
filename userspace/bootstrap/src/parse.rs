@@ -3,8 +3,6 @@
 use alloc::{boxed::Box, collections::btree_map::BTreeMap, string::String, vec::Vec};
 use core::{fmt::Write, str, write, writeln};
 
-use libstd::println;
-
 use crate::{Dir, File, Node};
 
 //
@@ -182,13 +180,14 @@ fn gunzip(tar_gz: &[u8]) -> Vec<u8> {
     miniz_oxide::inflate::decompress_to_vec(payload).expect("invalid gzip payload")
 }
 
+#[allow(unused)]
 fn hexdump(b: &[u8]) -> String {
     let mut str = String::new();
     for row in b.chunks(8) {
         for byte in row {
-            write!(str, "{byte:02x} ");
+            write!(str, "{byte:02x} ").unwrap();
         }
-        writeln!(str);
+        writeln!(str).unwrap();
     }
     str
 }

@@ -4,25 +4,15 @@
 
 extern crate alloc;
 
-use alloc::{
-    borrow::Cow,
-    boxed::Box,
-    format,
-    string::String,
-    sync::Arc,
-    vec::{self, Vec},
-};
+use alloc::{borrow::Cow, boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{
     any::Any,
-    mem,
-    ptr::{copy_nonoverlapping, NonNull},
-    slice,
+    mem, slice,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use arcstr::ArcStr;
-use hyperion_arch::syscall;
-use hyperion_loader::{EntryPoint, Loader};
+use hyperion_loader::Loader;
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{

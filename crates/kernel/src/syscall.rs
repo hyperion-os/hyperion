@@ -1,5 +1,5 @@
 use alloc::{
-    borrow::{Cow, ToOwned},
+    borrow::ToOwned,
     boxed::Box,
     string::{String, ToString},
     sync::Arc,
@@ -9,7 +9,7 @@ use alloc::{
 use core::{
     fmt::Write,
     ops::Deref,
-    ptr::{self, NonNull},
+    ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -26,7 +26,6 @@ use hyperion_kernel_impl::{
 use hyperion_log::*;
 use hyperion_mem::{
     pmm::PageFrame,
-    to_higher_half,
     vmm::{MapTarget, PageMapImpl},
 };
 use hyperion_scheduler::{
@@ -908,7 +907,7 @@ pub fn sys_map_initfs(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::sys_bootstrap_provide_vm`]
 pub fn sys_bootstrap_provide_vm(args: &mut SyscallRegs) -> Result<usize> {
-    let proc = ensure_bootstrap()?;
+    ensure_bootstrap()?;
     let elf = read_untrusted_bytes(args.arg0, args.arg1)?
         .to_owned()
         .into();
@@ -931,7 +930,7 @@ pub fn sys_bootstrap_provide_vm(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::sys_bootstrap_provide_pm`]
 pub fn sys_bootstrap_provide_pm(args: &mut SyscallRegs) -> Result<usize> {
-    let proc = ensure_bootstrap()?;
+    ensure_bootstrap()?;
     let elf = read_untrusted_bytes(args.arg0, args.arg1)?
         .to_owned()
         .into();
@@ -942,8 +941,6 @@ pub fn sys_bootstrap_provide_pm(args: &mut SyscallRegs) -> Result<usize> {
         already = false;
         hyperion_kernel_impl::exec_system(elf, "<pm>".into(), vec![])
     });
-
-    let pm = hyperion_kernel_impl::PM.get().unwrap();
 
     if already {
         return Err(Error::ALREADY_EXISTS);
@@ -956,7 +953,7 @@ pub fn sys_bootstrap_provide_pm(args: &mut SyscallRegs) -> Result<usize> {
 ///
 /// [`hyperion_syscall::sys_bootstrap_provide_vfs`]
 pub fn sys_bootstrap_provide_vfs(args: &mut SyscallRegs) -> Result<usize> {
-    let proc = ensure_bootstrap()?;
+    ensure_bootstrap()?;
     let elf = read_untrusted_bytes(args.arg0, args.arg1)?
         .to_owned()
         .into();
@@ -1058,6 +1055,6 @@ pub fn recv_msg(args: &mut SyscallRegs) -> Result<usize> {
     return Ok(0);
 }
 
-pub fn send_recv_msg(args: &mut SyscallRegs) -> Result<usize> {
+pub fn send_recv_msg(_args: &mut SyscallRegs) -> Result<usize> {
     todo!();
 }

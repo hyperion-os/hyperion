@@ -8,19 +8,18 @@ pub struct SectionHeader<'a> {
     pub name: &'a str,
     pub ty: SectionHeaderType,
     pub flags: SectionHeaderFlags,
+    // pub virt_addr: u64,
+    // pub bytes: &'a [u8],
+    // pub size: u64,
 
-    pub virt_addr: u64,
-    pub bytes: &'a [u8],
-    pub size: u64,
-
-    /// Defined by section type
-    pub link: u32,
-    /// Defined by section type
-    pub info: u32,
-    /// address alignment
-    pub align: u64,
-    /// size of an entry if section data is an array of entries
-    pub entsize: u64,
+    // /// Defined by section type
+    // pub link: u32,
+    // /// Defined by section type
+    // pub info: u32,
+    // /// address alignment
+    // pub align: u64,
+    // /// size of an entry if section data is an array of entries
+    // pub entsize: u64,
 }
 
 impl<'a> SectionHeader<'a> {
@@ -32,22 +31,21 @@ impl<'a> SectionHeader<'a> {
         let name = strtab.get(sh.sh_name as usize).ok()?;
         let flags = SectionHeaderFlags::from_bits(sh.sh_flags)?;
 
-        let (bytes, comp) = parser.section_data(&sh).ok()?;
+        let (_bytes, comp) = parser.section_data(&sh).ok()?;
         assert_eq!(comp, None);
 
         Some(Self {
             name,
             ty: SectionHeaderType(sh.sh_type),
             flags,
+            // virt_addr: sh.sh_addr,
+            // bytes,
+            // size: sh.sh_size,
 
-            virt_addr: sh.sh_addr,
-            bytes,
-            size: sh.sh_size,
-
-            link: sh.sh_link,
-            info: sh.sh_info,
-            align: sh.sh_addralign,
-            entsize: sh.sh_entsize,
+            // link: sh.sh_link,
+            // info: sh.sh_info,
+            // align: sh.sh_addralign,
+            // entsize: sh.sh_entsize,
         })
     }
 }

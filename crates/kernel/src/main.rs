@@ -99,14 +99,12 @@ fn init() {
             debug!("MODULE: {module:x?}");
         }
 
-        hyperion_kernel_impl::INITFS.try_call_once(|| {
-            boot::modules()
-                .find_map(|module| {
-                    (module.cmdline == Some("initfs"))
-                        .then_some(unsafe { (VirtAddr::new(module.addr as _), module.size) })
-                })
-                .ok_or(())
-        });
+        if let Some(v) = boot::modules().find_map(|module| {
+            (module.cmdline == Some("initfs"))
+                .then_some((VirtAddr::new(module.addr as _), module.size))
+        }) {
+            hyperion_kernel_impl::INITFS.call_once(move || v);
+        }
 
         hyperion_kernel_impl::BOOTSTRAP.call_once(|| {
             hyperion_kernel_impl::exec_system(
