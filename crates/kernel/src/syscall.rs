@@ -21,7 +21,7 @@ use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
     process_ext_with, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut,
     read_untrusted_ref, read_untrusted_slice, read_untrusted_str, with_proc_ext, BoundSocket,
-    FileDescData, LocalSocket, MessagePtr, SocketInfo, SocketPipe, BOOTSTRAP, INITFS, VFS_ROOT,
+    FileDescData, LocalSocket, SocketInfo, SocketPipe, BOOTSTRAP, INITFS, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::{
@@ -1013,21 +1013,11 @@ pub fn send_msg(args: &mut SyscallRegs) -> Result<usize> {
     {
         let mut target = ext.message_target.lock();
 
-        let recv_is_waiting: NonNull<Message> = loop {
-            // check the target ptr, until its a vaild pointer indicating that a receiver is waiting
-            if let Some(recv_is_waiting) = *target {
-                break recv_is_waiting.0;
-            }
-
+        while target.is_some() {
             target = ext.message_can_recv.wait(target);
-        };
+        }
 
-        debug!("SENDING TO {recv_is_waiting:#x?}");
-
-        // the receiver is now waiting for an answer
-
-        unsafe { *recv_is_waiting.as_ptr() = message };
-        *target = None;
+        *target = Some(message);
 
         drop(target);
         ext.message_sent.notify_one();
@@ -1041,18 +1031,6 @@ pub fn recv_msg(args: &mut SyscallRegs) -> Result<usize> {
     // TODO: source PID argument
 
     let message: &mut Message = read_untrusted_mut(args.arg1)?;
-    let message: *mut Message = to_higher_half( // copy the data
-        process()
-            .address_space
-            .page_map
-            .virt_to_phys(VirtAddr::from_ptr(message))
-            .unwrap(),
-    )
-    .as_mut_ptr();
-
-    let message = NonNull::new(message).unwrap();
-
-    debug!("RECEIVING TO {message:#x?}");
 
     with_proc_ext(|ext| {
         let _g = ext.message_receiver.lock();
@@ -1061,20 +1039,18 @@ pub fn recv_msg(args: &mut SyscallRegs) -> Result<usize> {
 
         let mut target = ext.message_target.lock();
 
-        if target.is_some() {
-            panic!("message_target was left as non-null by a previous ipc");
+        loop {
+            if let Some(msg) = target.take() {
+                *message = msg;
+                break;
+            }
+
+            // ext.message_can_recv.notify_one();
+            target = ext.message_sent.wait(target);
         }
-        *target = Some(MessagePtr(message));
 
         drop(target);
         ext.message_can_recv.notify_one();
-
-        // read the sent message
-
-        let mut target = ext.message_target.lock();
-        while target.is_some() {
-            target = ext.message_sent.wait(target);
-        }
 
         drop(_g);
     });

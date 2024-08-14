@@ -533,14 +533,9 @@ pub struct ProcessExtra {
     /// this is the actual data that the sender (other proc) and receiver (this proc)
     /// can both read/write
     pub message_can_recv: Condvar,
-    pub message_target: Mutex<Option<MessagePtr>>,
+    pub message_target: Mutex<Option<Message>>,
     pub message_sent: Condvar,
 }
-
-#[derive(Clone, Copy)]
-pub struct MessagePtr(pub NonNull<Message>);
-
-unsafe impl Send for MessagePtr {}
 
 impl ProcessExtra {
     pub const fn new() -> Self {
