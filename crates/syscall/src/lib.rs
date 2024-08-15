@@ -76,6 +76,7 @@ pub mod id {
     pub const SYS_PROVIDE_VM: usize = 1002;
     pub const SYS_PROVIDE_PM: usize = 1003;
     pub const SYS_PROVIDE_VFS: usize = 1004;
+    pub const FORK_AND_EXEC: usize = 1005;
 
     pub const SEND_MSG: usize = 2001;
     pub const RECV_MSG: usize = 2002;
@@ -108,10 +109,10 @@ pub enum InvalidPid {
 pub struct Pid(u64);
 
 impl Pid {
-    pub const BOOTSTRAP: Self = Self(2); // TODO: will be 1
-    pub const VM: Self = Self(3);
-    pub const PM: Self = Self(4);
-    pub const VFS: Self = Self(5);
+    pub const BOOTSTRAP: Self = Self::new(2, 0); // TODO: will be 1
+    pub const VM: Self = Self::new(3, 0);
+    pub const PM: Self = Self::new(4, 0);
+    pub const VFS: Self = Self::new(5, 0);
 
     /// received from an unknown process
     pub const NONE: Self = Self(0);
@@ -606,6 +607,20 @@ pub fn sys_bootstrap_provide_vfs(elf_bytes: &[u8]) -> Result<()> {
     unsafe {
         syscall_2(
             id::SYS_PROVIDE_VFS,
+            elf_bytes.as_ptr() as usize,
+            elf_bytes.len(),
+        )
+        .map(|_| {})
+    }
+}
+
+/// temporary syscall
+pub fn fork_and_exec(cmd: &str, elf_bytes: &[u8]) -> Result<()> {
+    unsafe {
+        syscall_4(
+            id::FORK_AND_EXEC,
+            cmd.as_ptr() as usize,
+            cmd.len(),
             elf_bytes.as_ptr() as usize,
             elf_bytes.len(),
         )

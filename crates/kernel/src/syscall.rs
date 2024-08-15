@@ -115,6 +115,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::SYS_PROVIDE_VM => call_id(sys_bootstrap_provide_vm, args),
         id::SYS_PROVIDE_PM => call_id(sys_bootstrap_provide_pm, args),
         id::SYS_PROVIDE_VFS => call_id(sys_bootstrap_provide_vfs, args),
+        id::FORK_AND_EXEC => call_id(fork_and_exec, args),
 
         id::SEND_MSG => call_id(send_msg, args),
         id::RECV_MSG => call_id(recv_msg, args),
@@ -918,7 +919,6 @@ pub fn sys_bootstrap_provide_vm(args: &mut SyscallRegs) -> Result<usize> {
         .to_owned()
         .into();
 
-    debug!("vm init");
     let mut already = true;
     hyperion_kernel_impl::VM.call_once(|| {
         already = false;
@@ -941,7 +941,6 @@ pub fn sys_bootstrap_provide_pm(args: &mut SyscallRegs) -> Result<usize> {
         .to_owned()
         .into();
 
-    debug!("pm init");
     let mut already = true;
     hyperion_kernel_impl::PM.call_once(|| {
         already = false;
@@ -964,7 +963,6 @@ pub fn sys_bootstrap_provide_vfs(args: &mut SyscallRegs) -> Result<usize> {
         .to_owned()
         .into();
 
-    debug!("vfs init");
     let mut already = true;
     hyperion_kernel_impl::VFS.call_once(|| {
         already = false;
@@ -974,6 +972,17 @@ pub fn sys_bootstrap_provide_vfs(args: &mut SyscallRegs) -> Result<usize> {
     if already {
         return Err(Error::ALREADY_EXISTS);
     }
+
+    return Ok(0);
+}
+
+pub fn fork_and_exec(args: &mut SyscallRegs) -> Result<usize> {
+    let cmd = String::from(read_untrusted_str(args.arg0, args.arg1)?);
+    let elf = read_untrusted_bytes(args.arg2, args.arg3)?
+        .to_owned()
+        .into();
+
+    hyperion_kernel_impl::exec_system(elf, cmd, vec![]);
 
     return Ok(0);
 }

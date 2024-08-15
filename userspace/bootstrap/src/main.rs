@@ -68,7 +68,7 @@ static INITFS_ROOT: Once<Dir> = Once::new();
 //
 
 fn main() {
-    println!("bootstrap: hello from");
+    println!("bootstrap: hello world");
 
     let initfs = sys::sys_map_initfs().expect("failed to map initfs.tar.gz");
 
@@ -79,6 +79,8 @@ fn main() {
     // println!("initfs tree:\n{:#?}", Node::Dir(tree));
 
     INITFS_ROOT.call_once(move || tree);
+
+    println!("initfs unpacked");
 
     // FIXME: map the stack from here
     // FIXME: map the ELFs from here
@@ -93,11 +95,6 @@ fn main() {
 
     // TODO: start VFS
     let vfs = open("/sbin/vfs").expect("initfs doesn't have vfs");
-    let mut simple_checksum = 0;
-    for byte in vfs {
-        simple_checksum ^= byte;
-    }
-    println!("sending bytes: {simple_checksum}");
     sys::set_grants(vec![Grant::new(Pid::PM, vfs, true, false)].leak());
     sys::send_msg(
         Pid::PM,
