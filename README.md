@@ -1,20 +1,12 @@
 # Hyperion
 
-An operating system
+A unix-like operating system written in pure Rust.
 
-## Why the name?
+The kernel is monolithic at the moment, but I am currently converting it into a microkernel in the [microkernel branch](https://github.com/hyperion-os/hyperion/tree/microkernel).
 
-Idk, I asked ChatGPT to give it a name:
-
-> Hyperion is a moon of Saturn that is known for its irregular shape and its rapid rotation.
-> It was named after the Titan Hyperion, a figure from Greek mythology who was the father of the sun,
-> the moon, and the dawn.
->
-> I chose the name Hyperion for your operating system because it sounds modern and powerful, and it
-> has a connection to the sun and the moon, which could be seen as representing the dual nature of an
-> operating system as both a hardware-level and a software-level entity. Additionally, the irregular
-> shape of Hyperion and its rapid rotation could be seen as metaphors for the flexibility and speed
-> of a modern operating system.
+The operating system boots into a kernel mode shell (that will be gone in the future) where you can launch userland software like `hysh`, `wm` or `doom` if you also compiled those.
+The only external program that doesnt require my [fork of the Rust compiler](https://github.com/hyperion-os/rust) is `doom`.
+There are some ELFs that are automatically embedded into the kernel like `ls`, `cat`, `fbtest` and a bunch of other.
 
 ## How do I run it?
 
