@@ -8,6 +8,7 @@ use alloc::{
 };
 use core::{
     fmt::Write,
+    mem::MaybeUninit,
     ops::Deref,
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
@@ -19,9 +20,10 @@ use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
     fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
-    process_ext_with, read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut,
-    read_untrusted_ref, read_untrusted_slice, read_untrusted_str, with_proc_ext, BoundSocket,
-    FileDescData, LocalSocket, SocketInfo, SocketPipe, BOOTSTRAP, INITFS, VFS_ROOT,
+    phys_read_from_proc, phys_read_item_from_proc, process_ext_with, read_untrusted_bytes,
+    read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref, read_untrusted_slice,
+    read_untrusted_str, with_proc_ext, BoundSocket, FileDescData, Grants, LocalSocket, SocketInfo,
+    SocketPipe, BOOTSTRAP, INITFS, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::{
@@ -39,7 +41,7 @@ use hyperion_syscall::{
     fs::{FileDesc, FileOpenFlags, Metadata, Seek},
     id,
     net::{Protocol, SocketDomain, SocketType},
-    LaunchConfig, Message, MessagePayload,
+    Grant, GrantId, LaunchConfig, Message, MessagePayload,
 };
 use hyperion_vfs::{path::Path, ramdisk, tree::Node};
 use time::Duration;
@@ -117,6 +119,10 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::SEND_MSG => call_id(send_msg, args),
         id::RECV_MSG => call_id(recv_msg, args),
         id::SEND_RECV_MSG => call_id(send_recv_msg, args),
+
+        id::SET_GRANTS => call_id(set_grants, args),
+        id::GRANT_READ => call_id(grant_read, args),
+        id::GRANT_WRITE => call_id(grant_write, args),
 
         other => {
             debug!("invalid syscall ({other})");
@@ -1059,4 +1065,61 @@ pub fn recv_msg(args: &mut SyscallRegs) -> Result<usize> {
 
 pub fn send_recv_msg(_args: &mut SyscallRegs) -> Result<usize> {
     todo!();
+}
+
+pub fn set_grants(args: &mut SyscallRegs) -> Result<usize> {
+    let grants: *const [Grant] = read_untrusted_slice(args.arg0, args.arg1)? as _;
+
+    with_proc_ext(|ext| {
+        *ext.grants.lock() = Grants(grants);
+    });
+
+    return Ok(0);
+}
+
+pub fn grant_read(args: &mut SyscallRegs) -> Result<usize> {
+    let from = Pid::new(args.arg0 as usize);
+    let grant_id = GrantId(args.arg1 as usize);
+    let offs = args.arg2 as usize;
+    let to: &mut [u8] = read_untrusted_bytes_mut(args.arg3, args.arg4)?;
+
+    let from = from.find().ok_or(Error::NO_SUCH_PROCESS)?;
+    let from_ext = process_ext_with(&from);
+
+    let from_grants = from_ext.grants.lock();
+    if from_grants.0.len() <= grant_id.0 {
+        return Err(Error::BAD_FILE_DESCRIPTOR);
+    }
+
+    // FIXME: a more safe method
+    let from_grant = unsafe { from_grants.0.cast::<Grant>().add(grant_id.0) };
+    let mut from_grant_specific = [MaybeUninit::<Grant>::uninit()];
+    phys_read_item_from_proc(&from, from_grant as _, &mut from_grant_specific);
+    let [from_grant_specific] = from_grant_specific;
+    let from_grant_specific = unsafe { from_grant_specific.assume_init() };
+
+    if from_grant_specific.to.as_raw() != process().pid.num() as u64 {
+        return Err(Error::BAD_FILE_DESCRIPTOR);
+    }
+
+    if !from_grant_specific.read {
+        return Err(Error::PERMISSION_DENIED);
+    }
+
+    if from_grant_specific.size < offs + to.len() {
+        return Err(Error::PERMISSION_DENIED);
+    }
+
+    phys_read_from_proc(&from, (from_grant_specific.addr + offs) as u64, to)?;
+
+    return Ok(0);
+}
+
+pub fn grant_write(args: &mut SyscallRegs) -> Result<usize> {
+    let to = hyperion_syscall::Pid::from_raw(args.arg0);
+    let grant_id = GrantId(args.arg1 as usize);
+    let offs = args.arg2 as usize;
+    let from = read_untrusted_bytes(args.arg3, args.arg4)?;
+
+    todo!()
 }

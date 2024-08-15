@@ -21,12 +21,12 @@
 
 extern crate alloc;
 
-use alloc::{boxed::Box, collections::btree_map::BTreeMap};
+use alloc::{boxed::Box, collections::btree_map::BTreeMap, vec};
 use core::fmt;
 
 use libstd::{
     println,
-    sys::{self, MessagePayload, Pid},
+    sys::{self, Grant, GrantId, MessagePayload, Pid},
 };
 use spin::Once;
 
@@ -92,10 +92,25 @@ fn main() {
         .expect("could not start pm");
 
     // TODO: start VFS
-    sys::sys_bootstrap_provide_vfs(open("/sbin/vfs").expect("initfs doesn't have vfs"))
-        .expect("could not start vfs");
-
-    sys::send_msg(Pid::PM, MessagePayload::Raw([1; 54])).unwrap();
+    let vfs = open("/sbin/vfs").expect("initfs doesn't have vfs");
+    let mut simple_checksum = 0;
+    for byte in vfs {
+        simple_checksum ^= byte;
+    }
+    println!("sending bytes: {simple_checksum}");
+    sys::set_grants(vec![Grant::new(Pid::PM, vfs, true, false)].leak());
+    sys::send_msg(
+        Pid::PM,
+        MessagePayload::ProcessManagerForkAndExec {
+            grant: GrantId(0),
+            offs: 0,
+            size: vfs.len(),
+        },
+    )
+    .unwrap();
+    sys::recv_msg(Pid::PM).unwrap();
+    sys::set_grants(&[]);
+    // sys::sys_bootstrap_provide_vfs().expect("could not start vfs");
 
     // TODO: now fork and start the initfs server in the new process and exec init from here
 

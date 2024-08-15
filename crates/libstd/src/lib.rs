@@ -91,6 +91,6 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
 }
 
 // to fix `cargo clippy` without a target
-#[cfg(feature = "cargo-clippy")]
+#[cfg(feature = "clippy")]
 #[lang = "eh_personality"]
 fn eh_personality() {}

@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(iter_map_windows)]
 
 //
 
@@ -7,14 +8,16 @@ extern crate alloc;
 use alloc::{borrow::Cow, boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{
     any::Any,
-    mem, slice,
+    mem,
+    ops::Range,
+    slice,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use arcstr::ArcStr;
 use hyperion_loader::Loader;
 use hyperion_log::*;
-use hyperion_mem::vmm::PageMapImpl;
+use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
 use hyperion_scheduler::{
     condvar::Condvar,
     ipc::pipe::{pipe_with, Channel, Receiver, Sender},
@@ -26,7 +29,7 @@ use hyperion_syscall::{
     err::{Error, Result},
     fs::{FileDesc, Seek},
     net::{Protocol, SocketDomain, SocketType},
-    Message,
+    Grant, Message,
 };
 use hyperion_vfs::{
     device::FileDevice,
@@ -525,7 +528,13 @@ pub struct ProcessExtra {
     pub message_can_recv: Condvar,
     pub message_target: Mutex<Option<Message>>,
     pub message_sent: Condvar,
+
+    pub grants: Mutex<Grants>,
 }
+
+pub struct Grants(pub *const [Grant]);
+
+unsafe impl Send for Grants {}
 
 impl ProcessExtra {
     pub const fn new() -> Self {
@@ -539,6 +548,8 @@ impl ProcessExtra {
             message_can_recv: Condvar::new(),
             message_target: Mutex::new(None),
             message_sent: Condvar::new(),
+
+            grants: Mutex::new(Grants(&[] as _)),
         }
     }
 }
@@ -558,6 +569,8 @@ impl Clone for ProcessExtra {
             message_can_recv: Condvar::new(),
             message_target: Mutex::new(None),
             message_sent: Condvar::new(),
+
+            grants: Mutex::new(Grants(&[] as _)),
         }
     }
 }
@@ -790,7 +803,12 @@ pub fn map_vfs_err_to_syscall_err(err: IoError) -> Error {
     }
 }
 
-pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
+pub fn is_user_accessible(
+    proc: &Process,
+    ptr: u64,
+    len: u64,
+    has_at_least: PageTableFlags,
+) -> Result<(VirtAddr, usize)> {
     if len == 0 {
         return Ok((VirtAddr::new_truncate(0), 0));
     }
@@ -803,16 +821,99 @@ pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
         return Err(Error::INVALID_ADDRESS);
     };
 
-    if !process()
+    if !proc
         .address_space
         .page_map
-        .is_mapped(start..end, PageTableFlags::USER_ACCESSIBLE)
+        .is_mapped(start..end, has_at_least)
     {
         // debug!("{:?} not mapped", start..end);
         return Err(Error::INVALID_ADDRESS);
     }
 
     Ok((start, len as _))
+}
+
+pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
+    is_user_accessible(&process(), ptr, len, PageTableFlags::USER_ACCESSIBLE)
+}
+
+pub fn read_slice_parts_mut(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
+    is_user_accessible(
+        &process(),
+        ptr,
+        len,
+        PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
+    )
+}
+
+/// use physical memory to read item(s) from an inactive process
+pub fn phys_read_item_from_proc<T: Copy>(proc: &Process, ptr: u64, to: &mut [T]) -> Result<()> {
+    phys_read_from_proc(proc, ptr, unsafe {
+        &mut *core::ptr::slice_from_raw_parts_mut(
+            to.as_mut_ptr().cast(),
+            mem::size_of::<T>() * to.len(),
+        )
+    })
+}
+
+/// use physical memory to write item(s) into an inactive process
+pub fn phys_write_item_into_proc<T: Copy>(proc: &Process, ptr: u64, from: &[T]) -> Result<()> {
+    phys_write_into_proc(proc, ptr, unsafe {
+        &*core::ptr::slice_from_raw_parts(from.as_ptr().cast(), mem::size_of::<T>() * from.len())
+    })
+}
+
+/// use physical memory to read byte(s) from an inactive process
+pub fn phys_read_from_proc(proc: &Process, ptr: u64, mut to: &mut [u8]) -> Result<()> {
+    let len = to.len() as u64;
+    let (start, len) = is_user_accessible(proc, ptr, len, PageTableFlags::USER_ACCESSIBLE)?;
+
+    let mut now;
+    for (base, len) in split_pages(start..start + len) {
+        // copy one page at a time
+        let hhdm = to_higher_half(proc.address_space.page_map.virt_to_phys(base).unwrap());
+        let from: &[u8] = unsafe { &*core::ptr::slice_from_raw_parts(hhdm.as_ptr(), len as usize) };
+
+        (now, to) = to.split_at_mut(len as usize);
+        now.copy_from_slice(from);
+    }
+
+    Ok(())
+}
+
+/// use physical memory to write byte(s) into an inactive process
+pub fn phys_write_into_proc(proc: &Process, ptr: u64, mut from: &[u8]) -> Result<()> {
+    let len = from.len() as u64;
+    let (start, len) = is_user_accessible(
+        proc,
+        ptr,
+        len,
+        PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
+    )?;
+
+    let mut now;
+    for (base, len) in split_pages(start..start + len) {
+        // copy one page at a time
+        let hhdm = to_higher_half(proc.address_space.page_map.virt_to_phys(base).unwrap());
+        let to: &mut [u8] =
+            unsafe { &mut *core::ptr::slice_from_raw_parts_mut(hhdm.as_mut_ptr(), len as usize) };
+
+        (now, from) = from.split_at(len as usize);
+        to.copy_from_slice(now);
+    }
+
+    Ok(())
+}
+
+/// iterate through all pages that contain this range
+pub fn split_pages(range: Range<VirtAddr>) -> impl Iterator<Item = (VirtAddr, u16)> {
+    let start_idx = range.start.as_u64() / 0x1000;
+    let end_idx = range.end.as_u64() / 0x1000;
+
+    core::iter::once(range.start)
+        .chain((start_idx..end_idx).map(|idx| VirtAddr::new(idx * 0x1000)))
+        .chain(core::iter::once(range.end))
+        .map_windows(|[a, b]| (*a, (b.as_u64() - a.as_u64()) as u16))
 }
 
 pub fn read_untrusted_ref<'a, T>(ptr: u64) -> Result<&'a T> {
@@ -829,7 +930,7 @@ pub fn read_untrusted_mut<'a, T>(ptr: u64) -> Result<&'a mut T> {
         return Err(Error::INVALID_ADDRESS);
     }
 
-    read_slice_parts(ptr, mem::size_of::<T>() as _)
+    read_slice_parts_mut(ptr, mem::size_of::<T>() as _)
         .map(|(start, _)| unsafe { &mut *start.as_mut_ptr() })
 }
 
@@ -858,7 +959,7 @@ pub fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {
 }
 
 pub fn read_untrusted_bytes_mut<'a>(ptr: u64, len: u64) -> Result<&'a mut [u8]> {
-    read_slice_parts(ptr, len).map(|(start, len)| {
+    read_slice_parts_mut(ptr, len).map(|(start, len)| {
         // TODO:
         // SAFETY: this is most likely unsafe
         if len == 0 {

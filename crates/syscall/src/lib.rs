@@ -5,7 +5,7 @@
 
 use core::{
     fmt::{self, Arguments, Write},
-    mem::MaybeUninit,
+    mem::{self, MaybeUninit},
     ptr::{self, NonNull},
     sync::atomic::AtomicUsize,
 };
@@ -80,6 +80,10 @@ pub mod id {
     pub const SEND_MSG: usize = 2001;
     pub const RECV_MSG: usize = 2002;
     pub const SEND_RECV_MSG: usize = 2003;
+
+    pub const SET_GRANTS: usize = 3001;
+    pub const GRANT_READ: usize = 3002;
+    pub const GRANT_WRITE: usize = 3002;
 }
 
 //
@@ -127,6 +131,10 @@ impl Pid {
         Self(raw)
     }
 
+    pub const fn as_raw(&self) -> u64 {
+        self.0
+    }
+
     // pub const fn try_from_raw(raw: u64) {
     //     if raw == Self::NONE.0 || raw == Self::ANY.0 {}
     // }
@@ -171,16 +179,52 @@ impl Message {
     pub const fn empty() -> Self {
         Self {
             from: Pid::NONE,
-            payload: MessagePayload::Raw([0; 54]),
+            payload: MessagePayload::Raw([0; 48]),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-#[repr(C, u16)]
+#[repr(C, u64, align(8))]
 pub enum MessagePayload {
-    Raw([u8; 54]),
+    Raw([u8; 48]),
+
+    /// the ELF bytes are contained in the grant
+    ProcessManagerForkAndExec {
+        grant: GrantId,
+        offs: usize,
+        size: usize,
+    },
 }
+
+const _: () = assert!(64 == mem::size_of::<Message>());
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct Grant {
+    pub to: Pid,
+    pub addr: usize,
+    pub size: usize,
+
+    pub read: bool,
+    pub write: bool,
+}
+
+impl Grant {
+    pub fn new(to: Pid, bytes: &'static [u8], r: bool, w: bool) -> Self {
+        Self {
+            to,
+            addr: bytes.as_ptr() as _,
+            size: bytes.len(),
+            read: r,
+            write: w,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct GrantId(pub usize);
 
 //
 
@@ -588,4 +632,40 @@ pub fn send_recv_msg(dest: Pid, mut msg: MessagePayload) -> Result<Message> {
         from: dest,
         payload: msg,
     })
+}
+
+/// set current memory grants
+/// the lifetime has to be at least to the next set_grants call
+pub fn set_grants(grants: &'static [Grant]) {
+    unsafe { syscall_2(id::SET_GRANTS, grants.as_ptr() as _, grants.len()) }.unwrap();
+}
+
+/// read bytes from a grant into a buffer
+pub fn grant_read(from: Pid, grant: GrantId, offs: usize, to: &mut [u8]) -> Result<()> {
+    unsafe {
+        syscall_5(
+            id::GRANT_READ,
+            from.0 as usize,
+            grant.0,
+            offs,
+            to.as_mut_ptr() as usize,
+            to.len(),
+        )
+        .map(|_| {})
+    }
+}
+
+/// write bytes from a buffer into a grant
+pub fn grant_write(to: Pid, grant: GrantId, offs: usize, from: &[u8]) -> Result<()> {
+    unsafe {
+        syscall_5(
+            id::GRANT_WRITE,
+            to.0 as usize,
+            grant.0,
+            offs,
+            from.as_ptr() as usize,
+            from.len(),
+        )
+        .map(|_| {})
+    }
 }
