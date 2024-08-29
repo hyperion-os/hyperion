@@ -13,6 +13,50 @@ use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage};
 
 //
 
+#[macro_export]
+macro_rules! save_registers {
+    () => {
+        "push rax
+        push rbx
+        push rcx
+        push rdx
+        push rdi
+        push rsi
+        push rbp
+        push r8
+        push r9
+        push r10
+        push r11
+        push r12
+        push r13
+        push r14
+        push r15"
+    };
+}
+
+#[macro_export]
+macro_rules! restore_registers {
+    () => {
+        "pop r15
+        pop r14
+        pop r13
+        pop r12
+        pop r11
+        pop r10
+        pop r9
+        pop r8
+        pop rbp
+        pop rsi
+        pop rdi
+        pop rdx
+        pop rcx
+        pop rbx
+        pop rax"
+    };
+}
+
+//
+
 /// init `syscall` and `sysret`
 pub fn init(selectors: SegmentSelectors) {
     // IA32_STAR : 0xC0000081
@@ -139,6 +183,7 @@ pub extern "sysv64" fn userland(
     }
 }
 
+#[allow(named_asm_labels)] // global enter_userland_from_stack
 #[naked]
 #[no_mangle]
 pub extern "sysv64" fn userland_return(_args: &mut SyscallRegs) -> ! {
@@ -147,21 +192,10 @@ pub extern "sysv64" fn userland_return(_args: &mut SyscallRegs) -> ! {
         asm!(
             "mov rsp, rdi", // set the stack ptr to point to _args temporarily
 
-            "pop r15",
-            "pop r14",
-            "pop r13",
-            "pop r12",
-            "pop r11",
-            "pop r10",
-            "pop r9",
-            "pop r8",
-            "pop rbp",
-            "pop rsi",
-            "pop rdi",
-            "pop rdx",
-            "pop rcx",
-            "pop rbx",
-            "pop rax",
+            ".global enter_userland_from_stack",
+            "enter_userland_from_stack:",
+
+            restore_registers!(),
 
             "swapgs",
             "pop QWORD PTR gs:{user_stack}",
@@ -193,47 +227,14 @@ unsafe extern "C" fn syscall_wrapper() {
             "push QWORD PTR gs:{user_stack}",
             "swapgs",
 
-            "push rax",
-            "push rbx",
-            "push rcx",
-            "push rdx",
-            "push rdi",
-            "push rsi",
-            "push rbp",
-            "push r8",
-            "push r9",
-            "push r10",
-            "push r11",
-            "push r12",
-            "push r13",
-            "push r14",
-            "push r15",
+            save_registers!(),
 
+            // call the Rust syscall handler
             "mov rdi, rsp",
             "call {syscall}",
 
-            "pop r15",
-            "pop r14",
-            "pop r13",
-            "pop r12",
-            "pop r11",
-            "pop r10",
-            "pop r9",
-            "pop r8",
-            "pop rbp",
-            "pop rsi",
-            "pop rdi",
-            "pop rdx",
-            "pop rcx",
-            "pop rbx",
-            "pop rax",
+            "jmp enter_userland_from_stack",
 
-            "swapgs",
-            "pop QWORD PTR gs:{user_stack}",
-            "mov rsp, gs:{user_stack}",
-            "swapgs",
-            // TODO: fix the sysret vulnerability
-            "sysretq",
             syscall = sym syscall,
             user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
             kernel_stack = const(offset_of!(ThreadLocalStorage, kernel_stack)),
