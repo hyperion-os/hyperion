@@ -129,6 +129,31 @@ pub struct SyscallRegs {
     pub user_stack_ptr: u64, // rsp
 }
 
+impl SyscallRegs {
+    pub const fn new() -> Self {
+        Self {
+            rflags: RFlags::INTERRUPT_FLAG.bits(),
+            _r10: 0,
+            arg4: 0,
+            arg3: 0,
+            arg1: 0,
+            arg0: 0,
+            arg2: 0,
+            user_instr_ptr: 0,
+            syscall_id: 0,
+
+            _r15: 0,
+            _r14: 0,
+            _r13: 0,
+            _r12: 0,
+            _rbp: 0,
+            _rbx: 0,
+
+            user_stack_ptr: 0,
+        }
+    }
+}
+
 impl fmt::Display for SyscallRegs {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
