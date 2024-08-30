@@ -14,19 +14,40 @@ use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage};
 //
 
 #[macro_export]
-macro_rules! save_registers {
+macro_rules! save_scratch {
     () => {
         "push rax
-        push rbx
         push rcx
         push rdx
         push rdi
         push rsi
-        push rbp
         push r8
         push r9
         push r10
-        push r11
+        push r11"
+    };
+}
+
+#[macro_export]
+macro_rules! restore_scratch {
+    () => {
+        "pop r11
+        pop r10
+        pop r9
+        pop r8
+        pop rsi
+        pop rdi
+        pop rdx
+        pop rcx
+        pop rax"
+    };
+}
+
+#[macro_export]
+macro_rules! save_preserved {
+    () => {
+        "push rbx
+        push rbp
         push r12
         push r13
         push r14
@@ -35,23 +56,14 @@ macro_rules! save_registers {
 }
 
 #[macro_export]
-macro_rules! restore_registers {
+macro_rules! restore_preserved {
     () => {
         "pop r15
         pop r14
         pop r13
         pop r12
-        pop r11
-        pop r10
-        pop r9
-        pop r8
         pop rbp
-        pop rsi
-        pop rdi
-        pop rdx
-        pop rcx
-        pop rbx
-        pop rax"
+        pop rbx"
     };
 }
 
@@ -95,21 +107,25 @@ pub fn set_handler(f: fn(&mut SyscallRegs)) {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SyscallRegs {
-    _r15: u64,
-    _r14: u64,
-    _r13: u64,
-    _r12: u64,
+    // scratch
     pub rflags: u64, // r11
     _r10: u64,
-    pub arg4: u64, // r9
-    pub arg3: u64, // r8
-    _rbp: u64,
+    pub arg4: u64,           // r9
+    pub arg3: u64,           // r8
     pub arg1: u64,           // rsi
     pub arg0: u64,           // rdi
     pub arg2: u64,           // rdx
     pub user_instr_ptr: u64, // rcx
-    _rbx: u64,
     pub syscall_id: u64,     // rax, also the return register
+
+    // preserved
+    _r15: u64,
+    _r14: u64,
+    _r13: u64,
+    _r12: u64,
+    _rbp: u64,
+    _rbx: u64,
+
     pub user_stack_ptr: u64, // rsp
 }
 
@@ -195,7 +211,8 @@ pub extern "sysv64" fn userland_return(_args: &mut SyscallRegs) -> ! {
             ".global enter_userland_from_stack",
             "enter_userland_from_stack:",
 
-            restore_registers!(),
+            restore_scratch!(),
+            restore_preserved!(),
 
             "swapgs",
             "pop QWORD PTR gs:{user_stack}",
@@ -227,7 +244,8 @@ unsafe extern "C" fn syscall_wrapper() {
             "push QWORD PTR gs:{user_stack}",
             "swapgs",
 
-            save_registers!(),
+            save_preserved!(),
+            save_scratch!(),
 
             // call the Rust syscall handler
             "mov rdi, rsp",
