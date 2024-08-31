@@ -15,6 +15,7 @@ use core::{
 };
 
 use arcstr::ArcStr;
+use hyperion_arch::vmm::PageMap;
 use hyperion_loader::Loader;
 use hyperion_log::*;
 use hyperion_mem::{to_higher_half, vmm::PageMapImpl};
@@ -804,7 +805,7 @@ pub fn map_vfs_err_to_syscall_err(err: IoError) -> Error {
 }
 
 pub fn is_user_accessible(
-    proc: &Process,
+    page_map: &PageMap,
     ptr: u64,
     len: u64,
     has_at_least: PageTableFlags,
@@ -821,11 +822,7 @@ pub fn is_user_accessible(
         return Err(Error::INVALID_ADDRESS);
     };
 
-    if !proc
-        .address_space
-        .page_map
-        .is_mapped(start..end, has_at_least)
-    {
+    if !page_map.is_mapped(start..end, has_at_least) {
         // debug!("{:?} not mapped", start..end);
         return Err(Error::INVALID_ADDRESS);
     }
@@ -834,12 +831,17 @@ pub fn is_user_accessible(
 }
 
 pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
-    is_user_accessible(&process(), ptr, len, PageTableFlags::USER_ACCESSIBLE)
+    is_user_accessible(
+        &process().address_space.page_map,
+        ptr,
+        len,
+        PageTableFlags::USER_ACCESSIBLE,
+    )
 }
 
 pub fn read_slice_parts_mut(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
     is_user_accessible(
-        &process(),
+        &process().address_space.page_map,
         ptr,
         len,
         PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
@@ -847,8 +849,8 @@ pub fn read_slice_parts_mut(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
 }
 
 /// use physical memory to read item(s) from an inactive process
-pub fn phys_read_item_from_proc<T: Copy>(proc: &Process, ptr: u64, to: &mut [T]) -> Result<()> {
-    phys_read_from_proc(proc, ptr, unsafe {
+pub fn phys_read_item_from_proc<T: Copy>(page_map: &PageMap, ptr: u64, to: &mut [T]) -> Result<()> {
+    phys_read_from_proc(page_map, ptr, unsafe {
         &mut *core::ptr::slice_from_raw_parts_mut(
             to.as_mut_ptr().cast(),
             mem::size_of::<T>() * to.len(),
@@ -857,21 +859,21 @@ pub fn phys_read_item_from_proc<T: Copy>(proc: &Process, ptr: u64, to: &mut [T])
 }
 
 /// use physical memory to write item(s) into an inactive process
-pub fn phys_write_item_into_proc<T: Copy>(proc: &Process, ptr: u64, from: &[T]) -> Result<()> {
-    phys_write_into_proc(proc, ptr, unsafe {
+pub fn phys_write_item_into_proc<T: Copy>(page_map: &PageMap, ptr: u64, from: &[T]) -> Result<()> {
+    phys_write_into_proc(page_map, ptr, unsafe {
         &*core::ptr::slice_from_raw_parts(from.as_ptr().cast(), mem::size_of::<T>() * from.len())
     })
 }
 
 /// use physical memory to read byte(s) from an inactive process
-pub fn phys_read_from_proc(proc: &Process, ptr: u64, mut to: &mut [u8]) -> Result<()> {
+pub fn phys_read_from_proc(page_map: &PageMap, ptr: u64, mut to: &mut [u8]) -> Result<()> {
     let len = to.len() as u64;
-    let (start, len) = is_user_accessible(proc, ptr, len, PageTableFlags::USER_ACCESSIBLE)?;
+    let (start, len) = is_user_accessible(page_map, ptr, len, PageTableFlags::USER_ACCESSIBLE)?;
 
     let mut now;
     for (base, len) in split_pages(start..start + len) {
         // copy one page at a time
-        let hhdm = to_higher_half(proc.address_space.page_map.virt_to_phys(base).unwrap());
+        let hhdm = to_higher_half(page_map.virt_to_phys(base).unwrap());
         let from: &[u8] = unsafe { &*core::ptr::slice_from_raw_parts(hhdm.as_ptr(), len as usize) };
 
         (now, to) = to.split_at_mut(len as usize);
@@ -882,10 +884,10 @@ pub fn phys_read_from_proc(proc: &Process, ptr: u64, mut to: &mut [u8]) -> Resul
 }
 
 /// use physical memory to write byte(s) into an inactive process
-pub fn phys_write_into_proc(proc: &Process, ptr: u64, mut from: &[u8]) -> Result<()> {
+pub fn phys_write_into_proc(page_map: &PageMap, ptr: u64, mut from: &[u8]) -> Result<()> {
     let len = from.len() as u64;
     let (start, len) = is_user_accessible(
-        proc,
+        page_map,
         ptr,
         len,
         PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
@@ -894,7 +896,7 @@ pub fn phys_write_into_proc(proc: &Process, ptr: u64, mut from: &[u8]) -> Result
     let mut now;
     for (base, len) in split_pages(start..start + len) {
         // copy one page at a time
-        let hhdm = to_higher_half(proc.address_space.page_map.virt_to_phys(base).unwrap());
+        let hhdm = to_higher_half(page_map.virt_to_phys(base).unwrap());
         let to: &mut [u8] =
             unsafe { &mut *core::ptr::slice_from_raw_parts_mut(hhdm.as_mut_ptr(), len as usize) };
 

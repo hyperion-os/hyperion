@@ -1103,7 +1103,11 @@ pub fn grant_read(args: &mut SyscallRegs) -> Result<usize> {
     // FIXME: a more safe method
     let from_grant = unsafe { from_grants.0.cast::<Grant>().add(grant_id.0) };
     let mut from_grant_specific = [MaybeUninit::<Grant>::uninit()];
-    phys_read_item_from_proc(&from, from_grant as _, &mut from_grant_specific);
+    phys_read_item_from_proc(
+        &from.address_space.page_map,
+        from_grant as _,
+        &mut from_grant_specific,
+    );
     let [from_grant_specific] = from_grant_specific;
     let from_grant_specific = unsafe { from_grant_specific.assume_init() };
 
@@ -1119,7 +1123,11 @@ pub fn grant_read(args: &mut SyscallRegs) -> Result<usize> {
         return Err(Error::PERMISSION_DENIED);
     }
 
-    phys_read_from_proc(&from, (from_grant_specific.addr + offs) as u64, to)?;
+    phys_read_from_proc(
+        &from.address_space.page_map,
+        (from_grant_specific.addr + offs) as u64,
+        to,
+    )?;
 
     return Ok(0);
 }
