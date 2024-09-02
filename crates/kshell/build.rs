@@ -15,8 +15,10 @@ fn main() {
 
     let from = "./../../asset";
     travel(from.as_ref(), &mut |path| {
+        println!("found asset file {path:?}");
+
         let os_canonical = if path.is_symlink() {
-            path.read_link().unwrap()
+            path.read_link().unwrap().canonicalize().unwrap()
         } else {
             path.canonicalize().unwrap()
         };

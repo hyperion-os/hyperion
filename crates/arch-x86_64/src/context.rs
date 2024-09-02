@@ -17,7 +17,7 @@ use crate::{tls::ThreadLocalStorage, vmm::PageMap};
 
 //
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Context {
     pub rsp: VirtAddr,
@@ -93,12 +93,12 @@ impl Context {
     /// # Safety
     ///
     /// this task is not safe to switch to
-    pub unsafe fn invalid(page_map: &PageMap) -> Self {
+    pub const unsafe fn invalid() -> Self {
         Self {
-            cr3: page_map.cr3().start_address(),
-            rsp: VirtAddr::new_truncate(0),
-            fs: VirtAddr::new_truncate(0),
-            syscall_stack: VirtAddr::new_truncate(0),
+            cr3: PhysAddr::zero(),
+            rsp: VirtAddr::zero(),
+            fs: VirtAddr::zero(),
+            syscall_stack: VirtAddr::zero(),
             fxsave_reg: [0; 128],
         }
     }

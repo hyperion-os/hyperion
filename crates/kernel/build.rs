@@ -1,4 +1,8 @@
-use std::{env::var, error::Error};
+use std::{
+    env::{self, var},
+    error::Error,
+    process::Command,
+};
 
 //
 
@@ -10,6 +14,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-env-changed=CARGO_PKG_NAME .");
     //let arch = var("CARGO_CFG_TARGET_ARCH")?;
     //println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
+
+    let bootstrap_elf = env::var("CARGO_BIN_FILE_BOOTSTRAP").unwrap();
+    let bootstrap_bin = format!("{bootstrap_elf}_bin");
+    Command::new("objcopy")
+        .arg(&bootstrap_elf)
+        .arg("-O")
+        .arg("binary")
+        .arg(&bootstrap_bin)
+        .status()
+        .unwrap();
+
+    // panic!("{bootstrap_bin:?}");
+    println!("cargo:rustc-env=BOOTSTRAP_BIN={bootstrap_bin}");
 
     println!("cargo:rustc-link-arg=-no-pie");
     //println!("cargo:rust-link-arg=-no-pie");

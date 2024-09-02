@@ -399,7 +399,7 @@ impl Task {
 
         // SAFETY: this task is unsafe to switch to,
         // switching is allowed only if `self.is_valid()` returns true
-        let context = UnsafeCell::new(unsafe { Context::invalid(&process.address_space.page_map) });
+        let context = UnsafeCell::new(unsafe { Context::invalid() });
 
         TASKS_RUNNING.fetch_add(1, Ordering::Relaxed);
         Self(Arc::new(TaskInner {

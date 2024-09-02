@@ -3,7 +3,7 @@
 //
 
 use alloc::boxed::Box;
-use core::{cell::UnsafeCell, ops::Deref};
+use core::{cell::UnsafeCell, ops::Deref, sync::atomic::AtomicUsize};
 
 pub use x86_64::*;
 

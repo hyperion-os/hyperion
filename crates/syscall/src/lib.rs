@@ -190,6 +190,8 @@ impl Message {
 pub enum MessagePayload {
     Raw([u8; 48]),
 
+    Ok,
+
     /// the ELF bytes are contained in the grant
     ProcessManagerForkAndExec {
         grant: GrantId,

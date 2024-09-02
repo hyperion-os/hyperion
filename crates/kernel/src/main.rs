@@ -15,7 +15,7 @@ extern crate alloc;
 
 use alloc::vec;
 
-use hyperion_arch as arch;
+use hyperion_arch::{self as arch, vmm::PageMap};
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
 use hyperion_drivers as drivers;
@@ -24,10 +24,14 @@ use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
+use hyperion_mem::{
+    pmm,
+    vmm::{MapTarget, PageMapImpl},
+};
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
-use x86_64::VirtAddr;
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
@@ -80,6 +84,44 @@ extern "C" fn _start() -> ! {
     // wake up all cpus
     arch::wake_cpus(_start);
 
+    if sync::once!() {
+        let vm = PageMap::new();
+        vm.activate();
+        println!("new page map");
+
+        // map the bootstrap binary
+        let bootstrap = include_bytes!(env!("BOOTSTRAP_BIN"));
+        let bootstrap_bin_mem = pmm::PFA.alloc(bootstrap.len().div_ceil(0x1000));
+        let target = MapTarget::Preallocated(bootstrap_bin_mem.physical_addr());
+        let base = VirtAddr::new(0x8000_0000);
+        println!("mapping");
+        vm.map(
+            base..base + bootstrap_bin_mem.byte_len(),
+            target,
+            PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
+        );
+
+        hyperion_kernel_impl::phys_write_into_proc(&vm, 0x8000_0000, &bootstrap[..]).unwrap();
+
+        // map its stack
+        let stack_mem = pmm::PFA.alloc(16);
+        let target = MapTarget::Preallocated(bootstrap_bin_mem.physical_addr());
+        vm.map(
+            base - stack_mem.byte_len()..base,
+            target,
+            PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+        );
+
+        scheduler::init_bootstrap(vm.cr3(), 0x8000_0000, 0x8000_0000);
+        // init task per cpu
+        debug!("init CPU-{}", cpu_id());
+        scheduler::done2();
+    }
+
+    // init task per cpu
+    debug!("init CPU-{}", cpu_id());
+    scheduler::done2();
+
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
     scheduler::init(init);
@@ -106,13 +148,13 @@ fn init() {
             hyperion_kernel_impl::INITFS.call_once(move || v);
         }
 
-        hyperion_kernel_impl::BOOTSTRAP.call_once(|| {
-            hyperion_kernel_impl::exec_system(
-                load_elf!("BOOTSTRAP").into(),
-                "<bootstrap>".into(),
-                vec![],
-            )
-        });
+        // hyperion_kernel_impl::BOOTSTRAP.call_once(|| {
+        //     hyperion_kernel_impl::exec_system(
+        //         load_elf!("BOOTSTRAP").into(),
+        //         "<bootstrap>".into(),
+        //         vec![],
+        //     )
+        // });
 
         // os unit tests
         #[cfg(test)]

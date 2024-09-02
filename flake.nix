@@ -25,6 +25,7 @@
             #   extensions = [ "rust-src" ];
             #   targets = [ "x86_64-unknown-none" ];
             # })
+            qemu_full
             rust-analyzer
             rustup
             lldb
@@ -33,6 +34,7 @@
             cargo-expand
             cargo-make
             cargo-fuzz
+            # cargo-binutils
             act
             lld_16
             clang_16

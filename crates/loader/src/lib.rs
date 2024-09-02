@@ -37,6 +37,7 @@ pub struct Loader<'a> {
 
 //
 
+#[derive(Debug)]
 pub struct NoEntryPoint;
 
 //

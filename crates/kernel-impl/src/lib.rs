@@ -685,8 +685,6 @@ pub fn exec(
 
 pub fn exec_system(elf: Cow<'static, [u8]>, program: String, args: Vec<String>) -> Arc<Process> {
     let pid = hyperion_scheduler::schedule(move || {
-        hyperion_scheduler::rename(program.clone());
-
         pub static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
             Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
         pub static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
@@ -698,6 +696,23 @@ pub fn exec_system(elf: Cow<'static, [u8]>, program: String, args: Vec<String>) 
         fd_replace(FileDesc(0), stdin);
         fd_replace(FileDesc(1), stdout);
         fd_replace(FileDesc(2), stderr);
+
+        let loader = Loader::new(elf.as_ref());
+        loader.load();
+        let entry = loader.finish().unwrap();
+
+        let stack = process().address_space.take_user_stack();
+
+        hyperion_scheduler::init_bootstrap(
+            process().address_space.page_map.cr3(),
+            entry.as_ptr() as u64,
+            stack.top.as_u64(),
+        );
+        hyperion_scheduler::done2();
+
+        // FIXME: the exec_system needs to go
+
+        hyperion_scheduler::rename(program.clone());
 
         // load ..
         let loader = Loader::new(elf.as_ref());

@@ -84,6 +84,8 @@ fn main() {
 
                 sys::fork_and_exec("", &buf).unwrap();
                 // sys::exec();
+
+                sys::send_msg(msg.from, MessagePayload::Ok).unwrap();
             }
             _ => {}
         }

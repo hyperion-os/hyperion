@@ -15,14 +15,14 @@
 //! ```
 
 #![no_std]
-#![feature(array_chunks, str_split_remainder)]
+#![feature(array_chunks, str_split_remainder, naked_functions)]
 
 //
 
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::btree_map::BTreeMap, vec};
-use core::fmt;
+use core::{arch::asm, fmt, mem::MaybeUninit};
 
 use libstd::{
     println,
@@ -67,7 +67,17 @@ static INITFS_ROOT: Once<Dir> = Once::new();
 
 //
 
+#[link_section = ".boot"]
+#[no_mangle]
+unsafe extern "C" fn _start_bootstrap() -> ! {
+    _ = sys::log("bootstrap: hello world\n");
+    main();
+    loop {}
+}
+
 fn main() {
+    // FIXME: bootstrap should be a flat binary
+
     println!("bootstrap: hello world");
 
     let initfs = sys::sys_map_initfs().expect("failed to map initfs.tar.gz");
