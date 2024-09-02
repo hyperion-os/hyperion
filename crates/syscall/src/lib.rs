@@ -84,7 +84,7 @@ pub mod id {
 
     pub const SET_GRANTS: usize = 3001;
     pub const GRANT_READ: usize = 3002;
-    pub const GRANT_WRITE: usize = 3002;
+    pub const GRANT_WRITE: usize = 3003;
 }
 
 //

@@ -14,5 +14,4 @@ time.workspace = true
 x86_64.workspace = true
 
 hyperion-log.path = "../log"
-hyperion-vfs.path = "../vfs"
 hyperion-macros.path = "../macros"

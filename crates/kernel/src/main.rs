@@ -13,14 +13,11 @@
 
 extern crate alloc;
 
-use alloc::vec;
+use core::slice;
 
 use hyperion_arch::{self as arch, vmm::PageMap};
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
-use hyperion_drivers as drivers;
-use hyperion_futures as futures;
-use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
@@ -28,7 +25,6 @@ use hyperion_mem::{
     pmm,
     vmm::{MapTarget, PageMapImpl},
 };
-use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
@@ -39,26 +35,6 @@ pub mod panic;
 pub mod syscall;
 #[cfg(test)]
 pub mod testfw;
-
-//
-
-// FIXME: prob flat binaries instead of ELF binaries,
-// because ELF brings additional and unnecessary complexity.
-// maybe a build script could objcopy them or something
-/// load critical user-space system process binaries
-macro_rules! load_elf {
-    ($bin:literal) => {
-        load_elf_from!(env!(concat!("CARGO_BIN_FILE_", $bin)))
-    };
-}
-
-macro_rules! load_elf_from {
-    ($($t:tt)*) => {{
-        const FILE: &[u8] = include_bytes!($($t)*);
-        trace!("ELF from {}", $($t)*);
-        FILE
-    }};
-}
 
 //
 
@@ -86,24 +62,22 @@ extern "C" fn _start() -> ! {
 
     if sync::once!() {
         let vm = PageMap::new();
-        vm.activate();
         println!("new page map");
 
-        // map the bootstrap binary
+        // map the bootstrap binary to 0x8000_0000
         let bootstrap = include_bytes!(env!("BOOTSTRAP_BIN"));
         let bootstrap_bin_mem = pmm::PFA.alloc(bootstrap.len().div_ceil(0x1000));
         let target = MapTarget::Preallocated(bootstrap_bin_mem.physical_addr());
         let base = VirtAddr::new(0x8000_0000);
-        println!("mapping");
         vm.map(
             base..base + bootstrap_bin_mem.byte_len(),
             target,
             PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
         );
-
         hyperion_kernel_impl::phys_write_into_proc(&vm, 0x8000_0000, &bootstrap[..]).unwrap();
+        assert!(bootstrap_bin_mem.byte_len() <= 0x8000_0000);
 
-        // map its stack
+        // map its stack to below 0x8000_0000
         let stack_mem = pmm::PFA.alloc(16);
         let target = MapTarget::Preallocated(bootstrap_bin_mem.physical_addr());
         vm.map(
@@ -112,71 +86,39 @@ extern "C" fn _start() -> ! {
             PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
         );
 
+        // map initfs blob to 0xF000_0000
+        let initfs = boot::modules()
+            .find_map(|module| {
+                (module.cmdline == Some("initfs"))
+                    .then_some((VirtAddr::new(module.addr as _), module.size))
+            })
+            .expect("no initfs");
+        let initfs_bytes = unsafe { slice::from_raw_parts(initfs.0.as_ptr(), initfs.1) };
+        let initfs_mem = pmm::PFA.alloc(initfs_bytes.len().div_ceil(0x1000));
+        let target = MapTarget::Preallocated(initfs_mem.physical_addr());
+        let base = VirtAddr::new(0xF000_0000);
+        vm.map(
+            base..base + initfs_mem.byte_len(),
+            target,
+            PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+        );
+        hyperion_kernel_impl::phys_write_into_proc(&vm, 0xF000_0000, initfs_bytes).unwrap();
+
+        // map some lazy allocated heap memory to 0x8_0000_0000
+        let base = VirtAddr::new(0x8_0000_0000);
+        vm.map(
+            base..base + 0x8_0000_0000usize,
+            MapTarget::LazyAlloc,
+            PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+        );
+
         scheduler::init_bootstrap(vm.cr3(), 0x8000_0000, 0x8000_0000);
-        // init task per cpu
-        debug!("init CPU-{}", cpu_id());
-        scheduler::done2();
+        core::mem::forget(vm);
     }
 
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
-    scheduler::done2();
-
-    // init task per cpu
-    debug!("init CPU-{}", cpu_id());
-    scheduler::init(init);
-}
-
-fn init() {
-    scheduler::rename("<kernel async>");
-
-    // init task once
-    if sync::once!() {
-        // random hw specifics
-        random::provide_entropy(&arch::rng_seed().to_ne_bytes());
-        drivers::lazy_install_early(VFS_ROOT.clone());
-        drivers::lazy_install_late();
-
-        for module in boot::modules() {
-            debug!("MODULE: {module:x?}");
-        }
-
-        if let Some(v) = boot::modules().find_map(|module| {
-            (module.cmdline == Some("initfs"))
-                .then_some((VirtAddr::new(module.addr as _), module.size))
-        }) {
-            hyperion_kernel_impl::INITFS.call_once(move || v);
-        }
-
-        // hyperion_kernel_impl::BOOTSTRAP.call_once(|| {
-        //     hyperion_kernel_impl::exec_system(
-        //         load_elf!("BOOTSTRAP").into(),
-        //         "<bootstrap>".into(),
-        //         vec![],
-        //     )
-        // });
-
-        // os unit tests
-        #[cfg(test)]
-        test_main();
-        // kshell (kernel-space shell) UI task(s)
-        #[cfg(not(test))]
-        futures::spawn(hyperion_kshell::kshell());
-    }
-
-    // The bootloader stuff (like the bootloader stacks and the bootloader page map)
-    // is shared between CPUs, so this makes sure that only the last processor still using it,
-    // is the only one that can delete it.
-    if sync::last!() {
-        // bootloader memory shouldn't be used anymore
-        debug!("freeing bootloader reclaimable memory");
-        unsafe {
-            hyperion_mem::pmm::PFA.free_bootloader();
-        }
-    }
-
-    // start doing kernel things
-    futures::run_tasks();
+    scheduler::done();
 }
 
 // to fix `cargo clippy` without a target

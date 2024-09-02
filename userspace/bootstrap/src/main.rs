@@ -76,8 +76,6 @@ unsafe extern "C" fn _start_bootstrap() -> ! {
 }
 
 fn main() {
-    // FIXME: bootstrap should be a flat binary
-
     println!("bootstrap: hello world");
 
     let initfs = sys::sys_map_initfs().expect("failed to map initfs.tar.gz");

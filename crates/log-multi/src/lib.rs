@@ -45,7 +45,8 @@ impl Logger for MultiLogger {
     }
 
     fn proc_name(&self) -> Option<ArcStr> {
-        if !hyperion_scheduler::running() {
+        return None;
+        /* if !hyperion_scheduler::running() {
             return None;
         }
 
@@ -55,7 +56,7 @@ impl Logger for MultiLogger {
             return Some(literal!("<name-locked>"));
         };
 
-        Some(name.clone())
+        Some(name.clone()) */
     }
 
     fn print(&self, _level: LogLevel, args: Arguments) {

@@ -224,10 +224,10 @@ version = "4.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "528131438037fd55894f62d6e9f068b8f45ac57ffa77517819645d10aed04f64"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -366,12 +366,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "doc-comment"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
-
-[[package]]
 name = "either"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -448,46 +442,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "futures"
-version = "0.3.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "645c6916888f6cb6350d2550b80fb63e734897a8498abe35cfb732b6487804b0"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-io",
- "futures-sink",
- "futures-task",
- "futures-util",
-]
-
-[[package]]
-name = "futures-channel"
-version = "0.3.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eac8f7d7865dcb88bd4373ab671c8cf4508703796caa2b1985a9ca867b3fcb78"
-dependencies = [
- "futures-core",
- "futures-sink",
-]
-
-[[package]]
 name = "futures-core"
 version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfc6580bb841c5a68e9ef15c77ccc837b40a7504914d52e47b8b0e9bbda25a1d"
-
-[[package]]
-name = "futures-io"
-version = "0.3.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
-
-[[package]]
-name = "futures-sink"
-version = "0.3.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fb8e00e87438d937621c1c6269e53f536c14d3fbd6a042bb24879e57d474fb5"
 
 [[package]]
 name = "futures-task"
@@ -502,7 +460,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d6401deb83407ab3da39eba7e33987a73c3df0c82b4bb5813ee871c19c41d48"
 dependencies = [
  "futures-core",
- "futures-sink",
  "futures-task",
  "pin-project-lite",
  "pin-utils",
@@ -555,12 +512,6 @@ dependencies = [
  "hash32",
  "stable_deref_trait",
 ]
-
-[[package]]
-name = "heck"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
 name = "heck"
@@ -677,7 +628,6 @@ dependencies = [
  "hyperion-log",
  "hyperion-mem",
  "hyperion-static-str",
- "hyperion-vfs",
  "paste",
  "spin",
  "x86_64",
@@ -690,7 +640,6 @@ dependencies = [
  "hyperion-framebuffer",
  "hyperion-log",
  "hyperion-mem",
- "hyperion-vfs",
  "spin",
  "x86_64",
 ]
@@ -731,27 +680,9 @@ version = "0.3.0"
 dependencies = [
  "hyperion-log",
  "hyperion-macros",
- "hyperion-vfs",
  "spin",
  "time",
  "x86_64",
-]
-
-[[package]]
-name = "hyperion-drivers"
-version = "0.3.0"
-dependencies = [
- "hyperion-clock",
- "hyperion-driver-acpi",
- "hyperion-driver-framebuffer",
- "hyperion-driver-ps2",
- "hyperion-driver-rtc",
- "hyperion-events",
- "hyperion-futures",
- "hyperion-log",
- "hyperion-random",
- "hyperion-sync",
- "hyperion-vfs",
 ]
 
 [[package]]
@@ -791,21 +722,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperion-futures"
-version = "0.3.0"
-dependencies = [
- "crossbeam-queue",
- "event-listener",
- "futures",
- "futures-util",
- "hyperion-events",
- "hyperion-instant",
- "hyperion-scheduler",
- "spin",
- "time",
-]
-
-[[package]]
 name = "hyperion-instant"
 version = "0.3.0"
 dependencies = [
@@ -830,12 +746,9 @@ dependencies = [
  "hyperion-boot",
  "hyperion-cpu-id",
  "hyperion-defer",
- "hyperion-drivers",
- "hyperion-futures",
  "hyperion-instant",
  "hyperion-kernel-impl",
  "hyperion-kernel-info",
- "hyperion-kshell",
  "hyperion-log",
  "hyperion-log-multi",
  "hyperion-mem",
@@ -843,7 +756,6 @@ dependencies = [
  "hyperion-scheduler",
  "hyperion-sync",
  "hyperion-syscall",
- "hyperion-vfs",
  "time",
  "x86_64",
 ]
@@ -857,12 +769,10 @@ dependencies = [
  "hyperion-boot",
  "hyperion-clock",
  "hyperion-kernel-info",
- "hyperion-loader",
  "hyperion-log",
  "hyperion-mem",
  "hyperion-scheduler",
  "hyperion-syscall",
- "hyperion-vfs",
  "spin",
  "x86_64",
 ]
@@ -872,46 +782,6 @@ name = "hyperion-kernel-info"
 version = "0.3.0"
 dependencies = [
  "hyperion-macros",
-]
-
-[[package]]
-name = "hyperion-kshell"
-version = "0.3.0"
-dependencies = [
- "anyhow",
- "coreutils",
- "fbtest",
- "futures-util",
- "hyperion-color",
- "hyperion-escape",
- "hyperion-events",
- "hyperion-framebuffer",
- "hyperion-futures",
- "hyperion-kernel-impl",
- "hyperion-kernel-info",
- "hyperion-log",
- "hyperion-pci",
- "hyperion-scheduler",
- "hyperion-syscall",
- "hyperion-vfs",
- "sample-elf",
- "serde",
- "serde_json",
- "snafu",
- "spin",
-]
-
-[[package]]
-name = "hyperion-loader"
-version = "0.3.0"
-dependencies = [
- "bitflags 2.5.0",
- "elf",
- "hyperion-arch",
- "hyperion-log",
- "hyperion-mem",
- "hyperion-scheduler",
- "x86_64",
 ]
 
 [[package]]
@@ -943,7 +813,7 @@ dependencies = [
  "chrono",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1039,16 +909,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyperion-vfs"
-version = "0.3.0"
-dependencies = [
- "hyperion-log",
- "hyperion-mem",
- "lock_api",
- "snafu",
-]
-
-[[package]]
 name = "hyperion-windowing"
 version = "0.3.0"
 dependencies = [
@@ -1113,12 +973,6 @@ version = "0.3.0"
 dependencies = [
  "libstd",
 ]
-
-[[package]]
-name = "itoa"
-version = "1.0.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
 
 [[package]]
 name = "jpeg-decoder"
@@ -1253,7 +1107,7 @@ checksum = "2f38a4412a78282e09a2cf38d195ea5420d15ba0602cb375210efbc877243965"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1432,12 +1286,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80af6f9131f277a45a3fba6ce8e2258037bb0477a67e610d3c1fe046ab31de47"
 
 [[package]]
-name = "ryu"
-version = "1.0.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e86697c916019a8588c99b5fac3cead74ec0b4b819707a682fd4d23fa0ce1ba1"
-
-[[package]]
 name = "sample-elf"
 version = "0.3.0"
 dependencies = [
@@ -1467,18 +1315,7 @@ checksum = "11bd257a6541e141e42ca6d24ae26f7714887b47e89aa739099104c7e4d3b7fc"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
-]
-
-[[package]]
-name = "serde_json"
-version = "1.0.116"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e17db7126d17feb94eb3fad46bf1a96b034e8aacbc2e775fe81505f8b0b2813"
-dependencies = [
- "itoa",
- "ryu",
- "serde",
+ "syn",
 ]
 
 [[package]]
@@ -1501,28 +1338,6 @@ name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
-
-[[package]]
-name = "snafu"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4de37ad025c587a29e8f3f5605c00f70b98715ef90b9061a815b9e59e9042d6"
-dependencies = [
- "doc-comment",
- "snafu-derive",
-]
-
-[[package]]
-name = "snafu-derive"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "990079665f075b699031e9c08fd3ab99be5029b96f3b78dc0709e8f77e4efebf"
-dependencies = [
- "heck 0.4.1",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
 
 [[package]]
 name = "spin"
@@ -1552,17 +1367,6 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
-
-[[package]]
-name = "syn"
-version = "1.0.109"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-ident",
-]
 
 [[package]]
 name = "syn"
@@ -1645,7 +1449,7 @@ checksum = "34704c8d6ebcbc939824180af020566b01a7c01f80641264eba0999f6c2b6be7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
 ]
 
 [[package]]
@@ -1732,7 +1536,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
  "wasm-bindgen-shared",
 ]
 
@@ -1754,7 +1558,7 @@ checksum = "e94f17b526d0a461a191c78ea52bbce64071ed5c04c9ffe424dcb38f74171bb7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.60",
+ "syn",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]

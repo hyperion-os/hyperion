@@ -17,10 +17,6 @@ use hyperion_events::timer::wake;
 use hyperion_interrupts::end_of_interrupt;
 use hyperion_log::{debug, trace, warn};
 use hyperion_mem::to_higher_half;
-use hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-};
 use spin::{Lazy, Mutex, MutexGuard};
 use x86_64::PhysAddr;
 
@@ -412,35 +408,6 @@ impl Drop for TimerNHandle<'_> {
 impl From<SdtError> for HpetError {
     fn from(value: SdtError) -> Self {
         Self::Sdt(value)
-    }
-}
-
-//
-
-pub struct HpetDevice;
-
-//
-
-impl FileDevice for HpetDevice {
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn len(&self) -> usize {
-        core::mem::size_of::<i64>()
-    }
-
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
-        let bytes = &HPET.now_bytes()[..];
-        bytes.read(offset, buf)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
     }
 }
 
