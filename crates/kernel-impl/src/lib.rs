@@ -681,6 +681,43 @@ pub fn exec(
     })
 }
 
+pub fn exec_elf(
+    elf: Vec<u8>,
+    args: Vec<String>,
+    stdin: Arc<dyn FileDescriptor>,
+    stdout: Arc<dyn FileDescriptor>,
+    stderr: Arc<dyn FileDescriptor>,
+    on_close: Option<Box<dyn FnOnce() + Send>>,
+) -> Pid {
+    hyperion_scheduler::schedule(move || {
+        // setup the STDIO
+        fd_replace(FileDesc(0), stdin);
+        fd_replace(FileDesc(1), stdout);
+        fd_replace(FileDesc(2), stderr);
+        if let Some(on_close) = on_close {
+            crate::on_close(on_close);
+        }
+
+        // load ..
+        let loader = Loader::new(elf.as_ref());
+        loader.load();
+        let entry = loader.finish();
+
+        // the elf is trying to steal our memory, drop the elf as a revenge
+        drop(elf);
+
+        // .. and exec the binary
+        match entry {
+            Ok(entry) => entry.enter(String::new(), args),
+            Err(_) => {
+                error!("no ELF entrypoint");
+                let stderr = fd_query(FileDesc(2)).unwrap();
+                stderr.write(b"invalid ELF: entry point missing").unwrap();
+            }
+        }
+    })
+}
+
 pub fn exec_bootstrap(elf: &'static [u8], initfs_addr: VirtAddr, initfs_size: usize) {
     pub static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
         Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
@@ -957,6 +994,9 @@ pub fn read_untrusted_slice<'a, T: Copy>(ptr: u64, len: u64) -> Result<&'a [T]> 
 }
 
 pub fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {
+    // FIXME: create a guard to the bytes which unlocks the page map after dropping it
+    // to prevent unmapping the pages on another thread that crashes the kernel atm
+
     read_slice_parts(ptr, len).map(|(start, len)| {
         // TODO:
         // SAFETY: this is most likely unsafe

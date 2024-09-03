@@ -110,6 +110,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::SYSTEM => call_id(system, args),
         id::FORK => call_id(fork, args),
         id::WAITPID => call_id(waitpid, args),
+        id::EXEC_ELF => call_id(exec_elf, args),
 
         id::SEND_MSG => call_id(send_msg, args),
         id::RECV_MSG => call_id(recv_msg, args),
@@ -793,6 +794,7 @@ pub fn seek(args: &mut SyscallRegs) -> Result<usize> {
 pub fn system(args: &mut SyscallRegs) -> Result<usize> {
     let program: &str = read_untrusted_str(args.arg0, args.arg1)?;
     // FIXME: &str (&[u8]) is not yet ABI stable
+    // FIXME: &str needs to be valid utf8
     let cli_args: &[&str] = read_untrusted_slice(args.arg2, args.arg3)?;
 
     let stdio: LaunchConfig = if args.arg4 == 0 {
@@ -854,6 +856,24 @@ pub fn waitpid(args: &mut SyscallRegs) -> Result<usize> {
 
     // negatives wrap, but the syscaller handles it
     return Ok(exit_code.0 as usize);
+}
+
+pub fn exec_elf(args: &mut SyscallRegs) -> Result<usize> {
+    // FIXME: use the current process
+
+    let elf: &[u8] = read_untrusted_bytes(args.arg0, args.arg1)?;
+    let args: &[&str] = read_untrusted_slice(args.arg2, args.arg3)?; // FIXME: same as in `system`
+
+    let stdin = fd_query(FileDesc(0)).unwrap();
+    let stdout = fd_query(FileDesc(1)).unwrap();
+    let stderr = fd_query(FileDesc(2)).unwrap();
+
+    let elf = elf.to_vec();
+    let args = args.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+
+    hyperion_kernel_impl::exec_elf(elf, args, stdin, stdout, stderr, None);
+
+    hyperion_scheduler::exit(ExitCode(0));
 }
 
 pub fn send_msg(args: &mut SyscallRegs) -> Result<usize> {

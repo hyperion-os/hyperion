@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(never_type)]
 
 //
 
@@ -68,6 +69,7 @@ pub mod id {
     pub const SYSTEM: usize = 33;
     pub const FORK: usize = 34;
     pub const WAITPID: usize = 35;
+    pub const EXEC_ELF: usize = 36;
 
     // system service specific syscalls
 
@@ -558,6 +560,21 @@ pub fn fork() -> usize {
 /// TODO: this should be like https://linux.die.net/man/2/waitpid in the future
 pub fn waitpid(pid: usize) -> usize {
     unsafe { syscall_1(id::WAITPID, pid) }.unwrap()
+}
+
+/// exec from the provided binary
+pub fn exec_elf(elf: &[u8], args: &[&str]) -> Result<!> {
+    unsafe {
+        syscall_4(
+            id::EXEC_ELF,
+            elf.as_ptr() as usize,
+            elf.len(),
+            args.as_ptr() as usize,
+            args.len(),
+        )?
+    };
+
+    unreachable!()
 }
 
 /// send a small message to a process

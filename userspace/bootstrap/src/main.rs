@@ -96,8 +96,7 @@ fn main() {
         loop {}
     } else {
         rename("init").unwrap();
-        system("/bin/wm", &[]).unwrap();
-        loop {}
+        sys::exec_elf(open("/sbin/init").expect("no /sbin/init"), &[]).unwrap();
     }
 
     // TODO: now fork and start the initfs server in the new process and exec init from here
