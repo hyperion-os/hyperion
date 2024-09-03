@@ -1,7 +1,7 @@
 #![no_std]
 #![allow(internal_features)]
 #![feature(
-    new_uninit,
+    new_zeroed_alloc,
     const_mut_refs,
     str_split_remainder,
     lang_items,
@@ -91,6 +91,6 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
 }
 
 // to fix `cargo clippy` without a target
-#[cfg(feature = "clippy")]
+#[cfg(clippy)]
 #[lang = "eh_personality"]
 fn eh_personality() {}

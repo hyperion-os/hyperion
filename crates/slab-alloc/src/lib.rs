@@ -14,8 +14,7 @@
     const_pointer_is_aligned,
     strict_provenance_atomic_ptr,
     const_ptr_is_null,
-    allocator_api,
-    inline_const
+    allocator_api
 )]
 
 //

@@ -22,7 +22,7 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::btree_map::BTreeMap, vec};
-use core::{arch::asm, fmt, mem::MaybeUninit};
+use core::fmt;
 
 use libstd::{
     println,
