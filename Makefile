@@ -67,8 +67,6 @@ KERNEL_SRC       := $(shell find ./ -name *.ld) \
 
 # bootstrap code + initfs
 BOOTSTRAP        := ${CARGO_DIR}/bootstrap
-VM               := ${CARGO_DIR}/vm
-PM               := ${CARGO_DIR}/pm
 VFS              := ${CARGO_DIR}/vfs
 INIT             := ${CARGO_DIR}/init
 
@@ -86,10 +84,10 @@ ${INIT}: ${KERNEL_SRC}
 	${CARGO} build ${CARGO_FLAGS} --package=init
 
 # create initfs.tar.gz
-${INITFS}: ${VM} ${PM} ${VFS} ${INIT}
+${INITFS}: ${VFS} ${INIT}
 	@echo -e "\n\033[32m--[[ creating Hyperion initfs ]]--\033[0m"
 	mkdir -p "${INITFS_DIR}/sbin"
-	cp "${VM}" "${PM}" "${VFS}" "${INIT}" "${INITFS_DIR}/sbin"
+	cp "${VFS}" "${INIT}" "${INITFS_DIR}/sbin"
 	cd "${INITFS_DIR}" && tar -czf "${INITFS}" .
 
 # hyperion bootstrap compile

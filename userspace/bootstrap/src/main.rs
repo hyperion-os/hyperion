@@ -22,11 +22,11 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, collections::btree_map::BTreeMap, vec};
-use core::fmt;
+use core::{fmt, slice};
 
 use libstd::{
     println,
-    sys::{self, Grant, GrantId, MessagePayload, Pid},
+    sys::{self, rename, system, Grant, GrantId, MessagePayload, Pid},
 };
 use spin::Once;
 
@@ -67,24 +67,22 @@ static INITFS_ROOT: Once<Dir> = Once::new();
 
 //
 
-#[link_section = ".boot"]
-#[no_mangle]
-unsafe extern "C" fn _start_bootstrap() -> ! {
-    _ = sys::log("bootstrap: hello world\n");
-    main();
-    loop {}
-}
-
 fn main() {
-    // FIXME: bootstrap should be a flat binary
-
     println!("bootstrap: hello world");
 
-    let initfs = sys::sys_map_initfs().expect("failed to map initfs.tar.gz");
+    let initfs_arg = libstd::env::args()
+        .find_map(|s| s.strip_prefix("initfs="))
+        .expect("no initfs argument");
+
+    let (addr, size) = initfs_arg.split_once('+').expect("invalid initfs argument");
+    let (addr, size) = (
+        usize::from_str_radix(addr.trim_start_matches("0x"), 16).expect("invalid addr"),
+        usize::from_str_radix(size.trim_start_matches("0x"), 16).expect("invalid size"),
+    );
 
     println!("unpacking initfs");
 
-    let initfs_tar_gz: &[u8] = unsafe { &*initfs };
+    let initfs_tar_gz: &[u8] = unsafe { slice::from_raw_parts(addr as _, size) };
     let tree = parse::parse_tar_gz(initfs_tar_gz);
     // println!("initfs tree:\n{:#?}", Node::Dir(tree));
 
@@ -92,32 +90,15 @@ fn main() {
 
     println!("initfs unpacked");
 
-    // FIXME: map the stack from here
-    // FIXME: map the ELFs from here
-
-    // TODO: start VM
-    sys::sys_bootstrap_provide_vm(open("/sbin/vm").expect("initfs doesn't have vm"))
-        .expect("could not start vm");
-
-    // TODO: start PM
-    sys::sys_bootstrap_provide_pm(open("/sbin/pm").expect("initfs doesn't have pm"))
-        .expect("could not start pm");
-
-    // TODO: start VFS
-    let vfs = open("/sbin/vfs").expect("initfs doesn't have vfs");
-    sys::set_grants(vec![Grant::new(Pid::PM, vfs, true, false)].leak());
-    sys::send_msg(
-        Pid::PM,
-        MessagePayload::ProcessManagerForkAndExec {
-            grant: GrantId(0),
-            offs: 0,
-            size: vfs.len(),
-        },
-    )
-    .unwrap();
-    sys::recv_msg(Pid::PM).unwrap();
-    sys::set_grants(&[]);
-    // sys::sys_bootstrap_provide_vfs().expect("could not start vfs");
+    if sys::fork() == 0 {
+        rename("initfsd").unwrap();
+        // initfsd
+        loop {}
+    } else {
+        rename("init").unwrap();
+        system("/bin/wm", &[]).unwrap();
+        loop {}
+    }
 
     // TODO: now fork and start the initfs server in the new process and exec init from here
 

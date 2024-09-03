@@ -44,11 +44,7 @@ include!(concat!(env!("OUT_DIR"), "/asset.rs"));
 
 //
 
-pub async fn kshell() {
-    // hyperion_futures::executor::spawn(spinner());
-
-    // TODO: initrd
-
+pub fn install_vfs_assets() {
     for asset in ASSETS {
         let (path, bytes): (&str, &[u8]) = *asset;
         VFS_ROOT.install_dev(path, StaticRoFile::new(bytes));
@@ -76,6 +72,12 @@ pub async fn kshell() {
     VFS_ROOT.install_dev_ref("/bin/touch", bin.clone());
 
     VFS_ROOT.install_dev_ref("/bin/coreutils", bin);
+}
+
+pub async fn kshell() {
+    // hyperion_futures::executor::spawn(spinner());
+
+    // TODO: initrd
 
     let term = Term::new();
     let mut shell = Shell::new(term);

@@ -14,8 +14,8 @@ pub fn modules() -> impl Iterator<Item = Module> {
         Some(Module {
             addr: file.base.as_ptr()? as usize,
             size: file.length as usize,
-            path: file.path.to_str().map_or(None, |c| c.to_str().ok()),
-            cmdline: file.cmdline.to_str().map_or(None, |c| c.to_str().ok()),
+            path: file.path.to_str().and_then(|c| c.to_str().ok()),
+            cmdline: file.cmdline.to_str().and_then(|c| c.to_str().ok()),
         })
     })
 }

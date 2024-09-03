@@ -30,6 +30,7 @@ use core::{
     sync::atomic::{fence, Ordering},
 };
 
+use hyperion_log::println;
 use hyperion_mem::{
     from_higher_half, is_higher_half,
     pmm::{self, PageFrame},
@@ -415,8 +416,10 @@ impl PageMapImpl for PageMap {
 
                         let mut l0f = l1e.flags();
                         let target = if l0f.contains(LAZY_ALLOC) {
+                            // hyperion_log::info!("forking lazy {l0f:?}");
                             MapTarget::LazyAlloc
                         } else {
+                            // hyperion_log::info!("forking non-lazy {l0f:?}");
                             if l0f.contains(PageTableFlags::WRITABLE) {
                                 // mark writeable pages as read only + CoW
                                 l0f.remove(PageTableFlags::WRITABLE);
@@ -430,6 +433,8 @@ impl PageMapImpl for PageMap {
                         };
 
                         l1e.set_flags(l0f);
+
+                        l0f.remove(PageTableFlags::PRESENT);
                         new.map(start..start + Size4KiB::SIZE, target, l0f);
                     }
                 }

@@ -5,7 +5,15 @@
 
 extern crate alloc;
 
-use alloc::{borrow::Cow, boxed::Box, string::String, sync::Arc, vec::Vec};
+use alloc::{
+    borrow::Cow,
+    boxed::Box,
+    format,
+    string::{String, ToString},
+    sync::Arc,
+    vec,
+    vec::Vec,
+};
 use core::{
     any::Any,
     mem,
@@ -55,16 +63,6 @@ pub static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(|| {
 
     root
 });
-
-pub static INITFS: Once<(VirtAddr, usize)> = Once::new();
-/// bootstrap process
-pub static BOOTSTRAP: Once<Arc<Process>> = Once::new();
-/// virtual memory process
-pub static VM: Once<Arc<Process>> = Once::new();
-/// process manager process
-pub static PM: Once<Arc<Process>> = Once::new();
-/// virtual filesystem process
-pub static VFS: Once<Arc<Process>> = Once::new();
 
 //
 
@@ -683,52 +681,47 @@ pub fn exec(
     })
 }
 
-pub fn exec_system(elf: Cow<'static, [u8]>, program: String, args: Vec<String>) -> Arc<Process> {
-    let pid = hyperion_scheduler::schedule(move || {
-        pub static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
-            Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
-        pub static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
-            Lazy::new(|| Arc::new(FileDescData::open("/dev/log").unwrap()));
+pub fn exec_bootstrap(elf: &'static [u8], initfs_addr: VirtAddr, initfs_size: usize) {
+    pub static NULL_DEV: Lazy<Arc<dyn FileDescriptor>> =
+        Lazy::new(|| Arc::new(FileDescData::open("/dev/null").unwrap()));
+    pub static LOG_DEV: Lazy<Arc<dyn FileDescriptor>> =
+        Lazy::new(|| Arc::new(FileDescData::open("/dev/log").unwrap()));
 
-        let stdin = NULL_DEV.clone();
-        let stdout = LOG_DEV.clone();
-        let stderr = LOG_DEV.clone();
-        fd_replace(FileDesc(0), stdin);
-        fd_replace(FileDesc(1), stdout);
-        fd_replace(FileDesc(2), stderr);
+    let stdin = NULL_DEV.clone();
+    let stdout = LOG_DEV.clone();
+    let stderr = LOG_DEV.clone();
+    fd_replace(FileDesc(0), stdin);
+    fd_replace(FileDesc(1), stdout);
+    fd_replace(FileDesc(2), stderr);
 
-        let loader = Loader::new(elf.as_ref());
-        loader.load();
-        let entry = loader.finish().unwrap();
+    hyperion_scheduler::rename("bootstrap");
 
-        let stack = process().address_space.take_user_stack();
+    // load ..
+    let loader = Loader::new(elf);
+    loader.load();
 
-        hyperion_scheduler::init_bootstrap(
-            process().address_space.page_map.cr3(),
-            entry.as_ptr() as u64,
-            stack.top.as_u64(),
-        );
-        hyperion_scheduler::done2();
+    let initfs = process()
+        .alloc(
+            initfs_size.div_ceil(0x1000),
+            PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE | PageTableFlags::NO_EXECUTE,
+        )
+        .unwrap();
 
-        // FIXME: the exec_system needs to go
+    unsafe {
+        initfs
+            .as_mut_ptr::<u8>()
+            .copy_from_nonoverlapping(initfs_addr.as_ptr(), initfs_size);
+    }
 
-        hyperion_scheduler::rename(program.clone());
+    let entry = loader
+        .finish()
+        .unwrap_or_else(|_| panic!("no bootstrap entrypoint"));
 
-        // load ..
-        let loader = Loader::new(elf.as_ref());
-        loader.load();
-        let entry = loader
-            .finish()
-            .unwrap_or_else(|_| panic!("no bootstrap entrypoint"));
-
-        // the elf is trying to steal our memory, drop the elf as a revenge
-        drop(elf);
-
-        // debug!("enter bootstrap");
-        entry.enter(program, args);
-    });
-
-    pid.find().expect("a critical system component crashed")
+    // debug!("enter bootstrap");
+    entry.enter(
+        "bootstrap".to_string(),
+        vec![format!("initfs={initfs:#x}+{initfs_size:#x}")],
+    );
 }
 
 pub fn on_close(on_close: Box<dyn FnOnce() + Send>) {

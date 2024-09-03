@@ -23,7 +23,7 @@ use hyperion_kernel_impl::{
     phys_read_from_proc, phys_read_item_from_proc, process_ext_with, read_untrusted_bytes,
     read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref, read_untrusted_slice,
     read_untrusted_str, with_proc_ext, BoundSocket, FileDescData, Grants, LocalSocket, SocketInfo,
-    SocketPipe, BOOTSTRAP, INITFS, VFS_ROOT,
+    SocketPipe, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::{
@@ -111,12 +111,6 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::FORK => call_id(fork, args),
         id::WAITPID => call_id(waitpid, args),
 
-        id::SYS_MAP_INITFS => call_id(sys_map_initfs, args),
-        id::SYS_PROVIDE_VM => call_id(sys_bootstrap_provide_vm, args),
-        id::SYS_PROVIDE_PM => call_id(sys_bootstrap_provide_pm, args),
-        id::SYS_PROVIDE_VFS => call_id(sys_bootstrap_provide_vfs, args),
-        id::FORK_AND_EXEC => call_id(fork_and_exec, args),
-
         id::SEND_MSG => call_id(send_msg, args),
         id::RECV_MSG => call_id(recv_msg, args),
         id::SEND_RECV_MSG => call_id(send_recv_msg, args),
@@ -135,16 +129,16 @@ pub fn syscall(args: &mut SyscallRegs) {
 fn call_id(f: impl FnOnce(&mut SyscallRegs) -> Result<usize>, args: &mut SyscallRegs) {
     // debug!("{}", core::any::type_name_of_val(&f));
 
-    debug!(
-        "{}<{}>({}, {}, {}, {}, {})",
-        core::any::type_name_of_val(&f),
-        args.syscall_id,
-        args.arg0,
-        args.arg1,
-        args.arg2,
-        args.arg3,
-        args.arg4,
-    );
+    // debug!(
+    //     "{}<{}>({}, {}, {}, {}, {})",
+    //     core::any::type_name_of_val(&f),
+    //     args.syscall_id,
+    //     args.arg0,
+    //     args.arg1,
+    //     args.arg2,
+    //     args.arg3,
+    //     args.arg4,
+    // );
 
     let res = f(args);
     // debug!(" \\= {res:?}");
@@ -862,151 +856,8 @@ pub fn waitpid(args: &mut SyscallRegs) -> Result<usize> {
     return Ok(exit_code.0 as usize);
 }
 
-fn ensure_bootstrap() -> Result<Arc<Process>> {
-    let real = BOOTSTRAP
-        .get()
-        .expect("a critical system component crashed");
-    let proc = process();
-
-    if !Arc::ptr_eq(&proc, real) {
-        return Err(Error::PERMISSION_DENIED);
-    }
-
-    Ok(proc)
-}
-
-/// maps (copies) initfs to memory, this is bootstrap specific
-///
-/// [`hyperion_syscall::sys_map_initfs`]
-pub fn sys_map_initfs(args: &mut SyscallRegs) -> Result<usize> {
-    let [addr, size]: &mut [usize; 2] = read_untrusted_mut(args.arg0)?;
-
-    let proc = ensure_bootstrap()?;
-
-    let Some((initfs_addr, initfs_size)) = INITFS.get().copied() else {
-        return Err(Error::NOT_FOUND);
-    };
-
-    // initfs data might be overlapping with something else,
-    // this is done only once per boot so idc if its a copy
-    let initfs_copy_base = proc
-        .alloc(
-            initfs_size.div_ceil(0x1000),
-            PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
-        )
-        .map_err(|err| match err {
-            AllocErr::OutOfVirtMem => Error::OUT_OF_VIRTUAL_MEMORY,
-        })?;
-
-    unsafe {
-        initfs_addr
-            .as_ptr::<u8>()
-            .copy_to_nonoverlapping(initfs_copy_base.as_mut_ptr(), initfs_size);
-    }
-
-    *addr = initfs_copy_base.as_u64() as usize;
-    *size = initfs_size;
-
-    return Ok(0);
-}
-
-/// loads VM, this is bootstrap specific
-///
-/// [`hyperion_syscall::sys_bootstrap_provide_vm`]
-pub fn sys_bootstrap_provide_vm(args: &mut SyscallRegs) -> Result<usize> {
-    ensure_bootstrap()?;
-    let elf = read_untrusted_bytes(args.arg0, args.arg1)?
-        .to_owned()
-        .into();
-
-    let mut already = true;
-    hyperion_kernel_impl::VM.call_once(|| {
-        already = false;
-        hyperion_kernel_impl::exec_system(elf, "<vm>".into(), vec![])
-    });
-
-    if already {
-        return Err(Error::ALREADY_EXISTS);
-    }
-
-    return Ok(0);
-}
-
-/// loads PM, this is bootstrap specific
-///
-/// [`hyperion_syscall::sys_bootstrap_provide_pm`]
-pub fn sys_bootstrap_provide_pm(args: &mut SyscallRegs) -> Result<usize> {
-    ensure_bootstrap()?;
-    let elf = read_untrusted_bytes(args.arg0, args.arg1)?
-        .to_owned()
-        .into();
-
-    let mut already = true;
-    hyperion_kernel_impl::PM.call_once(|| {
-        already = false;
-        hyperion_kernel_impl::exec_system(elf, "<pm>".into(), vec![])
-    });
-
-    if already {
-        return Err(Error::ALREADY_EXISTS);
-    }
-
-    return Ok(0);
-}
-
-/// loads VFS, this is bootstrap specific
-///
-/// [`hyperion_syscall::sys_bootstrap_provide_vfs`]
-pub fn sys_bootstrap_provide_vfs(args: &mut SyscallRegs) -> Result<usize> {
-    ensure_bootstrap()?;
-    let elf = read_untrusted_bytes(args.arg0, args.arg1)?
-        .to_owned()
-        .into();
-
-    let mut already = true;
-    hyperion_kernel_impl::VFS.call_once(|| {
-        already = false;
-        hyperion_kernel_impl::exec_system(elf, "<vfs>".into(), vec![])
-    });
-
-    if already {
-        return Err(Error::ALREADY_EXISTS);
-    }
-
-    return Ok(0);
-}
-
-pub fn fork_and_exec(args: &mut SyscallRegs) -> Result<usize> {
-    let cmd = String::from(read_untrusted_str(args.arg0, args.arg1)?);
-    let elf = read_untrusted_bytes(args.arg2, args.arg3)?
-        .to_owned()
-        .into();
-
-    hyperion_kernel_impl::exec_system(elf, cmd, vec![]);
-
-    return Ok(0);
-}
-
 pub fn send_msg(args: &mut SyscallRegs) -> Result<usize> {
     let proc = match hyperion_syscall::Pid::from_raw(args.arg0) {
-        // FIXME: a static array for processes on kernel side, the old Arc<Process> monolithic shit will be removed soon
-        hyperion_syscall::Pid::BOOTSTRAP => hyperion_kernel_impl::BOOTSTRAP
-            .get()
-            .ok_or(Error::NO_SUCH_PROCESS)?
-            .clone(),
-        hyperion_syscall::Pid::VM => hyperion_kernel_impl::VM
-            .get()
-            .ok_or(Error::NO_SUCH_PROCESS)?
-            .clone(),
-        hyperion_syscall::Pid::PM => hyperion_kernel_impl::PM
-            .get()
-            .ok_or(Error::NO_SUCH_PROCESS)?
-            .clone(),
-        hyperion_syscall::Pid::VFS => hyperion_kernel_impl::VFS
-            .get()
-            .ok_or(Error::NO_SUCH_PROCESS)?
-            .clone(),
-        pid if pid.is_special() => return Err(Error::INVALID_ARGUMENT),
         _ => todo!(),
     };
 

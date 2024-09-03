@@ -39,5 +39,4 @@ hyperion-sync.path = "../sync"
 hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
 
-[build-dependencies]
 bootstrap = { path = "../../userspace/bootstrap", artifact = "bin", target = "x86_64-unknown-none" }

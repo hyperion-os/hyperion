@@ -84,51 +84,13 @@ extern "C" fn _start() -> ! {
     // wake up all cpus
     arch::wake_cpus(_start);
 
-    if sync::once!() {
-        let vm = PageMap::new();
-        vm.activate();
-        println!("new page map");
-
-        // map the bootstrap binary
-        let bootstrap = include_bytes!(env!("BOOTSTRAP_BIN"));
-        let bootstrap_bin_mem = pmm::PFA.alloc(bootstrap.len().div_ceil(0x1000));
-        let target = MapTarget::Preallocated(bootstrap_bin_mem.physical_addr());
-        let base = VirtAddr::new(0x8000_0000);
-        println!("mapping");
-        vm.map(
-            base..base + bootstrap_bin_mem.byte_len(),
-            target,
-            PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE,
-        );
-
-        hyperion_kernel_impl::phys_write_into_proc(&vm, 0x8000_0000, &bootstrap[..]).unwrap();
-
-        // map its stack
-        let stack_mem = pmm::PFA.alloc(16);
-        let target = MapTarget::Preallocated(bootstrap_bin_mem.physical_addr());
-        vm.map(
-            base - stack_mem.byte_len()..base,
-            target,
-            PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
-        );
-
-        scheduler::init_bootstrap(vm.cr3(), 0x8000_0000, 0x8000_0000);
-        // init task per cpu
-        debug!("init CPU-{}", cpu_id());
-        scheduler::done2();
-    }
-
-    // init task per cpu
-    debug!("init CPU-{}", cpu_id());
-    scheduler::done2();
-
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
     scheduler::init(init);
 }
 
 fn init() {
-    scheduler::rename("<kernel async>");
+    let mut initfs = None;
 
     // init task once
     if sync::once!() {
@@ -136,32 +98,30 @@ fn init() {
         random::provide_entropy(&arch::rng_seed().to_ne_bytes());
         drivers::lazy_install_early(VFS_ROOT.clone());
         drivers::lazy_install_late();
-
-        for module in boot::modules() {
-            debug!("MODULE: {module:x?}");
-        }
-
-        if let Some(v) = boot::modules().find_map(|module| {
-            (module.cmdline == Some("initfs"))
-                .then_some((VirtAddr::new(module.addr as _), module.size))
-        }) {
-            hyperion_kernel_impl::INITFS.call_once(move || v);
-        }
-
-        // hyperion_kernel_impl::BOOTSTRAP.call_once(|| {
-        //     hyperion_kernel_impl::exec_system(
-        //         load_elf!("BOOTSTRAP").into(),
-        //         "<bootstrap>".into(),
-        //         vec![],
-        //     )
-        // });
+        hyperion_kshell::install_vfs_assets();
 
         // os unit tests
         #[cfg(test)]
         test_main();
         // kshell (kernel-space shell) UI task(s)
-        #[cfg(not(test))]
-        futures::spawn(hyperion_kshell::kshell());
+        // #[cfg(not(test))]
+        // futures::spawn(hyperion_kshell::kshell());
+
+        for module in boot::modules() {
+            debug!("MODULE: {module:x?}");
+        }
+
+        let initfs_path = boot::args::get()
+            .initfs
+            .expect("initfs kernel argument not provided");
+
+        let Some((initfs_addr, initfs_size)) = boot::modules().find_map(|module| {
+            (module.path == Some(initfs_path))
+                .then_some((VirtAddr::new(module.addr as _), module.size))
+        }) else {
+            panic!("initfs module not loaded");
+        };
+        initfs = Some((initfs_addr, initfs_size));
     }
 
     // The bootloader stuff (like the bootloader stacks and the bootloader page map)
@@ -175,12 +135,17 @@ fn init() {
         }
     }
 
+    if let Some((initfs_addr, initfs_size)) = initfs {
+        // exec after the free_bootloader because exec_bootstrap won't return
+        hyperion_kernel_impl::exec_bootstrap(load_elf!("BOOTSTRAP"), initfs_addr, initfs_size);
+    }
+
     // start doing kernel things
-    futures::run_tasks();
+    // futures::run_tasks();
 }
 
 // to fix `cargo clippy` without a target
-#[cfg(any(feature = "cargo-clippy", not(target_os = "none")))]
+#[cfg(any(clippy, not(target_os = "none")))]
 #[lang = "eh_personality"]
 fn eh_personality() {}
 

@@ -1300,13 +1300,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
-name = "pm"
-version = "0.3.0"
-dependencies = [
- "libstd",
-]
-
-[[package]]
 name = "png"
 version = "0.17.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1734,13 +1727,6 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "vfs"
-version = "0.3.0"
-dependencies = [
- "libstd",
-]
-
-[[package]]
-name = "vm"
 version = "0.3.0"
 dependencies = [
  "libstd",

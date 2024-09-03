@@ -17,6 +17,7 @@ pub struct Arguments {
     pub video_log_level: LogLevel,
     // log_color: bool,
     pub had_unrecognized: bool,
+    pub initfs: Option<&'static str>,
     pub cmdline: &'static str,
 }
 
@@ -69,6 +70,13 @@ impl Arguments {
                             result.video_log_level = level;
                         };
                     }
+                }
+                "initfs" => {
+                    let Some(initfs_path) = value else {
+                        result.had_unrecognized = true;
+                        continue;
+                    };
+                    result.initfs = Some(initfs_path);
                 }
                 _ => result.had_unrecognized = true,
             }

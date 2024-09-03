@@ -71,19 +71,13 @@ pub mod id {
 
     // system service specific syscalls
 
-    pub const SYS_MAP_INITFS: usize = 1001;
-    pub const SYS_PROVIDE_VM: usize = 1002;
-    pub const SYS_PROVIDE_PM: usize = 1003;
-    pub const SYS_PROVIDE_VFS: usize = 1004;
-    pub const FORK_AND_EXEC: usize = 1005;
-
     pub const SEND_MSG: usize = 2001;
     pub const RECV_MSG: usize = 2002;
     pub const SEND_RECV_MSG: usize = 2003;
 
     pub const SET_GRANTS: usize = 3001;
     pub const GRANT_READ: usize = 3002;
-    pub const GRANT_WRITE: usize = 3002;
+    pub const GRANT_WRITE: usize = 3003;
 }
 
 //
@@ -564,69 +558,6 @@ pub fn fork() -> usize {
 /// TODO: this should be like https://linux.die.net/man/2/waitpid in the future
 pub fn waitpid(pid: usize) -> usize {
     unsafe { syscall_1(id::WAITPID, pid) }.unwrap()
-}
-
-/// bootstrap specific syscall, maps initfs into memory
-/// only bootstrap can use this syscall
-pub fn sys_map_initfs() -> Result<*const [u8]> {
-    let mut result = [0usize; 2];
-    unsafe { syscall_1(id::SYS_MAP_INITFS, &mut result as *mut _ as usize) }.map(|_| {
-        let [addr, size] = result;
-        core::ptr::slice_from_raw_parts(addr as _, size)
-    })
-}
-
-/// bootstrap specific syscall, launches VM from the provided ELF
-/// only bootstrap can use this syscall
-pub fn sys_bootstrap_provide_vm(elf_bytes: &[u8]) -> Result<()> {
-    unsafe {
-        syscall_2(
-            id::SYS_PROVIDE_VM,
-            elf_bytes.as_ptr() as usize,
-            elf_bytes.len(),
-        )
-        .map(|_| {})
-    }
-}
-
-/// bootstrap specific syscall, launches PM from the provided ELF
-/// only bootstrap can use this syscall
-pub fn sys_bootstrap_provide_pm(elf_bytes: &[u8]) -> Result<()> {
-    unsafe {
-        syscall_2(
-            id::SYS_PROVIDE_PM,
-            elf_bytes.as_ptr() as usize,
-            elf_bytes.len(),
-        )
-        .map(|_| {})
-    }
-}
-
-/// bootstrap specific syscall, launches VFS from the provided ELF
-/// only bootstrap can use this syscall
-pub fn sys_bootstrap_provide_vfs(elf_bytes: &[u8]) -> Result<()> {
-    unsafe {
-        syscall_2(
-            id::SYS_PROVIDE_VFS,
-            elf_bytes.as_ptr() as usize,
-            elf_bytes.len(),
-        )
-        .map(|_| {})
-    }
-}
-
-/// temporary syscall
-pub fn fork_and_exec(cmd: &str, elf_bytes: &[u8]) -> Result<()> {
-    unsafe {
-        syscall_4(
-            id::FORK_AND_EXEC,
-            cmd.as_ptr() as usize,
-            cmd.len(),
-            elf_bytes.as_ptr() as usize,
-            elf_bytes.len(),
-        )
-        .map(|_| {})
-    }
 }
 
 /// send a small message to a process
