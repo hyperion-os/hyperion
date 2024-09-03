@@ -96,7 +96,7 @@ fn init() {
 }
 
 // to fix `cargo clippy` without a target
-#[cfg(any(feature = "cargo-clippy", not(target_os = "none")))]
+#[cfg(any(clippy, not(target_os = "none")))]
 #[lang = "eh_personality"]
 fn eh_personality() {}
 
