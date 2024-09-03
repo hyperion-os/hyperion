@@ -13,6 +13,7 @@ use core::{
 use crossbeam::atomic::AtomicCell;
 use crossbeam_queue::SegQueue;
 use hyperion_arch::{
+    cpu::ints::PAGE_FAULT_HANDLER,
     syscall::{self, SyscallRegs},
     tls::ThreadLocalStorage,
 };
@@ -61,6 +62,8 @@ pub fn init_bootstrap(addr_space: PhysFrame, rip: u64, rsp: u64) {
     drop(ctx);
 
     proc.addr_space.store(addr_space);
+
+    PAGE_FAULT_HANDLER.store(page_fault::page_fault_handler);
 
     NEXT.push(proc);
 }
