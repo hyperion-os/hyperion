@@ -2,14 +2,18 @@
 
 //
 
-use libstd::sys::system;
+use libstd::{
+    println,
+    sys::{self, fs::FileOpenFlags, open, system},
+};
 
 //
 
 fn main() {
-    libstd::sys::rename("init");
+    sys::rename("init");
 
-    libstd::println!("init: hello world");
+    println!("init: hello world");
 
+    system("initfs:///sbin/vfs", &[]);
     system("/bin/wm", &[]);
 }
