@@ -1,4 +1,4 @@
-use core::{arch::asm, fmt, mem::offset_of};
+use core::{arch::naked_asm, fmt, mem::offset_of};
 
 use crossbeam::atomic::AtomicCell;
 use x86_64::{
@@ -103,7 +103,7 @@ pub extern "sysv64" fn userland(
     //
     // this call won't return
     unsafe {
-        asm!(
+        naked_asm!(
             "mov r8, rcx", // tmp save argc
 
             // setup sysretq args
@@ -133,8 +133,7 @@ pub extern "sysv64" fn userland(
             "xor r14, r14",
             "xor r15, r15",
             "sysretq",
-            rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */),
-            options(noreturn)
+            rflags = const(RFlags::INTERRUPT_FLAG.bits()  /* | RFlags::TRAP_FLAG.bits() */)
         );
     }
 }
@@ -144,7 +143,7 @@ pub extern "sysv64" fn userland(
 pub extern "sysv64" fn userland_return(_args: &mut SyscallRegs) -> ! {
     // rdi = _args
     unsafe {
-        asm!(
+        naked_asm!(
             "mov rsp, rdi", // set the stack ptr to point to _args temporarily
 
             "pop r15",
@@ -169,8 +168,7 @@ pub extern "sysv64" fn userland_return(_args: &mut SyscallRegs) -> ! {
             "swapgs",
             // TODO: fix the sysret vulnerability
             "sysretq",
-            user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
-            options(noreturn)
+            user_stack = const(offset_of!(ThreadLocalStorage, user_stack))
         );
     }
 }
@@ -185,7 +183,7 @@ unsafe extern "C" fn syscall_wrapper() {
     // rsp = user stack
     // r11 = rflags
     unsafe {
-        asm!(
+        naked_asm!(
             "cli",
             "swapgs", // swap gs and kernelgs to open up a few temporary data locations
             "mov gs:{user_stack}, rsp",   // backup the user stack
@@ -236,8 +234,7 @@ unsafe extern "C" fn syscall_wrapper() {
             "sysretq",
             syscall = sym syscall,
             user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
-            kernel_stack = const(offset_of!(ThreadLocalStorage, kernel_stack)),
-            options(noreturn)
+            kernel_stack = const(offset_of!(ThreadLocalStorage, kernel_stack))
         );
     }
 }

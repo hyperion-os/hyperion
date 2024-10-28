@@ -2,7 +2,6 @@
 #![allow(internal_features)]
 #![feature(
     new_zeroed_alloc,
-    const_mut_refs,
     str_split_remainder,
     lang_items,
     never_type,

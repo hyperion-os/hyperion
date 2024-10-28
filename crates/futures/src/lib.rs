@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(const_mut_refs, const_unsafecell_get_mut)]
 
 //
 

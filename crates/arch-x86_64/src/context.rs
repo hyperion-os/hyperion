@@ -1,5 +1,5 @@
 use core::{
-    arch::asm,
+    arch::naked_asm,
     mem::{offset_of, size_of},
     sync::atomic::Ordering,
 };
@@ -140,7 +140,7 @@ pub unsafe fn switch(prev: *mut Context, next: *mut Context) {
 unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
     // TODO: fx(save/rstor)64 (rd/wr)(fs/gs)base
     unsafe {
-        asm!(
+        naked_asm!(
             // save callee-saved registers
             // https://wiki.osdev.org/System_V_ABI
             "push rbp",
@@ -183,7 +183,6 @@ unsafe extern "sysv64" fn switch_inner(prev: *mut Context, next: *mut Context) {
             cr3 = const(offset_of!(Context, cr3)),
             fxsave_reg = const(offset_of!(Context, fxsave_reg)),
             // fs = const(offset_of!(Context, fs)),
-            options(noreturn)
         );
     }
 }
