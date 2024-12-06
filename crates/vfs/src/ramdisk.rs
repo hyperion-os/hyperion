@@ -162,11 +162,17 @@ impl FileDevice for File {
         let mut pages = self.pages.iter_mut();
         while !buf.is_empty() {
             let Some(at) = pages.next() else {
-                let pages = (offset + buf.len() - current_page_start).div_ceil(0x1000);
-                let mut pages = PFA.alloc(pages);
-                pages.as_bytes_mut().fill(0);
-                pages.as_bytes_mut()[..buf.len()].copy_from_slice(buf);
-                self.pages.push(pages);
+                while !buf.is_empty() {
+                    let mut page = PFA.alloc(1);
+                    page.as_bytes_mut().fill(0);
+                    let write_to = page.as_bytes_mut();
+
+                    let write_limit = write_to.len().min(buf.len());
+                    write_to[..write_limit].copy_from_slice(&buf[..write_limit]);
+                    buf = buf.split_at(write_limit).1;
+
+                    self.pages.push(page);
+                }
                 break;
             };
 
