@@ -36,7 +36,7 @@ use hyperion_mem::{
     to_higher_half,
     vmm::{Handled, MapTarget, MemoryInfo, NotHandled, PageFaultResult, PageMapImpl, Privilege},
 };
-use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use spin::{Once, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::{
     instructions::tlb,
     registers::control::{Cr3, Cr3Flags},
@@ -70,6 +70,60 @@ pub const GUARD: PageTableFlags = PageTableFlags::BIT_11;
 pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
 
 //
+
+// static HHDM_KERNEL_L4E: Once<(PageTableEntry, PageTableEntry)> = Once::new();
+
+//
+
+pub fn init() {
+    /* HHDM_KERNEL_L4E.call_once(|| {
+        let boot_map = PageMap::current();
+        let inner = boot_map.inner.0.write();
+
+        let mut l4_256 = inner.l4[256].clone();
+        let mut l4_511 = inner.l4[511].clone();
+
+        let process = |e: &mut PageTableEntry| -> Option<&mut PageTable> {
+            match e.frame() {
+                Ok(next) => {
+                    let new = alloc_table(&MemoryInfo::zero());
+                    let next_hhdm: *const [u8; 0x1000] =
+                        to_higher_half(next.start_address()).as_ptr();
+                    let new_hhdm: *mut [u8; 0x1000] =
+                        to_higher_half(new.start_address()).as_mut_ptr();
+
+                    unsafe {
+                        core::ptr::copy(next_hhdm, new_hhdm, 1);
+                    }
+
+                    e.set_frame(new, e.flags());
+                    Some(unsafe { &mut *to_higher_half(new.start_address()).as_mut_ptr() })
+                }
+                Err(FrameError::FrameNotPresent) => None,
+                Err(FrameError::HugeFrame) => {
+                    e.set_flags(e.flags().union(PageTableFlags::GLOBAL));
+                    None
+                }
+            }
+        };
+
+        // TODO: mark all kernel pages global
+        for l4e in [&mut l4_256, &mut l4_511] {
+            let Some(l3) = process(l4e) else { continue };
+            for l3e in l3.iter_mut() {
+                let Some(l2) = process(l3e) else { continue };
+                for l2e in l2.iter_mut() {
+                    let Some(l1) = process(l2e) else { continue };
+                    for l1e in l1.iter_mut() {
+                        l1e.set_flags(l1e.flags().union(PageTableFlags::GLOBAL));
+                    }
+                }
+            }
+        }
+
+        (l4_256, l4_511)
+    }); */
+}
 
 fn v_addr_from_parts(
     offset: usize,
@@ -290,7 +344,12 @@ impl PageMapImpl for PageMap {
 
         l4.zero();
 
-        // TODO: Copy on write maps
+        // let (l4_256, l4_511) = HHDM_KERNEL_L4E
+        //     .get()
+        //     .expect("vmm::init should be called before PageMap::new")
+        //     .clone();
+        // l4[256] = l4_256;
+        // l4[511] = l4_511;
 
         let page_map = Self {
             inner: ManuallyDrop::new(SafeRwLock::new(LockedPageMap { l4 })),

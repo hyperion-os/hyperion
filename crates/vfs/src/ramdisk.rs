@@ -119,6 +119,7 @@ impl FileDevice for File {
             self.set_len((v_addr.end - v_addr.start) as usize)?;
         }
 
+        // TODO: use lazy mapping instead
         // lazy allocate more pages, since the file size is larger
         // than there are physical pages currently allocated
         let allocated = self.pages.iter().map(|p| p.byte_len()).sum::<usize>();

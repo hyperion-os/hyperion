@@ -34,6 +34,9 @@ pub fn init() {
     cpu::init();
 
     init_features();
+
+    // deep copy the kernel mapping(s)
+    vmm::init();
 }
 
 fn init_features() {
