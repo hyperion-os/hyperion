@@ -7,7 +7,9 @@ extern crate alloc;
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{
     any::Any,
-    mem, slice,
+    mem,
+    ops::Range,
+    slice,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -158,6 +160,8 @@ pub struct FileDescData {
 
     /// the current read/write offset
     pub position: AtomicUsize,
+
+    pub mapped: Mutex<Option<Range<VirtAddr>>>,
 }
 
 impl FileDescData {
@@ -165,6 +169,7 @@ impl FileDescData {
         Self {
             file_ref,
             position: AtomicUsize::new(position),
+            mapped: Mutex::new(None),
         }
     }
 
@@ -182,16 +187,14 @@ impl Clone for FileDescData {
         Self {
             file_ref: self.file_ref.clone(),
             position,
+            mapped: Mutex::new(None), // FIXME: this is wrong, unmap shouldnt care about the fd
         }
     }
 }
 
 impl From<FileRef<Futex>> for FileDescData {
     fn from(file_ref: FileRef<Futex>) -> Self {
-        Self {
-            file_ref,
-            position: AtomicUsize::new(0),
-        }
+        Self::new(file_ref, 0)
     }
 }
 

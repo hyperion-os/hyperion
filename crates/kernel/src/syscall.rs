@@ -360,6 +360,7 @@ fn _open_dir(
     let fd = fd_push(Arc::new(FileDescData {
         file_ref: Arc::new(Mutex::new(ramdisk::File::new(buf.as_bytes()))),
         position: AtomicUsize::new(0),
+        mapped: Mutex::new(None),
     }));
 
     return Ok(fd);
@@ -703,30 +704,30 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
         error!("handle map_file offset {offset:?}");
     }
 
-    let mut file = fd_query_of::<FileDescData>(fd)?.file_ref.lock_arc();
-
-    let phys: Box<[PageFrame]> = file.map_phys(size).map_err(map_vfs_err_to_syscall_err)?;
-
+    let file = fd_query_of::<FileDescData>(fd)?;
+    let mut file_ref = file.file_ref.lock_arc();
     let this = process();
 
     let size = align_up(size as _, 0x1000);
-    let bottom = align_down(
+    let bottom = VirtAddr::try_new(align_down(
         this.heap_bottom.fetch_add(size as usize, Ordering::SeqCst) as u64,
         0x1000,
-    );
+    ))
+    .map_err(|_| Error::OUT_OF_VIRTUAL_MEMORY)?;
+    let top = VirtAddr::try_new(bottom.as_u64() + size) //
+        .map_err(|_| Error::OUT_OF_VIRTUAL_MEMORY)?;
 
-    let mut offs = 0u64;
-    for phys in phys.into_vec() {
-        let bottom = VirtAddr::new(bottom) + offs;
-        this.address_space.page_map.map(
-            bottom..bottom + size,
-            MapTarget::Borrowed(phys.physical_addr()),
-            PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE | NO_FREE,
-        );
-        offs += size;
-    }
+    file_ref
+        .map_phys(
+            &this.address_space.page_map,
+            bottom..top,
+            PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE | NO_FREE, // FIXME: the file already does NO_FREE, because of borrow target
+        )
+        .map_err(map_vfs_err_to_syscall_err)?;
 
-    Ok(bottom as usize)
+    *file.mapped.lock() = Some(bottom..top);
+
+    Ok(bottom.as_u64() as usize)
 }
 
 /// unmap file from memory
@@ -739,9 +740,20 @@ pub fn unmap_file(args: &mut SyscallRegs) -> Result<usize> {
 
     // hyperion_log::debug!("unmap_file({file:?}, {at:?}, {size})");
 
-    let mut file = fd_query_of::<FileDescData>(fd)?.file_ref.lock_arc();
+    // FIXME: general unmap like munmap in linux
 
-    file.unmap_phys().map_err(map_vfs_err_to_syscall_err)?;
+    let file = fd_query_of::<FileDescData>(fd)?;
+
+    let Some(mapping) = file.mapped.lock().take() else {
+        return Err(Error::BAD_FILE_DESCRIPTOR);
+    };
+
+    process().address_space.page_map.unmap(mapping);
+
+    file.file_ref
+        .lock_arc()
+        .unmap_phys()
+        .map_err(map_vfs_err_to_syscall_err)?;
 
     Ok(0)
 }

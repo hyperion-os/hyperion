@@ -9,13 +9,7 @@
 //! Note: the current implementation doesn't ever free the pages
 
 #![no_std]
-#![feature(
-    pointer_is_aligned_to,
-    const_pointer_is_aligned,
-    strict_provenance_atomic_ptr,
-    const_ptr_is_null,
-    allocator_api
-)]
+#![feature(pointer_is_aligned_to, strict_provenance_atomic_ptr, allocator_api)]
 
 //
 
@@ -63,8 +57,8 @@ pub struct Pages {
 impl Pages {
     /// # Safety
     /// `first` must point to a valid page allocation of `len * 0x1000` bytes
-    pub const unsafe fn new(first: *mut u8, len: usize) -> Self {
-        debug_assert!(first.is_aligned_to(0x1000));
+    pub unsafe fn new(first: *mut u8, len: usize) -> Self {
+        debug_assert!(first as usize % 0x1000 == 0);
         Self { first, len }
     }
 

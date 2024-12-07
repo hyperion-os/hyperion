@@ -6,15 +6,21 @@
 extern crate alloc;
 
 use alloc::{boxed::Box, format, string::String};
+use core::ops::Range;
 
+use hyperion_arch::vmm::PageMap;
 use hyperion_framebuffer::framebuffer::Framebuffer;
-use hyperion_mem::{from_higher_half, pmm::PageFrame};
+use hyperion_mem::{
+    from_higher_half,
+    pmm::PageFrame,
+    vmm::{MapTarget, PageMapImpl},
+};
 use hyperion_vfs::{
     device::FileDevice,
     error::{IoError, IoResult},
 };
 use spin::{MutexGuard, Once};
-use x86_64::VirtAddr;
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
@@ -47,7 +53,17 @@ impl FileDevice for FboDevice {
         Err(IoError::PermissionDenied)
     }
 
-    fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
+    fn map_phys(
+        &mut self,
+        vmm: &PageMap,
+        v_addr: Range<VirtAddr>,
+        flags: PageTableFlags,
+    ) -> IoResult<usize> {
+        if !v_addr.start.is_aligned(0x1000u64) {
+            // FIXME: use the real abi error
+            return Err(IoError::PermissionDenied);
+        }
+
         self.maps = self.maps.checked_add(1).ok_or(IoError::FilesystemError)?;
 
         let (_, frame) = self.lock.get_or_insert_with(|| {
@@ -66,17 +82,16 @@ impl FileDevice for FboDevice {
             (fbo, unsafe { PageFrame::new(start, size >> 12) })
         });
 
-        let pages = min_bytes.div_ceil(0x1000);
-
-        if frame.len() < pages {
-            return Err(IoError::UnexpectedEOF);
-        }
+        let end = v_addr.end.min(v_addr.start + frame.byte_len());
+        vmm.map(
+            v_addr.start..end,
+            MapTarget::Borrowed(frame.physical_addr()),
+            flags,
+        );
 
         hyperion_log::debug!("FBO mapped");
 
-        Ok(Box::into_boxed_slice(Box::new(unsafe {
-            PageFrame::new(frame.physical_addr(), pages)
-        })))
+        Ok((end - v_addr.start) as usize)
     }
 
     fn unmap_phys(&mut self) -> IoResult<()> {

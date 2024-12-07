@@ -1,8 +1,13 @@
 use alloc::{boxed::Box, sync::Arc};
-use core::{any::Any, fmt, ops::Deref};
+use core::{
+    any::Any,
+    fmt,
+    ops::{Deref, Range},
+};
 
-use hyperion_mem::pmm::PageFrame;
+use hyperion_arch::vmm::PageMap;
 use lock_api::RawMutex;
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 use crate::{
     error::{IoError, IoResult},
@@ -31,8 +36,19 @@ pub trait FileDevice: Send + Sync {
     ///
     /// allocated pages are managed by this FileDevice, each [`Self::map_phys`] is paired with
     /// an [`Self::unmap_phys`] and only the last [`Self::unmap_phys`] deallocate the pages
-    fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
-        _ = min_bytes;
+    ///
+    /// v_addr is for the map placement and its maximum size
+    ///
+    /// flags are the flags for each page
+    ///
+    /// returns the number of bytes actually mapped
+    fn map_phys(
+        &mut self,
+        vmm: &PageMap,
+        v_addr: Range<VirtAddr>,
+        flags: PageTableFlags,
+    ) -> IoResult<usize> {
+        _ = (vmm, v_addr, flags);
         Err(IoError::PermissionDenied)
     }
 

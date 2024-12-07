@@ -11,6 +11,8 @@ workspace = true
 [dependencies]
 snafu.workspace = true
 lock_api.workspace = true
+x86_64.workspace = true
 
+hyperion-arch.path = "../arch"
 hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"
