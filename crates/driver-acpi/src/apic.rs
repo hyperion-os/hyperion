@@ -70,7 +70,7 @@ pub fn enable() {
     INT_CONTROLLER.store(IntController::Apic);
 
     // enable apic only once per cpu
-    static ONCE: Lazy<Tls<AtomicBool>> = Lazy::new(|| Tls::new(|| AtomicBool::new(false)));
+    static ONCE: Lazy<Tls<AtomicBool>> = Lazy::new(Tls::default);
     if ONCE.swap(true, Ordering::SeqCst) {
         panic!("apic enable twice on the same cpu");
     }
@@ -204,7 +204,7 @@ impl Lapic {
 
 //
 
-static LAPICS: Lazy<Tls<Once<RwLock<Lapic>>>> = Lazy::new(|| Tls::new(Once::new));
+static LAPICS: Lazy<Tls<Once<RwLock<Lapic>>>> = Lazy::new(Tls::default);
 static LAPIC_IDS: Lazy<&'static [ApicId]> =
     Lazy::new(|| Box::leak(hyperion_boot::lapics().map(ApicId).collect::<Box<_>>()));
 

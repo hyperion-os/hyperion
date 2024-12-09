@@ -11,7 +11,7 @@ use crate::proc::Process;
 //
 
 pub static TASKS: Channel<RunnableTask> = Channel::new();
-pub static CPU: Lazy<Tls<Cpu>> = Lazy::new(|| Tls::new(|| Cpu::new()));
+pub static CPU: Lazy<Tls<Cpu>> = Lazy::new(Tls::default);
 
 //
 
@@ -24,6 +24,12 @@ impl Cpu {
         Self {
             active: Cell::new(None),
         }
+    }
+}
+
+impl Default for Cpu {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -28,15 +28,14 @@
             rust-analyzer
             rustup
             lldb
-            cargo-udeps
-            cargo-nextest
-            cargo-expand
-            cargo-make
+            # cargo-udeps
+            # cargo-nextest
+            # cargo-expand
+            # cargo-make
             cargo-fuzz
-            act
             lld_16
             clang_16
-            bacon
+            # bacon
             qemu_full
           ];
         };

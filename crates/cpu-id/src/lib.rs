@@ -22,6 +22,12 @@ pub struct Tls<T: 'static> {
 
 unsafe impl<T> Sync for Tls<T> {}
 
+impl<T: 'static + Default> Default for Tls<T> {
+    fn default() -> Self {
+        Self::new(T::default)
+    }
+}
+
 impl<T: 'static> Tls<T> {
     pub fn new(mut f: impl FnMut() -> T) -> Self {
         Self {
