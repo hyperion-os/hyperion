@@ -166,6 +166,18 @@ pub trait PageMapImpl {
     /// convert physical addr to virtual addr, by moving it to the higher half
     fn phys_to_virt(&self, p_addr: PhysAddr) -> VirtAddr;
 
+    /// map address temporarily somewhere
+    fn map_temporary(
+        &mut self,
+        info: &MemoryInfo,
+        to: PhysAddr,
+        bytes: usize,
+        flags: PageTableFlags,
+    ) -> VirtAddr;
+
+    /// unmap a previously temporaryly mapped
+    fn unmap_temporary(&mut self, info: &MemoryInfo, from: VirtAddr);
+
     /// map physical memory into virtual memory
     ///
     /// `p_addr` None means that the pages need to be allocated (possibly lazily on use)

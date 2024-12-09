@@ -20,6 +20,8 @@
 //! [^3]: the address space manager is of type [`Arc<AddressSpace>`]
 //!
 //! User and kernel stack spaces are split into stacks with the size of [`VIRT_STACK_SIZE`].
+//!
+//! L4 entries 256 and 511 are global and 500 is used for temporary maps
 
 #![allow(clippy::comparison_chain)]
 
@@ -43,7 +45,8 @@ use x86_64::{
     structures::paging::{
         mapper::{MapToError, MappedFrame, MapperFlush, MapperFlushAll},
         page_table::{FrameError, PageTableEntry},
-        Page, PageSize, PageTable, PageTableFlags, PhysFrame, Size1GiB, Size2MiB, Size4KiB,
+        Page, PageSize, PageTable, PageTableFlags, PageTableIndex, PhysFrame, Size1GiB, Size2MiB,
+        Size4KiB,
     },
     PhysAddr, VirtAddr,
 };
@@ -71,12 +74,12 @@ pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
 
 //
 
-// static HHDM_KERNEL_L4E: Once<(PageTableEntry, PageTableEntry)> = Once::new();
+static HHDM_KERNEL_L4E: Once<(PageTableEntry, PageTableEntry)> = Once::new();
 
 //
 
 pub fn init() {
-    /* HHDM_KERNEL_L4E.call_once(|| {
+    HHDM_KERNEL_L4E.call_once(|| {
         let boot_map = PageMap::current();
         let inner = boot_map.inner.0.write();
 
@@ -122,7 +125,7 @@ pub fn init() {
         }
 
         (l4_256, l4_511)
-    }); */
+    });
 }
 
 fn v_addr_from_parts(
@@ -344,47 +347,18 @@ impl PageMapImpl for PageMap {
 
         l4.zero();
 
-        // let (l4_256, l4_511) = HHDM_KERNEL_L4E
-        //     .get()
-        //     .expect("vmm::init should be called before PageMap::new")
-        //     .clone();
-        // l4[256] = l4_256;
-        // l4[511] = l4_511;
+        let (l4_256, l4_511) = HHDM_KERNEL_L4E
+            .get()
+            .expect("vmm::init should be called before PageMap::new")
+            .clone();
+        l4[256] = l4_256;
+        l4[511] = l4_511;
 
-        let page_map = Self {
+        Self {
             inner: ManuallyDrop::new(SafeRwLock::new(LockedPageMap { l4 })),
             info,
             owned: true,
-        };
-
-        // hyperion_log::debug!("higher half direct map");
-        // TODO: pmm::PFA.allocations();
-        assert_eq!(
-            HIGHER_HALF_DIRECT_MAPPING.as_u64(),
-            hyperion_boot::hhdm_offset()
-        );
-        page_map.map(
-            HIGHER_HALF_DIRECT_MAPPING + 0x1000u64..HIGHER_HALF_DIRECT_MAPPING + 0x100000000u64,
-            MapTarget::Borrowed(PhysAddr::new_truncate(0x1000)),
-            PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
-        );
-
-        // FIXME: less dumb kernel mapping
-        // deep copy the kernel mapping from the bootloader pagemap
-        // and then use it as a global or CoW page map
-        //
-        // currently the whole kernel mapping is RW so a bug could write
-        // code into the executable kernel region (which is obviously really fkng bad)
-        let kernel = VirtAddr::new(hyperion_boot::virt_addr() as _);
-        let top = kernel + hyperion_boot::size();
-        hyperion_log::trace!("kernel map {kernel:#018x}");
-        page_map.map(
-            kernel..top,
-            MapTarget::Borrowed(PhysAddr::new(hyperion_boot::phys_addr() as _)),
-            PageTableFlags::WRITABLE,
-        );
-
-        page_map
+        }
     }
 
     fn info(&self) -> &MemoryInfo {
@@ -515,6 +489,20 @@ impl PageMapImpl for PageMap {
         to_higher_half(addr)
     }
 
+    fn map_temporary(
+        &mut self,
+        info: &MemoryInfo,
+        to: PhysAddr,
+        bytes: usize,
+        flags: PageTableFlags,
+    ) -> VirtAddr {
+        self.inner.write().map_temporary(info, to, bytes, flags)
+    }
+
+    fn unmap_temporary(&mut self, info: &MemoryInfo, from: VirtAddr) {
+        self.inner.write().unmap_temporary(info, from);
+    }
+
     fn map(&self, v_addr: Range<VirtAddr>, p_addr: MapTarget, flags: PageTableFlags) {
         self.inner.write().map(&self.info, v_addr, p_addr, flags);
     }
@@ -583,6 +571,54 @@ impl LockedPageMap {
 
         let l1e = &mut l1[v_addr.p1_index()];
         page_fault_4kib(info, l1e, v_addr)
+    }
+
+    // TODO: tmp map smart pointer
+    fn map_temporary(
+        &mut self,
+        info: &MemoryInfo,
+        to: PhysAddr,
+        bytes: usize,
+        flags: PageTableFlags,
+    ) -> VirtAddr {
+        let bottom = x86_64::align_down(to.as_u64(), Size1GiB::SIZE);
+        let offset = to.as_u64() - bottom;
+        let bytes_after_to_mapped = bottom + Size1GiB::SIZE - to.as_u64();
+
+        if bytes as u64 > bytes_after_to_mapped {
+            // TODO: map 2 because it is split in 2
+            todo!("address is on 1gib boundry")
+        }
+
+        let tmpmap_table = Self::create_table(info, &mut self.l4[500]).expect("no 512GiB pages");
+
+        let avail_entry = tmpmap_table
+            .iter_mut()
+            .enumerate()
+            .find(|entry| entry.1.is_unused())
+            .expect("too many tmp entries in use");
+
+        avail_entry.1.set_addr(
+            PhysAddr::new(bottom),
+            flags | PageTableFlags::HUGE_PAGE | NO_FREE,
+        );
+
+        Page::from_page_table_indices_1gib(
+            PageTableIndex::new(500),
+            PageTableIndex::new(avail_entry.0 as u16),
+        )
+        .start_address()
+            + offset
+    }
+
+    fn unmap_temporary(&mut self, info: &MemoryInfo, from: VirtAddr) {
+        let page = Page::<Size1GiB>::containing_address(from);
+        assert_eq!(u16::from(page.p4_index()), 500);
+
+        // TODO: the table should already be created
+        let tmpmap_table = Self::create_table(info, &mut self.l4[500]).expect("no 512GiB pages");
+
+        tmpmap_table[page.p3_index()].set_unused();
     }
 
     fn map(
