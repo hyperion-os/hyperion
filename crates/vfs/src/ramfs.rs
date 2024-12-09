@@ -5,10 +5,17 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use core::{any::Any, mem};
+use core::{any::Any, mem, ops::Range};
 
 use async_trait::async_trait;
+use hyperion_arch::vmm::PageMap;
 use hyperion_futures::lock::Mutex;
+use hyperion_mem::{
+    pmm::{PageFrame, PFA},
+    vmm::{MapTarget, PageMapImpl},
+};
+use lock_api::Mutex;
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 use crate::{
     device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
@@ -61,24 +68,60 @@ impl FileDevice for File {
         Ok(())
     }
 
-    // fn map_phys(&mut self, min_bytes: usize) -> IoResult<Box<[PageFrame]>> {
-    //     let mut pages_left = min_bytes.div_ceil(0x1000);
-    //     let pages = self
-    //         .pages
-    //         .iter()
-    //         .filter_map(move |page| {
-    //             if pages_left == 0 {
-    //                 return None;
-    //             }
+    // fn map_phys(
+    //     &mut self,
+    //     vmm: &PageMap,
+    //     v_addr: Range<VirtAddr>,
+    //     flags: PageTableFlags,
+    // ) -> IoResult<usize> {
+    //     if !v_addr.start.is_aligned(0x1000u64) {
+    //         // FIXME: use the real abi error
+    //         return Err(IoError::PermissionDenied);
+    //     }
 
-    //             let n = pages_left.min(page.len());
-    //             pages_left = pages_left.saturating_sub(page.len());
+    //     let mut pos = v_addr.start;
 
-    //             Some(unsafe { PageFrame::new(page.physical_addr(), n) })
-    //         })
-    //         .collect::<Box<[PageFrame]>>();
+    //     // grow the file
+    //     if (v_addr.end - v_addr.start) as usize > self.len {
+    //         self.set_len((v_addr.end - v_addr.start) as usize)?;
+    //     }
 
-    //     Ok(pages)
+    //     // TODO: use lazy mapping instead
+    //     // lazy allocate more pages, since the file size is larger
+    //     // than there are physical pages currently allocated
+    //     let allocated = self.pages.iter().map(|p| p.byte_len()).sum::<usize>();
+    //     let needed = (v_addr.end - v_addr.start) as usize;
+    //     if needed > allocated {
+    //         let missing_pages = needed.abs_diff(allocated).div_ceil(0x1000);
+
+    //         for _ in 0..missing_pages {
+    //             let mut page = PFA.alloc(1);
+    //             page.as_bytes_mut().fill(0);
+    //             self.pages.push(page);
+    //         }
+    //     }
+
+    //     for pages in self.pages.iter() {
+    //         if pos + pages.byte_len() >= v_addr.end {
+    //             vmm.map(
+    //                 pos..v_addr.end,
+    //                 MapTarget::Borrowed(pages.physical_addr()),
+    //                 flags,
+    //             );
+    //             pos = v_addr.end;
+    //             break;
+    //         }
+
+    //         vmm.map(
+    //             pos..pos + pages.byte_len(),
+    //             MapTarget::Borrowed(pages.physical_addr()),
+    //             flags,
+    //         );
+
+    //         pos += pages.byte_len();
+    //     }
+
+    //     Ok((pos - v_addr.start) as usize)
     // }
 
     // fn unmap_phys(&mut self) -> IoResult<()> {
@@ -86,6 +129,9 @@ impl FileDevice for File {
     // }
 
     fn read(&self, offset: usize, mut buf: &mut [u8]) -> IoResult<usize> {
+        // FIXME: this should really just temporarily map the pages
+        // its simpler and its faster and its less buggy
+
         if let Some(buf_limit) = self.len.checked_sub(offset) {
             let buf_limit = buf_limit.min(buf.len());
             buf = &mut buf[..buf_limit];
@@ -127,11 +173,17 @@ impl FileDevice for File {
         let mut pages = self.pages.iter_mut();
         while !buf.is_empty() {
             let Some(at) = pages.next() else {
-                let pages = (offset + buf.len() - current_page_start).div_ceil(0x1000);
-                let mut pages = PFA.alloc(pages);
-                pages.as_bytes_mut().fill(0);
-                pages.as_bytes_mut()[..buf.len()].copy_from_slice(buf);
-                self.pages.push(pages);
+                while !buf.is_empty() {
+                    let mut page = PFA.alloc(1);
+                    page.as_bytes_mut().fill(0);
+                    let write_to = page.as_bytes_mut();
+
+                    let write_limit = write_to.len().min(buf.len());
+                    write_to[..write_limit].copy_from_slice(&buf[..write_limit]);
+                    buf = buf.split_at(write_limit).1;
+
+                    self.pages.push(page);
+                }
                 break;
             };
 

@@ -11,7 +11,13 @@ workspace = true
 [dependencies]
 async-trait = "0.1"
 
+snafu.workspace = true
+lock_api.workspace = true
+x86_64.workspace = true
+
 hyperion-syscall.path = "../syscall" # Error enum
 hyperion-futures.path = "../futures" # async Mutex
 hyperion-log.path = "../log" # logging
-# hyperion-mem.path = "../mem" # memory mapping
+hyperion-mem.path = "../mem" # memory mapping
+
+hyperion-arch.path = "../arch"

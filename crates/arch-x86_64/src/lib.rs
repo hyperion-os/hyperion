@@ -1,12 +1,5 @@
 #![no_std]
-#![feature(
-    abi_x86_interrupt,
-    naked_functions,
-    new_uninit,
-    asm_const,
-    const_refs_to_cell,
-    cell_leak
-)]
+#![feature(abi_x86_interrupt, naked_functions, cell_leak)]
 
 //
 
@@ -41,6 +34,9 @@ pub fn init() {
     cpu::init();
 
     init_features();
+
+    // deep copy the kernel mapping(s)
+    vmm::init();
 }
 
 fn init_features() {

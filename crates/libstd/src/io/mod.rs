@@ -222,6 +222,14 @@ impl<T> BufWriter<T> {
             inner: write,
         }
     }
+
+    pub fn get_ref(&self) -> &T {
+        &self.inner
+    }
+
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
 }
 
 impl<T: Write> Write for BufWriter<T> {

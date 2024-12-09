@@ -1,8 +1,5 @@
-#![feature(fs_try_exists)]
-
 use std::{
     env::{current_dir, set_current_dir},
-    fs::try_exists,
     process::{exit, Command},
 };
 
@@ -116,7 +113,7 @@ fn find_makefile() {
     let mut cd = current_dir().unwrap();
 
     loop {
-        if try_exists(cd.join("Makefile")).unwrap() {
+        if cd.join("Makefile").try_exists().unwrap() {
             break;
         };
 

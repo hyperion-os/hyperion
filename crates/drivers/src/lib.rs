@@ -12,6 +12,7 @@ use hyperion_vfs::tree::IntoNode;
 
 //
 
+mod hpet;
 mod input;
 mod log;
 mod null;
@@ -30,7 +31,7 @@ pub fn lazy_install_early(root: impl IntoNode) {
     root.install_dev("urandom", rand::Random);
     root.install_dev("log", log::KernelLogs);
     root.install_dev("rtc", rtc::RtcDevice);
-    root.install_dev("hpet", acpi::hpet::HpetDevice);
+    root.install_dev("hpet", hpet::HpetDevice);
     root.install_dev("fb0", fbo::FboDevice::new());
     root.install_dev("fb0-info", fbo::FboInfoDevice::new());
 

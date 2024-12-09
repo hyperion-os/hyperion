@@ -12,6 +12,7 @@ workspace = true
 spin.workspace = true
 x86_64.workspace = true
 
+hyperion-arch.path = "../arch"
 hyperion-framebuffer.path = "../framebuffer"
 hyperion-log.path = "../log"
 hyperion-vfs.path = "../vfs"

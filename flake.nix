@@ -37,6 +37,7 @@
             lld_16
             clang_16
             bacon
+            qemu_full
           ];
         };
       }
