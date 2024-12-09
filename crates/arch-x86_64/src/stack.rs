@@ -46,8 +46,9 @@ pub trait StackType {
 
 impl StackType for KernelStack {
     fn region() -> Range<u64> {
+        hyperion_log::info!("{:x}", VirtAddr::new_truncate((510 << 39)));
         let top = hyperion_boot::virt_addr() as u64 - 0x1000;
-        let bottom = top - (hyperion_boot::hhdm_offset() + 0x10000000000u64);
+        let bottom = top - 0x10000000000u64;
 
         bottom..top
 
