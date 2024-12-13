@@ -166,6 +166,9 @@ pub trait PageMapImpl {
     /// convert physical addr to virtual addr, by moving it to the higher half
     fn phys_to_virt(&self, p_addr: PhysAddr) -> VirtAddr;
 
+    /// get an address where anything can be mapped (temporarily)
+    fn temporary(index: u16) -> VirtAddr;
+
     /// map address temporarily somewhere
     fn map_temporary(
         &mut self,
@@ -175,7 +178,7 @@ pub trait PageMapImpl {
         flags: PageTableFlags,
     ) -> VirtAddr;
 
-    /// unmap a previously temporaryly mapped
+    /// unmap a previously temporarily mapped
     fn unmap_temporary(&mut self, info: &MemoryInfo, from: VirtAddr);
 
     /// map physical memory into virtual memory

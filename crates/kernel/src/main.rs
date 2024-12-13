@@ -20,6 +20,7 @@ use hyperion_cpu_id::cpu_id;
 use hyperion_futures as futures;
 // use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
+use hyperion_loader::Loader;
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
 use hyperion_random as random;
@@ -76,14 +77,28 @@ extern "C" fn _start() -> ! {
         // futures::spawn(hyperion_kshell::kshell());
     }
 
-    hyperion_futures::spawn(async move {
-        hyperion_log::debug!("running tick task");
-        loop {
-            hyperion_futures::timer::sleep(time::Duration::milliseconds(1000)).await;
-            hyperion_log::debug!("tick (CPU-{})", cpu_id());
-            // scheduler::task::RunnableTask::new(0, 0).ready();
-        }
-    });
+    if sync::once!() {
+        hyperion_futures::spawn(async move {
+            hyperion_log::debug!("running tick task");
+
+            use hyperion_mem::vmm::PageMapImpl;
+            let proc = scheduler::proc::Process::new();
+            // proc.address_space.activate();
+            let tmptask = scheduler::task::RunnableTask::new_in(0, 0, proc.clone());
+            tmptask.set_active();
+
+            let mut loader =
+                Loader::new(include_bytes!("./../../../asset/bin/doom"), proc).unwrap();
+
+            loader.load();
+            loader.finish().unwrap().ready();
+
+            loop {
+                hyperion_futures::timer::sleep(time::Duration::milliseconds(1000)).await;
+                hyperion_log::debug!("tick (CPU-{})", cpu_id());
+            }
+        });
+    }
 
     // init scheduling
     debug!("init CPU-{}", cpu_id());

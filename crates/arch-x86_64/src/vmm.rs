@@ -67,8 +67,8 @@ pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_F
 pub const NO_FREE: PageTableFlags = PageTableFlags::BIT_9;
 /// the page is shared and was originally writeable
 pub const COW: PageTableFlags = PageTableFlags::BIT_10;
-/// the page is not mapped and should not be mapped
-pub const GUARD: PageTableFlags = PageTableFlags::BIT_11;
+/// the page was mapped temporarily
+pub const OVERWRITEABLE: PageTableFlags = PageTableFlags::BIT_11;
 /// the page is allocated on first use using a page fault
 pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
 
@@ -489,6 +489,11 @@ impl PageMapImpl for PageMap {
         to_higher_half(addr)
     }
 
+    fn temporary(index: u16) -> VirtAddr {
+        assert!(index < 512);
+        VirtAddr::new_truncate((500 << 39) | ((index as u64) << 30))
+    }
+
     fn map_temporary(
         &mut self,
         info: &MemoryInfo,
@@ -747,6 +752,9 @@ impl LockedPageMap {
         if old == new {
             // already mapped but it is already correct
             return Ok(());
+        }
+        if entry.flags().contains(OVERWRITEABLE) {
+            entry.set_unused();
         }
         if !entry.is_unused() {
             return Err(TryMapError::AlreadyMapped);

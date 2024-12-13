@@ -38,6 +38,7 @@ hyperion-scheduler.path = "../scheduler"
 hyperion-sync.path = "../sync"
 hyperion-syscall.path = "../syscall"
 hyperion-vfs.path = "../vfs"
+hyperion-loader.path = "../loader"
 
 hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-clock.path = "../clock"

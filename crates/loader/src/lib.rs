@@ -29,9 +29,16 @@ pub struct Loader<'a> {
 
 //
 
+#[derive(Debug)]
 pub struct NoEntryPoint;
+
+#[derive(Debug)]
 pub struct InvalidElf;
+
+#[derive(Debug)]
 pub struct OutOfVirtMem;
+
+#[derive(Debug)]
 pub enum LoadError {
     InvalidElf(InvalidElf),
     OutOfVirtMem(OutOfVirtMem),
@@ -116,6 +123,7 @@ impl<'a> Loader<'a> {
 
         // debug!("segment phys alloc: {phys:#x} mapped to {alloc:#x}");
 
+        // debug!("v_addr={v_addr:#x} v_end={v_end:#x}");
         let segment_data = self.parser.segment_data(&segment).expect("TODO:");
         let segment_alloc: &mut [MaybeUninit<u8>] =
             unsafe { slice::from_raw_parts_mut(v_addr.as_mut_ptr(), v_size as usize) };

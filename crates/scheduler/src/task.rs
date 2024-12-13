@@ -4,6 +4,7 @@ use core::{cell::Cell, fmt, sync::atomic::Ordering};
 use hyperion_arch::syscall::SyscallRegs;
 use hyperion_cpu_id::Tls;
 use hyperion_futures::mpmc::Channel;
+use hyperion_mem::vmm::PageMapImpl;
 use spin::Lazy;
 
 use crate::proc::Process;
@@ -60,16 +61,19 @@ impl RunnableTask {
     }
 
     pub fn active(trap: SyscallRegs) -> Self {
-        let task = Task::active().unwrap();
+        let task = Task::take_active().unwrap();
         Self { trap, task }
     }
 
     pub fn enter(self) -> ! {
-        self.set_active().enter()
+        let mut s = self.set_active();
+        hyperion_log::debug!("enter ip={:x} sp={:x}", s.user_instr_ptr, s.user_stack_ptr);
+        s.enter()
     }
 
     pub fn set_active(self) -> SyscallRegs {
         let RunnableTask { trap, task } = self;
+        task.process.address_space.activate();
         CPU.active.replace(Some(task));
         trap
     }
@@ -100,8 +104,12 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn active() -> Option<Self> {
+    pub fn take_active() -> Option<Self> {
         CPU.active.take()
+    }
+
+    pub fn set_active(self) {
+        CPU.active.set(Some(self));
     }
 
     /* pub fn init_tls(&self) {
