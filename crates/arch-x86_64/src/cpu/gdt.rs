@@ -5,14 +5,13 @@ use x86_64::{
 };
 
 use super::tss::Tss;
-use crate::syscall;
 
 //
 
 #[derive(Debug)]
 pub struct Gdt {
     inner: GlobalDescriptorTable,
-    selectors: SegmentSelectors,
+    pub selectors: SegmentSelectors,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -50,8 +49,5 @@ impl Gdt {
             SS::set_reg(self.selectors.kernel_data);
             load_tss(self.selectors.tss);
         }
-
-        // init syscall and sysret
-        syscall::init(self.selectors);
     }
 }

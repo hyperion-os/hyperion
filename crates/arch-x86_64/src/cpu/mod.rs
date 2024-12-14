@@ -22,8 +22,10 @@ pub mod tss;
 
 //
 
-pub fn init() {
-    tls::init(CpuState::new_tls());
+pub fn init() -> &'static ThreadLocalStorage {
+    let cpu_descriptors = CpuState::new_tls();
+    tls::init(cpu_descriptors);
+    cpu_descriptors
 }
 
 //

@@ -31,12 +31,15 @@ pub fn init() {
     cpu_id::init();
 
     // init TSS, IDT, GDT
-    cpu::init();
+    let tls = cpu::init();
 
     init_features();
 
     // deep copy the kernel mapping(s)
     vmm::init();
+
+    // init syscall and sysret
+    syscall::init(tls.cpu.gdt.selectors);
 }
 
 fn init_features() {
