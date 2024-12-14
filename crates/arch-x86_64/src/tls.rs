@@ -14,9 +14,6 @@ use crate::cpu::CpuState;
 //
 
 pub fn init(tls: &'static ThreadLocalStorage) {
-    tls.kernel_stack
-        .store(VirtAddr::new_truncate(0).as_mut_ptr(), Ordering::SeqCst);
-
     // in kernel space, GS points to thread local storage
     KernelGsBase::write(VirtAddr::new(tls as *const _ as usize as u64));
     // and before entering userland `swapgs` is used so that
