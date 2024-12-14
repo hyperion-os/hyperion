@@ -73,6 +73,7 @@ impl RunnableTask {
 
     pub fn set_active(self) -> SyscallRegs {
         let RunnableTask { trap, task } = self;
+        task.process.address_space.debug();
         task.process.address_space.activate();
         CPU.active.replace(Some(task));
         trap

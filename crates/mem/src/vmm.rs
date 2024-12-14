@@ -151,6 +151,9 @@ pub trait PageMapImpl {
     /// create a new virtual address space
     fn new() -> Self;
 
+    /// print the address space to logs
+    fn debug(&self);
+
     /// statistics on virt/phys memory allocations
     fn info(&self) -> &MemoryInfo;
 

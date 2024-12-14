@@ -4,7 +4,7 @@
 #![no_main]
 //
 #![allow(internal_features)]
-#![feature(custom_test_frameworks, lang_items)]
+#![feature(custom_test_frameworks, lang_items, naked_functions)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![allow(clippy::needless_return)]
@@ -13,7 +13,9 @@
 
 extern crate alloc;
 
-use hyperion_arch as arch;
+use core::any::type_name_of_val;
+
+use hyperion_arch::{self as arch, generate_handler};
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
 // use hyperion_drivers as drivers;
@@ -47,13 +49,12 @@ extern "C" fn _start() -> ! {
 
         debug!("Entering kernel_main");
         debug!("{NAME} {VERSION} was booted with {}", boot::NAME);
-
-        // user-space syscall handler
-        // arch::syscall::set_handler(syscall::syscall);
     }
 
     // init GDT, IDT, TSS, TLS and cpu_id
-    arch::init();
+    arch::init(generate_handler!(|args| {
+        println!("{args:?}");
+    }));
 
     // init ACPI
     hyperion_driver_acpi::init();
@@ -78,7 +79,7 @@ extern "C" fn _start() -> ! {
     }
 
     if sync::once!() {
-        hyperion_futures::spawn(async move {
+        futures::spawn(async move {
             hyperion_log::debug!("running tick task");
 
             use hyperion_mem::vmm::PageMapImpl;
@@ -87,14 +88,14 @@ extern "C" fn _start() -> ! {
             let tmptask = scheduler::task::RunnableTask::new_in(0, 0, proc.clone());
             tmptask.set_active();
 
-            let mut loader =
-                Loader::new(include_bytes!("./../../../asset/bin/doom"), proc).unwrap();
+            let bin = include_bytes!(env!("CARGO_BIN_FILE_SAMPLE_ELF"));
+            let mut loader = Loader::new(bin, proc).unwrap();
 
             loader.load();
             loader.finish().unwrap().ready();
 
             loop {
-                hyperion_futures::timer::sleep(time::Duration::milliseconds(1000)).await;
+                futures::timer::sleep(time::Duration::milliseconds(1000)).await;
                 hyperion_log::debug!("tick (CPU-{})", cpu_id());
             }
         });

@@ -12,6 +12,8 @@ use x86_64::{
     registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags},
 };
 
+use self::syscall::SyscallHandler;
+
 //
 
 pub mod context;
@@ -24,7 +26,7 @@ pub mod vmm;
 
 //
 
-pub fn init() {
+pub fn init(handler: SyscallHandler) {
     int::disable();
 
     // set this CPUs id using an atomic inc variable
@@ -39,7 +41,7 @@ pub fn init() {
     vmm::init();
 
     // init syscall and sysret
-    syscall::init(tls.cpu.gdt.selectors);
+    syscall::init(tls.cpu.gdt.selectors, handler);
 }
 
 fn init_features() {

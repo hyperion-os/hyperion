@@ -730,6 +730,7 @@ dependencies = [
 name = "hyperion-kernel"
 version = "0.3.0"
 dependencies = [
+ "fbtest",
  "hyperion-arch",
  "hyperion-boot",
  "hyperion-clock",
@@ -748,6 +749,7 @@ dependencies = [
  "hyperion-sync",
  "hyperion-syscall",
  "hyperion-vfs",
+ "sample-elf",
  "time",
  "x86_64",
 ]

@@ -42,3 +42,6 @@ hyperion-loader.path = "../loader"
 
 hyperion-driver-acpi.path = "../driver-acpi"
 hyperion-clock.path = "../clock"
+
+fbtest = { path = "../../userspace/fbtest", artifact = "bin", target = "x86_64-unknown-none" }
+sample-elf = { path = "../../userspace/sample-elf", artifact = "bin", target = "x86_64-unknown-none" }

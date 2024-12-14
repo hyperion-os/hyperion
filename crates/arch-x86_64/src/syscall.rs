@@ -1,11 +1,5 @@
-use core::{
-    arch::{asm, naked_asm},
-    fmt,
-    mem::offset_of,
-    sync::atomic::Ordering,
-};
+use core::{arch::naked_asm, fmt, mem::offset_of, sync::atomic::Ordering};
 
-use crossbeam::atomic::AtomicCell;
 use hyperion_mem::pmm;
 use x86_64::{
     registers::{
@@ -21,7 +15,7 @@ use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage, vmm::PageMap};
 //
 
 /// init `syscall` and `sysret`
-pub fn init(selectors: SegmentSelectors) {
+pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
     let tls: &'static ThreadLocalStorage = unsafe { &*KernelGsBase::read().as_ptr() };
 
     let kernel_syscall_stack = pmm::PFA.alloc(8).leak();
@@ -43,7 +37,7 @@ pub fn init(selectors: SegmentSelectors) {
 
     // syscall handler addr
     // IA32_LSTAR : 0xC0000082
-    LStar::write(VirtAddr::new(syscall_wrapper as usize as u64));
+    LStar::write(VirtAddr::new(handler.0 as u64));
 
     // disable interrupts on syscall
     // IA32_LSTAR : 0xC0000084
@@ -56,10 +50,6 @@ pub fn init(selectors: SegmentSelectors) {
             flags.insert(EferFlags::SYSTEM_CALL_EXTENSIONS);
         });
     }
-}
-
-pub fn set_handler(f: fn(&mut SyscallRegs)) {
-    SYSCALL_HANDLER.store(f);
 }
 
 //
@@ -192,101 +182,116 @@ impl SyscallRegs {
 
 //
 
-#[naked]
-unsafe extern "C" fn syscall_wrapper() {
-    // the stack is still the userland stack
-    //
-    // rcx = return address
-    // rsp = user stack
-    // r11 = rflags
-    unsafe {
-        naked_asm!(
-            "cli",
-            "swapgs", // swap gs and kernelgs to open up a few temporary data locations
-            "mov gs:{user_stack}, rsp",   // backup the user stack
-            "mov rsp, gs:{kernel_stack}", // switch to the kernel stack
-            "push QWORD PTR gs:{user_stack}",
-            "swapgs",
+pub struct SyscallHandler(usize);
 
-            // save registers
-            "push rax",
-            "push rbx",
-            "push rcx",
-            "push rdx",
-            "push rdi",
-            "push rsi",
-            "push rbp",
-            "push r8",
-            "push r9",
-            "push r10",
-            "push r11",
-            "push r12",
-            "push r13",
-            "push r14",
-            "push r15",
-
-            // save FPU/SSE/MMX state
-            "fxsave64 [rsp]",
-            "sub rsp, 512",
-
-            // save address space
-            "mov rcx, cr3",
-            "push rcx",
-
-            // call the real syscall handler
-            "mov rdi, rsp",
-            "call {syscall}",
-            // return
-
-            // load address space
-            "pop rax", // pop cr3 into a temprary register
-            "mov rcx, cr3", // rcx = prev virtual address space
-            "cmp rax, rcx", // cmp for if
-            "je 2f",         // if rax != rcx:
-            "mov cr3, rax", // load next virtual address space
-            // writing cr3, even if the value is the same, triggers a TLB flush (which is bad)
-            "2:",
-
-            // load FPU/SSE/MMX state
-            "add rsp, 512",
-            "fxrstor64 [rsp]",
-
-            // load registers
-            "pop r15",
-            "pop r14",
-            "pop r13",
-            "pop r12",
-            "pop r11",
-            "pop r10",
-            "pop r9",
-            "pop r8",
-            "pop rbp",
-            "pop rsi",
-            "pop rdi",
-            "pop rdx",
-            "pop rcx",
-            "pop rbx",
-            "pop rax",
-
-            "swapgs",
-            "pop QWORD PTR gs:{user_stack}",
-            "mov rsp, gs:{user_stack}",
-            "swapgs",
-            // TODO: fix the sysret vulnerability
-            "sysretq",
-            syscall = sym syscall,
-            user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
-            kernel_stack = const(offset_of!(ThreadLocalStorage, kernel_stack))
-        );
+impl SyscallHandler {
+    /// # Safety
+    /// Extremely unsafe, because the syscall enters kernel code
+    /// with a user controlled stack with kernel privileges
+    ///
+    /// The stack has to be swapped to something trusted
+    pub unsafe fn new(f: unsafe extern "C" fn()) -> Self {
+        Self(f as usize)
     }
 }
 
-#[inline(always)]
-unsafe extern "C" fn syscall(regs: *mut SyscallRegs) {
-    SYSCALL_HANDLER.load()(unsafe { &mut *regs });
-}
+#[macro_export]
+macro_rules! generate_handler {
+    ($($t:tt)*) => {{
+        #[naked]
+        unsafe extern "C" fn syscall_wrapper() {
+            // the stack is still the userland stack
+            //
+            // rcx = return address
+            // rsp = user stack
+            // r11 = rflags
+            unsafe {
+                core::arch::naked_asm!(
+                    "cli",
+                    "swapgs", // swap gs and kernelgs to open up a few temporary data locations
+                    "mov gs:{user_stack}, rsp",   // backup the user stack
+                    "mov rsp, gs:{kernel_stack}", // switch to the kernel stack
+                    "push QWORD PTR gs:{user_stack}",
+                    "swapgs",
 
-// TODO: static linking instead of dynamic fn ptr
-static SYSCALL_HANDLER: AtomicCell<fn(&mut SyscallRegs)> = AtomicCell::new(|_| {
-    hyperion_log::error!("Syscall handler not initialized");
-});
+                    // save registers
+                    "push rax",
+                    "push rbx",
+                    "push rcx",
+                    "push rdx",
+                    "push rdi",
+                    "push rsi",
+                    "push rbp",
+                    "push r8",
+                    "push r9",
+                    "push r10",
+                    "push r11",
+                    "push r12",
+                    "push r13",
+                    "push r14",
+                    "push r15",
+
+                    // save FPU/SSE/MMX state
+                    "fxsave64 [rsp]",
+                    "sub rsp, 512",
+
+                    // save address space
+                    "mov rcx, cr3",
+                    "push rcx",
+
+                    // call the real syscall handler
+                    "mov rdi, rsp",
+                    "call {syscall}",
+                    // return
+
+                    // load address space
+                    "pop rax", // pop cr3 into a temprary register
+                    "mov rcx, cr3", // rcx = prev virtual address space
+                    "cmp rax, rcx", // cmp for if
+                    "je 2f",         // if rax != rcx:
+                    "mov cr3, rax", // load next virtual address space
+                    // writing cr3, even if the value is the same, triggers a TLB flush (which is bad)
+                    "2:",
+
+                    // load FPU/SSE/MMX state
+                    "add rsp, 512",
+                    "fxrstor64 [rsp]",
+
+                    // load registers
+                    "pop r15",
+                    "pop r14",
+                    "pop r13",
+                    "pop r12",
+                    "pop r11",
+                    "pop r10",
+                    "pop r9",
+                    "pop r8",
+                    "pop rbp",
+                    "pop rsi",
+                    "pop rdi",
+                    "pop rdx",
+                    "pop rcx",
+                    "pop rbx",
+                    "pop rax",
+
+                    "swapgs",
+                    "pop QWORD PTR gs:{user_stack}",
+                    "mov rsp, gs:{user_stack}",
+                    "swapgs",
+                    // TODO: fix the sysret vulnerability
+                    "sysretq",
+                    syscall = sym syscall,
+                    user_stack = const(  core::mem::offset_of!($crate::tls::ThreadLocalStorage, user_stack)),
+                    kernel_stack = const(core::mem::offset_of!($crate::tls::ThreadLocalStorage, kernel_stack))
+                );
+            }
+        }
+
+        #[inline(always)]
+        unsafe extern "C" fn syscall(regs: *mut $crate::syscall::SyscallRegs) {
+            ($($t)*)(regs);
+        }
+
+        unsafe { $crate::syscall::SyscallHandler::new(syscall_wrapper) }
+    }};
+}

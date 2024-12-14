@@ -81,6 +81,7 @@ static HHDM_KERNEL_L4E: Once<(PageTableEntry, PageTableEntry, PageTableEntry)> =
 pub fn init() {
     HHDM_KERNEL_L4E.call_once(|| {
         let boot_map = PageMap::current();
+        boot_map.debug();
         let inner = boot_map.inner.0.write();
 
         let mut l4_256 = inner.l4[256].clone();
@@ -360,6 +361,150 @@ impl PageMapImpl for PageMap {
             inner: ManuallyDrop::new(SafeRwLock::new(LockedPageMap { l4 })),
             info,
             owned: true,
+        }
+    }
+
+    fn debug(&self) {
+        struct Current {
+            base: VirtAddr,
+            target: PhysAddr,
+            write: bool,
+            exec: bool,
+            user: bool,
+        }
+
+        impl Current {
+            fn new(from: VirtAddr, entry: &PageTableEntry) -> Self {
+                Self {
+                    base: from,
+                    target: entry.addr(),
+                    write: entry.flags().contains(PageTableFlags::WRITABLE),
+                    exec: !entry.flags().contains(PageTableFlags::NO_EXECUTE),
+                    user: entry.flags().contains(PageTableFlags::USER_ACCESSIBLE),
+                }
+            }
+
+            fn is_contiguous(&self, other: &Self) -> bool {
+                if self.write != other.write || self.exec != other.exec || self.user != other.user {
+                    return false;
+                }
+
+                if (self.base.as_u64() > self.target.as_u64())
+                    != (other.base.as_u64() > other.target.as_u64())
+                {
+                    return false;
+                }
+
+                self.base.as_u64().abs_diff(self.target.as_u64())
+                    == other.base.as_u64().abs_diff(other.target.as_u64())
+            }
+
+            fn print_range(&self, to: VirtAddr) {
+                let _from = Page::<Size4KiB>::containing_address(self.base);
+                let _to = Page::<Size4KiB>::containing_address(to);
+
+                hyperion_log::println!(
+                    "{}R{}{} [ {:#018x}..{:#018x} ] => {:#018x} ({:?}..{:?})",
+                    if self.user { "U" } else { "-" },
+                    if self.write { "W" } else { "-" },
+                    if self.exec { "X" } else { "-" },
+                    self.base.as_u64(),
+                    to.as_u64(),
+                    self.target.as_u64(),
+                    [
+                        u16::from(_from.p4_index()),
+                        u16::from(_from.p3_index()),
+                        u16::from(_from.p2_index()),
+                        u16::from(_from.p1_index())
+                    ],
+                    [
+                        u16::from(_to.p4_index()),
+                        u16::from(_to.p3_index()),
+                        u16::from(_to.p2_index()),
+                        u16::from(_to.p1_index())
+                    ],
+                );
+            }
+        }
+
+        let inner = self.inner.read();
+        let l4 = &*inner.l4;
+
+        let mut current = None;
+
+        let missing = |current: &mut Option<Current>, addr: VirtAddr| {
+            if let Some(current) = current.take() {
+                current.print_range(addr);
+            }
+        };
+
+        let present = |current: &mut Option<Current>, addr: VirtAddr, e: &PageTableEntry| {
+            let next = Current::new(addr, e);
+            let Some(base) = current else {
+                *current = Some(next);
+                return;
+            };
+
+            if !base.is_contiguous(&next) {
+                base.print_range(addr);
+                *current = Some(next);
+            }
+        };
+
+        let process = |current: &mut Option<Current>,
+                       addr: VirtAddr,
+                       e: &PageTableEntry|
+         -> Option<&PageTable> {
+            match e.frame() {
+                Ok(next) => {
+                    Some(unsafe { &mut *to_higher_half(next.start_address()).as_mut_ptr() })
+                }
+                Err(FrameError::FrameNotPresent) => {
+                    missing(current, addr);
+                    None
+                }
+                Err(FrameError::HugeFrame) => {
+                    present(current, addr, e);
+                    None
+                }
+            }
+        };
+
+        let addr_from_index = |p4: u16, p3: u16, p2: u16, p1: u16| {
+            Page::from_page_table_indices(
+                PageTableIndex::new(p4),
+                PageTableIndex::new(p3),
+                PageTableIndex::new(p2),
+                PageTableIndex::new(p1),
+            )
+            .start_address()
+        };
+
+        for (i4, l4e) in l4.iter().enumerate() {
+            let addr = addr_from_index(i4 as _, 0, 0, 0);
+            let Some(l3) = process(&mut current, addr, l4e) else {
+                continue;
+            };
+            for (i3, l3e) in l3.iter().enumerate() {
+                let addr = addr_from_index(i4 as _, i3 as _, 0, 0);
+                let Some(l2) = process(&mut current, addr, l3e) else {
+                    continue;
+                };
+                for (i2, l2e) in l2.iter().enumerate() {
+                    let addr = addr_from_index(i4 as _, i3 as _, i2 as _, 0);
+                    let Some(l1) = process(&mut current, addr, l2e) else {
+                        continue;
+                    };
+                    for (i1, l1e) in l1.iter().enumerate() {
+                        let addr = addr_from_index(i4 as _, i3 as _, i2 as _, i1 as _);
+                        if l1e.flags().contains(PageTableFlags::PRESENT) {
+                            present(&mut current, addr, l1e);
+                        } else {
+                            missing(&mut current, addr);
+                        }
+                    }
+                }
+            }
         }
     }
 
