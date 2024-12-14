@@ -2,12 +2,14 @@ use core::{
     arch::{asm, naked_asm},
     fmt,
     mem::offset_of,
+    sync::atomic::Ordering,
 };
 
 use crossbeam::atomic::AtomicCell;
+use hyperion_mem::pmm;
 use x86_64::{
     registers::{
-        model_specific::{Efer, EferFlags, LStar, SFMask, Star},
+        model_specific::{Efer, EferFlags, KernelGsBase, LStar, SFMask, Star},
         mxcsr::{self, MxCsr},
         rflags::RFlags,
     },
@@ -20,6 +22,16 @@ use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage, vmm::PageMap};
 
 /// init `syscall` and `sysret`
 pub fn init(selectors: SegmentSelectors) {
+    let tls: &'static ThreadLocalStorage = unsafe { &*KernelGsBase::read().as_ptr() };
+
+    let kernel_syscall_stack = pmm::PFA.alloc(8).leak();
+
+    // syscalls should use this task's stack to allow switching tasks from a syscall
+    tls.kernel_stack.store(
+        kernel_syscall_stack.as_mut_ptr_range().end,
+        Ordering::Release,
+    );
+
     // IA32_STAR : 0xC0000081
     Star::write(
         selectors.user_code,
