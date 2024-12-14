@@ -55,7 +55,7 @@ pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
 //
 
 #[allow(unused)]
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Debug, Clone)]
 pub struct SyscallRegs {
     fxsave_reg: [u32; 128],
