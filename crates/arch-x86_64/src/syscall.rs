@@ -58,8 +58,6 @@ pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SyscallRegs {
-    // fs: ,
-    cr3: PhysAddr,
     fxsave_reg: [u32; 128],
 
     _r15: u64,
@@ -92,7 +90,7 @@ impl fmt::Display for SyscallRegs {
 }
 
 impl SyscallRegs {
-    pub fn new(ip: u64, sp: u64, page_map: &PageMap) -> Self {
+    pub fn new(ip: u64, sp: u64) -> Self {
         let mut mxcsr = mxcsr::read();
         // ignore exceptions from inexact float ops, why is it even a thing
         mxcsr.insert(
@@ -106,10 +104,7 @@ impl SyscallRegs {
         let mut fxsave_reg = [0u32; 128];
         fxsave_reg[6] = mxcsr.bits();
 
-        let cr3 = page_map.cr3().start_address();
-
         Self {
-            cr3,
             fxsave_reg,
             _r15: 0,
             _r14: 0,
@@ -137,15 +132,6 @@ impl SyscallRegs {
         unsafe {
             naked_asm!(
                 "mov rsp, rdi", // set the stack ptr to point to _args temporarily
-
-                // load address space
-                "pop rax", // pop cr3 into a temprary register
-                "mov rcx, cr3", // rcx = prev virtual address space
-                "cmp rax, rcx", // cmp for if
-                "je 2f",         // if rax != rcx:
-                "mov cr3, rax", // load next virtual address space
-                // writing cr3, even if the value is the same, triggers a TLB flush (which is bad)
-                "2:",
 
                 // load FPU/SSE/MMX state
                 "add rsp, 512",
@@ -235,23 +221,10 @@ macro_rules! generate_handler {
                     "fxsave64 [rsp]",
                     "sub rsp, 512",
 
-                    // save address space
-                    "mov rcx, cr3",
-                    "push rcx",
-
                     // call the real syscall handler
                     "mov rdi, rsp",
                     "call {syscall}",
                     // return
-
-                    // load address space
-                    "pop rax", // pop cr3 into a temprary register
-                    "mov rcx, cr3", // rcx = prev virtual address space
-                    "cmp rax, rcx", // cmp for if
-                    "je 2f",         // if rax != rcx:
-                    "mov cr3, rax", // load next virtual address space
-                    // writing cr3, even if the value is the same, triggers a TLB flush (which is bad)
-                    "2:",
 
                     // load FPU/SSE/MMX state
                     "add rsp, 512",
@@ -289,7 +262,7 @@ macro_rules! generate_handler {
 
         #[inline(always)]
         unsafe extern "C" fn syscall(regs: *mut $crate::syscall::SyscallRegs) {
-            ($($t)*)(regs);
+            ($($t)*)(unsafe { &mut *regs });
         }
 
         unsafe { $crate::syscall::SyscallHandler::new(syscall_wrapper) }
