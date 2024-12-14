@@ -74,7 +74,7 @@ pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
 
 //
 
-static HHDM_KERNEL_L4E: Once<(PageTableEntry, PageTableEntry)> = Once::new();
+static HHDM_KERNEL_L4E: Once<(PageTableEntry, PageTableEntry, PageTableEntry)> = Once::new();
 
 //
 
@@ -84,6 +84,7 @@ pub fn init() {
         let inner = boot_map.inner.0.write();
 
         let mut l4_256 = inner.l4[256].clone();
+        let mut l4_257 = inner.l4[257].clone();
         let mut l4_511 = inner.l4[511].clone();
 
         let process = |e: &mut PageTableEntry| -> Option<&mut PageTable> {
@@ -111,7 +112,7 @@ pub fn init() {
         };
 
         // TODO: mark all kernel pages global
-        for l4e in [&mut l4_256, &mut l4_511] {
+        for l4e in [&mut l4_256, &mut l4_257, &mut l4_511] {
             let Some(l3) = process(l4e) else { continue };
             for l3e in l3.iter_mut() {
                 let Some(l2) = process(l3e) else { continue };
@@ -124,7 +125,7 @@ pub fn init() {
             }
         }
 
-        (l4_256, l4_511)
+        (l4_256, l4_257, l4_511)
     });
 }
 
@@ -347,11 +348,12 @@ impl PageMapImpl for PageMap {
 
         l4.zero();
 
-        let (l4_256, l4_511) = HHDM_KERNEL_L4E
+        let (l4_256, l4_257, l4_511) = HHDM_KERNEL_L4E
             .get()
             .expect("vmm::init should be called before PageMap::new")
             .clone();
         l4[256] = l4_256;
+        l4[257] = l4_257;
         l4[511] = l4_511;
 
         Self {
