@@ -54,7 +54,7 @@ impl RunnableTask {
         // So none of the Rust's rules can be broken (except
         // for the user space process, it is their problem)
 
-        let trap = SyscallRegs::new(ip, sp, &process.address_space);
+        let trap = SyscallRegs::new(ip, sp);
         let tid = process.next_tid();
         let task = Task { tid, process };
         Self { trap, task }

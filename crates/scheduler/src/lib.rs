@@ -4,11 +4,11 @@ extern crate alloc;
 
 //
 
-use hyperion_arch::{cpu::ints::PAGE_FAULT_HANDLER, vmm::PageMap};
+use hyperion_arch::cpu::ints::PAGE_FAULT_HANDLER;
 use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use x86_64::VirtAddr;
 
-use self::{proc::Process, task::RunnableTask};
+use self::task::RunnableTask;
 
 //
 

@@ -7,17 +7,16 @@ use x86_64::{
         mxcsr::{self, MxCsr},
         rflags::RFlags,
     },
-    PhysAddr, VirtAddr,
+    VirtAddr,
 };
 
-use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage, vmm::PageMap};
+use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage};
 
 //
 
 /// init `syscall` and `sysret`
 pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
     let tls: &'static ThreadLocalStorage = unsafe { &*KernelGsBase::read().as_ptr() };
-
     let kernel_syscall_stack = pmm::PFA.alloc(8).leak();
 
     // syscalls should use this task's stack to allow switching tasks from a syscall
@@ -54,12 +53,20 @@ pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
 
 //
 
+#[derive(Clone)]
+pub struct FxRegs([u32; 128]);
+
+impl fmt::Debug for FxRegs {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("FxRegs(..)")
+    }
+}
+
 #[allow(unused)]
 #[repr(C, align(16))]
 #[derive(Debug, Clone)]
 pub struct SyscallRegs {
-    fxsave_reg: [u32; 128],
-
+    fxsave_reg: FxRegs,
     _r15: u64,
     _r14: u64,
     _r13: u64,
@@ -105,7 +112,7 @@ impl SyscallRegs {
         fxsave_reg[6] = mxcsr.bits();
 
         Self {
-            fxsave_reg,
+            fxsave_reg: FxRegs(fxsave_reg),
             _r15: 0,
             _r14: 0,
             _r13: 0,
@@ -160,7 +167,7 @@ impl SyscallRegs {
                 "swapgs",
                 // TODO: fix the sysret vulnerability
                 "sysretq",
-                user_stack = const(offset_of!(ThreadLocalStorage, user_stack)),
+                user_stack = const(ThreadLocalStorage::USER_STACK),
             );
         }
     }
@@ -193,7 +200,6 @@ macro_rules! generate_handler {
             // r11 = rflags
             unsafe {
                 core::arch::naked_asm!(
-                    "cli",
                     "swapgs", // swap gs and kernelgs to open up a few temporary data locations
                     "mov gs:{user_stack}, rsp",   // backup the user stack
                     "mov rsp, gs:{kernel_stack}", // switch to the kernel stack
@@ -254,8 +260,8 @@ macro_rules! generate_handler {
                     // TODO: fix the sysret vulnerability
                     "sysretq",
                     syscall = sym syscall,
-                    user_stack = const(  core::mem::offset_of!($crate::tls::ThreadLocalStorage, user_stack)),
-                    kernel_stack = const(core::mem::offset_of!($crate::tls::ThreadLocalStorage, kernel_stack))
+                    user_stack =   const($crate::tls::ThreadLocalStorage::USER_STACK),
+                    kernel_stack = const($crate::tls::ThreadLocalStorage::KERNEL_STACK),
                 );
             }
         }

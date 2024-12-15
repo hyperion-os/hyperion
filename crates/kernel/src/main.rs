@@ -13,8 +13,6 @@
 
 extern crate alloc;
 
-use core::any::type_name_of_val;
-
 use hyperion_arch::{self as arch, generate_handler};
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;

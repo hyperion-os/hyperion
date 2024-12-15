@@ -1,9 +1,6 @@
 use core::{arch::naked_asm, mem::MaybeUninit, ptr};
 
-use crate::{
-    env,
-    process::{ExitCode, Termination},
-};
+use crate::process::{ExitCode, Termination};
 
 //
 
@@ -32,16 +29,9 @@ static mut MAIN_THREAD_STACK: MaybeUninit<[Page; 8]> = MaybeUninit::zeroed();
 extern "C" fn _start() -> ! {
     unsafe {
         naked_asm!(
-            "mov rsp, {main_thread_stack}",
-            "mov rax, 1",
-            "mov rdi, {main_thread_stack}",
-            "syscall",
-            "mov rsp, 512",
-            "mov QWORD PTR [rsp], 512",
-            "2:",
-            "jmp 2b",
+            "lea rsp, {main_thread_stack} + 0x8000",
             "jmp _start_with_stack",
-            main_thread_stack = sym MAIN_THREAD_STACK
+            main_thread_stack = sym MAIN_THREAD_STACK,
         );
     }
 }

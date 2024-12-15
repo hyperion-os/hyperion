@@ -1,7 +1,7 @@
 use core::{
-    mem::MaybeUninit,
+    mem::{offset_of, MaybeUninit},
     ptr::{addr_of_mut, null_mut},
-    sync::atomic::{AtomicPtr, Ordering},
+    sync::atomic::AtomicPtr,
 };
 
 use x86_64::{
@@ -32,6 +32,11 @@ pub struct ThreadLocalStorage {
 
     /// GDT + IDT + TSS
     pub cpu: CpuState,
+}
+
+impl ThreadLocalStorage {
+    pub const USER_STACK: usize = offset_of!(Self, user_stack);
+    pub const KERNEL_STACK: usize = offset_of!(Self, kernel_stack);
 }
 
 macro_rules! uninit_write_fields {
