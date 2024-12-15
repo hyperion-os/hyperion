@@ -4,7 +4,7 @@ extern crate alloc;
 
 //
 
-use hyperion_arch::cpu::ints::PAGE_FAULT_HANDLER;
+use hyperion_arch::{cpu::ints::PAGE_FAULT_HANDLER, vmm::HIGHER_HALF_DIRECT_MAPPING};
 use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use x86_64::VirtAddr;
 
@@ -34,6 +34,11 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
 
     proc.address_space
         .page_fault(VirtAddr::new(addr as u64), privilege)?;
+
+    if privilege == Privilege::Kernel && addr <= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
+        RunnableTask::next().enter();
+        // unreachable
+    }
 
     Ok(NotHandled)
 }
