@@ -134,8 +134,8 @@ impl SyscallRegs {
                 "mov rsp, rdi", // set the stack ptr to point to _args temporarily
 
                 // load FPU/SSE/MMX state
-                "add rsp, 512",
                 "fxrstor64 [rsp]",
+                "add rsp, 512",
 
                 // load registers
                 "pop r15",
@@ -218,8 +218,8 @@ macro_rules! generate_handler {
                     "push r15",
 
                     // save FPU/SSE/MMX state
-                    "fxsave64 [rsp]",
                     "sub rsp, 512",
+                    "fxsave64 [rsp]",
 
                     // call the real syscall handler
                     "mov rdi, rsp",
@@ -227,8 +227,8 @@ macro_rules! generate_handler {
                     // return
 
                     // load FPU/SSE/MMX state
-                    "add rsp, 512",
                     "fxrstor64 [rsp]",
+                    "add rsp, 512",
 
                     // load registers
                     "pop r15",
