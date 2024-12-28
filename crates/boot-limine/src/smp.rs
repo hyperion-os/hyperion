@@ -17,6 +17,7 @@ pub fn smp_init() {
         .flat_map(|resp| resp.cpus().iter_mut())
         .filter(|cpu| boot.processor_id != cpu.processor_id)
     {
+        // FIXME: provide the fn ptr
         cpu.goto_address = unsafe { transmute(_start as usize) };
     }
 }

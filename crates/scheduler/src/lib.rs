@@ -36,6 +36,8 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
         .page_fault(VirtAddr::new(addr as u64), privilege)?;
 
     if privilege == Privilege::Kernel && addr <= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
+        // TODO: sig segv
+        // FIXME: syscall exit to not use the page fault stack
         RunnableTask::next().enter();
         // unreachable
     }
