@@ -146,6 +146,8 @@ pub fn main() -> Result<()> {
     // _test_userspace_mutex();
     // _repeat_stdin_to_stdout();
 
+    libstd::sys::log!("hello world");
+
     let value = get_pid();
     println!("PID:{} TID:{}", get_pid(), get_tid());
 
