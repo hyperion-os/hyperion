@@ -17,7 +17,7 @@ use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage};
 /// init `syscall` and `sysret`
 pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
     let tls: &'static ThreadLocalStorage = unsafe { &*KernelGsBase::read().as_ptr() };
-    let kernel_syscall_stack = pmm::PFA.alloc(8).leak();
+    let kernel_syscall_stack = pmm::PFA.alloc(32).leak();
 
     // syscalls should use this task's stack to allow switching tasks from a syscall
     tls.kernel_stack.store(
