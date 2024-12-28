@@ -17,7 +17,7 @@ pub static CPU: Lazy<Tls<Cpu>> = Lazy::new(Tls::default);
 //
 
 pub struct Cpu {
-    pub active: Cell<Option<Task>>,
+    pub active: Cell<Option<Arc<Task>>>,
 }
 
 impl Cpu {
@@ -38,7 +38,7 @@ impl Default for Cpu {
 
 pub struct RunnableTask {
     pub trap: SyscallRegs,
-    pub task: Task,
+    pub task: Arc<Task>,
 }
 
 impl RunnableTask {
@@ -56,7 +56,7 @@ impl RunnableTask {
 
         let trap = SyscallRegs::new(ip, sp);
         let tid = process.next_tid();
-        let task = Task { tid, process };
+        let task = Arc::new(Task { tid, process });
         Self { trap, task }
     }
 
@@ -113,12 +113,18 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn take_active() -> Option<Self> {
+    pub fn take_active() -> Option<Arc<Self>> {
         CPU.active.take()
     }
 
-    pub fn set_active(self) {
+    pub fn set_active(self: Arc<Self>) {
         CPU.active.set(Some(self));
+    }
+
+    pub fn current() -> Option<Arc<Self>> {
+        let active = Self::take_active()?;
+        Self::set_active(active.clone());
+        Some(active)
     }
 
     /* pub fn init_tls(&self) {

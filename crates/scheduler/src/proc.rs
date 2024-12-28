@@ -16,7 +16,7 @@ use hyperion_mem::vmm::{MapTarget, PageMapImpl};
 use spin::{Mutex, Once};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
-use crate::task::Tid;
+use crate::task::{Task, Tid};
 
 //
 
@@ -74,6 +74,10 @@ impl Process {
         PROCESSES.lock().insert(this.pid, Arc::downgrade(&this));
 
         this
+    }
+
+    pub fn current() -> Option<Arc<Self>> {
+        Some(Task::current()?.process.clone())
     }
 
     pub fn next_tid(&self) -> Tid {

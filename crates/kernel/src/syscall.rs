@@ -4,7 +4,10 @@ use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
 use hyperion_futures::mpmc::Channel;
 use hyperion_log::*;
 use hyperion_mem::vmm::PageMapImpl;
-use hyperion_scheduler::task::RunnableTask;
+use hyperion_scheduler::{
+    proc::Process,
+    task::{RunnableTask, Task},
+};
 use hyperion_syscall::{
     err::{Error, Result},
     id,
@@ -39,7 +42,7 @@ pub fn syscall(args: &mut SyscallRegs) {
     match args.syscall_id as usize {
         id::LOG => log(args),
         id::EXIT => exit(args),
-        // id::DONE => {},
+        id::DONE => done(args),
         id::YIELD_NOW => yield_now(args),
         // id::TIMESTAMP => {},
         // id::NANOSLEEP => {},
@@ -61,9 +64,9 @@ pub fn syscall(args: &mut SyscallRegs) {
         // id::LISTEN => {},
         // id::ACCEPT => {},
         // id::CONNECT => {},
-
-        // id::GET_PID => {},
-        // id::GET_TID => {},
+        //
+        id::GET_PID => get_pid(args),
+        id::GET_TID => get_tid(args),
 
         // id::DUP => {},
         // id::PIPE => {},
@@ -86,29 +89,38 @@ pub fn syscall(args: &mut SyscallRegs) {
     };
 }
 
+fn set_result(args: &mut SyscallRegs, result: Result<usize>) {
+    args.syscall_id = Error::encode(result) as u64;
+}
+
 /// print a string to logs
 ///
 /// [`hyperion_syscall::log`]
 pub fn log(args: &mut SyscallRegs) {
-    args.syscall_id = Error::encode(_log(args)) as u64;
-}
-
-fn _log(args: &SyscallRegs) -> Result<usize> {
-    // FIXME: lock the page table, or these specific pages during this print
-    // because otherwise a second thread could free these pages => cross-process use after free
-    let str = read_untrusted_str(args.arg0, args.arg1)?;
-    hyperion_log::print!("{str}");
-    Ok(0)
+    set_result(
+        args,
+        try {
+            // FIXME: lock the page table, or these specific pages during this print
+            // because otherwise a second thread could free these pages => cross-process use after free
+            let str = read_untrusted_str(args.arg0, args.arg1)?;
+            hyperion_log::print!("{str}");
+            0
+        },
+    );
 }
 
 pub fn exit(args: &mut SyscallRegs) {
+    // FIXME: kill the whole process and stop other tasks in it using IPI
     *args = RunnableTask::next().set_active();
-    return;
+}
+
+pub fn done(args: &mut SyscallRegs) {
+    *args = RunnableTask::next().set_active();
 }
 
 /// [`hyperion_syscall::yield_now`]
 pub fn yield_now(args: &mut SyscallRegs) {
-    args.syscall_id = Error::encode(Ok(0)) as u64;
+    set_result(args, Ok(0));
 
     let Some(next) = RunnableTask::try_next() else {
         return;
@@ -118,6 +130,16 @@ pub fn yield_now(args: &mut SyscallRegs) {
     *args = next.set_active();
     current.ready();
 }
+
+pub fn get_pid(args: &mut SyscallRegs) {
+    set_result(args, Ok(Process::current().unwrap().pid.num()));
+}
+
+pub fn get_tid(args: &mut SyscallRegs) {
+    set_result(args, Ok(Task::current().unwrap().tid.num()));
+}
+
+//
 
 pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
     if len == 0 {
