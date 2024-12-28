@@ -53,11 +53,11 @@ extern "C" fn _start() -> ! {
     // init GDT, IDT, TSS, TLS and cpu_id
     arch::init(generate_handler!(syscall::syscall));
 
+    // wake up all cpus
+    arch::wake_cpus(_start);
+
     // init ACPI
     hyperion_driver_acpi::init();
-
-    // wake up all cpus
-    arch::wake_cpus();
 
     // init task once
     if sync::once!() {

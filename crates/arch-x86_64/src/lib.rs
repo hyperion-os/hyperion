@@ -61,10 +61,8 @@ fn init_features() {
     unsafe { Cr4::write(cr4) };
 }
 
-pub fn wake_cpus() {
-    if cpu_id() == 0 {
-        hyperion_boot::smp_init();
-    }
+pub fn wake_cpus(start: extern "C" fn() -> !) {
+    hyperion_boot::smp_init(cpu_id::cpu_id() == 0, start);
 }
 
 pub fn rng_seed() -> u64 {
