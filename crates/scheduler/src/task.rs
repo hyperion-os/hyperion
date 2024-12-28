@@ -2,7 +2,7 @@ use alloc::sync::Arc;
 use core::{cell::Cell, fmt, sync::atomic::Ordering};
 
 use hyperion_arch::syscall::SyscallRegs;
-use hyperion_cpu_id::Tls;
+use hyperion_cpu_id::{cpu_id, Tls};
 use hyperion_futures::mpmc::Channel;
 use hyperion_mem::vmm::PageMapImpl;
 use spin::Lazy;
@@ -67,13 +67,17 @@ impl RunnableTask {
 
     pub fn enter(self) -> ! {
         let mut s = self.set_active();
-        hyperion_log::debug!("enter ip={:x} sp={:x}", s.user_instr_ptr, s.user_stack_ptr);
+        hyperion_log::debug!(
+            "enter cpu={} ip={:x} sp={:x}",
+            cpu_id(),
+            s.user_instr_ptr,
+            s.user_stack_ptr
+        );
         s.enter()
     }
 
     pub fn set_active(self) -> SyscallRegs {
         let RunnableTask { trap, task } = self;
-        task.process.address_space.debug();
         task.process.address_space.activate();
         CPU.active.replace(Some(task));
         trap
@@ -82,6 +86,10 @@ impl RunnableTask {
     /// wait for the next ready task, and run other tasks meanwhile
     pub fn next() -> RunnableTask {
         hyperion_futures::block_on(TASKS.recv())
+    }
+
+    pub fn try_next() -> Option<RunnableTask> {
+        TASKS.try_recv()
     }
 
     /// mark the task as ready to run

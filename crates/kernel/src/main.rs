@@ -21,6 +21,7 @@ use hyperion_futures as futures;
 // use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_loader::Loader;
+use hyperion_log as log;
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
 use hyperion_random as random;
@@ -30,7 +31,7 @@ use hyperion_sync as sync;
 //
 
 pub mod panic;
-// pub mod syscall;
+pub mod syscall;
 #[cfg(test)]
 pub mod testfw;
 
@@ -50,9 +51,7 @@ extern "C" fn _start() -> ! {
     }
 
     // init GDT, IDT, TSS, TLS and cpu_id
-    arch::init(generate_handler!(|args| {
-        println!("{args:?}");
-    }));
+    arch::init(generate_handler!(syscall::syscall));
 
     // init ACPI
     hyperion_driver_acpi::init();
@@ -71,15 +70,10 @@ extern "C" fn _start() -> ! {
         // os unit tests
         #[cfg(test)]
         test_main();
-        // kshell (kernel-space shell) UI task(s)
-        // #[cfg(not(test))]
-        // futures::spawn(hyperion_kshell::kshell());
     }
 
     if sync::once!() {
         futures::spawn(async move {
-            hyperion_log::debug!("running tick task");
-
             use hyperion_mem::vmm::PageMapImpl;
             let proc = scheduler::proc::Process::new();
             // proc.address_space.activate();
@@ -91,10 +85,13 @@ extern "C" fn _start() -> ! {
 
             loader.load();
             loader.finish().unwrap().ready();
+        });
+        futures::spawn(async move {
+            hyperion_log::debug!("running tick task");
 
             loop {
-                futures::timer::sleep(time::Duration::milliseconds(1000)).await;
                 hyperion_log::debug!("tick (CPU-{})", cpu_id());
+                futures::timer::sleep(time::Duration::milliseconds(1000)).await;
             }
         });
     }
@@ -102,6 +99,7 @@ extern "C" fn _start() -> ! {
     // init scheduling
     debug!("init CPU-{}", cpu_id());
     scheduler::init();
+    hyperion_syscall::exit(0); // use a syscall from kernel space to enter the main loop
 }
 
 // to fix `cargo clippy` without a target

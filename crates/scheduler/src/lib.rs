@@ -17,11 +17,9 @@ pub mod task;
 
 //
 
-/// terminate the active task and enter the async scheduler
-pub fn init() -> ! {
+// /// terminate the active task and enter the async scheduler
+pub fn init() {
     PAGE_FAULT_HANDLER.store(page_fault_handler);
-
-    RunnableTask::next().enter();
 }
 
 fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaultResult {
@@ -35,7 +33,7 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
     proc.address_space
         .page_fault(VirtAddr::new(addr as u64), privilege)?;
 
-    if privilege == Privilege::Kernel && addr <= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
+    if addr <= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
         // TODO: sig segv
         // FIXME: syscall exit to not use the page fault stack
         RunnableTask::next().enter();

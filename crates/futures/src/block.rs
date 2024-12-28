@@ -27,7 +27,7 @@ pub fn block_on<F: IntoFuture>(f: F) -> F::Output {
     let mut cx = Context::from_waker(&waker);
 
     loop {
-        debug_assert_eq!(wake.wake.load(Ordering::SeqCst), false);
+        debug_assert!(!wake.wake.load(Ordering::SeqCst));
         if let Poll::Ready(res) = fut.as_mut().poll(&mut cx) {
             return res;
         }
