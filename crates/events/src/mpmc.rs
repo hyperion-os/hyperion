@@ -65,7 +65,7 @@ impl<T: Debug> Future for Recv<'_, T> {
             return Poll::Ready(ev);
         } else {
             slow.set(Some(RecvSlow {
-                listener: EventListener::new(),
+                listener: this.queue.ops.listen(),
             }));
             slow.as_pin_mut().unwrap()
         };
@@ -88,18 +88,10 @@ impl RecvSlow {
         let mut listener: Pin<&mut EventListener> = this.listener;
 
         loop {
-            if !listener.is_listening() {
-                listener.as_mut().listen(&queue.ops);
+            ready!(listener.as_mut().poll(cx));
 
-                if let Some(ev) = queue.try_recv() {
-                    return Poll::Ready(ev);
-                }
-            } else {
-                ready!(listener.as_mut().poll(cx));
-
-                if let Some(ev) = queue.try_recv() {
-                    return Poll::Ready(ev);
-                }
+            if let Some(ev) = queue.try_recv() {
+                return Poll::Ready(ev);
             }
         }
     }

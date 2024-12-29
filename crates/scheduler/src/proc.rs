@@ -85,10 +85,12 @@ impl Process {
     }
 
     pub fn alloc(&self, n_pages: usize, flags: PageTableFlags) -> Result<VirtAddr, AllocErr> {
-        let n_bytes = n_pages * 0x1000;
+        let n_bytes = n_pages as u64 * 0x1000;
 
-        let Ok(at) = VirtAddr::try_new(self.heap_bottom.fetch_add(n_bytes, Ordering::SeqCst) as _)
-        else {
+        let Ok(at) = VirtAddr::try_new(
+            self.heap_bottom
+                .fetch_add(n_bytes as usize, Ordering::SeqCst) as _,
+        ) else {
             return Err(AllocErr::OutOfVirtMem);
         };
 
@@ -113,16 +115,16 @@ impl Process {
     }
 
     pub fn free(&self, n_pages: usize, ptr: VirtAddr) -> Result<(), FreeErr> {
-        if !self
-            .address_space
-            .is_mapped(ptr..ptr + n_pages * 0x1000, PageTableFlags::USER_ACCESSIBLE)
-        {
+        if !self.address_space.is_mapped(
+            ptr..ptr + n_pages as u64 * 0x1000,
+            PageTableFlags::USER_ACCESSIBLE,
+        ) {
             return Err(FreeErr::InvalidAlloc);
         }
 
         let n_bytes = n_pages * 0x1000;
 
-        self.address_space.unmap(ptr..ptr + n_bytes);
+        self.address_space.unmap(ptr..ptr + n_bytes as u64);
 
         Ok(())
     }
@@ -136,7 +138,7 @@ impl Process {
         let n_bytes = n_pages * 0x1000;
 
         self.address_space
-            .map(at..at + n_bytes, MapTarget::LazyAlloc, flags);
+            .map(at..at + n_bytes as u64, MapTarget::LazyAlloc, flags);
 
         Ok(())
     }

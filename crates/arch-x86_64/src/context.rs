@@ -44,7 +44,7 @@ impl Context {
             entry: u64,
         }
 
-        const OFFSET: usize = size_of::<StackInit>() + size_of::<u64>();
+        const OFFSET: u64 = (size_of::<StackInit>() + size_of::<u64>()) as u64;
 
         let rsp = stack_top - OFFSET;
         let now = page_map

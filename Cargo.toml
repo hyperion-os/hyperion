@@ -30,7 +30,7 @@ anyhow = { version = "1", default-features = false }
 arcstr = "1.1"
 spin = "0.9"
 volatile = "0.5"
-x86_64 = "0.14"
+x86_64 = "0.15"
 uart_16550 = "0.3"
 #pc-keyboard = "0.7"
 pc-keyboard = { git = "https://github.com/rust-embedded-community/pc-keyboard", rev = "4aa5ef6d41fead096c96879ca53497c9ec4ffc30" }
@@ -52,7 +52,7 @@ bitflags = "2.4"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 
-event-listener = { version = "4.0", default-features = false }
+event-listener = { version = "5.3", default-features = false }
 
 # backtrace symbol lookup
 [workspace.dependencies.elf]
@@ -86,9 +86,9 @@ features = ["alloc"]
 
 # no_std thiserrror alternative
 [workspace.dependencies.snafu]
-version = "0.7"
+version = "0.8"
 default-features = false
-features = ["rust_1_46"]
+features = ["rust_1_81"]
 
 # backtracing with DWARF
 # [workspace.dependencies.gimli]

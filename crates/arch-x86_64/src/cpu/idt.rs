@@ -58,7 +58,7 @@ impl Idt {
 
         use super::ints::other::*;
         for (irq, handler) in hyperion_macros::get_int_handlers!() {
-            idt[irq as usize].set_handler_fn(handler);
+            idt[irq].set_handler_fn(handler);
         }
 
         Self { inner: idt }

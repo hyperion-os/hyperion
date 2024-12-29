@@ -85,7 +85,11 @@ pub extern "x86-interrupt" fn general_protection_fault(stack: InterruptStackFram
 }
 
 pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFaultErrorCode) {
-    let addr = Cr2::read();
+    let Ok(addr) = Cr2::read() else {
+        // FIXME: segfault if user mode caused it
+        error!("INT: Page fault invalid address");
+        panic!();
+    };
 
     // debug!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
 

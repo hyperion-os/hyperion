@@ -30,11 +30,11 @@ impl Gdt {
         let mut inner = GlobalDescriptorTable::new();
 
         let selectors = SegmentSelectors {
-            kernel_code: inner.add_entry(Descriptor::kernel_code_segment()),
-            kernel_data: inner.add_entry(Descriptor::kernel_data_segment()),
-            user_data: inner.add_entry(Descriptor::user_data_segment()),
-            user_code: inner.add_entry(Descriptor::user_code_segment()),
-            tss: inner.add_entry(Descriptor::tss_segment(unsafe { &*tss.inner.get() })),
+            kernel_code: inner.append(Descriptor::kernel_code_segment()),
+            kernel_data: inner.append(Descriptor::kernel_data_segment()),
+            user_data: inner.append(Descriptor::user_data_segment()),
+            user_code: inner.append(Descriptor::user_code_segment()),
+            tss: inner.append(Descriptor::tss_segment(unsafe { &*tss.inner.get() })),
         };
 
         Self { inner, selectors }
