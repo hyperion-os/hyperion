@@ -4,7 +4,10 @@ extern crate alloc;
 
 //
 
-use hyperion_arch::{cpu::ints::PAGE_FAULT_HANDLER, vmm::HIGHER_HALF_DIRECT_MAPPING};
+use hyperion_arch::{
+    cpu::ints::PAGE_FAULT_HANDLER,
+    vmm::{PageMap, HIGHER_HALF_DIRECT_MAPPING},
+};
 use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use x86_64::VirtAddr;
 
@@ -23,6 +26,12 @@ pub fn init() {
 }
 
 fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaultResult {
+    if privilege == Privilege::Kernel && addr >= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
+        // modify the global kernel maps
+        // FIXME: lock the global pages when fixing page faults and mapping
+        PageMap::current().page_fault(VirtAddr::new(addr as u64), privilege)?;
+    }
+
     // hyperion_log::debug!("page fault ip={_ip:x} addr={addr:x}");
     let Some(active) = task::Task::take_active() else {
         return Ok(NotHandled);

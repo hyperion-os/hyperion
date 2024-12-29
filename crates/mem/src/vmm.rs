@@ -102,20 +102,23 @@ pub enum MapTarget {
 
     /// pages are allocated and mapped lazily
     LazyAlloc,
+
+    /// pages are set to guard mode
+    NeverMap,
 }
 
 impl MapTarget {
     pub fn inc_addr(&mut self, by: u64) {
         match self {
             MapTarget::Borrowed(a) | MapTarget::Preallocated(a) => *a += by,
-            MapTarget::LazyAlloc => {}
+            MapTarget::LazyAlloc | MapTarget::NeverMap => {}
         }
     }
 
     pub fn is_aligned(&self, to: u64) -> bool {
         match self {
             MapTarget::Borrowed(a) | MapTarget::Preallocated(a) => a.is_aligned(to),
-            MapTarget::LazyAlloc => true,
+            MapTarget::LazyAlloc | MapTarget::NeverMap => true,
         }
     }
 }
@@ -125,6 +128,7 @@ impl fmt::Display for MapTarget {
         match self {
             MapTarget::Borrowed(a) | MapTarget::Preallocated(a) => write!(f, "{a:#018x}"),
             MapTarget::LazyAlloc => write!(f, "<lazy-alloc>"),
+            MapTarget::NeverMap => write!(f, "<guard>"),
         }
     }
 }

@@ -11,13 +11,18 @@
 //! | `0x7FFD_FFFF_F000`      | ? (dynamic)  | `0x2_0000_0000` (8GiB)       | User environment                    |
 //! | `0x8000_0000_0000`      | -            | -                            | Non canonical addresses             |
 //! | `0xFFFF_8000_0000_0000` | `0x0`        | `0x7FFD_8000_0000` (~128TiB) | Higher half direct mapping          |
-//! | `0xFFFF_FFFD_8000_0000` | ? (dynamic)  | `0x2_0000_0000` (8GiB)       | Kernel stacks                       |
+//! | `0xFFFF_FFFD_8000_0000` | ? (dynamic)  | `0x2_0000_0000` (8GiB)       | Kernel stacks [^3]                  |
 //! | `0xFFFF_FFFF_8000_0000` | ? (dynamic)  | `0x7FFF_F000` (~2GiB)        | Kernel executable                   |
-//! | `0xFFFF_FFFF_FFFF_F000` | ? (dynamic)  | `0x1000` (1KiB)              | Current address space [^3]          |
+//! | `0xFFFF_FFFF_FFFF_F000` | ? (dynamic)  | `0x1000` (1KiB)              | Current address space [^4]          |
 //!
 //! [^1]: [`USER_HEAP_TOP`]
+//!
 //! [^2]: [`VIRT_STACK_SIZE_ALL`]
-//! [^3]: the address space manager is of type [`Arc<AddressSpace>`]
+//!
+//! [^3]: 256 x 32MiB kernel stacks where all of them are lazy allocated and with 1MiB of guard pages below them
+//! the 512 is a hard limit on how many CPUs x86_64 SMP supports (afaik), because APIC limits process ids to u8
+//!
+//! [^4]: the address space manager is of type [`Arc<AddressSpace>`]
 //!
 //! User and kernel stack spaces are split into stacks with the size of [`VIRT_STACK_SIZE`].
 //!
@@ -27,11 +32,13 @@
 
 use core::{
     arch::asm,
+    fmt,
     mem::ManuallyDrop,
     ops::Range,
     sync::atomic::{fence, Ordering},
 };
 
+use hyperion_cpu_id::{cpu_count, cpu_id};
 use hyperion_mem::{
     from_higher_half, is_higher_half,
     pmm::{self, PageFrame},
@@ -71,16 +78,57 @@ pub const COW: PageTableFlags = PageTableFlags::BIT_10;
 pub const OVERWRITEABLE: PageTableFlags = PageTableFlags::BIT_11;
 /// the page is allocated on first use using a page fault
 pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
+/// the page is a guard page
+pub const NEVER_MAP: PageTableFlags = PageTableFlags::BIT_53;
 
 //
 
-static HHDM_KERNEL_L4E: Once<(PageTableEntry, PageTableEntry, PageTableEntry)> = Once::new();
+static IDLE_MAP: Once<PageMap> = Once::new();
 
 //
+
+/// returns the private stack for this CPU
+pub fn get_stack() -> Range<VirtAddr> {
+    get_ap_stack(cpu_id())
+}
+
+/// returns the private stack for `i`th CPU
+pub fn get_ap_stack(cpu_id: usize) -> Range<VirtAddr> {
+    // each CPU has a stack in an array of 256 stacks
+    if cpu_id >= 256 {
+        panic!("cpu id above cpu count");
+    }
+
+    let bottom = VirtAddr::new(0xFFFF_FFFD_8000_0000 + cpu_id as u64 * 0x200_0000);
+    let top = bottom + 0x200_0000u64;
+
+    bottom..top
+}
 
 pub fn init() {
-    HHDM_KERNEL_L4E.call_once(|| {
+    // idle map is also the first page map that the kernel switches to,
+    // it is the first map with the new global kernel mappings
+
+    let idle_map = IDLE_MAP.call_once(|| {
         let boot_map = PageMap::current();
+        for i in 0..cpu_count() {
+            // FIXME: have every CPU do it for its own stack in parallel
+            // do a lazy map for every CPUs stack
+            let stack = get_ap_stack(i);
+            let guard_top = stack.start + 0x20_0000u64;
+            // map the 2MiB guard
+            boot_map.map(
+                stack.start..guard_top,
+                MapTarget::NeverMap,
+                PageTableFlags::NO_EXECUTE,
+            );
+            // map the actual 30MiB stack
+            boot_map.map(
+                guard_top..stack.end,
+                MapTarget::LazyAlloc,
+                PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+            );
+        }
         boot_map.debug();
         let inner = boot_map.inner.0.write();
 
@@ -124,8 +172,23 @@ pub fn init() {
             }
         }
 
-        (l4_256, l4_257, l4_511)
+        let info = MemoryInfo::zero();
+        let cr3 = alloc_table(&info);
+        let l4: &mut PageTable = unsafe { &mut *to_higher_half(cr3.start_address()).as_mut_ptr() };
+
+        l4.zero();
+        l4[256] = l4_256;
+        l4[257] = l4_257;
+        l4[511] = l4_511;
+
+        PageMap {
+            inner: ManuallyDrop::new(SafeRwLock::new(LockedPageMap { l4 })),
+            info,
+            owned: true,
+        }
     });
+
+    idle_map.activate();
 }
 
 fn v_addr_from_parts(
@@ -347,13 +410,14 @@ impl PageMapImpl for PageMap {
 
         l4.zero();
 
-        let (l4_256, l4_257, l4_511) = HHDM_KERNEL_L4E
+        let idle_map = IDLE_MAP
             .get()
             .expect("vmm::init should be called before PageMap::new")
-            .clone();
-        l4[256] = l4_256;
-        l4[257] = l4_257;
-        l4[511] = l4_511;
+            .inner
+            .read();
+        l4[256] = idle_map.l4[256].clone();
+        l4[257] = idle_map.l4[257].clone();
+        l4[511] = idle_map.l4[511].clone();
 
         Self {
             inner: ManuallyDrop::new(SafeRwLock::new(LockedPageMap { l4 })),
@@ -554,14 +618,33 @@ impl LockedPageMap {
         if hyperion_log::_is_enabled(hyperion_log::LogLevel::Trace) {
             hyperion_log::trace!("switching page maps to");
             self.debug();
+            hyperion_log::trace!("switching page maps from");
+            PageMap::current().debug();
         }
         unsafe { Cr3::write(cr3, Cr3Flags::empty()) };
     }
 
     fn debug(&self) {
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum Target {
+            Phys(PhysAddr),
+            Lazy,
+            Guard,
+        }
+
+        impl fmt::Display for Target {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                match self {
+                    Target::Phys(phys_addr) => write!(f, "{:#018x}", phys_addr.as_u64()),
+                    Target::Lazy => write!(f, "<lazy-alloc>"),
+                    Target::Guard => write!(f, "<guard>"),
+                }
+            }
+        }
+
         struct Current {
             base: VirtAddr,
-            target: PhysAddr,
+            target: Target,
             write: bool,
             exec: bool,
             user: bool,
@@ -569,9 +652,17 @@ impl LockedPageMap {
 
         impl Current {
             fn new(from: VirtAddr, entry: &PageTableEntry) -> Self {
+                let target = if entry.flags().contains(LAZY_ALLOC) {
+                    Target::Lazy
+                } else if entry.flags().contains(NEVER_MAP) {
+                    Target::Guard
+                } else {
+                    Target::Phys(entry.addr())
+                };
+
                 Self {
                     base: from,
-                    target: entry.addr(),
+                    target,
                     write: entry.flags().contains(PageTableFlags::WRITABLE),
                     exec: !entry.flags().contains(PageTableFlags::NO_EXECUTE),
                     user: entry.flags().contains(PageTableFlags::USER_ACCESSIBLE),
@@ -583,14 +674,20 @@ impl LockedPageMap {
                     return false;
                 }
 
-                if (self.base.as_u64() > self.target.as_u64())
-                    != (other.base.as_u64() > other.target.as_u64())
+                let (Target::Phys(self_target), Target::Phys(other_target)) =
+                    (self.target, other.target)
+                else {
+                    return self.target == other.target;
+                };
+
+                if (self.base.as_u64() > self_target.as_u64())
+                    != (other.base.as_u64() > other_target.as_u64())
                 {
                     return false;
                 }
 
-                self.base.as_u64().abs_diff(self.target.as_u64())
-                    == other.base.as_u64().abs_diff(other.target.as_u64())
+                self.base.as_u64().abs_diff(self_target.as_u64())
+                    == other.base.as_u64().abs_diff(other_target.as_u64())
             }
 
             fn print_range(&self, to: VirtAddr) {
@@ -598,13 +695,13 @@ impl LockedPageMap {
                 let _to = Page::<Size4KiB>::containing_address(to);
 
                 hyperion_log::println!(
-                    "{}R{}{} [ {:#018x}..{:#018x} ] => {:#018x} ({:?}..{:?})",
+                    "{}R{}{} [ {:#018x}..{:#018x} ] => {} ({:?}..{:?})",
                     if self.user { "U" } else { "-" },
                     if self.write { "W" } else { "-" },
                     if self.exec { "X" } else { "-" },
                     self.base.as_u64(),
                     to.as_u64(),
-                    self.target.as_u64(),
+                    self.target,
                     [
                         u16::from(_from.p4_index()),
                         u16::from(_from.p3_index()),
@@ -653,7 +750,11 @@ impl LockedPageMap {
                     Some(unsafe { &mut *to_higher_half(next.start_address()).as_mut_ptr() })
                 }
                 Err(FrameError::FrameNotPresent) => {
-                    missing(current, addr);
+                    if e.flags().intersection(LAZY_ALLOC | NEVER_MAP).is_empty() {
+                        missing(current, addr);
+                    } else {
+                        present(current, addr, e);
+                    }
                     None
                 }
                 Err(FrameError::HugeFrame) => {
@@ -854,6 +955,7 @@ impl LockedPageMap {
                 PhysFrame::<S>::from_start_address(to).map_err(|_| TryMapError::NotAligned)?;
             }
             MapTarget::LazyAlloc => {}
+            MapTarget::NeverMap => {}
         }
 
         Ok(())
@@ -898,6 +1000,10 @@ impl LockedPageMap {
             MapTarget::Borrowed(to) => (flags | PageTableFlags::PRESENT | NO_FREE, to),
             MapTarget::Preallocated(to) => (flags | PageTableFlags::PRESENT, to),
             MapTarget::LazyAlloc => (flags | LAZY_ALLOC, PhysAddr::new_truncate(0)),
+            MapTarget::NeverMap => (
+                PageTableFlags::NO_EXECUTE | NEVER_MAP,
+                PhysAddr::new_truncate(0),
+            ),
         };
 
         if old == new {
@@ -915,7 +1021,7 @@ impl LockedPageMap {
         info.add_virt(n_pages);
         if new.0.contains(NO_FREE) {
             debug_assert_ne!(new.1.as_u64(), 0);
-        } else if new.0.contains(LAZY_ALLOC) {
+        } else if new.0.contains(LAZY_ALLOC) || new.0.contains(NEVER_MAP) {
             debug_assert_eq!(new.1.as_u64(), 0);
         } else if new.0.contains(COW) || new.0.contains(PageTableFlags::PRESENT) {
             debug_assert_ne!(new.1.as_u64(), 0);

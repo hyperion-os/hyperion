@@ -12,7 +12,7 @@ use hyperion_syscall::{
     err::{Error, Result},
     id,
 };
-use x86_64::VirtAddr;
+use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
@@ -48,7 +48,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         // id::NANOSLEEP => {},
         // id::NANOSLEEP_UNTIL => {},
         // id::SPAWN => {},
-        // id::PALLOC => {},
+        id::PALLOC => palloc(args),
         // id::PFREE => {},
         // id::SEND => {},
         // id::RECV => {},
@@ -109,11 +109,13 @@ pub fn log(args: &mut SyscallRegs) {
     );
 }
 
+/// [`hyperion_syscall::exit`]
 pub fn exit(args: &mut SyscallRegs) {
     // FIXME: kill the whole process and stop other tasks in it using IPI
     *args = RunnableTask::next().set_active();
 }
 
+/// [`hyperion_syscall::done`]
 pub fn done(args: &mut SyscallRegs) {
     *args = RunnableTask::next().set_active();
 }
@@ -131,10 +133,26 @@ pub fn yield_now(args: &mut SyscallRegs) {
     current.ready();
 }
 
+/// [`hyperion_syscall::palloc`]
+pub fn palloc(args: &mut SyscallRegs) {
+    let n_pages = args.arg0 as usize;
+    let flags = PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
+
+    let result = Process::current()
+        .unwrap()
+        .alloc(n_pages, flags)
+        .map(|ptr| ptr.as_u64() as usize)
+        .map_err(|err| Error::OUT_OF_VIRTUAL_MEMORY);
+
+    set_result(args, result);
+}
+
+/// [`hyperion_syscall::get_pid`]
 pub fn get_pid(args: &mut SyscallRegs) {
     set_result(args, Ok(Process::current().unwrap().pid.num()));
 }
 
+/// [`hyperion_syscall::get_tid`]
 pub fn get_tid(args: &mut SyscallRegs) {
     set_result(args, Ok(Task::current().unwrap().tid.num()));
 }

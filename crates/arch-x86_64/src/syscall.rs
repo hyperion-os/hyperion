@@ -1,6 +1,5 @@
-use core::{arch::naked_asm, fmt, mem::offset_of, sync::atomic::Ordering};
+use core::{arch::naked_asm, fmt, sync::atomic::Ordering};
 
-use hyperion_mem::pmm;
 use x86_64::{
     registers::{
         model_specific::{Efer, EferFlags, KernelGsBase, LStar, SFMask, Star},
@@ -10,20 +9,17 @@ use x86_64::{
     VirtAddr,
 };
 
-use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage};
+use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage, vmm::get_stack};
 
 //
 
 /// init `syscall` and `sysret`
 pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
     let tls: &'static ThreadLocalStorage = unsafe { &*KernelGsBase::read().as_ptr() };
-    let kernel_syscall_stack = pmm::PFA.alloc(32).leak();
 
     // syscalls should use this task's stack to allow switching tasks from a syscall
-    tls.kernel_stack.store(
-        kernel_syscall_stack.as_mut_ptr_range().end,
-        Ordering::Release,
-    );
+    tls.kernel_stack
+        .store(get_stack().end.as_mut_ptr(), Ordering::Release);
 
     // IA32_STAR : 0xC0000081
     Star::write(
