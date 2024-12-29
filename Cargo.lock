@@ -168,7 +168,7 @@ checksum = "8f1fe948ff07f4bd06c30984e69f5b4899c516a3ef74f34df92a2df2ab535495"
 
 [[package]]
 name = "cargo-run"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clap",
 ]
@@ -277,7 +277,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "coreutils"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "hyperion-num-postfix",
@@ -364,7 +364,7 @@ dependencies = [
 
 [[package]]
 name = "fbtest"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "glam",
  "hyperion-color",
@@ -475,7 +475,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hyperion-abi"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "compiler_builtins",
  "hyperion-slab-alloc",
@@ -485,14 +485,14 @@ dependencies = [
 
 [[package]]
 name = "hyperion-arch"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-arch-x86_64",
 ]
 
 [[package]]
 name = "hyperion-arch-x86_64"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "crossbeam",
  "hyperion-boot",
@@ -507,7 +507,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-backtrace"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "elf",
  "hyperion-boot",
@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-boot"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-boot-limine",
  "hyperion-log",
@@ -529,11 +529,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-boot-interface"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "hyperion-boot-limine"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-boot-interface",
  "hyperion-log",
@@ -543,7 +543,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-clock"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "crossbeam",
  "spin",
@@ -551,11 +551,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-color"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "hyperion-cpu-id"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-boot",
  "x86_64",
@@ -563,11 +563,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-defer"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "hyperion-driver-acpi"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bit_field",
  "crossbeam",
@@ -588,7 +588,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-framebuffer"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-arch",
  "hyperion-framebuffer",
@@ -601,7 +601,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-pic"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-interrupts",
  "hyperion-log",
@@ -611,7 +611,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-ps2"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-driver-acpi",
  "hyperion-events",
@@ -622,7 +622,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-qemu"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "spin",
  "uart_16550",
@@ -631,7 +631,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-driver-rtc"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-log",
  "hyperion-macros",
@@ -643,7 +643,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-drivers"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-clock",
  "hyperion-driver-acpi",
@@ -660,14 +660,14 @@ dependencies = [
 
 [[package]]
 name = "hyperion-escape"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-color",
 ]
 
 [[package]]
 name = "hyperion-events"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.6.0",
  "event-listener",
@@ -683,7 +683,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-framebuffer"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-boot",
  "hyperion-boot-interface",
@@ -696,7 +696,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-futures"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "crossbeam-queue",
  "event-listener",
@@ -712,7 +712,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-instant"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-clock",
  "time",
@@ -720,7 +720,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-interrupts"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "crossbeam",
  "hyperion-macros",
@@ -728,7 +728,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-kernel"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "fbtest",
  "hyperion-arch",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-kernel-impl"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "arcstr",
  "hyperion-arch",
@@ -775,14 +775,14 @@ dependencies = [
 
 [[package]]
 name = "hyperion-kernel-info"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-macros",
 ]
 
 [[package]]
 name = "hyperion-kshell"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "coreutils",
@@ -809,7 +809,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-loader"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.6.0",
  "elf",
@@ -822,7 +822,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-log"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-escape",
  "spin",
@@ -830,7 +830,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-log-multi"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "crossbeam",
  "hyperion-boot",
@@ -842,7 +842,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-macros"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "proc-macro2",
@@ -852,7 +852,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-mem"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.6.0",
  "hyperion-boot",
@@ -866,11 +866,11 @@ dependencies = [
 
 [[package]]
 name = "hyperion-num-postfix"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "hyperion-pci"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-log",
  "x86_64",
@@ -878,7 +878,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-random"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "blake3",
  "hyperion-macros",
@@ -889,14 +889,14 @@ dependencies = [
 
 [[package]]
 name = "hyperion-ring"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "crossbeam",
 ]
 
 [[package]]
 name = "hyperion-scheduler"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "arcstr",
  "crossbeam",
@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-slab-alloc"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "compiler_builtins",
  "hyperion-log",
@@ -921,15 +921,15 @@ dependencies = [
 
 [[package]]
 name = "hyperion-static-str"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "hyperion-sync"
-version = "0.3.0"
+version = "0.4.0"
 
 [[package]]
 name = "hyperion-syscall"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.6.0",
  "compiler_builtins",
@@ -938,7 +938,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-vfs"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "async-trait",
  "hyperion-arch",
@@ -953,7 +953,7 @@ dependencies = [
 
 [[package]]
 name = "hyperion-windowing"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "crossbeam-channel",
  "hyperion-syscall",
@@ -963,7 +963,7 @@ dependencies = [
 
 [[package]]
 name = "hysh"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-escape",
  "hyperion-syscall",
@@ -1045,7 +1045,7 @@ checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
 
 [[package]]
 name = "libstd"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-slab-alloc",
  "hyperion-syscall",
@@ -1261,7 +1261,7 @@ checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
 name = "sample-elf"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "libstd",
 ]
@@ -1358,7 +1358,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "std-test"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "tracing",
  "tracing-subscriber",
@@ -1394,7 +1394,7 @@ dependencies = [
 
 [[package]]
 name = "term"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "hyperion-color",
  "hyperion-escape",
@@ -1641,7 +1641,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "wm"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitflags 2.6.0",
  "crossbeam-channel",
