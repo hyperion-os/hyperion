@@ -88,6 +88,12 @@ pub struct IntHandler {
 
 //
 
+impl Default for IntHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IntHandler {
     pub const fn new() -> Self {
         Self {

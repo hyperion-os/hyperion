@@ -58,7 +58,7 @@ pub fn cmd<'a>(args: impl Iterator<Item = &'a str>) -> Result<()> {
 
 struct Bytes<'a>(&'a [u8]);
 
-impl<'a> fmt::Display for Bytes<'a> {
+impl fmt::Display for Bytes<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for byte in self.0 {
             if byte.is_ascii() {

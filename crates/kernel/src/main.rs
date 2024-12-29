@@ -21,7 +21,6 @@ use hyperion_futures as futures;
 // use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_loader::Loader;
-use hyperion_log as log;
 use hyperion_log::*;
 use hyperion_log_multi as log_multi;
 use hyperion_random as random;
@@ -74,16 +73,14 @@ extern "C" fn _start() -> ! {
 
     if sync::once!() {
         futures::spawn(async move {
-            use hyperion_mem::vmm::PageMapImpl;
             let proc = scheduler::proc::Process::new();
-            // proc.address_space.activate();
             let tmptask = scheduler::task::RunnableTask::new_in(0, 0, proc.clone());
             tmptask.set_active();
 
             let bin = include_bytes!(env!("CARGO_BIN_FILE_SAMPLE_ELF"));
             let mut loader = Loader::new(bin, proc).unwrap();
 
-            loader.load();
+            loader.load().unwrap();
             loader.finish().unwrap().ready();
         });
         futures::spawn(async move {

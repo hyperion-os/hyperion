@@ -42,6 +42,12 @@ enum PicsState {
 
 //
 
+impl Default for Pics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Pics {
     pub const fn new() -> Self {
         let offs = 0x20;

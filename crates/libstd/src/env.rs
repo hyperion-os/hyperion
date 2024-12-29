@@ -1,6 +1,4 @@
-use core::{fmt, slice};
-
-use core_alloc::{string::String, vec::Vec};
+use core::slice;
 
 //
 
@@ -11,7 +9,8 @@ pub fn args() -> Args {
     }
 }
 
-pub(crate) unsafe fn init_args(hyperion_cli_args_ptr: usize) {
+// FIXME: init args again
+/* pub(crate) unsafe fn init_args(hyperion_cli_args_ptr: usize) {
     let stack_args = CliArgs {
         hyperion_cli_args_ptr,
     };
@@ -23,19 +22,13 @@ pub(crate) unsafe fn init_args(hyperion_cli_args_ptr: usize) {
         .leak();
 
     unsafe { ARGS = args };
-}
+} */
 
 //
 
 #[derive(Clone)]
 pub struct Args {
     top: slice::Iter<'static, &'static str>,
-}
-
-impl fmt::Debug for CliArgs {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_list().entries(self.iter()).finish()
-    }
 }
 
 impl Iterator for Args {
@@ -66,7 +59,7 @@ impl ExactSizeIterator for Args {
 
 static mut ARGS: &[&str] = &[];
 
-#[derive(Clone, Copy)]
+/* #[derive(Clone, Copy)]
 struct CliArgs {
     hyperion_cli_args_ptr: usize,
 }
@@ -94,3 +87,9 @@ impl CliArgs {
         v
     }
 }
+
+impl fmt::Debug for CliArgs {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
+} */

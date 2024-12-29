@@ -66,6 +66,12 @@ pub struct Condvar {
     futex: AtomicUsize,
 }
 
+impl Default for Condvar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Condvar {
     #[inline]
     #[must_use]

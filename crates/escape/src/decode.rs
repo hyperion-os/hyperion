@@ -131,6 +131,12 @@ impl EscapeDecoder {
     }
 }
 
+impl Default for EscapeDecoder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 //
 
 // longest supported: "\x1B[48;2;255;255;255m"

@@ -3,7 +3,6 @@ use core::mem;
 use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
 use hyperion_futures::mpmc::Channel;
 use hyperion_log::*;
-use hyperion_mem::vmm::PageMapImpl;
 use hyperion_scheduler::{
     proc::Process,
     task::{RunnableTask, Task},
@@ -142,7 +141,7 @@ pub fn palloc(args: &mut SyscallRegs) {
         .unwrap()
         .alloc(n_pages, flags)
         .map(|ptr| ptr.as_u64() as usize)
-        .map_err(|err| Error::OUT_OF_VIRTUAL_MEMORY);
+        .map_err(|_| Error::OUT_OF_VIRTUAL_MEMORY);
 
     set_result(args, result);
 }

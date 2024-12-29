@@ -67,7 +67,7 @@ fn run_line(line: &str) {
 fn immediate() {
     let cmd = args().skip(2).fold(String::new(), |mut acc, s| {
         acc.push_str(s.as_str());
-        acc.push_str(" ");
+        acc.push(' ');
         acc
     });
     run_line(&cmd);

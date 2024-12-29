@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(slice_as_chunks, const_option)]
+#![feature(slice_as_chunks)]
 
 //
 

@@ -52,7 +52,7 @@ pub struct Recv<'a, T> {
     slow: Option<RecvSlow>,
 }
 
-impl<'a, T: Debug> Future for Recv<'a, T> {
+impl<T: Debug> Future for Recv<'_, T> {
     type Output = T;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {

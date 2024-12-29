@@ -22,6 +22,12 @@ pub struct SlabAllocatorStats {
     pub allocated: AtomicUsize,
 }
 
+impl Default for SlabAllocatorStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SlabAllocatorStats {
     pub const fn new() -> Self {
         Self {

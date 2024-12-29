@@ -1,10 +1,5 @@
 #![no_std]
-#![feature(
-    inline_const,
-    new_uninit,
-    maybe_uninit_uninit_array,
-    maybe_uninit_array_assume_init
-)]
+#![feature(maybe_uninit_uninit_array, maybe_uninit_array_assume_init)]
 
 //
 
@@ -351,6 +346,12 @@ pub type StaticRingBuf<T, const N: usize> = RingBuf<T, Static<T, N>>;
 
 pub struct Static<T, const N: usize>([UnsafeCell<MaybeUninit<T>>; N]);
 
+impl<T, const N: usize> Default for Static<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const N: usize> Static<T, N> {
     #[must_use]
     pub const fn new() -> Self {
@@ -468,6 +469,12 @@ impl<T, C> RingBuf<T, C> {
             items,
             _p: PhantomData,
         }
+    }
+}
+
+impl<T, const N: usize> Default for RingBuf<T, Static<T, N>> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

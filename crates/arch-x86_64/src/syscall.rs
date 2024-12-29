@@ -49,6 +49,7 @@ pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
 
 //
 
+#[allow(dead_code)] // not dead code, its just not directly used
 #[derive(Clone)]
 pub struct FxRegs([u32; 128]);
 

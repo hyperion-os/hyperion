@@ -192,6 +192,12 @@ pub struct OpenOptions {
     flags: FileOpenFlags,
 }
 
+impl Default for OpenOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OpenOptions {
     #[must_use]
     pub const fn new() -> Self {

@@ -4,14 +4,11 @@
 //
 
 use alloc::{boxed::Box, collections::BTreeMap, sync::Arc};
-use core::{future::Future, ops::Deref, pin::Pin};
+use core::ops::Deref;
 
 use async_trait::async_trait;
 use hyperion_futures::lock::Mutex;
-use hyperion_syscall::{
-    err::{Error, Result},
-    fs::FileOpenFlags,
-};
+use hyperion_syscall::err::{Error, Result};
 
 //
 
@@ -42,10 +39,10 @@ pub async fn get(path: &str) -> Result<Ref<Node>> {
 
     match &*device {
         Node::Directory(dir) => {
-            let dev = &*dir.device.as_ref().unwrap();
+            let dev = dir.device.as_ref().unwrap();
             dev.get(relative_target_path).await
         }
-        Node::File(file) => Err(Error::NOT_A_DIRECTORY),
+        Node::File(_) => Err(Error::NOT_A_DIRECTORY),
     }
 }
 
@@ -76,7 +73,7 @@ pub async fn mount_device(mut path: &str, dev: Ref<Node>) -> Result<()> {
 
     let mut parts = path.split('/');
     // split always returns at least one element
-    let mut last_part = parts.next_back().unwrap_or(path);
+    let last_part = parts.next_back().unwrap_or(path);
     let mut current_node = ROOT.lock().await.clone();
 
     // travel through everything except the last one
@@ -166,7 +163,7 @@ pub async fn find_mounted_device(path: &str) -> Result<FindMountedDevice> {
 
                 let nodes = dir.mounts.nodes.lock().await;
 
-                let Some(next_mount_point) = nodes.get("part").cloned() else {
+                let Some(next_mount_point) = nodes.get(part).cloned() else {
                     break;
                 };
 
@@ -178,8 +175,8 @@ pub async fn find_mounted_device(path: &str) -> Result<FindMountedDevice> {
     }
 
     Ok(FindMountedDevice {
-        device: current_node,
-        relative_target_path: leftover,
+        device: last_real_mount,
+        relative_target_path: last_real_leftover,
     })
 }
 
@@ -212,7 +209,7 @@ impl Node {
     }
 
     pub const fn new_file(dev: Ref<dyn FileDevice + Send + Sync>) -> Self {
-        Self::File(FileNode { device: dev })
+        Self::File(FileNode { _device: dev })
     }
 }
 
@@ -228,7 +225,7 @@ pub struct DirectoryNode {
 }
 
 pub struct FileNode {
-    device: Ref<dyn FileDevice + Send + Sync>,
+    _device: Ref<dyn FileDevice + Send + Sync>,
 }
 
 pub struct Mounts {
@@ -243,9 +240,16 @@ impl Mounts {
     }
 }
 
+impl Default for Mounts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 pub trait DirectoryDevice {
     async fn get(&self, device_relative_path: &str) -> Result<Ref<Node>> {
+        _ = device_relative_path;
         Err(Error::PERMISSION_DENIED)
     }
 }

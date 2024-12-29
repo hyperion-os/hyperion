@@ -1,9 +1,12 @@
 //! Slab allocator
 //!
 //! - Allocates pages from [`PageFrameAllocator`].
+//!
 //! - Splits pages into blocks with predefined sizes and builds a linked list using them.
+//!
 //! - [`SlabAllocator::alloc`] gives the smallest of these blocks that is larger than the asked size.
-//! The alignment is at least the same as the asked size. (up to 4KiB)
+//!   The alignment is at least the same as the asked size. (up to 4KiB)
+//!
 //! - Bigger allocations waste one page of memory to keep track of the allocation metadata.
 //!
 //! Note: the current implementation doesn't ever free the pages
