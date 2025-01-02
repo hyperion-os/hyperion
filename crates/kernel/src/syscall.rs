@@ -1,7 +1,8 @@
-use core::mem;
+use alloc::{boxed::Box, string::String, vec::Vec};
+use core::{any::Any, mem};
 
 use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
-use hyperion_futures::mpmc::Channel;
+use hyperion_futures::{lock::Mutex, mpmc::Channel};
 use hyperion_log::*;
 use hyperion_scheduler::{
     proc::Process,
@@ -11,33 +12,18 @@ use hyperion_syscall::{
     err::{Error, Result},
     id,
 };
+use hyperion_vfs::{tmpfs::TmpFs, OpenOptions};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
 pub static TASKS: Channel<SyscallRegs> = Channel::new();
 
+// pub static VFS_INIT: hyperion_futures::mpmc
+
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
-    // process syscall args
-
-    // // dispatch / run the syscall
-
-    // let task = RunnableTask::active(*args);
-
-    // hyperion_futures::spawn(async move {
-    //     hyperion_futures::timer::sleep(Duration::milliseconds(100)).await;
-    //     task.ready();
-    // });
-
-    // // block on syscall futures
-
-    // *args = RunnableTask::next().set_active();
-    // return;
-
-    // // return to the same or another task
-
     match args.syscall_id as usize {
         id::LOG => log(args),
         id::EXIT => exit(args),
@@ -52,11 +38,11 @@ pub fn syscall(args: &mut SyscallRegs) {
         // id::SEND => {},
         // id::RECV => {},
         // id::RENAME => {},
-
-        // id::OPEN => {},
-        // id::CLOSE => {},
-        // id::READ => {},
-        // id::WRITE => {},
+        //
+        id::OPEN => open(args),
+        id::CLOSE => close(args),
+        id::READ => read(args),
+        id::WRITE => write(args),
 
         // id::SOCKET => {},
         // id::BIND => {},
@@ -146,6 +132,82 @@ pub fn palloc(args: &mut SyscallRegs) {
     set_result(args, result);
 }
 
+/// [`hyperion_syscall::open`]
+pub fn open(args: &mut SyscallRegs) {
+    let ptr = args.arg0;
+    let len = args.arg1;
+    let _flags = args.arg2;
+    let _mode = args.arg3;
+
+    // hyperion_vfs::mount("/", TmpFs::new()).await.unwrap();
+
+    let err: Result<()> = try {
+        if len >= 0x1000 {
+            Err(Error::INVALID_ARGUMENT)?;
+        }
+
+        let path: Box<str> = String::from_utf8(read_untrusted_bytes(ptr, len)?.into())
+            .map_err(|_| Error::INVALID_UTF8)?
+            .into();
+
+        let mut task = RunnableTask::active(args.clone());
+
+        hyperion_futures::spawn(async move {
+            let file = hyperion_vfs::get(path.as_ref(), OpenOptions::new()).await;
+
+            task.ready();
+        });
+    };
+
+    if let Err(err) = err {
+        set_result(args, Err(Error::UNIMPLEMENTED));
+        return;
+    }
+
+    *args = RunnableTask::next().set_active();
+}
+
+/// [`hyperion_syscall::close`]
+pub fn close(args: &mut SyscallRegs) {
+    set_result(args, Err(Error::UNIMPLEMENTED));
+}
+
+/// [`hyperion_syscall::read`]
+pub fn read(args: &mut SyscallRegs) {
+    set_result(args, Err(Error::UNIMPLEMENTED));
+}
+
+/// [`hyperion_syscall::write`]
+pub fn write(args: &mut SyscallRegs) {
+    let fd = args.arg0;
+    let ptr = args.arg1;
+    let len = args.arg2;
+
+    // let mut prev = RunnableTask::active(args.clone());
+
+    // let proc = Process::current().unwrap();
+    // hyperion_futures::spawn(async move {
+    //     let ext = process_ext(&proc);
+    //     let fds = ext.fds.lock().await;
+
+    //     try {
+    //         let fd = fds.get(fd as usize).ok_or(Error::BAD_FILE_DESCRIPTOR)?;
+    //         let locked_fd = fd.lock().await;
+    //     }
+
+    //     prev.ready();
+    // });
+
+    set_result(
+        args,
+        try {
+            let bytes = read_untrusted_bytes(ptr, len)?;
+            Err(Error::UNIMPLEMENTED)?;
+            0
+        },
+    );
+}
+
 /// [`hyperion_syscall::get_pid`]
 pub fn get_pid(args: &mut SyscallRegs) {
     set_result(args, Ok(Process::current().unwrap().pid.num()));
@@ -157,6 +219,100 @@ pub fn get_tid(args: &mut SyscallRegs) {
 }
 
 //
+
+#[derive(Clone)]
+pub struct SparseVec<T> {
+    inner: Vec<Option<T>>,
+    // TODO:
+    // first_free: usize,
+    // free_count: usize,
+}
+
+impl<T> SparseVec<T> {
+    pub const fn new() -> Self {
+        Self { inner: Vec::new() }
+    }
+
+    pub fn get(&self, index: usize) -> Option<&T> {
+        self.inner.get(index).and_then(Option::as_ref)
+    }
+
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.inner.get_mut(index).and_then(Option::as_mut)
+    }
+
+    pub fn push(&mut self, v: T) -> usize {
+        let index;
+        if let Some((_index, spot)) = self
+            .inner
+            .iter_mut()
+            .enumerate()
+            .find(|(_, spot)| spot.is_none())
+        {
+            index = _index;
+            *spot = Some(v);
+        } else {
+            index = self.inner.len();
+            self.inner.push(Some(v));
+        }
+
+        index
+    }
+
+    pub fn remove(&mut self, index: usize) -> Option<T> {
+        self.inner.get_mut(index).and_then(Option::take)
+    }
+
+    pub fn replace(&mut self, index: usize, v: T) -> Option<T> {
+        // TODO: max file descriptor,
+        // the user app can simply use a fd of 100000000000000 to crash the kernel
+        self.inner
+            .resize_with(self.inner.len().max(index + 1), || None);
+
+        let slot = self.inner.get_mut(index).unwrap();
+
+        let old = slot.take();
+        *slot = Some(v);
+        old
+    }
+}
+
+impl<T> Default for SparseVec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+//
+
+#[derive(Default)]
+struct ProcessExt {
+    fds: Mutex<SparseVec<Mutex<()>>>,
+}
+
+impl hyperion_scheduler::proc::ProcessExt for ProcessExt {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn close(&self) {}
+}
+
+//
+
+pub fn process_ext(proc: &Process) -> &ProcessExt {
+    proc.ext
+        .call_once(|| Box::new(ProcessExt::default()))
+        .as_any()
+        .downcast_ref()
+        .unwrap()
+}
+
+// pub async fn fd_insert(fd: usize) {
+//     let fds = process_ext().fds.lock().await;
+
+//     fds.replace(fd, FileDescriptor {});
+// }
 
 pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
     if len == 0 {

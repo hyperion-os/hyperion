@@ -60,6 +60,10 @@ impl_error! {
     pub const IS_A_PIPE: "file descriptor is a pipe/socket" = 24;
     pub const NOT_A_SOCKET: "file descriptor is not a socket" = 25;
 
+    pub const UNIMPLEMENTED: "unimplemented" = 26;
+
+    pub const INVALID_PATH: "invalid path" = 27;
+
     pub const _: "unknown error" = _;
 }
 

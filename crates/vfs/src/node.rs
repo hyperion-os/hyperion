@@ -1,216 +1,159 @@
-use crate::FileRef;
+use alloc::{boxed::Box, collections::btree_map::BTreeMap, sync::Arc};
+use core::{fmt, ops::Deref, ptr::NonNull};
+
+use async_trait::async_trait;
+use hyperion_futures::lock::Mutex;
+use hyperion_syscall::err::{Error, Result};
 
 //
 
+#[derive(Clone)]
 pub enum Node {
-    /// a normal file, like `/etc/fstab`
-    ///
-    /// or
-    ///
-    /// a device mapped to a file, like `/dev/fb0`
-    File(FileRef),
-
-    /// a directory with 0 or more files, like `/home/`
-    ///
-    /// or
-    ///
-    /// a device mapped to a directory, like `/https/archlinux/org/`
-    ///
-    /// mountpoints are also directory devices
-    ///
-    /// directory devices may be unlistable, because it's insensible to list every website there
-    /// is
-    ///
-    /// a directory device most likely contains more directory devices, like `/https/archlinux/org`
-    /// inside `/https/archlinux/`
-    Directory(DirRef),
+    File(Ref<FileNode>),
+    Dir(Ref<DirNode>),
 }
 
 impl Node {
-    pub const fn try_as_file(&self) -> IoResult<FileRef> {
+    pub const fn as_dir(&self) -> Option<&Ref<DirNode>> {
         match self {
-            Node::File(f) => Ok(f.clone()),
-            Node::Directory(_) => Err(IoError::IsADirectory),
+            Node::Dir(dir_node) => Some(dir_node),
+            _ => None,
         }
     }
 
-    pub const fn try_as_dir(&self) -> IoResult<DirRef> {
+    pub fn to_dir(self) -> Option<Ref<DirNode>> {
         match self {
-            Node::File(_) => Err(IoError::NotADirectory),
-            Node::Directory(d) => Ok(d.clone()),
+            Node::Dir(dir_node) => Some(dir_node),
+            _ => None,
         }
     }
-}
 
-impl fmt::Debug for Node {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    pub const fn as_file(&self) -> Option<&Ref<FileNode>> {
         match self {
-            Node::File(v) => f.debug_tuple("File").field(&v.lock().driver()).finish(),
-            Node::Directory(v) => f
-                .debug_tuple("Directory")
-                .field(&v.lock().driver())
-                .finish(),
+            Node::File(file_node) => Some(file_node),
+            _ => None,
         }
     }
-}
 
-impl Clone for Node {
-    fn clone(&self) -> Self {
+    pub fn to_file(self) -> Option<Ref<FileNode>> {
         match self {
-            Node::File(v) => Node::File(v.clone()),
-            Node::Directory(v) => Node::Directory(v.clone()),
+            Node::File(file_node) => Some(file_node),
+            _ => None,
         }
     }
 }
 
 //
 
-impl Node {
-    pub fn new_root() -> Self {
-        Node::Directory(Directory::new_ref(""))
+pub struct FileNode {
+    // all normal inode info here: create date, modify date, ...
+
+    // TODO: maybe a link to the driver and then some inode ID,
+    // instead of every file having its own allocation
+    pub driver: Mutex<Ref<dyn FileDriver>>,
+}
+
+impl FileNode {}
+
+pub trait FileDriver: Send + Sync {}
+
+//
+
+pub struct DirNode {
+    pub nodes: Mutex<BTreeMap<Arc<str>, Node>>,
+
+    // TODO: same todo as `FileNode::driver`
+    pub driver: Mutex<Ref<dyn DirDriver>>,
+}
+
+#[async_trait]
+pub trait DirDriver: Send + Sync {
+    /// get a sub-directory or file in this directory as a cache Node
+    async fn get(&self, name: &str) -> Result<(Node, CacheAllowed)> {
+        _ = name;
+        Err(Error::NOT_FOUND)
     }
 
-    pub fn new_file(f: impl FileDevice + 'static) -> Self {
-        Self::File(Arc::new(Mutex::new(f)))
+    /// create a new sub-directory in this directory and return a cache Node
+    async fn create_dir(&self, name: &str) -> Result<(Node, CacheAllowed)> {
+        _ = name;
+        Err(Error::PERMISSION_DENIED)
     }
 
-    pub fn new_dir(f: impl DirectoryDevice + 'static) -> Self {
-        Self::Directory(Arc::new(Mutex::new(f)))
+    /// create a new file in this directory and return a cache Node
+    async fn create_file(&self, name: &str) -> Result<(Node, CacheAllowed)> {
+        _ = name;
+        Err(Error::PERMISSION_DENIED)
+    }
+}
+
+//
+
+pub type CacheAllowed = bool;
+
+//
+
+pub struct Ref<T: ?Sized, U: ?Sized = T> {
+    ptr: NonNull<T>,
+    arc: Option<Arc<U>>,
+}
+
+unsafe impl<T: ?Sized + Sync + Send, U: ?Sized + Sync + Send> Send for Ref<T, U> {}
+unsafe impl<T: ?Sized + Sync + Send, U: ?Sized + Sync + Send> Sync for Ref<T, U> {}
+
+// impl<S: ?Sized, T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<Ref<S, U>> for Ref<S, T> {}
+// impl<S: ?Sized, T: ?Sized + Unsize<U>, U: ?Sized> CoerceUnsized<Ref<U, S>> for Ref<T, S> {}
+
+impl<T: ?Sized, U: ?Sized> Ref<T, U> {
+    pub fn map<V, F: for<'a> FnOnce(&'a T) -> &'a V>(self, f: F) -> Ref<V, U> {
+        let new_ptr = f(self.deref());
+        // SAFETY: a ref cannot be null, the lifetime is the same as the original
+        let ptr = unsafe { NonNull::new_unchecked(new_ptr as *const _ as _) };
+        Ref { ptr, arc: self.arc }
+    }
+}
+
+impl<T> Ref<T, T> {
+    pub fn new(val: T) -> Self {
+        Self::from_arc(Arc::new(val))
+    }
+}
+
+impl<T: ?Sized> Ref<T, T> {
+    pub const fn new_static(val: &'static T) -> Self {
+        // SAFETY: a ref cannot be null
+        let ptr = unsafe { NonNull::new_unchecked(val as *const _ as _) };
+        Self { ptr, arc: None }
     }
 
-    pub fn find(&self, path: impl AsRef<Path>, make_dirs: bool) -> IoResult<Self> {
-        let mut this = self.clone();
-        for part in path.as_ref().iter() {
-            let mut dir = this.try_as_dir()?.lock_arc();
-
-            // TODO: only Node::Directory should be cloned
-
-            this = if let Ok(node) = dir.get_node(part) {
-                node
-            } else if make_dirs {
-                let node = Self::Directory(Directory::new_ref(part));
-                dir.create_node(part, node.clone())?;
-                node
-            } else {
-                return Err(IoError::NotFound);
-            };
-        }
-
-        Ok(this)
+    pub fn from_arc(val: Arc<T>) -> Self {
+        // SAFETY: a ref cannot be null, `ptr` is valid as long as `arc` is
+        let ptr = unsafe { NonNull::new_unchecked(Arc::as_ptr(&val) as _) };
+        let arc = Some(val);
+        Self { ptr, arc }
     }
+}
 
-    pub fn find_dir(
-        &self,
-        path: impl AsRef<Path>,
-        make_dirs: bool,
-        create: bool,
-    ) -> IoResult<DirRef> {
-        let path = path.as_ref();
-        let (parent, target_dir) = path.split();
+impl<T: ?Sized, U: ?Sized> Deref for Ref<T, U> {
+    type Target = T;
 
-        if path.is_root() {
-            return self.try_as_dir();
-        }
-
-        let parent = self.find(parent, make_dirs)?.try_as_dir()?;
-
-        if target_dir.is_empty() {
-            return Ok(parent);
-        }
-
-        let mut parent = parent.lock();
-
-        // existing dir
-        if let Ok(found) = parent.get_node(target_dir) {
-            return found.try_as_dir();
-        }
-
-        // new file
-        if create {
-            let node = Directory::new_ref(target_dir);
-            parent.create_node(target_dir, Node::Directory(node.clone()))?;
-            return Ok(node);
-        }
-
-        Err(IoError::NotFound)
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: the pointer is either to a &'static T, or the data inside an Arc that is currently held
+        unsafe { self.ptr.as_ref() }
     }
+}
 
-    pub fn find_file(
-        &self,
-        path: impl AsRef<Path>,
-        make_dirs: bool,
-        create: bool,
-    ) -> IoResult<FileRef> {
-        let path = path.as_ref();
-        let (parent, file) = path.split();
-
-        let mut parent = self.find(parent, make_dirs)?.try_as_dir()?;
-
-        // existing file
-        if let Ok(found) = parent.get_node(file) {
-            return found.try_as_file();
-        }
-
-        // new file
-        if create {
-            let node = File::new_empty();
-            parent.create_node(file, Node::File(node.clone()))?;
-            return Ok(node);
-        }
-
-        Err(IoError::NotFound)
-    }
-
-    pub fn install_dev_with(&self, path: impl AsRef<Path>, dev: impl FileDevice + 'static) {
-        self.install_dev_ref(path, Arc::new(dev) as _);
-    }
-
-    pub fn insert_file(
-        &self,
-        path: impl AsRef<Path>,
-        make_dirs: bool,
-        dev: FileRef,
-    ) -> IoResult<()> {
-        self.insert(path, make_dirs, Node::File(dev))
-    }
-
-    pub fn insert_dir(&self, path: impl AsRef<Path>, make_dirs: bool, dev: DirRef) -> IoResult<()> {
-        self.insert(path, make_dirs, Node::Directory(dev))
-    }
-
-    pub fn insert(&self, path: impl AsRef<Path>, make_dirs: bool, node: Node) -> IoResult<()> {
-        let path = path.as_ref();
-        let (parent_dir, target_name) = path.split();
-
-        self.find_dir(parent_dir, make_dirs, true)?
-            .create_node(target_name, node)
-    }
-
-    pub fn mount(&self, path: impl AsRef<Path>, dev: impl DirectoryDevice + 'static) {
-        self.mount_ref(path, Arc::new(dev))
-    }
-
-    pub fn mount_ref(&self, path: impl AsRef<Path>, dev: DirRef) {
-        let path = path.as_ref();
-        trace!("mounting VFS device at {path:?}");
-        if let Err(err) = self.insert_dir(path, true, dev) {
-            error!("failed to mount VFS device at {path:?} : {err:?}");
+impl<T: ?Sized, U: ?Sized> Clone for Ref<T, U> {
+    fn clone(&self) -> Self {
+        Self {
+            ptr: self.ptr,
+            arc: self.arc.clone(),
         }
     }
+}
 
-    pub fn install_dev(&self, path: impl AsRef<Path>, dev: impl FileDevice + 'static) {
-        self.install_dev_ref(path, Arc::new(dev) as _);
+impl<T: ?Sized + fmt::Debug, U: ?Sized> fmt::Debug for Ref<T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.deref().fmt(f)
     }
-
-    pub fn install_dev_ref(&self, path: impl AsRef<Path>, dev: FileRef) {
-        let path = path.as_ref();
-        trace!("installing VFS device at {path:?}");
-        if let Err(err) = self.insert_file(path, true, dev) {
-            error!("failed to install VFS device at {path:?} : {err:?}");
-        }
-    }
-
-    /* fn create_node(path: impl AsRef<Path>, make_dirs: bool, node: Node) -> IoResult<()> {
-        create_node_with(Node::Directory(ROOT.clone()), path, make_dirs, node)
-    } */
 }

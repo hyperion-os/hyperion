@@ -1,5 +1,9 @@
-use alloc::sync::Arc;
-use core::{cell::Cell, fmt, sync::atomic::Ordering};
+use alloc::{boxed::Box, sync::Arc};
+use core::{
+    cell::{Ref, RefCell, RefMut},
+    fmt,
+    sync::atomic::Ordering,
+};
 
 use hyperion_arch::syscall::SyscallRegs;
 use hyperion_cpu_id::{cpu_id, Tls};
@@ -17,13 +21,13 @@ pub static CPU: Lazy<Tls<Cpu>> = Lazy::new(Tls::default);
 //
 
 pub struct Cpu {
-    pub active: Cell<Option<Arc<Task>>>,
+    pub active: RefCell<Option<Box<Task>>>,
 }
 
 impl Cpu {
     pub const fn new() -> Self {
         Self {
-            active: Cell::new(None),
+            active: RefCell::new(None),
         }
     }
 }
@@ -38,7 +42,7 @@ impl Default for Cpu {
 
 pub struct RunnableTask {
     pub trap: SyscallRegs,
-    pub task: Arc<Task>,
+    pub task: Box<Task>,
 }
 
 impl RunnableTask {
@@ -56,7 +60,7 @@ impl RunnableTask {
 
         let trap = SyscallRegs::new(ip, sp);
         let tid = process.next_tid();
-        let task = Arc::new(Task { tid, process });
+        let task = Box::new(Task { tid, process });
         Self { trap, task }
     }
 
@@ -113,18 +117,20 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn take_active() -> Option<Arc<Self>> {
+    pub fn take_active() -> Option<Box<Self>> {
         CPU.active.take()
     }
 
-    pub fn set_active(self: Arc<Self>) {
-        CPU.active.set(Some(self));
+    pub fn set_active(self: Box<Self>) {
+        _ = CPU.active.replace(Some(self));
     }
 
-    pub fn current() -> Option<Arc<Self>> {
-        let active = Self::take_active()?;
-        Self::set_active(active.clone());
-        Some(active)
+    pub fn current() -> Option<Ref<'static, Self>> {
+        Ref::filter_map(CPU.active.borrow(), |s| s.as_deref()).ok()
+    }
+
+    pub fn current_mut() -> Option<RefMut<'static, Self>> {
+        RefMut::filter_map(CPU.active.borrow_mut(), |s| s.as_deref_mut()).ok()
     }
 
     /* pub fn init_tls(&self) {

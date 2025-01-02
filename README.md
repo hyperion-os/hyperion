@@ -106,6 +106,10 @@ A work in progress window manager + user space shell:
 
  - [hyperion-doom](https://github.com/xor-bits/hyperion-doom): Doom ported to hyperion
 
+## TODOs:
+
+ - undo splitting kernel core components
+
 ## Font
 
 The font used contains the first 256 bitmap glyphs from [GNU Unifont](http://unifoundry.com/)

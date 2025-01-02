@@ -148,6 +148,11 @@ pub fn main() -> Result<()> {
 
     libstd::sys::log!("hello world");
 
+    libstd::fs::OpenOptions::new()
+        .read(true)
+        .open("/dev/null")
+        .unwrap();
+
     let value = get_pid();
     println!("PID:{} TID:{}", get_pid(), get_tid());
 

@@ -52,6 +52,7 @@ pub struct Process {
     /// and the $fs segment register should be set to point to it
     // pub master_tls: Once<(VirtAddr, Layout)>,
 
+    // FIXME: static type instead of this Box dyn
     /// extra process info added by the kernel (like file descriptors)
     pub ext: Once<Box<dyn ProcessExt + 'static>>,
     // /// exit code if the process already exit

@@ -28,11 +28,7 @@ use hyperion_syscall::{
     fs::{FileDesc, Seek},
     net::{Protocol, SocketDomain, SocketType},
 };
-use hyperion_vfs::{
-    device::FileDevice,
-    error::IoError,
-    tree::{FileRef, Node},
-};
+use hyperion_vfs::FileNode;
 use spin::{Lazy, Once};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -42,71 +38,6 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 // mod sysfs;
 
 //
-
-pub static VFS_ROOT: Lazy<Node<spin::Mutex<()>>> = Lazy::new(|| {
-    let root = Node::new_root();
-
-    // procfs::init(root.clone());
-    // sysfs::init(root.clone());
-
-    root
-});
-
-//
-
-#[derive(Clone)]
-pub struct SparseVec<T> {
-    inner: Vec<Option<T>>,
-}
-
-impl<T> SparseVec<T> {
-    pub const fn new() -> Self {
-        Self { inner: Vec::new() }
-    }
-
-    pub fn get(&self, index: usize) -> Option<&T> {
-        self.inner.get(index).and_then(Option::as_ref)
-    }
-
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.inner.get_mut(index).and_then(Option::as_mut)
-    }
-
-    pub fn push(&mut self, v: T) -> usize {
-        let index;
-        if let Some((_index, spot)) = self
-            .inner
-            .iter_mut()
-            .enumerate()
-            .find(|(_, spot)| spot.is_none())
-        {
-            index = _index;
-            *spot = Some(v);
-        } else {
-            index = self.inner.len();
-            self.inner.push(Some(v));
-        }
-
-        index
-    }
-
-    pub fn remove(&mut self, index: usize) -> Option<T> {
-        self.inner.get_mut(index).and_then(Option::take)
-    }
-
-    pub fn replace(&mut self, index: usize, v: T) -> Option<T> {
-        // TODO: max file descriptor,
-        // the user app can simply use a fd of 100000000000000 to crash the kernel
-        self.inner
-            .resize_with(self.inner.len().max(index + 1), || None);
-
-        let slot = self.inner.get_mut(index).unwrap();
-
-        let old = slot.take();
-        *slot = Some(v);
-        old
-    }
-}
 
 //
 
@@ -156,7 +87,7 @@ pub trait FileDescriptor: Send + Sync {
 /// file descriptor backend that points to an opened VFS file
 pub struct FileDescData {
     /// VFS node
-    pub file_ref: FileRef<spin::Mutex<()>>,
+    pub file_ref: FileNode,
 
     /// the current read/write offset
     pub position: AtomicUsize,

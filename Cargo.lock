@@ -936,6 +936,7 @@ dependencies = [
  "hyperion-syscall",
  "lock_api",
  "snafu",
+ "spin",
  "x86_64",
 ]
 
