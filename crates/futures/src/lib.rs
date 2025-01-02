@@ -7,6 +7,7 @@ extern crate alloc;
 //
 
 pub mod keyboard;
+pub mod lazy;
 pub mod lock;
 pub mod mouse;
 pub mod mpmc;
