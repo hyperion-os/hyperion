@@ -1,8 +1,12 @@
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{any::Any, mem};
 
 use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
-use hyperion_futures::{lock::Mutex, mpmc::Channel};
+use hyperion_futures::{
+    lazy::{Lazy, Once},
+    lock::Mutex,
+    mpmc::Channel,
+};
 use hyperion_log::*;
 use hyperion_scheduler::{
     proc::Process,
@@ -12,14 +16,12 @@ use hyperion_syscall::{
     err::{Error, Result},
     id,
 };
-use hyperion_vfs::{tmpfs::TmpFs, OpenOptions};
+use hyperion_vfs::{node::Ref, tmpfs::TmpFs, OpenOptions};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
 pub static TASKS: Channel<SyscallRegs> = Channel::new();
-
-// pub static VFS_INIT: hyperion_futures::mpmc
 
 //
 
@@ -132,14 +134,21 @@ pub fn palloc(args: &mut SyscallRegs) {
     set_result(args, result);
 }
 
+async fn vfs_init() {
+    static VFS_INIT: Once<()> = Once::new();
+    VFS_INIT
+        .call_once(async move {
+            hyperion_vfs::mount("/", Ref::from_arc(Arc::new(TmpFs::new()) as _)).await;
+        })
+        .await;
+}
+
 /// [`hyperion_syscall::open`]
 pub fn open(args: &mut SyscallRegs) {
     let ptr = args.arg0;
     let len = args.arg1;
     let _flags = args.arg2;
     let _mode = args.arg3;
-
-    // hyperion_vfs::mount("/", TmpFs::new()).await.unwrap();
 
     let err: Result<()> = try {
         if len >= 0x1000 {
@@ -153,7 +162,11 @@ pub fn open(args: &mut SyscallRegs) {
         let mut task = RunnableTask::active(args.clone());
 
         hyperion_futures::spawn(async move {
+            vfs_init().await;
+
             let file = hyperion_vfs::get(path.as_ref(), OpenOptions::new()).await;
+
+            set_result(&mut task.trap, file.map(|_| 0));
 
             task.ready();
         });
