@@ -1,6 +1,10 @@
+use alloc::sync::Arc;
 use core::{
     cell::UnsafeCell,
+    future::Future,
+    mem,
     ops::{Deref, DerefMut},
+    ptr,
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -59,11 +63,33 @@ impl<T: ?Sized> Mutex<T> {
         unsafe { self.guard() }
     }
 
-    unsafe fn guard(&self) -> MutexGuard<T> {
-        MutexGuard { mutex: self }
+    pub async fn lock_arc(self: &Arc<Self>) -> ArcMutexGuard<T> {
+        self.lock.lock().await;
+        unsafe { self.arc_guard() }
     }
 
-    unsafe fn unlock(&self) {
+    pub unsafe fn get_force(&self) -> &T {
+        unsafe { &*self.value.get() }
+    }
+
+    pub unsafe fn get_mut_force(&self) -> &mut T {
+        unsafe { &mut *self.value.get() }
+    }
+
+    unsafe fn guard(&self) -> MutexGuard<T> {
+        MutexGuard {
+            mutex: &self.lock,
+            val: self.value.get(),
+        }
+    }
+
+    unsafe fn arc_guard(self: &Arc<Self>) -> ArcMutexGuard<T> {
+        ArcMutexGuard {
+            mutex: self.clone(),
+        }
+    }
+
+    pub unsafe fn unlock(&self) {
         unsafe { self.lock.unlock() };
     }
 }
@@ -76,25 +102,95 @@ impl<T: Default> Default for Mutex<T> {
 
 //
 
-pub struct MutexGuard<'a, T: ?Sized> {
-    mutex: &'a Mutex<T>,
+pub struct MutexGuard<'a, T: ?Sized + 'a> {
+    mutex: &'a Lock,
+    val: *mut T,
+}
+
+unsafe impl<T: ?Sized + Send> Sync for MutexGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send> Send for MutexGuard<'_, T> {}
+
+impl<'a, T: ?Sized + 'a> MutexGuard<'a, T> {
+    pub fn map<U, Fn>(self: MutexGuard<'a, T>, f: Fn) -> MutexGuard<'a, U>
+    where
+        Fn: FnOnce(&mut T) -> &mut U,
+    {
+        let mutex = self.mutex;
+        let val = f(unsafe { &mut *self.val });
+        mem::forget(self);
+
+        MutexGuard { mutex, val }
+    }
+
+    pub fn try_map<U, Fn>(self: MutexGuard<'a, T>, f: Fn) -> Option<MutexGuard<'a, U>>
+    where
+        Fn: FnOnce(&mut T) -> Option<&mut U>,
+    {
+        let mutex = self.mutex;
+        let val = f(unsafe { &mut *self.val })?;
+        // returning early doesnt forget the old lock yet, and drops it
+
+        mem::forget(self);
+        Some(MutexGuard { mutex, val })
+    }
+
+    pub async fn map_async<U, Fn, Fut>(self: MutexGuard<'a, T>, f: Fn) -> MutexGuard<'a, U>
+    where
+        Fn: FnOnce(&'a mut T) -> Fut,
+        Fut: Future<Output = &'a mut U>,
+        U: 'a,
+    {
+        let mutex = self.mutex;
+        let val = f(unsafe { &mut *self.val }).await;
+        mem::forget(self);
+
+        MutexGuard { mutex, val }
+    }
 }
 
 impl<T: ?Sized> Deref for MutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { &*self.mutex.value.get() }
+        unsafe { &*self.val }
     }
 }
 
 impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.mutex.value.get() }
+        unsafe { &mut *self.val }
     }
 }
 
 impl<T: ?Sized> Drop for MutexGuard<'_, T> {
+    fn drop(&mut self) {
+        unsafe {
+            self.mutex.unlock();
+        }
+    }
+}
+
+//
+
+pub struct ArcMutexGuard<T: ?Sized> {
+    mutex: Arc<Mutex<T>>,
+}
+
+impl<T: ?Sized> Deref for ArcMutexGuard<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.mutex.get_force() }
+    }
+}
+
+impl<T: ?Sized> DerefMut for ArcMutexGuard<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { self.mutex.get_mut_force() }
+    }
+}
+
+impl<T: ?Sized> Drop for ArcMutexGuard<T> {
     fn drop(&mut self) {
         unsafe {
             self.mutex.unlock();
