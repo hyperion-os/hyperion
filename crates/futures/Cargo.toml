@@ -15,7 +15,9 @@ futures-util.workspace = true
 futures.workspace = true
 spin.workspace = true
 time.workspace = true
+blake3.workspace = true
 
+hyperion-random.path = "../random"
 hyperion-arch.path = "../arch"
 hyperion-events.path = "../events"
 hyperion-instant.path = "../instant"
