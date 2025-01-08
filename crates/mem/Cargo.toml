@@ -18,3 +18,4 @@ hyperion-boot-interface.path = "../boot-interface"
 hyperion-num-postfix.path = "../num-postfix"
 hyperion-log.path = "../log"
 hyperion-slab-alloc = { path = "../slab-alloc" } # , features = ["log"]
+hyperion-cpu-id.path = "../cpu-id"

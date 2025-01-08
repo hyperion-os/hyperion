@@ -20,5 +20,6 @@ hyperion-syscall.path = "../syscall" # Error enum
 hyperion-futures.path = "../futures" # async Mutex
 hyperion-log.path = "../log" # logging
 hyperion-mem.path = "../mem" # memory mapping
+hyperion-scheduler.path = "../scheduler" # processes
 
 hyperion-arch.path = "../arch"

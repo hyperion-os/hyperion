@@ -17,7 +17,7 @@ use hyperion_arch::{self as arch, generate_handler};
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
 // use hyperion_drivers as drivers;
-use hyperion_futures as futures;
+use hyperion_futures::{self as futures, map::AsyncHashMap};
 // use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_loader::Loader;
@@ -26,6 +26,9 @@ use hyperion_log_multi as log_multi;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
+use hyperion_vfs::node::Ref;
+
+use self::syscall::fd_insert;
 
 //
 
@@ -74,6 +77,11 @@ extern "C" fn _start() -> ! {
     if sync::once!() {
         futures::spawn(async move {
             let proc = scheduler::proc::Process::new();
+
+            fd_insert(&proc, 0, hyperion_drivers::null::DEV_NULL.clone()).await;
+            fd_insert(&proc, 1, hyperion_drivers::log::DEV_LOG.clone()).await;
+            fd_insert(&proc, 2, hyperion_drivers::log::DEV_LOG.clone()).await;
+
             let tmptask = scheduler::task::RunnableTask::new_in(0, 0, proc.clone());
             tmptask.set_active();
 

@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use core::{
     fmt,
     ops::Range,
@@ -6,6 +7,8 @@ use core::{
 
 use bitflags::bitflags;
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
+
+use crate::buf::Buffer;
 
 //
 
@@ -168,15 +171,29 @@ pub trait PageMapImpl {
     fn activate(&self);
 
     /// convert virtual addr to physical addr, by reading the page tables
-    fn virt_to_phys(&self, v_addr: VirtAddr) -> Option<PhysAddr>;
+    fn virt_to_phys(&self, v_addr: VirtAddr) -> Option<(PhysAddr, PageTableFlags)>;
 
     /// convert physical addr to virtual addr, by moving it to the higher half
     fn phys_to_virt(&self, p_addr: PhysAddr) -> VirtAddr;
 
-    /// get an address where anything can be mapped (temporarily)
+    // /// get an address where anything can be mapped (temporarily)
+    // fn alloc_temporary(&self) -> Temporary<impl PageMapImpl>;
+
+    // fn free_temporary(&self, t: &Temporary<impl PageMapImpl>);
+
+    // fn make_buffer<T>(&self, data: *const [T]) -> Buffer<T>;
+
+    // fn map_temporary(&mut self, to: &[PhysAddr], flags: PageTableFlags) -> VirtAddr;
+
+    // fn share_pages(
+    //     &self,
+    //     v_addr: VirtAddr,
+    //     pages: u64,
+    //     has_at_least: PageTableFlags,
+    // ) -> Option<Box<[PhysAddr]>>;
+
     fn temporary(index: u16) -> VirtAddr;
 
-    /// map address temporarily somewhere
     fn map_temporary(
         &mut self,
         info: &MemoryInfo,
@@ -185,7 +202,6 @@ pub trait PageMapImpl {
         flags: PageTableFlags,
     ) -> VirtAddr;
 
-    /// unmap a previously temporarily mapped
     fn unmap_temporary(&mut self, info: &MemoryInfo, from: VirtAddr);
 
     /// map physical memory into virtual memory
@@ -193,12 +209,30 @@ pub trait PageMapImpl {
     /// `p_addr` None means that the pages need to be allocated (possibly lazily on use)
     fn map(&self, v_addr: Range<VirtAddr>, p_addr: MapTarget, flags: PageTableFlags);
 
+    // FIXME: use after free race condition, because of TLB cache, if other CPUs arent stopped
     /// unmap a range of virtual memory
     fn unmap(&self, v_addr: Range<VirtAddr>);
 
+    // FIXME: use after free race condition, because of TLB cache, if other CPUs arent stopped
     /// remap the pages with new flags but the same physical memory
     fn remap(&self, v_addr: Range<VirtAddr>, new_flags: PageTableFlags);
 
     /// test if a virtual memory range is mapped with (at least) the given flags
     fn is_mapped(&self, v_addr: Range<VirtAddr>, has_at_least: PageTableFlags) -> bool;
 }
+
+/* pub struct Temporary<'a, P: PageMapImpl> {
+    /// l3 index in the 510th l4 entry
+    pub index: u16,
+    /// 1GiB virtual memory area that is free to use
+    pub v_addr: Range<VirtAddr>,
+
+    map: &'a P,
+}
+
+impl<P: PageMapImpl> Drop for Temporary<'_, P> {
+    fn drop(&mut self) {
+        self.map.free_temporary();
+        todo!()
+    }
+} */

@@ -633,16 +633,17 @@ dependencies = [
 name = "hyperion-drivers"
 version = "0.4.0"
 dependencies = [
+ "async-trait",
+ "hyperion-arch",
  "hyperion-clock",
- "hyperion-driver-acpi",
- "hyperion-driver-framebuffer",
- "hyperion-driver-ps2",
- "hyperion-driver-rtc",
  "hyperion-events",
  "hyperion-futures",
  "hyperion-log",
+ "hyperion-mem",
  "hyperion-random",
+ "hyperion-scheduler",
  "hyperion-sync",
+ "hyperion-syscall",
  "hyperion-vfs",
 ]
 
@@ -686,6 +687,7 @@ dependencies = [
 name = "hyperion-futures"
 version = "0.4.0"
 dependencies = [
+ "blake3",
  "crossbeam-queue",
  "event-listener",
  "futures",
@@ -694,6 +696,7 @@ dependencies = [
  "hyperion-events",
  "hyperion-instant",
  "hyperion-log",
+ "hyperion-random",
  "spin",
  "time",
 ]
@@ -725,6 +728,7 @@ dependencies = [
  "hyperion-cpu-id",
  "hyperion-defer",
  "hyperion-driver-acpi",
+ "hyperion-drivers",
  "hyperion-futures",
  "hyperion-instant",
  "hyperion-kernel-info",
@@ -845,6 +849,7 @@ dependencies = [
  "bitflags 2.6.0",
  "hyperion-boot",
  "hyperion-boot-interface",
+ "hyperion-cpu-id",
  "hyperion-log",
  "hyperion-num-postfix",
  "hyperion-slab-alloc",
@@ -933,6 +938,7 @@ dependencies = [
  "hyperion-futures",
  "hyperion-log",
  "hyperion-mem",
+ "hyperion-scheduler",
  "hyperion-syscall",
  "lock_api",
  "snafu",

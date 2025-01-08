@@ -49,7 +49,8 @@ impl Context {
         let rsp = stack_top - OFFSET;
         let now = page_map
             .virt_to_phys(rsp)
-            .expect("stack to be mapped in the new page table");
+            .expect("stack to be mapped in the new page table")
+            .0;
         let now = to_higher_half(now);
 
         let init: *mut StackInit = now.as_mut_ptr();

@@ -30,6 +30,7 @@
 
 #![allow(clippy::comparison_chain)]
 
+use alloc::{boxed::Box, vec::Vec};
 use core::{
     arch::asm,
     fmt,
@@ -547,16 +548,42 @@ impl PageMapImpl for PageMap {
         self.inner.read().activate()
     }
 
-    fn virt_to_phys(&self, addr: VirtAddr) -> Option<PhysAddr> {
+    fn virt_to_phys(&self, addr: VirtAddr) -> Option<(PhysAddr, PageTableFlags)> {
         self.inner
             .read()
             .translate_addr(addr)
-            .map(|(addr, _, _)| addr)
+            .map(|(addr, _, flags)| (addr, flags))
     }
 
     fn phys_to_virt(&self, addr: PhysAddr) -> VirtAddr {
         to_higher_half(addr)
     }
+
+    /* fn share_pages(
+        &self,
+        v_addr: VirtAddr,
+        pages: u64,
+        has_at_least: PageTableFlags,
+    ) -> Option<Box<[PhysAddr]>> {
+        let mut inner = self.inner.write();
+
+        let mut flags = PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE;
+
+        let mut phys_pages: Vec<PhysAddr> = Vec::with_capacity(pages as _);
+
+        for i in 0..pages as u64 {
+            _ = inner.page_fault(&self.info, v_addr + i * 0x1000, Privilege::User); // try allocating the page if it is a lazy page
+            let (phys_page, _, flags) = inner.translate_addr(v_addr + i * 0x1000)?;
+
+            if !flags.contains(has_at_least) {
+                return None;
+            }
+
+            phys_pages.push(phys_page);
+        }
+
+        Some(phys_pages.into())
+    } */
 
     fn temporary(index: u16) -> VirtAddr {
         assert!(index < 512);

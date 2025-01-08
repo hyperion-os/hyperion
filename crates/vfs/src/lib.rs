@@ -9,9 +9,11 @@
     map_try_insert
 )]
 
+use alloc::sync::Arc;
 use core::future::join;
 
 use hyperion_futures::lock::Mutex;
+use hyperion_scheduler::proc::Process;
 use hyperion_syscall::err::{Error, Result};
 use spin::Once;
 
@@ -74,19 +76,35 @@ impl MissingPolicy {
 
 //
 
-pub async fn get_file(path: &str, opts: OpenOptions) -> Result<Ref<FileNode>> {
-    get(path, opts).await?.to_file().ok_or(Error::NOT_A_FILE)
+pub async fn get_file(
+    proc: Option<&Process>,
+    path: &str,
+    opts: OpenOptions,
+) -> Result<Ref<FileNode>> {
+    get(proc, path, opts)
+        .await?
+        .to_file()
+        .ok_or(Error::NOT_A_FILE)
 }
 
-pub async fn get_dir(path: &str, opts: OpenOptions) -> Result<Ref<DirNode>> {
-    get(path, opts)
+pub async fn get_dir(
+    proc: Option<&Process>,
+    path: &str,
+    opts: OpenOptions,
+) -> Result<Ref<DirNode>> {
+    get(proc, path, opts)
         .await?
         .to_dir()
         .ok_or(Error::NOT_A_DIRECTORY)
 }
 
-pub async fn mount(path: &str, dev: Ref<dyn DirDriver>) -> Result<Ref<DirNode>> {
+pub async fn mount(
+    proc: Option<&Process>,
+    path: &str,
+    dev: Ref<dyn DirDriver>,
+) -> Result<Ref<DirNode>> {
     let node = get_dir(
+        proc,
         path,
         OpenOptions {
             existing: ExistingPolicy::UseExisting,
@@ -105,9 +123,10 @@ pub async fn mount(path: &str, dev: Ref<dyn DirDriver>) -> Result<Ref<DirNode>> 
     Ok(node)
 }
 
-pub async fn unmount(path: &str) -> Result<()> {
+pub async fn unmount(proc: Option<&Process>, path: &str) -> Result<()> {
     let (parent_dir, name) = path.rsplit_once('/').unwrap_or(("", path));
     let parent = get_dir(
+        proc,
         parent_dir,
         OpenOptions {
             existing: ExistingPolicy::UseExisting,
@@ -127,9 +146,14 @@ pub async fn unmount(path: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn bind(path: &str, dev: Ref<dyn FileDriver>) -> Result<Ref<FileNode>> {
+pub async fn bind(
+    proc: Option<&Process>,
+    path: &str,
+    dev: Ref<dyn FileDriver>,
+) -> Result<Ref<FileNode>> {
     let (parent_dir, name) = path.rsplit_once('/').unwrap_or(("", path));
     let parent = get_dir(
+        proc,
         parent_dir,
         OpenOptions {
             existing: ExistingPolicy::UseExisting,
@@ -152,8 +176,8 @@ pub async fn bind(path: &str, dev: Ref<dyn FileDriver>) -> Result<Ref<FileNode>>
     Ok(node)
 }
 
-pub async fn unbind(path: &str) -> Result<()> {
-    unmount(path).await
+pub async fn unbind(proc: Option<&Process>, path: &str) -> Result<()> {
+    unmount(proc, path).await
 }
 
 /// travel through the node graph and try to find the file/dir at `path`
@@ -161,7 +185,7 @@ pub async fn unbind(path: &str) -> Result<()> {
 /// if `create_dirs` is set,
 /// then it creates directories every time it cannot find a node
 /// (except on the root because missing root means there is no driver)
-pub async fn get(path: &str, opts: OpenOptions) -> Result<Node> {
+pub async fn get(proc: Option<&Process>, path: &str, opts: OpenOptions) -> Result<Node> {
     let mut cur = Node::Dir(ROOT.get().ok_or(Error::NOT_FOUND)?.clone());
 
     for (part, _part_to_end) in path::PathIter::new(path) {
@@ -183,7 +207,7 @@ pub async fn get(path: &str, opts: OpenOptions) -> Result<Node> {
             )
         };
 
-        let next = dir_node_entry(&cur_dir, part, existing, missing).await?;
+        let next = dir_node_entry(proc, &cur_dir, part, existing, missing).await?;
         cur = next;
     }
 
@@ -191,6 +215,7 @@ pub async fn get(path: &str, opts: OpenOptions) -> Result<Node> {
 }
 
 pub async fn dir_node_entry(
+    proc: Option<&Process>,
     dir: &DirNode,
     part: &str,
     existing: ExistingPolicy,
@@ -209,7 +234,7 @@ pub async fn dir_node_entry(
     let driver = dir.driver.lock().await;
     // TODO: use `_part_to_end` to await on `driver.get()` only once per node find
     // because `driver.get()` has to create a boxed future
-    match driver.get(part).await {
+    match driver.get(proc, part).await {
         Ok((found_node, can_cache)) => {
             if can_cache {
                 cache.insert(part.into(), found_node.clone());
@@ -227,14 +252,14 @@ pub async fn dir_node_entry(
     // the file wasnt in the cache nor in the concrete filesystem
     match missing {
         MissingPolicy::CreateDir => {
-            let (dir, can_cache) = driver.create_dir(part).await?;
+            let (dir, can_cache) = driver.create_dir(proc, part).await?;
             if can_cache {
                 cache.insert(part.into(), dir.clone());
             }
             Ok(dir)
         }
         MissingPolicy::CreateFile => {
-            let (file, can_cache) = driver.create_file(part).await?;
+            let (file, can_cache) = driver.create_file(proc, part).await?;
             if can_cache {
                 cache.insert(part.into(), file.clone());
             }

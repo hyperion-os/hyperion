@@ -9,11 +9,17 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1"
+
+hyperion-arch.path = "../arch"
+hyperion-mem.path = "../mem"
+hyperion-syscall.path = "../syscall" # Error enum
 hyperion-clock.path = "../clock"
-hyperion-driver-acpi.path = "../driver-acpi"
-hyperion-driver-framebuffer.path = "../driver-framebuffer"
-hyperion-driver-ps2.path = "../driver-ps2"
-hyperion-driver-rtc.path = "../driver-rtc"
+hyperion-scheduler.path = "../scheduler"
+# hyperion-driver-acpi.path = "../driver-acpi"
+# hyperion-driver-framebuffer.path = "../driver-framebuffer"
+# hyperion-driver-ps2.path = "../driver-ps2"
+# hyperion-driver-rtc.path = "../driver-rtc"
 hyperion-events.path = "../events"
 hyperion-futures.path = "../futures"
 hyperion-log.path = "../log"

@@ -2,7 +2,10 @@ use alloc::{boxed::Box, collections::btree_map::BTreeMap, sync::Arc};
 use core::{fmt, ops::Deref, ptr::NonNull};
 
 use async_trait::async_trait;
+use hyperion_arch::vmm::PageMap;
 use hyperion_futures::lock::Mutex;
+use hyperion_mem::buf::{Buffer, BufferMut};
+use hyperion_scheduler::proc::Process;
 use hyperion_syscall::err::{Error, Result};
 
 //
@@ -55,7 +58,28 @@ pub struct FileNode {
 
 impl FileNode {}
 
-pub trait FileDriver: Send + Sync {}
+#[async_trait]
+pub trait FileDriver: Send + Sync {
+    async fn read(
+        &self,
+        proc: Option<&Process>,
+        offset: usize,
+        buf: BufferMut<'_, u8, PageMap>,
+    ) -> Result<usize> {
+        _ = (proc, buf);
+        Err(Error::PERMISSION_DENIED)
+    }
+
+    async fn write(
+        &self,
+        proc: Option<&Process>,
+        offset: usize,
+        buf: Buffer<'_, u8, PageMap>,
+    ) -> Result<usize> {
+        _ = (proc, buf);
+        Err(Error::PERMISSION_DENIED)
+    }
+}
 
 //
 
@@ -69,20 +93,24 @@ pub struct DirNode {
 #[async_trait]
 pub trait DirDriver: Send + Sync {
     /// get a sub-directory or file in this directory as a cache Node
-    async fn get(&self, name: &str) -> Result<(Node, CacheAllowed)> {
-        _ = name;
+    async fn get(&self, proc: Option<&Process>, name: &str) -> Result<(Node, CacheAllowed)> {
+        _ = (proc, name);
         Err(Error::NOT_FOUND)
     }
 
     /// create a new sub-directory in this directory and return a cache Node
-    async fn create_dir(&self, name: &str) -> Result<(Node, CacheAllowed)> {
-        _ = name;
+    async fn create_dir(&self, proc: Option<&Process>, name: &str) -> Result<(Node, CacheAllowed)> {
+        _ = (proc, name);
         Err(Error::PERMISSION_DENIED)
     }
 
     /// create a new file in this directory and return a cache Node
-    async fn create_file(&self, name: &str) -> Result<(Node, CacheAllowed)> {
-        _ = name;
+    async fn create_file(
+        &self,
+        proc: Option<&Process>,
+        name: &str,
+    ) -> Result<(Node, CacheAllowed)> {
+        _ = (proc, name);
         Err(Error::PERMISSION_DENIED)
     }
 }

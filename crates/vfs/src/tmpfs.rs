@@ -2,6 +2,7 @@ use alloc::{boxed::Box, collections::btree_map::BTreeMap, sync::Arc};
 
 use async_trait::async_trait;
 use hyperion_futures::lock::Mutex;
+use hyperion_scheduler::proc::Process;
 use hyperion_syscall::err::{Error, Result};
 
 use crate::node::{CacheAllowed, DirDriver, DirNode, FileDriver, FileNode, Node, Ref};
@@ -29,7 +30,7 @@ impl Default for TmpFs {
 #[async_trait]
 impl DirDriver for TmpFs {
     /// get a sub-directory or file in this directory as a cache Node
-    async fn get(&self, name: &str) -> Result<(Node, CacheAllowed)> {
+    async fn get(&self, _: Option<&Process>, name: &str) -> Result<(Node, CacheAllowed)> {
         let nodes = self.nodes.lock().await;
         nodes
             .get(name)
@@ -38,7 +39,7 @@ impl DirDriver for TmpFs {
     }
 
     /// create a new sub-directory in this directory and return a cache Node
-    async fn create_dir(&self, name: &str) -> Result<(Node, CacheAllowed)> {
+    async fn create_dir(&self, _: Option<&Process>, name: &str) -> Result<(Node, CacheAllowed)> {
         let new_node = Node::Dir(Ref::from_arc(Arc::new(DirNode {
             nodes: Mutex::new(BTreeMap::new()),
             driver: Mutex::new(Ref::from_arc(Arc::new(Self::new()) as _)),
@@ -50,7 +51,7 @@ impl DirDriver for TmpFs {
     }
 
     /// create a new file in this directory and return a cache Node
-    async fn create_file(&self, name: &str) -> Result<(Node, CacheAllowed)> {
+    async fn create_file(&self, _: Option<&Process>, name: &str) -> Result<(Node, CacheAllowed)> {
         let new_node = Node::File(Ref::from_arc(Arc::new(FileNode {
             driver: Mutex::new(Ref::from_arc(Arc::new(TmpFsFile {}) as _)),
         })));

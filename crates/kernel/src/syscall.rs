@@ -1,13 +1,19 @@
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
-use core::{any::Any, mem};
+use core::{
+    any::Any,
+    mem,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
 use hyperion_futures::{
     lazy::{Lazy, Once},
     lock::Mutex,
+    map::{self, AsyncHashMap},
     mpmc::Channel,
 };
 use hyperion_log::*;
+use hyperion_mem::buf::Buffer;
 use hyperion_scheduler::{
     proc::Process,
     task::{RunnableTask, Task},
@@ -16,7 +22,11 @@ use hyperion_syscall::{
     err::{Error, Result},
     id,
 };
-use hyperion_vfs::{node::Ref, tmpfs::TmpFs, OpenOptions};
+use hyperion_vfs::{
+    node::{FileDriver, FileNode, Ref},
+    tmpfs::TmpFs,
+    OpenOptions,
+};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
@@ -57,8 +67,8 @@ pub fn syscall(args: &mut SyscallRegs) {
 
         // id::DUP => {},
         // id::PIPE => {},
-        // id::FUTEX_WAIT => {},
-        // id::FUTEX_WAKE => {},
+        id::FUTEX_WAIT => futex_wait(args),
+        id::FUTEX_WAKE => futex_wake(args),
 
         // id::MAP_FILE => {},
         // id::UNMAP_FILE => {},
@@ -138,7 +148,7 @@ async fn vfs_init() {
     static VFS_INIT: Once<()> = Once::new();
     VFS_INIT
         .call_once(async move {
-            hyperion_vfs::mount("/", Ref::from_arc(Arc::new(TmpFs::new()) as _)).await;
+            hyperion_vfs::mount(None, "/", Ref::from_arc(Arc::new(TmpFs::new()) as _)).await;
         })
         .await;
 }
@@ -164,10 +174,20 @@ pub fn open(args: &mut SyscallRegs) {
         hyperion_futures::spawn(async move {
             vfs_init().await;
 
-            let file = hyperion_vfs::get(path.as_ref(), OpenOptions::new()).await;
+            let result = try {
+                let file =
+                    hyperion_vfs::get(Some(&task.task.process), path.as_ref(), OpenOptions::new())
+                        .await
+                        .and_then(|node| node.to_file().ok_or(Error::NOT_A_FILE))?
+                        .driver
+                        .lock()
+                        .await
+                        .clone();
 
-            set_result(&mut task.trap, file.map(|_| 0));
+                fd_push(&task.task.process, file).await as usize
+            };
 
+            set_result(&mut task.trap, result);
             task.ready();
         });
     };
@@ -196,29 +216,25 @@ pub fn write(args: &mut SyscallRegs) {
     let ptr = args.arg1;
     let len = args.arg2;
 
-    // let mut prev = RunnableTask::active(args.clone());
+    let mut prev = RunnableTask::active(args.clone());
 
-    // let proc = Process::current().unwrap();
-    // hyperion_futures::spawn(async move {
-    //     let ext = process_ext(&proc);
-    //     let fds = ext.fds.lock().await;
+    hyperion_futures::spawn(async move {
+        let fd = fd_get(&prev.task.process, fd).await;
 
-    //     try {
-    //         let fd = fds.get(fd as usize).ok_or(Error::BAD_FILE_DESCRIPTOR)?;
-    //         let locked_fd = fd.lock().await;
-    //     }
+        let result = try {
+            let mut fd = fd.ok_or(Error::BAD_FILE_DESCRIPTOR)?;
 
-    //     prev.ready();
-    // });
+            let buffer =
+                unsafe { Buffer::new(&prev.task.process.address_space, ptr as _, len as _) };
 
-    set_result(
-        args,
-        try {
-            let bytes = read_untrusted_bytes(ptr, len)?;
-            Err(Error::UNIMPLEMENTED)?;
-            0
-        },
-    );
+            fd.file.write(Some(&prev.task.process), 0, buffer).await?
+        };
+
+        set_result(&mut prev.trap, result);
+        prev.ready();
+    });
+
+    *args = RunnableTask::next().set_active();
 }
 
 /// [`hyperion_syscall::get_pid`]
@@ -231,76 +247,22 @@ pub fn get_tid(args: &mut SyscallRegs) {
     set_result(args, Ok(Task::current().unwrap().tid.num()));
 }
 
-//
-
-#[derive(Clone)]
-pub struct SparseVec<T> {
-    inner: Vec<Option<T>>,
-    // TODO:
-    // first_free: usize,
-    // free_count: usize,
+/// [`hyperion_syscall::futex_wait`]
+pub fn futex_wait(args: &mut SyscallRegs) {
+    set_result(args, Ok(0));
 }
 
-impl<T> SparseVec<T> {
-    pub const fn new() -> Self {
-        Self { inner: Vec::new() }
-    }
-
-    pub fn get(&self, index: usize) -> Option<&T> {
-        self.inner.get(index).and_then(Option::as_ref)
-    }
-
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.inner.get_mut(index).and_then(Option::as_mut)
-    }
-
-    pub fn push(&mut self, v: T) -> usize {
-        let index;
-        if let Some((_index, spot)) = self
-            .inner
-            .iter_mut()
-            .enumerate()
-            .find(|(_, spot)| spot.is_none())
-        {
-            index = _index;
-            *spot = Some(v);
-        } else {
-            index = self.inner.len();
-            self.inner.push(Some(v));
-        }
-
-        index
-    }
-
-    pub fn remove(&mut self, index: usize) -> Option<T> {
-        self.inner.get_mut(index).and_then(Option::take)
-    }
-
-    pub fn replace(&mut self, index: usize, v: T) -> Option<T> {
-        // TODO: max file descriptor,
-        // the user app can simply use a fd of 100000000000000 to crash the kernel
-        self.inner
-            .resize_with(self.inner.len().max(index + 1), || None);
-
-        let slot = self.inner.get_mut(index).unwrap();
-
-        let old = slot.take();
-        *slot = Some(v);
-        old
-    }
-}
-
-impl<T> Default for SparseVec<T> {
-    fn default() -> Self {
-        Self::new()
-    }
+/// [`hyperion_syscall::futex_wake`]
+pub fn futex_wake(args: &mut SyscallRegs) {
+    set_result(args, Ok(0));
 }
 
 //
 
 #[derive(Default)]
 struct ProcessExt {
-    fds: Mutex<SparseVec<Mutex<()>>>,
+    fds: AsyncHashMap<u64, FileDescriptor>,
+    next_fd: AtomicU64,
 }
 
 impl hyperion_scheduler::proc::ProcessExt for ProcessExt {
@@ -313,6 +275,13 @@ impl hyperion_scheduler::proc::ProcessExt for ProcessExt {
 
 //
 
+struct FileDescriptor {
+    // readonly: bool,
+    file: Ref<dyn FileDriver>,
+}
+
+//
+
 pub fn process_ext(proc: &Process) -> &ProcessExt {
     proc.ext
         .call_once(|| Box::new(ProcessExt::default()))
@@ -321,11 +290,22 @@ pub fn process_ext(proc: &Process) -> &ProcessExt {
         .unwrap()
 }
 
-// pub async fn fd_insert(fd: usize) {
-//     let fds = process_ext().fds.lock().await;
+pub async fn fd_insert(proc: &Process, fd: u64, file: Ref<dyn FileDriver>) {
+    let proc_ext = process_ext(proc);
+    proc_ext.fds.insert(fd, FileDescriptor { file }).await;
+}
 
-//     fds.replace(fd, FileDescriptor {});
-// }
+pub async fn fd_push(proc: &Process, file: Ref<dyn FileDriver>) -> u64 {
+    let proc_ext = process_ext(proc);
+    let fd = proc_ext.next_fd.fetch_add(1, Ordering::Relaxed);
+    proc_ext.fds.insert(fd, FileDescriptor { file }).await;
+    fd
+}
+
+pub async fn fd_get(proc: &Process, fd: u64) -> Option<map::Ref<u64, FileDescriptor>> {
+    let proc_ext = process_ext(proc);
+    proc_ext.fds.get(&fd).await
+}
 
 pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
     if len == 0 {

@@ -1,32 +1,44 @@
-use core::any::Any;
+use alloc::boxed::Box;
+use core::{any::Any, mem::MaybeUninit};
 
-use hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-};
+use async_trait::async_trait;
+use hyperion_arch::vmm::PageMap;
+use hyperion_mem::buf::{Buffer, BufferMut};
+use hyperion_scheduler::proc::Process;
+use hyperion_syscall::err::{Error, Result};
+use hyperion_vfs::node::{FileDriver, Ref};
+
+//
+
+pub static DEV_NULL: Ref<dyn FileDriver> = Ref::new_static(&Null);
 
 //
 
 pub struct Null;
 
-impl FileDevice for Null {
-    fn as_any(&self) -> &dyn Any {
-        self
+#[async_trait]
+impl FileDriver for Null {
+    async fn read(
+        &self,
+        _: Option<&Process>,
+        _: usize,
+        mut buf: BufferMut<'_, u8, PageMap>,
+    ) -> Result<usize> {
+        unsafe {
+            buf.with_slice_mut(|slice| {
+                slice.fill(MaybeUninit::zeroed());
+            });
+        }
+
+        Ok(buf.len())
     }
 
-    fn len(&self) -> usize {
-        1
-    }
-
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, _: usize, _: &mut [u8]) -> IoResult<usize> {
-        Ok(0)
-    }
-
-    fn write(&mut self, _: usize, buf: &[u8]) -> IoResult<usize> {
+    async fn write(
+        &self,
+        _: Option<&Process>,
+        _: usize,
+        buf: Buffer<'_, u8, PageMap>,
+    ) -> Result<usize> {
         Ok(buf.len())
     }
 }

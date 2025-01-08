@@ -3,7 +3,9 @@
     pointer_is_aligned_to,
     allocator_api,
     maybe_uninit_slice,
-    core_intrinsics
+    core_intrinsics,
+    must_not_suspend,
+    slice_ptr_get
 )]
 #![allow(internal_features)]
 
@@ -19,6 +21,7 @@ use crate::pmm::{PageFrame, PFA};
 
 //
 
+pub mod buf;
 pub mod pmm;
 pub mod vmm;
 

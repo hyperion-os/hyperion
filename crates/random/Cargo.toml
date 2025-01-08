@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 spin.workspace = true
-blake3 = { version = "1.4", default-features = false }
+blake3.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 

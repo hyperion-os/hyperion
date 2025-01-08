@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(slice_ptr_get)]
 
 extern crate alloc;
 
@@ -15,6 +16,7 @@ use self::task::RunnableTask;
 
 //
 
+// pub mod buf;
 pub mod proc;
 pub mod task;
 
