@@ -153,6 +153,26 @@ pub fn main() -> Result<()> {
         .open("/dev/null")
         .unwrap();
 
+    let mut file = libstd::fs::OpenOptions::new()
+        .write(true)
+        .read(true)
+        .create(true)
+        .open("/dev/new")
+        .unwrap();
+
+    file.write_all(b"testdata").unwrap();
+    drop(file);
+
+    let mut file = libstd::fs::OpenOptions::new()
+        .read(true)
+        .open("/dev/new")
+        .unwrap();
+
+    let mut buf = [0u8; 8];
+    file.read_exact(&mut buf).unwrap();
+    drop(file);
+    println!("got: {:?}", core::str::from_utf8(&buf));
+
     let value = get_pid();
     println!("PID:{} TID:{}", get_pid(), get_tid());
 

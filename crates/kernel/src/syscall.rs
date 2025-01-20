@@ -6,6 +6,7 @@ use core::{
 };
 
 use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
+use hyperion_drivers::{log::KernelLogs, null::Null};
 use hyperion_futures::{
     lazy::{Lazy, Once},
     lock::Mutex,
@@ -13,17 +14,18 @@ use hyperion_futures::{
     mpmc::Channel,
 };
 use hyperion_log::*;
-use hyperion_mem::buf::Buffer;
+use hyperion_mem::buf::{Buffer, BufferMut};
 use hyperion_scheduler::{
     proc::Process,
     task::{RunnableTask, Task},
 };
 use hyperion_syscall::{
     err::{Error, Result},
+    fs::FileOpenFlags,
     id,
 };
 use hyperion_vfs::{
-    node::{FileDriver, FileNode, Ref},
+    node::{DirDriverExt, FileDriver, FileDriverExt, FileNode, Ref},
     tmpfs::TmpFs,
     OpenOptions,
 };
@@ -148,7 +150,15 @@ async fn vfs_init() {
     static VFS_INIT: Once<()> = Once::new();
     VFS_INIT
         .call_once(async move {
-            hyperion_vfs::mount(None, "/", Ref::from_arc(Arc::new(TmpFs::new()) as _)).await;
+            // hyperion_vfs::mount(None, "/", TmpFs::new().into_dir_ref())
+            //     .await
+            //     .unwrap();
+            hyperion_vfs::bind(None, "/dev/null", Null.into_file_ref())
+                .await
+                .unwrap();
+            hyperion_vfs::bind(None, "/dev/log", KernelLogs.into_file_ref())
+                .await
+                .unwrap();
         })
         .await;
 }
@@ -157,8 +167,11 @@ async fn vfs_init() {
 pub fn open(args: &mut SyscallRegs) {
     let ptr = args.arg0;
     let len = args.arg1;
-    let _flags = args.arg2;
+    let flags = args.arg2;
     let _mode = args.arg3;
+
+    let flags = FileOpenFlags::from_bits_truncate(flags as usize);
+    let opts = OpenOptions::from_flags(flags);
 
     let err: Result<()> = try {
         if len >= 0x1000 {
@@ -175,14 +188,17 @@ pub fn open(args: &mut SyscallRegs) {
             vfs_init().await;
 
             let result = try {
-                let file =
-                    hyperion_vfs::get(Some(&task.task.process), path.as_ref(), OpenOptions::new())
-                        .await
-                        .and_then(|node| node.to_file().ok_or(Error::NOT_A_FILE))?
-                        .driver
-                        .lock()
-                        .await
-                        .clone();
+                if flags.contains(FileOpenFlags::IS_DIR) {
+                    Err(Error::UNIMPLEMENTED)?;
+                }
+
+                let file = hyperion_vfs::get(Some(&task.task.process), path.as_ref(), opts)
+                    .await
+                    .and_then(|node| node.to_file().ok_or(Error::NOT_A_FILE))?
+                    .driver
+                    .lock()
+                    .await
+                    .clone();
 
                 fd_push(&task.task.process, file).await as usize
             };
@@ -193,7 +209,7 @@ pub fn open(args: &mut SyscallRegs) {
     };
 
     if let Err(err) = err {
-        set_result(args, Err(Error::UNIMPLEMENTED));
+        set_result(args, Err(err));
         return;
     }
 
@@ -202,12 +218,48 @@ pub fn open(args: &mut SyscallRegs) {
 
 /// [`hyperion_syscall::close`]
 pub fn close(args: &mut SyscallRegs) {
-    set_result(args, Err(Error::UNIMPLEMENTED));
+    let fd = args.arg0;
+
+    let mut task = RunnableTask::active(args.clone());
+
+    hyperion_futures::spawn(async move {
+        let res = fd_remove(&task.task.process, fd)
+            .await
+            .ok_or(Error::BAD_FILE_DESCRIPTOR)
+            .map(|_| 0);
+
+        set_result(&mut task.trap, res);
+        task.ready();
+    });
+
+    *args = RunnableTask::next().set_active();
 }
 
 /// [`hyperion_syscall::read`]
 pub fn read(args: &mut SyscallRegs) {
-    set_result(args, Err(Error::UNIMPLEMENTED));
+    let fd = args.arg0;
+    let ptr = args.arg1;
+    let len = args.arg2;
+
+    let mut prev = RunnableTask::active(args.clone());
+
+    hyperion_futures::spawn(async move {
+        let fd = fd_get(&prev.task.process, fd).await;
+
+        let result = try {
+            let mut fd = fd.ok_or(Error::BAD_FILE_DESCRIPTOR)?;
+
+            let mut buffer =
+                unsafe { BufferMut::new(&prev.task.process.address_space, ptr as _, len as _) };
+
+            fd.file.read(Some(&prev.task.process), 0, buffer).await?
+        };
+
+        set_result(&mut prev.trap, result);
+        prev.ready();
+    });
+
+    *args = RunnableTask::next().set_active();
 }
 
 /// [`hyperion_syscall::write`]
@@ -305,6 +357,11 @@ pub async fn fd_push(proc: &Process, file: Ref<dyn FileDriver>) -> u64 {
 pub async fn fd_get(proc: &Process, fd: u64) -> Option<map::Ref<u64, FileDescriptor>> {
     let proc_ext = process_ext(proc);
     proc_ext.fds.get(&fd).await
+}
+
+pub async fn fd_remove(proc: &Process, fd: u64) -> Option<map::Ref<u64, FileDescriptor>> {
+    let proc_ext = process_ext(proc);
+    proc_ext.fds.remove(&fd).await
 }
 
 pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {

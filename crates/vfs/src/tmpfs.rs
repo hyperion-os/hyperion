@@ -1,7 +1,9 @@
-use alloc::{boxed::Box, collections::btree_map::BTreeMap, sync::Arc};
+use alloc::{boxed::Box, collections::btree_map::BTreeMap, sync::Arc, vec::Vec};
 
 use async_trait::async_trait;
+use hyperion_arch::vmm::PageMap;
 use hyperion_futures::lock::Mutex;
+use hyperion_mem::buf::{Buffer, BufferMut};
 use hyperion_scheduler::proc::Process;
 use hyperion_syscall::err::{Error, Result};
 
@@ -64,6 +66,29 @@ impl DirDriver for TmpFs {
 
 //
 
-pub struct TmpFsFile {}
+pub struct TmpFsFile {
+    // data: Vec<u8>,
+}
 
-impl FileDriver for TmpFsFile {}
+#[async_trait]
+impl FileDriver for TmpFsFile {
+    async fn read(
+        &self,
+        proc: Option<&Process>,
+        offset: usize,
+        buf: BufferMut<'_, u8, PageMap>,
+    ) -> Result<usize> {
+        _ = (proc, buf);
+        Err(Error::PERMISSION_DENIED)
+    }
+
+    async fn write(
+        &self,
+        proc: Option<&Process>,
+        offset: usize,
+        buf: Buffer<'_, u8, PageMap>,
+    ) -> Result<usize> {
+        _ = (proc, buf);
+        Err(Error::PERMISSION_DENIED)
+    }
+}

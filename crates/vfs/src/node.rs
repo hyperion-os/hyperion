@@ -81,6 +81,16 @@ pub trait FileDriver: Send + Sync {
     }
 }
 
+pub trait FileDriverExt: FileDriver {
+    fn into_file_ref(self) -> Ref<dyn FileDriver>;
+}
+
+impl<T: FileDriver + 'static> FileDriverExt for T {
+    fn into_file_ref(self) -> Ref<dyn FileDriver> {
+        Ref::from_arc(Arc::new(self))
+    }
+}
+
 //
 
 pub struct DirNode {
@@ -112,6 +122,16 @@ pub trait DirDriver: Send + Sync {
     ) -> Result<(Node, CacheAllowed)> {
         _ = (proc, name);
         Err(Error::PERMISSION_DENIED)
+    }
+}
+
+pub trait DirDriverExt: DirDriver {
+    fn into_dir_ref(self) -> Ref<dyn DirDriver>;
+}
+
+impl<T: DirDriver + 'static> DirDriverExt for T {
+    fn into_dir_ref(self) -> Ref<dyn DirDriver> {
+        Ref::from_arc(Arc::new(self))
     }
 }
 

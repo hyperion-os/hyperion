@@ -1,5 +1,7 @@
 use core::str;
 
+use hyperion_syscall::err::{Error, Result};
+
 //
 
 /// all paths handled by the VFS must be absolute, without the first `/`
@@ -22,12 +24,15 @@ impl<'a> PathIter<'a> {
 }
 
 impl<'a> Iterator for PathIter<'a> {
-    type Item = (&'a str, &'a str);
+    type Item = Result<(&'a str, &'a str)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let rem = self.inner.remainder()?;
         let part = self.inner.next()?;
-        Some((part, rem))
+        if part.is_empty() {
+            return Some(Err(Error::INVALID_PATH));
+        }
+        Some(Ok((part, rem)))
     }
 }
 

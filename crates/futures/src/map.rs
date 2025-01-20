@@ -77,6 +77,14 @@ impl<K: Hash + Eq, V> AsyncHashMap<K, V> {
             }))
             .is_some()
     }
+
+    pub async fn remove(&self, key: &K) -> Option<Ref<K, V>> {
+        let hash = self.hasher().await.hash(&key);
+
+        // find the correct segment, each segment is individually locked
+
+        Some(self.segment(hash).await.remove(hash, key)?.lock().await)
+    }
 }
 
 impl<K, V> Default for AsyncHashMap<K, V> {
@@ -185,6 +193,13 @@ impl<K: Eq, V> Segment<K, V> {
     fn drain(self) -> impl Iterator<Item = Arc<Item<K, V>>> {
         self.buckets.into_iter().flat_map(|bucket| bucket.drain())
     }
+
+    fn remove(&mut self, hash: u64, key: &K) -> Option<Arc<Item<K, V>>> {
+        if self.buckets.is_empty() {
+            return None;
+        }
+        self.bucket(hash).remove(key)
+    }
 }
 
 //
@@ -242,6 +257,24 @@ impl<K: Eq, V> Bucket<K, V> {
 
     fn drain(self) -> impl Iterator<Item = Arc<Item<K, V>>> {
         self.item.into_iter().chain(self.list)
+    }
+
+    fn remove(&mut self, key: &K) -> Option<Arc<Item<K, V>>> {
+        let first = self.item.as_mut()?;
+        if first.matches(key) {
+            let removed = first.clone();
+            self.item = self.list.pop();
+            return Some(removed);
+        }
+
+        Self::remove_slow(&mut self.list, key)
+    }
+
+    // remove with a hash collision
+    #[cold]
+    fn remove_slow<'a>(list: &'a mut Vec<Arc<Item<K, V>>>, key: &K) -> Option<Arc<Item<K, V>>> {
+        let index = list.iter_mut().position(|item| item.matches(key))?;
+        Some(list.remove(index))
     }
 }
 

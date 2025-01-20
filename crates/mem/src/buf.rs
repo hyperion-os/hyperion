@@ -137,7 +137,16 @@ pub struct BufferMut<'a, T, P> {
     inner: Buffer<'a, T, P>,
 }
 
-impl<T, P: PageMapImpl> BufferMut<'_, T, P> {
+impl<'a, T, P: PageMapImpl> BufferMut<'a, T, P> {
+    /// # Safety
+    /// the bytes have to be in the lower half,
+    /// any page faults from there are safe and just kill the user process
+    pub unsafe fn new(map: &'a P, ptr: usize, len: usize) -> Self {
+        Self {
+            inner: unsafe { Buffer::new(map, ptr, len) },
+        }
+    }
+
     /// # Safety
     /// calls to `Self::with_slice` or `PageMapImpl::activate` are not allowed inside `f`
     pub unsafe fn with_slice_mut<F, R>(&mut self, f: F) -> R

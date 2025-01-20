@@ -9,15 +9,21 @@
     map_try_insert
 )]
 
-use alloc::sync::Arc;
+use alloc::{collections::btree_map::BTreeMap, sync::Arc};
 use core::future::join;
 
 use hyperion_futures::lock::Mutex;
 use hyperion_scheduler::proc::Process;
-use hyperion_syscall::err::{Error, Result};
+use hyperion_syscall::{
+    err::{Error, Result},
+    fs::FileOpenFlags,
+};
 use spin::Once;
 
-use self::node::{DirDriver, DirNode, FileDriver, FileNode, Node, Ref};
+use self::{
+    node::{DirDriver, DirNode, FileDriver, FileNode, Node, Ref},
+    tmpfs::TmpFs,
+};
 
 //
 
@@ -31,7 +37,12 @@ pub mod tmpfs;
 
 //
 
-static ROOT: Once<Ref<DirNode>> = Once::new();
+static ROOT_DEV: TmpFs = TmpFs::new();
+static ROOT_NODE: DirNode = DirNode {
+    nodes: Mutex::new(BTreeMap::new()),
+    driver: Mutex::new(Ref::new_static(&ROOT_DEV)),
+};
+static ROOT: Ref<DirNode> = Ref::new_static(&ROOT_NODE);
 
 //
 
@@ -46,6 +57,25 @@ impl OpenOptions {
         Self {
             existing: ExistingPolicy::UseExisting,
             missing: MissingPolicy::Error,
+        }
+    }
+
+    pub fn from_flags(f: FileOpenFlags) -> Self {
+        if f.contains(FileOpenFlags::CREATE_NEW) {
+            Self {
+                existing: ExistingPolicy::Error,
+                missing: MissingPolicy::CreateFile,
+            }
+        } else if f.contains(FileOpenFlags::CREATE) {
+            Self {
+                existing: ExistingPolicy::UseExisting,
+                missing: MissingPolicy::CreateFile,
+            }
+        } else {
+            Self {
+                existing: ExistingPolicy::UseExisting,
+                missing: MissingPolicy::Error,
+            }
         }
     }
 }
@@ -157,7 +187,7 @@ pub async fn bind(
         parent_dir,
         OpenOptions {
             existing: ExistingPolicy::UseExisting,
-            missing: MissingPolicy::Error,
+            missing: MissingPolicy::CreateDir,
         },
     )
     .await?;
@@ -186,12 +216,20 @@ pub async fn unbind(proc: Option<&Process>, path: &str) -> Result<()> {
 /// then it creates directories every time it cannot find a node
 /// (except on the root because missing root means there is no driver)
 pub async fn get(proc: Option<&Process>, path: &str, opts: OpenOptions) -> Result<Node> {
-    let mut cur = Node::Dir(ROOT.get().ok_or(Error::NOT_FOUND)?.clone());
+    if !path.starts_with('/') {
+        return Err(Error::INVALID_PATH);
+    }
+    let path = &path[1..];
 
-    for (part, _part_to_end) in path::PathIter::new(path) {
+    let mut cur = Node::Dir(ROOT.clone());
+
+    for part in path::PathIter::new(path) {
+        let (part, _part_to_end) = part?;
+
         let cur_dir = cur.to_dir().ok_or(Error::NOT_A_DIRECTORY)?;
 
-        let is_last = part != _part_to_end;
+        let is_last = part == _part_to_end;
+        // hyperion_log::info!("part={part} _part_to_end={_part_to_end} is_last={is_last}");
         let (existing, missing) = if is_last {
             // use the provided open options for the final file/directory
             (opts.existing, opts.missing)
