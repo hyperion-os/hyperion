@@ -41,7 +41,7 @@ pub fn init() {
 
 fn init_features() {
     let res = unsafe { core::arch::x86_64::__cpuid(0x1) };
-    if res.edx & 1 << 25 == 0 {
+    if res.edx & (1 << 25) == 0 {
         panic!("No SSE HW support");
     }
 
