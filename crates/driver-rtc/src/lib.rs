@@ -9,10 +9,7 @@ use core::{
 };
 
 use hyperion_log::{debug, error};
-use hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-};
+use hyperion_vfs::{device::FileDevice, Error, Result};
 use spin::Mutex;
 use time::{Date, Month, OffsetDateTime, UtcOffset};
 use x86_64::instructions::{interrupts::without_interrupts, port::Port};
@@ -124,17 +121,9 @@ impl FileDevice for RtcDevice {
         mem::size_of::<i64>()
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
         let bytes = &RTC.now_bytes()[..];
         bytes.read(offset, buf)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
     }
 }
 

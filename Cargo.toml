@@ -84,12 +84,6 @@ version = "0.3"
 default-features = false
 features = ["alloc"]
 
-# no_std thiserrror alternative
-[workspace.dependencies.snafu]
-version = "0.7"
-default-features = false
-features = ["rust_1_46"]
-
 # backtracing with DWARF
 # [workspace.dependencies.gimli]
 # version = "0.28"

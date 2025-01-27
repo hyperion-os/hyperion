@@ -2,10 +2,7 @@ use core::any::Any;
 
 use hyperion_events::{keyboard, mouse};
 use hyperion_futures::block_on;
-use hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-};
+use hyperion_vfs::{device::FileDevice, Result};
 
 //
 
@@ -20,11 +17,7 @@ impl FileDevice for KeyboardDevice {
         0
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, _: usize, buf: &mut [u8]) -> Result<usize> {
         if buf.is_empty() {
             return Ok(0);
         }
@@ -33,10 +26,6 @@ impl FileDevice for KeyboardDevice {
         buf[0] = s;
 
         Ok(1)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
     }
 }
 
@@ -53,11 +42,7 @@ impl FileDevice for MouseDevice {
         0
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, _: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, _: usize, buf: &mut [u8]) -> Result<usize> {
         if buf.is_empty() {
             return Ok(0);
         }
@@ -67,9 +52,5 @@ impl FileDevice for MouseDevice {
         buf[..limit].copy_from_slice(&s[..limit]);
 
         Ok(limit)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
     }
 }

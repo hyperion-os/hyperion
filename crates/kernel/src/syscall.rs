@@ -16,10 +16,9 @@ use hyperion_defer::DeferInit;
 use hyperion_drivers::acpi::hpet::HPET;
 use hyperion_instant::Instant;
 use hyperion_kernel_impl::{
-    fd_push, fd_query, fd_query_of, fd_replace, fd_take, map_vfs_err_to_syscall_err,
-    read_untrusted_bytes, read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref,
-    read_untrusted_slice, read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo,
-    SocketPipe, VFS_ROOT,
+    fd_push, fd_query, fd_query_of, fd_replace, fd_take, read_untrusted_bytes,
+    read_untrusted_bytes_mut, read_untrusted_mut, read_untrusted_ref, read_untrusted_slice,
+    read_untrusted_str, BoundSocket, FileDescData, LocalSocket, SocketInfo, SocketPipe, VFS_ROOT,
 };
 use hyperion_log::*;
 use hyperion_mem::{
@@ -338,11 +337,10 @@ fn _open_dir(
     }
 
     let mut dir = VFS_ROOT
-        .find_dir(path, create_dirs, create) // TODO: mkdir
-        .map_err(map_vfs_err_to_syscall_err)?
+        .find_dir(path, create_dirs, create)? // TODO: mkdir
         .lock_arc();
 
-    let s = dir.nodes().map_err(map_vfs_err_to_syscall_err)?;
+    let s = dir.nodes()?;
 
     let mut buf = String::new(); // TODO: real readdir
     for entry in s.into_iter() {
@@ -383,14 +381,12 @@ fn _open_file(
         return Err(Error::FILESYSTEM_ERROR);
     }
 
-    let file_ref = VFS_ROOT
-        .find_file(path, create_dirs, create)
-        .map_err(map_vfs_err_to_syscall_err)?;
+    let file_ref = VFS_ROOT.find_file(path, create_dirs, create)?;
 
     // let mut file_lock = file_ref.lock();
     let mut file_lock = DeferInit::new(|| file_ref.lock());
     if flags.contains(FileOpenFlags::TRUNC) {
-        file_lock.set_len(0).map_err(map_vfs_err_to_syscall_err)?;
+        file_lock.set_len(0)?;
     }
 
     let position = if flags.contains(FileOpenFlags::APPEND) {
@@ -500,16 +496,14 @@ fn _bind(socket_fd: FileDesc, addr: &str) -> Result<()> {
 
     VFS_ROOT
         // find the directory node
-        .find_dir(dir, false, true)
-        .map_err(map_vfs_err_to_syscall_err)?
+        .find_dir(dir, false, true)?
         // lock the directory
         .lock_arc()
         // create the socket file in that directory
         .create_node(
             sock_file,
             Node::File(Arc::new(Mutex::new(BoundSocket(socket)))),
-        )
-        .map_err(map_vfs_err_to_syscall_err)?;
+        )?;
 
     return Ok(());
 }
@@ -567,8 +561,7 @@ fn _connect(socket_fd: FileDesc, addr: &str) -> Result<()> {
 
     let server = VFS_ROOT
         // TODO: inode
-        .find_file(addr, false, false)
-        .map_err(map_vfs_err_to_syscall_err)?
+        .find_file(addr, false, false)?
         .lock_arc()
         .as_any()
         .downcast_ref::<BoundSocket>()
@@ -717,13 +710,11 @@ pub fn map_file(args: &mut SyscallRegs) -> Result<usize> {
     let top = VirtAddr::try_new(bottom.as_u64() + size) //
         .map_err(|_| Error::OUT_OF_VIRTUAL_MEMORY)?;
 
-    file_ref
-        .map_phys(
-            &this.address_space.page_map,
-            bottom..top,
-            PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE | NO_FREE, // FIXME: the file already does NO_FREE, because of borrow target
-        )
-        .map_err(map_vfs_err_to_syscall_err)?;
+    file_ref.map_phys(
+        &this.address_space.page_map,
+        bottom..top,
+        PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE | NO_FREE, // FIXME: the file already does NO_FREE, because of borrow target
+    )?;
 
     *file.mapped.lock() = Some(bottom..top);
 
@@ -750,10 +741,7 @@ pub fn unmap_file(args: &mut SyscallRegs) -> Result<usize> {
 
     process().address_space.page_map.unmap(mapping);
 
-    file.file_ref
-        .lock_arc()
-        .unmap_phys()
-        .map_err(map_vfs_err_to_syscall_err)?;
+    file.file_ref.lock_arc().unmap_phys()?;
 
     Ok(0)
 }

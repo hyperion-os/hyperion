@@ -1,10 +1,7 @@
 use core::{any::Any, str::from_utf8};
 
 use hyperion_log::*;
-use hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-};
+use hyperion_vfs::{device::FileDevice, Result};
 
 //
 
@@ -20,15 +17,7 @@ impl FileDevice for KernelLogs {
         0
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, _: usize, _: &mut [u8]) -> IoResult<usize> {
-        Ok(0)
-    }
-
-    fn write(&mut self, _: usize, buf: &[u8]) -> IoResult<usize> {
+    fn write(&mut self, _: usize, buf: &[u8]) -> Result<usize> {
         if let Ok(str) = from_utf8(buf) {
             print!("{str}");
         }

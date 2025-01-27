@@ -16,9 +16,9 @@ use hyperion_scheduler::{
     proc::{processes, Pid, Process, PROCESSES},
     process,
 };
+use hyperion_syscall::err::{Error, Result};
 use hyperion_vfs::{
     device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
-    error::{IoError, IoResult},
     tree::{IntoNode, Node},
     AnyMutex,
 };
@@ -123,7 +123,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
         "procfs"
     }
 
-    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
+    fn get_node(&mut self, name: &str) -> Result<Node<Mut>> {
         match name {
             "meminfo" => Ok(self.meminfo()),
             "cmdline" => Ok(self.cmdline()),
@@ -140,16 +140,12 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
                     return Ok(Node::new_dir(ProcDir(proc)));
                 }
 
-                Err(IoError::NotFound)
+                Err(Error::NOT_FOUND)
             }
         }
     }
 
-    fn create_node(&mut self, _: &str, _: Node<Mut>) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
         struct ExactSizeChain<A, B>(A, B);
 
         impl<A: Iterator, B: Iterator<Item = A::Item>> Iterator for ExactSizeChain<A, B> {
@@ -229,19 +225,15 @@ impl ProcDir {
 }
 
 impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
-    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
+    fn get_node(&mut self, name: &str) -> Result<Node<Mut>> {
         match name {
             "status" => Ok(self.status()),
             "cmdline" => Ok(self.cmdline()),
-            _ => Err(IoError::NotFound),
+            _ => Err(Error::NOT_FOUND),
         }
     }
 
-    fn create_node(&mut self, _: &str, _: Node<Mut>) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
         Ok(Box::new(
             [
                 DirEntry {
@@ -339,11 +331,7 @@ impl<T: Display + Send + Sync + 'static> FileDevice for DisplayFile<T> {
         l.len
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
         let mut w = FmtOffsetBuf {
             offset,
             buf,
@@ -351,10 +339,6 @@ impl<T: Display + Send + Sync + 'static> FileDevice for DisplayFile<T> {
         };
         write!(&mut w, "{}", self.0).unwrap();
         Ok(w.cursor.saturating_sub(w.offset).min(w.buf.len()))
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
     }
 }
 

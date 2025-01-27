@@ -2,11 +2,11 @@ use alloc::sync::{Arc, Weak};
 use core::fmt;
 
 use hyperion_log::*;
+use hyperion_syscall::err::{Error, Result};
 use lock_api::{Mutex, RawMutex};
 
 use crate::{
     device::DirectoryDevice,
-    error::{IoError, IoResult},
     path::Path,
     ramdisk::{Directory, File},
     AnyMutex, FileDevice,
@@ -81,16 +81,16 @@ pub enum Node<Mut> {
 }
 
 impl<Mut> Node<Mut> {
-    pub fn try_as_file(&self) -> IoResult<FileRef<Mut>> {
+    pub fn try_as_file(&self) -> Result<FileRef<Mut>> {
         match self {
             Node::File(f) => Ok(f.clone()),
-            Node::Directory(_) => Err(IoError::IsADirectory),
+            Node::Directory(_) => Err(Error::NOT_A_FILE),
         }
     }
 
-    pub fn try_as_dir(&self) -> IoResult<DirRef<Mut>> {
+    pub fn try_as_dir(&self) -> Result<DirRef<Mut>> {
         match self {
-            Node::File(_) => Err(IoError::NotADirectory),
+            Node::File(_) => Err(Error::NOT_A_DIRECTORY),
             Node::Directory(d) => Ok(d.clone()),
         }
     }
@@ -132,7 +132,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         Self::Directory(Arc::new(Mutex::new(f)))
     }
 
-    pub fn find(&self, path: impl AsRef<Path>, make_dirs: bool) -> IoResult<Self> {
+    pub fn find(&self, path: impl AsRef<Path>, make_dirs: bool) -> Result<Self> {
         let mut this = self.clone();
         for part in path.as_ref().iter() {
             let mut dir = this.try_as_dir()?.lock_arc();
@@ -146,7 +146,7 @@ impl<Mut: AnyMutex> Node<Mut> {
                 dir.create_node(part, node.clone())?;
                 node
             } else {
-                return Err(IoError::NotFound);
+                return Err(Error::NOT_FOUND);
             };
         }
 
@@ -158,7 +158,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         path: impl AsRef<Path>,
         make_dirs: bool,
         create: bool,
-    ) -> IoResult<DirRef<Mut>> {
+    ) -> Result<DirRef<Mut>> {
         let path = path.as_ref();
         let (parent, target_dir) = path.split();
 
@@ -186,7 +186,7 @@ impl<Mut: AnyMutex> Node<Mut> {
             return Ok(node);
         }
 
-        Err(IoError::NotFound)
+        Err(Error::NOT_FOUND)
     }
 
     pub fn find_file(
@@ -194,7 +194,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         path: impl AsRef<Path>,
         make_dirs: bool,
         create: bool,
-    ) -> IoResult<FileRef<Mut>> {
+    ) -> Result<FileRef<Mut>> {
         let path = path.as_ref();
         let (parent, file) = path.split();
 
@@ -212,7 +212,7 @@ impl<Mut: AnyMutex> Node<Mut> {
             return Ok(node);
         }
 
-        Err(IoError::NotFound)
+        Err(Error::NOT_FOUND)
     }
 
     pub fn install_dev_with(&self, path: impl AsRef<Path>, dev: impl FileDevice + 'static) {
@@ -224,7 +224,7 @@ impl<Mut: AnyMutex> Node<Mut> {
         path: impl AsRef<Path>,
         make_dirs: bool,
         dev: FileRef<Mut>,
-    ) -> IoResult<()> {
+    ) -> Result<()> {
         self.insert(path, make_dirs, Node::File(dev))
     }
 
@@ -233,11 +233,11 @@ impl<Mut: AnyMutex> Node<Mut> {
         path: impl AsRef<Path>,
         make_dirs: bool,
         dev: DirRef<Mut>,
-    ) -> IoResult<()> {
+    ) -> Result<()> {
         self.insert(path, make_dirs, Node::Directory(dev))
     }
 
-    pub fn insert(&self, path: impl AsRef<Path>, make_dirs: bool, node: Node<Mut>) -> IoResult<()> {
+    pub fn insert(&self, path: impl AsRef<Path>, make_dirs: bool, node: Node<Mut>) -> Result<()> {
         let path = path.as_ref();
         let (parent_dir, target_name) = path.split();
 

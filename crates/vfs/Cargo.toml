@@ -9,10 +9,11 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-snafu.workspace = true
 lock_api.workspace = true
 x86_64.workspace = true
 
 hyperion-arch.path = "../arch"
 hyperion-log.path = "../log"
 hyperion-mem.path = "../mem"
+hyperion-syscall.path = "../syscall"
+hyperion-scheduler.path = "../scheduler"

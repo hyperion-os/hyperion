@@ -4,6 +4,7 @@
 
 extern crate alloc;
 
+pub use hyperion_syscall::err::{Error, Result};
 use lock_api::RawMutex;
 
 use crate::device::FileDevice;
@@ -21,7 +22,6 @@ impl<T> AnyMutex for T where T: RawMutex + Send + Sync + 'static {}
 //
 
 pub mod device;
-pub mod error;
 pub mod path;
 pub mod ramdisk;
 pub mod tree;

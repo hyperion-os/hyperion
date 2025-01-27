@@ -1,9 +1,6 @@
 use core::any::Any;
 
-use hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-};
+use hyperion_vfs::{device::FileDevice, Result};
 
 //
 
@@ -18,15 +15,11 @@ impl FileDevice for Null {
         1
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, _: usize, _: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, _: usize, _: &mut [u8]) -> Result<usize> {
         Ok(0)
     }
 
-    fn write(&mut self, _: usize, buf: &[u8]) -> IoResult<usize> {
+    fn write(&mut self, _: usize, buf: &[u8]) -> Result<usize> {
         Ok(buf.len())
     }
 }

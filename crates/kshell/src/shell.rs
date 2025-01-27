@@ -186,7 +186,7 @@ impl Shell {
         _ = write!(self.term, "\n[kshell {}]# ", self.current_dir.as_str());
     }
 
-    async fn run_line(&mut self, line: &str) -> Result<Option<()>> {
+    async fn run_line(&mut self, line: &str) -> anyhow::Result<Option<()>> {
         let line = line.trim();
 
         let (cmd, args) = line
@@ -202,9 +202,7 @@ impl Shell {
             "clear" => self.term.clear(),
             "lspci" => self.lspci_cmd(args)?,
             "" => self.term.write_byte(b'\n'),
-            _ => self.cmd_line(line).await.map_err(|err| Error::Other {
-                msg: err.to_string(),
-            })?,
+            _ => self.cmd_line(line).await?,
         }
 
         Ok(Some(()))
@@ -377,7 +375,7 @@ impl Shell {
         Ok(())
     }
 
-    fn kbl_cmd(&mut self, args: Option<&str>) -> Result<()> {
+    fn kbl_cmd(&mut self, args: Option<&str>) -> anyhow::Result<()> {
         let name = args.unwrap_or("us");
         if set_layout(name).is_none() {
             _ = writeln!(self.term, "invalid layout `{name}`");
@@ -387,7 +385,7 @@ impl Shell {
         Ok(())
     }
 
-    fn help_cmd(&mut self, _: Option<&str>) -> Result<()> {
+    fn help_cmd(&mut self, _: Option<&str>) -> anyhow::Result<()> {
         _ = writeln!(
             self.term,
             "available built-in shell commands:\nkbl, help, kill, exit, clear, lspci"
@@ -396,23 +394,17 @@ impl Shell {
         Ok(())
     }
 
-    fn kill_cmd(&mut self, args: Option<&str>) -> Result<()> {
+    fn kill_cmd(&mut self, args: Option<&str>) -> anyhow::Result<()> {
         let Some(arg) = args else {
-            return Err(Error::Other {
-                msg: "missing arg pid".to_string(),
-            });
+            return Err(anyhow!("missing arg pid"));
         };
 
         let Ok(pid) = arg.parse::<usize>() else {
-            return Err(Error::Other {
-                msg: "invalid arg pid".to_string(),
-            });
+            return Err(anyhow!("invalid arg pid"));
         };
 
         let Some(proc) = Pid::new(pid).find() else {
-            return Err(Error::Other {
-                msg: "couldn't find the process".to_string(),
-            });
+            return Err(anyhow!("couldn't find the process"));
         };
 
         proc.should_terminate.store(true, Ordering::SeqCst);
@@ -420,7 +412,7 @@ impl Shell {
         Ok(())
     }
 
-    fn lspci_cmd(&mut self, _args: Option<&str>) -> Result<()> {
+    fn lspci_cmd(&mut self, _args: Option<&str>) -> anyhow::Result<()> {
         for device in hyperion_pci::devices() {
             _ = writeln!(self.term, "{device}");
         }

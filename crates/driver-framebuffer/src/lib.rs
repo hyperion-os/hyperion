@@ -15,10 +15,7 @@ use hyperion_mem::{
     pmm::PageFrame,
     vmm::{MapTarget, PageMapImpl},
 };
-use hyperion_vfs::{
-    device::FileDevice,
-    error::{IoError, IoResult},
-};
+use hyperion_vfs::{device::FileDevice, Error, Result};
 use spin::{MutexGuard, Once};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -49,22 +46,18 @@ impl FileDevice for FboDevice {
         }
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
     fn map_phys(
         &mut self,
         vmm: &PageMap,
         v_addr: Range<VirtAddr>,
         flags: PageTableFlags,
-    ) -> IoResult<usize> {
+    ) -> Result<usize> {
         if !v_addr.start.is_aligned(0x1000u64) {
             // FIXME: use the real abi error
-            return Err(IoError::PermissionDenied);
+            return Err(Error::PERMISSION_DENIED);
         }
 
-        self.maps = self.maps.checked_add(1).ok_or(IoError::FilesystemError)?;
+        self.maps = self.maps.checked_add(1).ok_or(Error::FILESYSTEM_ERROR)?;
 
         let (_, frame) = self.lock.get_or_insert_with(|| {
             let fbo = Framebuffer::get().unwrap().lock();
@@ -94,8 +87,8 @@ impl FileDevice for FboDevice {
         Ok((end - v_addr.start) as usize)
     }
 
-    fn unmap_phys(&mut self) -> IoResult<()> {
-        self.maps = self.maps.checked_sub(1).ok_or(IoError::FilesystemError)?;
+    fn unmap_phys(&mut self) -> Result<()> {
+        self.maps = self.maps.checked_sub(1).ok_or(Error::FILESYSTEM_ERROR)?;
 
         if self.maps == 0 {
             self.lock = None;
@@ -104,11 +97,11 @@ impl FileDevice for FboDevice {
         Ok(())
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
         Self::with(|fbo| fbo.read(offset, buf))
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+    fn write(&mut self, offset: usize, buf: &[u8]) -> Result<usize> {
         Self::with_mut(|fbo| fbo.write(offset, buf))
     }
 }
@@ -157,16 +150,8 @@ impl FileDevice for FboInfoDevice {
         self.get().len()
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
         self.get().as_bytes().read(offset, buf)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
     }
 }
 

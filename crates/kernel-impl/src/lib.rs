@@ -30,7 +30,6 @@ use hyperion_syscall::{
 };
 use hyperion_vfs::{
     device::FileDevice,
-    error::IoError,
     tree::{FileRef, Node},
 };
 use spin::{Lazy, Once};
@@ -38,6 +37,7 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 //
 
+// mod initfs;
 mod procfs;
 // mod sysfs;
 
@@ -174,10 +174,7 @@ impl FileDescData {
     }
 
     pub fn open(path: &str) -> Result<Self> {
-        VFS_ROOT
-            .find_file(path, true, true)
-            .map(Self::from)
-            .map_err(map_vfs_err_to_syscall_err)
+        VFS_ROOT.find_file(path, true, true).map(Self::from)
     }
 }
 
@@ -208,10 +205,7 @@ impl FileDescriptor for FileDescData {
     }
 
     fn set_len(&self, len: usize) -> Result<()> {
-        self.file_ref
-            .lock()
-            .set_len(len)
-            .map_err(map_vfs_err_to_syscall_err)
+        self.file_ref.lock().set_len(len)
     }
 
     fn seek(&self, offset: isize, origin: Seek) -> Result<usize> {
@@ -256,9 +250,7 @@ impl FileDescriptor for FileDescData {
 
     fn read(&self, buf: &mut [u8]) -> Result<usize> {
         let lock = self.file_ref.lock();
-        let bytes = lock
-            .read(self.position.load(Ordering::SeqCst), buf)
-            .map_err(map_vfs_err_to_syscall_err)?;
+        let bytes = lock.read(self.position.load(Ordering::SeqCst), buf)?;
         self.position.fetch_add(bytes, Ordering::SeqCst);
         drop(lock);
         Ok(bytes)
@@ -266,9 +258,7 @@ impl FileDescriptor for FileDescData {
 
     fn write(&self, buf: &[u8]) -> Result<usize> {
         let mut lock = self.file_ref.lock();
-        let bytes = lock
-            .write(self.position.load(Ordering::SeqCst), buf)
-            .map_err(map_vfs_err_to_syscall_err)?;
+        let bytes = lock.write(self.position.load(Ordering::SeqCst), buf)?;
         self.position.fetch_add(bytes, Ordering::SeqCst);
         drop(lock);
         Ok(bytes)
@@ -479,18 +469,6 @@ impl FileDevice for BoundSocket {
     fn len(&self) -> usize {
         0
     }
-
-    fn set_len(&mut self, _: usize) -> hyperion_vfs::error::IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, _: usize, _: &mut [u8]) -> hyperion_vfs::error::IoResult<usize> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> hyperion_vfs::error::IoResult<usize> {
-        Err(IoError::PermissionDenied)
-    }
 }
 
 //
@@ -696,20 +674,6 @@ pub fn process_ext_with(proc: &Process) -> &ProcessExtra {
         .as_any()
         .downcast_ref()
         .unwrap()
-}
-
-pub fn map_vfs_err_to_syscall_err(err: IoError) -> Error {
-    match err {
-        IoError::NotFound => Error::NOT_FOUND,
-        IoError::AlreadyExists => Error::ALREADY_EXISTS,
-        IoError::NotADirectory => Error::NOT_A_DIRECTORY,
-        IoError::IsADirectory => Error::NOT_A_FILE,
-        IoError::FilesystemError => Error::FILESYSTEM_ERROR,
-        IoError::PermissionDenied => Error::PERMISSION_DENIED,
-        IoError::UnexpectedEOF => Error::UNEXPECTED_EOF,
-        IoError::Interrupted => Error::INTERRUPTED,
-        IoError::WriteZero => Error::WRITE_ZERO,
-    }
 }
 
 pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {

@@ -4,15 +4,13 @@
 
 extern crate alloc;
 
-use alloc::{string::String, sync::Arc};
-use core::num::ParseIntError;
+use alloc::sync::Arc;
 
 use futures_util::StreamExt;
 use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_log::*;
 use hyperion_scheduler::lock::Mutex;
-use hyperion_vfs::{error::IoError, path::PathBuf, ramdisk::StaticRoFile};
-use snafu::Snafu;
+use hyperion_vfs::ramdisk::StaticRoFile;
 
 use crate::{shell::Shell, term::Term};
 
@@ -110,28 +108,3 @@ pub async fn kshell() {
 
 const CHAR_SIZE: (u8, u8) = (8, 16);
 // const WIDE_CHAR_SIZE: (u8, u8) = (16, 16);
-
-//
-
-#[derive(Debug, Snafu)]
-pub enum Error {
-    #[snafu(display("VFS error: {source}"))]
-    IoError {
-        source: IoError,
-        resource: Option<PathBuf>,
-    },
-
-    #[snafu(display("VFS error: Nameless file"))]
-    NamelessFile,
-
-    #[snafu(display("Parse error: {source}"))]
-    Parse { source: ParseIntError },
-
-    #[snafu(display("{msg}"))]
-    Other { msg: String },
-
-    #[snafu(display("insecure PRNG"))]
-    InsecurePrng,
-}
-
-pub type Result<T> = core::result::Result<T, Error>;

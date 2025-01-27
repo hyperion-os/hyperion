@@ -6,13 +6,11 @@ use core::{
 };
 
 use hyperion_arch::vmm::PageMap;
+use hyperion_syscall::err::{Error, Result};
 use lock_api::RawMutex;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
-use crate::{
-    error::{IoError, IoResult},
-    tree::Node,
-};
+use crate::tree::Node;
 
 //
 
@@ -26,7 +24,10 @@ pub trait FileDevice: Send + Sync {
     fn len(&self) -> usize;
 
     /// truncate or add zeros to set the length
-    fn set_len(&mut self, len: usize) -> IoResult<()>;
+    fn set_len(&mut self, len: usize) -> Result<()> {
+        _ = len;
+        Err(Error::PERMISSION_DENIED)
+    }
 
     fn is_empty(&self) -> bool {
         self.len() == 0
@@ -47,19 +48,22 @@ pub trait FileDevice: Send + Sync {
         vmm: &PageMap,
         v_addr: Range<VirtAddr>,
         flags: PageTableFlags,
-    ) -> IoResult<usize> {
+    ) -> Result<usize> {
         _ = (vmm, v_addr, flags);
-        Err(IoError::PermissionDenied)
+        Err(Error::PERMISSION_DENIED)
     }
 
     /// see [`Self::map_phys`]
-    fn unmap_phys(&mut self) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
+    fn unmap_phys(&mut self) -> Result<()> {
+        Err(Error::PERMISSION_DENIED)
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize>;
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
+        _ = (offset, buf);
+        Err(Error::PERMISSION_DENIED)
+    }
 
-    fn read_exact(&self, mut offset: usize, mut buf: &mut [u8]) -> IoResult<()> {
+    fn read_exact(&self, mut offset: usize, mut buf: &mut [u8]) -> Result<()> {
         while !buf.is_empty() {
             match self.read(offset, buf) {
                 Ok(0) => break,
@@ -68,29 +72,32 @@ pub trait FileDevice: Send + Sync {
                     let tmp = buf;
                     buf = &mut tmp[n..];
                 }
-                Err(IoError::Interrupted) => {}
+                Err(Error::INTERRUPTED) => {}
                 Err(err) => return Err(err),
             }
         }
 
         if !buf.is_empty() {
-            Err(IoError::UnexpectedEOF)
+            Err(Error::UNEXPECTED_EOF)
         } else {
             Ok(())
         }
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize>;
+    fn write(&mut self, offset: usize, buf: &[u8]) -> Result<usize> {
+        _ = (offset, buf);
+        Err(Error::PERMISSION_DENIED)
+    }
 
-    fn write_exact(&mut self, mut offset: usize, mut buf: &[u8]) -> IoResult<()> {
+    fn write_exact(&mut self, mut offset: usize, mut buf: &[u8]) -> Result<()> {
         while !buf.is_empty() {
             match self.write(offset, buf) {
-                Ok(0) => return Err(IoError::WriteZero),
+                Ok(0) => return Err(Error::WRITE_ZERO),
                 Ok(n) => {
                     offset += n;
                     buf = &buf[n..];
                 }
-                Err(IoError::Interrupted) => {}
+                Err(Error::INTERRUPTED) => {}
                 Err(err) => return Err(err),
             }
         }
@@ -103,11 +110,19 @@ pub trait DirectoryDevice<Mut: RawMutex>: Send + Sync {
         "unknown"
     }
 
-    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>>;
+    fn get_node(&mut self, name: &str) -> Result<Node<Mut>> {
+        _ = name;
+        Err(Error::PERMISSION_DENIED)
+    }
 
-    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()>;
+    fn create_node(&mut self, name: &str, node: Node<Mut>) -> Result<()> {
+        _ = (name, node);
+        Err(Error::PERMISSION_DENIED)
+    }
 
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>>;
+    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+        Err(Error::PERMISSION_DENIED)
+    }
 }
 
 //
@@ -144,15 +159,15 @@ impl FileDevice for [u8] {
         <[u8]>::len(self)
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
+    fn set_len(&mut self, _: usize) -> Result<()> {
+        Err(Error::PERMISSION_DENIED)
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
         let len = self
             .len()
             .checked_sub(offset)
-            .ok_or(IoError::UnexpectedEOF)?
+            .ok_or(Error::UNEXPECTED_EOF)?
             .min(buf.len());
 
         buf[..len].copy_from_slice(&self[offset..][..len]);
@@ -160,11 +175,11 @@ impl FileDevice for [u8] {
         Ok(len)
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
+    fn write(&mut self, offset: usize, buf: &[u8]) -> Result<usize> {
         let len = self
             .len()
             .checked_sub(offset)
-            .ok_or(IoError::UnexpectedEOF)?
+            .ok_or(Error::UNEXPECTED_EOF)?
             .min(buf.len());
 
         self[offset..][..len].copy_from_slice(&buf[..len]);
@@ -182,16 +197,16 @@ impl<T: FileDevice> FileDevice for &'static T {
         (**self).len()
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
+    fn set_len(&mut self, _: usize) -> Result<()> {
+        Err(Error::PERMISSION_DENIED)
     }
 
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
         (**self).read(offset, buf)
     }
 
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
+    fn write(&mut self, _: usize, _: &[u8]) -> Result<usize> {
+        Err(Error::PERMISSION_DENIED)
     }
 }
 

@@ -57,6 +57,10 @@ extern "C" fn _start() -> ! {
     // wake up all cpus
     arch::wake_cpus();
 
+    if sync::once!() {
+        scheduler::schedule(move || {});
+    }
+
     // init task per cpu
     debug!("init CPU-{}", cpu_id());
     scheduler::init(init);

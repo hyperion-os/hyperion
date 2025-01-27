@@ -3,9 +3,9 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+use hyperion_syscall::err::{Error, Result};
 use hyperion_vfs::{
     device::{DirectoryDevice, FileDevice},
-    error::{IoError, IoResult},
     ramdisk::Directory,
     tree::Node,
     AnyMutex,
@@ -47,11 +47,7 @@ impl FileDevice for SysCtlToggle {
         1
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
         let val_bytes = if self.val.load(Ordering::SeqCst) {
             b"1"
         } else {
@@ -61,8 +57,8 @@ impl FileDevice for SysCtlToggle {
         <[u8]>::read(val_bytes, offset, buf)
     }
 
-    fn write(&mut self, offset: usize, buf: &[u8]) -> IoResult<usize> {
-        if offset != 0 || buf.len() == 0 {
+    fn write(&mut self, offset: usize, buf: &[u8]) -> Result<usize> {
+        if offset != 0 || buf.is_empty() {
             return Ok(0);
         }
 
@@ -72,7 +68,7 @@ impl FileDevice for SysCtlToggle {
         let new_val = match &val_bytes {
             b"1" => true,
             b"0" => false,
-            _ => return Err(IoError::FilesystemError),
+            _ => return Err(Error::FILESYSTEM_ERROR),
         };
 
         self.val.store(new_val, Ordering::SeqCst);

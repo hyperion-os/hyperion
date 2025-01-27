@@ -12,12 +12,12 @@ use hyperion_mem::{
     pmm::{PageFrame, PFA},
     vmm::{MapTarget, PageMapImpl},
 };
+use hyperion_syscall::err::{Error, Result};
 use lock_api::Mutex;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 use crate::{
     device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
-    error::{IoError, IoResult},
     tree::{DirRef, FileRef, Node, WeakDirRef},
     AnyMutex,
 };
@@ -96,7 +96,7 @@ impl FileDevice for File {
         self.len
     }
 
-    fn set_len(&mut self, len: usize) -> IoResult<()> {
+    fn set_len(&mut self, len: usize) -> Result<()> {
         self.len = len;
         Ok(())
     }
@@ -106,10 +106,10 @@ impl FileDevice for File {
         vmm: &PageMap,
         v_addr: Range<VirtAddr>,
         flags: PageTableFlags,
-    ) -> IoResult<usize> {
+    ) -> Result<usize> {
         if !v_addr.start.is_aligned(0x1000u64) {
             // FIXME: use the real abi error
-            return Err(IoError::PermissionDenied);
+            return Err(Error::PERMISSION_DENIED);
         }
 
         let mut pos = v_addr.start;
@@ -157,11 +157,11 @@ impl FileDevice for File {
         Ok((pos - v_addr.start) as usize)
     }
 
-    fn unmap_phys(&mut self) -> IoResult<()> {
+    fn unmap_phys(&mut self) -> Result<()> {
         Ok(())
     }
 
-    fn read(&self, offset: usize, mut buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, mut buf: &mut [u8]) -> Result<usize> {
         // FIXME: this should really just temporarily map the pages
         // its simpler and its faster and its less buggy
 
@@ -197,7 +197,7 @@ impl FileDevice for File {
         Ok(initial_len)
     }
 
-    fn write(&mut self, offset: usize, mut buf: &[u8]) -> IoResult<usize> {
+    fn write(&mut self, offset: usize, mut buf: &[u8]) -> Result<usize> {
         self.len = self.len.max(offset + buf.len());
 
         let initial_len = buf.len();
@@ -245,16 +245,8 @@ impl FileDevice for StaticRoFile {
         self.bytes.len()
     }
 
-    fn set_len(&mut self, _: usize) -> IoResult<()> {
-        Err(IoError::PermissionDenied)
-    }
-
-    fn read(&self, offset: usize, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&self, offset: usize, buf: &mut [u8]) -> Result<usize> {
         self.bytes.read(offset, buf)
-    }
-
-    fn write(&mut self, _: usize, _: &[u8]) -> IoResult<usize> {
-        Err(IoError::PermissionDenied)
     }
 }
 
@@ -263,26 +255,26 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
         "vfs"
     }
 
-    fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
+    fn get_node(&mut self, name: &str) -> Result<Node<Mut>> {
         if let Some(node) = self.children.get(name) {
             Ok(node.clone())
         } else {
-            Err(IoError::NotFound)
+            Err(Error::NOT_FOUND)
         }
     }
 
-    fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()> {
+    fn create_node(&mut self, name: &str, node: Node<Mut>) -> Result<()> {
         match self.children.entry(name.into()) {
             Entry::Vacant(entry) => {
                 entry.insert(node);
                 self.nodes_cache = None;
                 Ok(())
             }
-            Entry::Occupied(_) => Err(IoError::AlreadyExists),
+            Entry::Occupied(_) => Err(Error::ALREADY_EXISTS),
         }
     }
 
-    fn nodes(&mut self) -> IoResult<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
         Ok(Box::new(self.children.iter().map(|(name, node)| {
             DirEntry {
                 name: ArcOrRef::Ref(name),
