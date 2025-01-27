@@ -43,7 +43,7 @@ mod procfs;
 
 //
 
-pub static VFS_ROOT: Lazy<Node<Futex>> = Lazy::new(|| {
+pub static VFS_ROOT: Lazy<Node> = Lazy::new(|| {
     let root = Node::new_root();
 
     procfs::init(root.clone());
@@ -156,7 +156,7 @@ pub trait FileDescriptor: Send + Sync {
 /// file descriptor backend that points to an opened VFS file
 pub struct FileDescData {
     /// VFS node
-    pub file_ref: FileRef<Futex>,
+    pub file_ref: FileRef,
 
     /// the current read/write offset
     pub position: AtomicUsize,
@@ -165,7 +165,7 @@ pub struct FileDescData {
 }
 
 impl FileDescData {
-    pub const fn new(file_ref: FileRef<Futex>, position: usize) -> Self {
+    pub const fn new(file_ref: FileRef, position: usize) -> Self {
         Self {
             file_ref,
             position: AtomicUsize::new(position),
@@ -189,8 +189,8 @@ impl Clone for FileDescData {
     }
 }
 
-impl From<FileRef<Futex>> for FileDescData {
-    fn from(file_ref: FileRef<Futex>) -> Self {
+impl From<FileRef> for FileDescData {
+    fn from(file_ref: FileRef) -> Self {
         Self::new(file_ref, 0)
     }
 }

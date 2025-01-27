@@ -12,14 +12,13 @@ use hyperion_mem::{
     pmm::{PageFrame, PFA},
     vmm::{MapTarget, PageMapImpl},
 };
+use hyperion_scheduler::lock::Mutex;
 use hyperion_syscall::err::{Error, Result};
-use lock_api::Mutex;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 use crate::{
     device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
     tree::{DirRef, FileRef, Node, WeakDirRef},
-    AnyMutex,
 };
 
 //
@@ -49,7 +48,7 @@ impl File {
         }
     }
 
-    pub fn new_empty<Mut: AnyMutex>() -> FileRef<Mut> {
+    pub fn new_empty() -> FileRef {
         Arc::new(Mutex::new(Self {
             pages: Vec::new(),
             len: 0,
@@ -77,10 +76,10 @@ impl StaticRoFile {
     }
 }
 
-pub struct Directory<Mut: AnyMutex> {
+pub struct Directory {
     pub name: Arc<str>,
-    pub children: BTreeMap<Arc<str>, Node<Mut>>,
-    pub parent: Option<WeakDirRef<Mut>>,
+    pub children: BTreeMap<Arc<str>, Node>,
+    pub parent: Option<WeakDirRef>,
 
     nodes_cache: Option<Arc<[Arc<str>]>>,
 }
@@ -250,12 +249,12 @@ impl FileDevice for StaticRoFile {
     }
 }
 
-impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
+impl DirectoryDevice for Directory {
     fn driver(&self) -> &'static str {
         "vfs"
     }
 
-    fn get_node(&mut self, name: &str) -> Result<Node<Mut>> {
+    fn get_node(&mut self, name: &str) -> Result<Node> {
         if let Some(node) = self.children.get(name) {
             Ok(node.clone())
         } else {
@@ -263,7 +262,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
         }
     }
 
-    fn create_node(&mut self, name: &str, node: Node<Mut>) -> Result<()> {
+    fn create_node(&mut self, name: &str, node: Node) -> Result<()> {
         match self.children.entry(name.into()) {
             Entry::Vacant(entry) => {
                 entry.insert(node);
@@ -274,7 +273,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
         }
     }
 
-    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_>> + '_>> {
         Ok(Box::new(self.children.iter().map(|(name, node)| {
             DirEntry {
                 name: ArcOrRef::Ref(name),
@@ -284,7 +283,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for Directory<Mut> {
     }
 }
 
-impl<Mut: AnyMutex> Directory<Mut> {
+impl Directory {
     pub fn new(name: impl Into<Arc<str>>) -> Self {
         Self {
             name: name.into(),
@@ -295,7 +294,7 @@ impl<Mut: AnyMutex> Directory<Mut> {
         }
     }
 
-    pub fn new_ref(name: impl Into<Arc<str>>) -> DirRef<Mut> {
+    pub fn new_ref(name: impl Into<Arc<str>>) -> DirRef {
         Arc::new(Mutex::new(Self::new(name))) as _
     }
 }

@@ -7,7 +7,6 @@ use core::{
 
 use hyperion_arch::vmm::PageMap;
 use hyperion_syscall::err::{Error, Result};
-use lock_api::RawMutex;
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
 use crate::tree::Node;
@@ -105,31 +104,31 @@ pub trait FileDevice: Send + Sync {
     }
 }
 
-pub trait DirectoryDevice<Mut: RawMutex>: Send + Sync {
+pub trait DirectoryDevice: Send + Sync {
     fn driver(&self) -> &'static str {
         "unknown"
     }
 
-    fn get_node(&mut self, name: &str) -> Result<Node<Mut>> {
+    fn get_node(&mut self, name: &str) -> Result<Node> {
         _ = name;
         Err(Error::PERMISSION_DENIED)
     }
 
-    fn create_node(&mut self, name: &str, node: Node<Mut>) -> Result<()> {
+    fn create_node(&mut self, name: &str, node: Node) -> Result<()> {
         _ = (name, node);
         Err(Error::PERMISSION_DENIED)
     }
 
-    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_>> + '_>> {
         Err(Error::PERMISSION_DENIED)
     }
 }
 
 //
 
-pub struct DirEntry<'a, Mut> {
+pub struct DirEntry<'a> {
     pub name: ArcOrRef<'a, str>,
-    pub node: Node<Mut>,
+    pub node: Node,
 }
 
 pub enum ArcOrRef<'a, T: ?Sized> {

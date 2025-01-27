@@ -8,18 +8,17 @@ use hyperion_vfs::{
     device::{DirectoryDevice, FileDevice},
     ramdisk::Directory,
     tree::Node,
-    AnyMutex,
 };
 
 //
 
-pub fn sysctl_base<Mut: AnyMutex>() -> Node<Mut> {
+pub fn sysctl_base() -> Node {
     let mut sys = Directory::new("sys");
     sys.create_node("kernel", sysctl_kernel()).unwrap();
     Node::new_dir(sys)
 }
 
-fn sysctl_kernel<Mut: AnyMutex>() -> Node<Mut> {
+fn sysctl_kernel() -> Node {
     let mut group = Directory::new("kernel");
     group
         .create_node(
@@ -86,14 +85,14 @@ impl FileDevice for SysCtlToggle {
 // //
 
 // impl DirectoryDevice for SysCtlGroup {
-//     fn get_node(&mut self, name: &str) -> IoResult<Node<Mut>> {
+//     fn get_node(&mut self, name: &str) -> IoResult<Node> {
 //         match name {
 //             "kernel" => Ok(Node::File())
 //             _ => Err(IoError::NotFound),
 //         }
 //     }
 
-//     fn create_node(&mut self, name: &str, node: Node<Mut>) -> IoResult<()> {
+//     fn create_node(&mut self, name: &str, node: Node) -> IoResult<()> {
 //         todo!()
 //     }
 

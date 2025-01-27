@@ -1018,7 +1018,6 @@ dependencies = [
  "hyperion-mem",
  "hyperion-scheduler",
  "hyperion-syscall",
- "lock_api",
  "x86_64",
 ]
 

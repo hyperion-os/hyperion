@@ -20,7 +20,6 @@ use hyperion_syscall::err::{Error, Result};
 use hyperion_vfs::{
     device::{ArcOrRef, DirEntry, DirectoryDevice, FileDevice},
     tree::{IntoNode, Node},
-    AnyMutex,
 };
 
 use crate::process_ext_with;
@@ -37,15 +36,15 @@ pub fn init(root: impl IntoNode) {
 
 //
 
-pub struct ProcFs<Mut> {
+pub struct ProcFs {
     // TODO: doesnt have to be sync, use Option instead of Once
-    cmdline: Option<Node<Mut>>,
-    version: Option<Node<Mut>>,
-    cpuinfo: Option<Node<Mut>>,
-    sys: Option<Node<Mut>>,
+    cmdline: Option<Node>,
+    version: Option<Node>,
+    cpuinfo: Option<Node>,
+    sys: Option<Node>,
 }
 
-impl<Mut: AnyMutex> ProcFs<Mut> {
+impl ProcFs {
     pub const fn new() -> Self {
         Self {
             cmdline: None,
@@ -55,7 +54,7 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
         }
     }
 
-    fn meminfo(&self) -> Node<Mut> {
+    fn meminfo(&self) -> Node {
         let pfa = &*hyperion_mem::pmm::PFA;
 
         // create a snapshot of the system memory info to fix some data races
@@ -65,13 +64,13 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
         }))
     }
 
-    fn cmdline(&mut self) -> Node<Mut> {
+    fn cmdline(&mut self) -> Node {
         self.cmdline
             .get_or_insert_with(|| Node::new_file(DisplayFile(hyperion_boot::args::get().cmdline)))
             .clone()
     }
 
-    fn version(&mut self) -> Node<Mut> {
+    fn version(&mut self) -> Node {
         self.version
             .get_or_insert_with(|| {
                 Node::new_file(DisplayFile(format!(
@@ -85,7 +84,7 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
             .clone()
     }
 
-    fn uptime(&mut self) -> Node<Mut> {
+    fn uptime(&mut self) -> Node {
         Node::new_file(DisplayFile(Uptime {
             system_s: (hyperion_clock::get().nanosecond_now() / 10_000_000) as f32 / 100.0,
             cpu_idle_sum_s: hyperion_scheduler::idle()
@@ -94,7 +93,7 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
         }))
     }
 
-    fn cpuinfo(&mut self) -> Node<Mut> {
+    fn cpuinfo(&mut self) -> Node {
         self.cpuinfo
             .get_or_insert_with(|| {
                 let mut buf = String::new();
@@ -107,23 +106,23 @@ impl<Mut: AnyMutex> ProcFs<Mut> {
             .clone()
     }
 
-    fn self_dir(&self) -> Node<Mut> {
+    fn self_dir(&self) -> Node {
         Node::new_dir(ProcDir(process()))
     }
 
-    fn sys(&mut self) -> Node<Mut> {
+    fn sys(&mut self) -> Node {
         self.sys
             .get_or_insert_with(|| sysctl::sysctl_base())
             .clone()
     }
 }
 
-impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
+impl DirectoryDevice for ProcFs {
     fn driver(&self) -> &'static str {
         "procfs"
     }
 
-    fn get_node(&mut self, name: &str) -> Result<Node<Mut>> {
+    fn get_node(&mut self, name: &str) -> Result<Node> {
         match name {
             "meminfo" => Ok(self.meminfo()),
             "cmdline" => Ok(self.cmdline()),
@@ -145,7 +144,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
         }
     }
 
-    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_>> + '_>> {
         struct ExactSizeChain<A, B>(A, B);
 
         impl<A: Iterator, B: Iterator<Item = A::Item>> Iterator for ExactSizeChain<A, B> {
@@ -211,11 +210,11 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcFs<Mut> {
 struct ProcDir(Arc<Process>);
 
 impl ProcDir {
-    fn status<Mut: AnyMutex>(&self) -> Node<Mut> {
+    fn status(&self) -> Node {
         Node::new_file(DisplayFile(ProcStatus::new(self.0.clone())))
     }
 
-    fn cmdline<Mut: AnyMutex>(&self) -> Node<Mut> {
+    fn cmdline(&self) -> Node {
         if let Some(cmdline) = process_ext_with(&self.0).cmdline.get().cloned() {
             Node::new_file(DisplayFile(cmdline))
         } else {
@@ -224,8 +223,8 @@ impl ProcDir {
     }
 }
 
-impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
-    fn get_node(&mut self, name: &str) -> Result<Node<Mut>> {
+impl DirectoryDevice for ProcDir {
+    fn get_node(&mut self, name: &str) -> Result<Node> {
         match name {
             "status" => Ok(self.status()),
             "cmdline" => Ok(self.cmdline()),
@@ -233,7 +232,7 @@ impl<Mut: AnyMutex> DirectoryDevice<Mut> for ProcDir {
         }
     }
 
-    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_, Mut>> + '_>> {
+    fn nodes(&mut self) -> Result<Box<dyn ExactSizeIterator<Item = DirEntry<'_>> + '_>> {
         Ok(Box::new(
             [
                 DirEntry {

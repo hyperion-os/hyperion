@@ -5,7 +5,6 @@
 extern crate alloc;
 
 pub use hyperion_syscall::err::{Error, Result};
-use lock_api::RawMutex;
 
 use crate::device::FileDevice;
 
@@ -14,10 +13,6 @@ use crate::device::FileDevice;
 // pub struct TestNode<Mut: VfsMutex<Self>> {
 //     branches: Vec<Mut>,
 // }
-
-pub trait AnyMutex: RawMutex + Send + Sync + 'static {}
-
-impl<T> AnyMutex for T where T: RawMutex + Send + Sync + 'static {}
 
 //
 
