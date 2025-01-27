@@ -16,11 +16,13 @@ struct SleepWaker {
     task: TakeOnce<Task>,
 
     // useless data just for an assert:
+    #[cfg(debug_assertions)]
     deadline: Instant,
 }
 
 impl ArcWake for SleepWaker {
     fn wake_by_ref(arc_self: &Arc<Self>) {
+        #[cfg(debug_assertions)]
         assert!(arc_self.deadline.is_reached());
 
         let Some(task) = arc_self.task.take() else {
@@ -49,7 +51,11 @@ pub fn push(deadline: Instant, task: Task) {
 
     // poll the future with a custom waker
     let task = TakeOnce::new(task);
-    let waker = waker(Arc::new(SleepWaker { task, deadline }));
+    let waker = waker(Arc::new(SleepWaker {
+        task,
+        #[cfg(debug_assertions)]
+        deadline,
+    }));
     let mut cx = Context::from_waker(&waker);
     if fut.poll_unpin(&mut cx).is_ready() {
         cx.waker().wake_by_ref();
