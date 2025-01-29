@@ -2,8 +2,6 @@
 
 A unix-like operating system written in pure Rust.
 
-The kernel is monolithic at the moment, but I am currently converting it into a microkernel in the [microkernel branch](https://github.com/hyperion-os/hyperion/tree/microkernel).
-
 The operating system boots into a kernel mode shell (that will be gone in the future) where you can launch userland software like `hysh`, `wm` or `doom` if you also compiled those.
 The only external program that doesnt require my [fork of the Rust compiler](https://github.com/hyperion-os/rust) is `doom`.
 There are some ELFs that are automatically embedded into the kernel like `ls`, `cat`, `fbtest` and a bunch of other.
@@ -41,6 +39,12 @@ cargo run -- --help
 ### On HW?
 
 Please don't
+
+## Experiments
+
+ - Rust async/await based stackless kernel side scheduling: [futures-scheduler](https://github.com/hyperion-os/hyperion/tree/futures-scheduler)
+
+ - Microkernel experiment: [microkernel](https://github.com/hyperion-os/hyperion/tree/microkernel).
 
 ## Compiling Rust programs for hyperion (with the std library)
 
