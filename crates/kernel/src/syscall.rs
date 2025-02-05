@@ -23,6 +23,7 @@ use hyperion_futures::{
 use hyperion_log::*;
 use hyperion_mem::{
     buf::{Buffer, BufferMut},
+    is_higher_half,
     vmm::PageMapImpl,
 };
 use hyperion_scheduler::{
@@ -546,6 +547,18 @@ pub async fn fd_remove(proc: &Process, fd: u64) -> Option<map::Ref<u64, FileDesc
     proc_ext.fds.remove(&fd).await
 }
 
+// +------------------------+
+// | untrusted memory rules |
+// +------------------------+
+//
+// all memory in the lower half is safe to use for the kernel,
+// because all lower half memory is user accessible OR not mapped
+//
+// if it is user accessible, its fine
+//
+// if it is not mapped, then the kernel page faults
+// in the lower half and gives a segfault for the process
+
 pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
     if len == 0 {
         return Ok((VirtAddr::new_truncate(0), 0));
@@ -559,9 +572,7 @@ pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
         return Err(Error::INVALID_ADDRESS);
     };
 
-    if end >= HIGHER_HALF_DIRECT_MAPPING {
-        // lower half pages are always safe to read and write,
-        // kernel code giving a page fault in lower half terminates that process with a SIGSEGV
+    if is_higher_half(end.as_u64()) {
         return Err(Error::INVALID_ADDRESS);
     }
 
@@ -587,9 +598,12 @@ pub fn read_untrusted_mut<'a, T>(ptr: u64) -> Result<&'a mut T> {
 }
 
 pub fn read_untrusted_slice<'a, T: Copy>(ptr: u64, len: u64) -> Result<&'a [T]> {
+    if !(ptr as *const T).is_aligned() {
+        hyperion_log::debug!("not aligned");
+        return Err(Error::INVALID_ADDRESS);
+    }
+
     read_slice_parts(ptr, len).map(|(start, len)| {
-        // TODO:
-        // SAFETY: this is most likely unsafe
         if len == 0 {
             &[]
         } else {
@@ -600,8 +614,6 @@ pub fn read_untrusted_slice<'a, T: Copy>(ptr: u64, len: u64) -> Result<&'a [T]> 
 
 pub fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {
     read_slice_parts(ptr, len).map(|(start, len)| {
-        // TODO:
-        // SAFETY: this is most likely unsafe
         if len == 0 {
             &[]
         } else {
@@ -612,8 +624,6 @@ pub fn read_untrusted_bytes<'a>(ptr: u64, len: u64) -> Result<&'a [u8]> {
 
 pub fn read_untrusted_bytes_mut<'a>(ptr: u64, len: u64) -> Result<&'a mut [u8]> {
     read_slice_parts(ptr, len).map(|(start, len)| {
-        // TODO:
-        // SAFETY: this is most likely unsafe
         if len == 0 {
             &mut []
         } else {
