@@ -1,7 +1,7 @@
 use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{
     any::Any,
-    mem,
+    mem, str,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
@@ -181,9 +181,12 @@ pub fn open(args: &mut SyscallRegs) {
             Err(Error::INVALID_ARGUMENT)?;
         }
 
-        let path: Box<str> = String::from_utf8(read_untrusted_bytes(ptr, len)?.into())
-            .map_err(|_| Error::INVALID_UTF8)?
-            .into();
+        let path = str::from_utf8(read_untrusted_bytes(ptr, len)?.into())
+            .map_err(|_| Error::INVALID_UTF8)?;
+        let path = path.strip_prefix('/').unwrap_or(path);
+
+        // copy the path to kernel memory
+        let path: Box<str> = path.into();
 
         let mut task = RunnableTask::active(args.clone());
 
