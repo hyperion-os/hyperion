@@ -104,7 +104,6 @@ impl LogLevel {
 
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
-        // TODO: match any case
         Some(match s {
             "none" => Self::None,
             "error" => Self::Error,

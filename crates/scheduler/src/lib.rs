@@ -12,7 +12,7 @@ use hyperion_arch::{
 use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
 use x86_64::VirtAddr;
 
-use self::task::RunnableTask;
+use self::{proc::Process, task::RunnableTask};
 
 //
 
@@ -31,18 +31,26 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
     if privilege == Privilege::Kernel && addr >= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
         // modify the global kernel maps
         // FIXME: lock the global pages when fixing page faults and mapping
-        PageMap::current().page_fault(VirtAddr::new(addr as u64), privilege)?;
+        if PageMap::current()
+            .page_fault(VirtAddr::new(addr as u64), privilege)
+            .is_handled()
+        {
+            return PageFaultResult::Handled;
+        }
     }
 
     // hyperion_log::debug!("page fault ip={_ip:x} addr={addr:x}");
-    let Some(active) = task::Task::take_active() else {
-        return Ok(NotHandled);
+    let Some(proc) = Process::current() else {
+        return PageFaultResult::NotHandled;
     };
-    let proc = active.process.clone();
-    active.set_active();
 
-    proc.address_space
-        .page_fault(VirtAddr::new(addr as u64), privilege)?;
+    if proc
+        .address_space
+        .page_fault(VirtAddr::new(addr as u64), privilege)
+        .is_handled()
+    {
+        return PageFaultResult::Handled;
+    }
 
     if addr <= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
         // TODO: sig segv
@@ -51,5 +59,5 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
         // unreachable
     }
 
-    Ok(NotHandled)
+    PageFaultResult::NotHandled
 }

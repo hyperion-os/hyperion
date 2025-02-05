@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use core::{
     fmt,
     ops::Range,
@@ -8,8 +7,6 @@ use core::{
 use bitflags::bitflags;
 use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
-use crate::buf::Buffer;
-
 //
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,10 +15,17 @@ pub enum Privilege {
     Kernel,
 }
 
-/// inversed to make `?` more useful
-///
-/// TODO: impl try
-pub type PageFaultResult = Result<NotHandled, Handled>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PageFaultResult {
+    Handled,
+    NotHandled,
+}
+
+impl PageFaultResult {
+    pub fn is_handled(self) -> bool {
+        self == Self::Handled
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Handled;

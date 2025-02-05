@@ -9,7 +9,7 @@ use x86_64::{
 //
 
 pub static PAGE_FAULT_HANDLER: AtomicCell<fn(usize, usize, Privilege) -> PageFaultResult> =
-    AtomicCell::new(|_, _, _| Ok(NotHandled));
+    AtomicCell::new(|_, _, _| PageFaultResult::NotHandled);
 
 pub static GP_FAULT_HANDLER: AtomicCell<fn()> = AtomicCell::new(|| {
     panic!();
@@ -99,22 +99,18 @@ pub extern "x86-interrupt" fn page_fault(stack: InterruptStackFrame, ec: PageFau
         Privilege::Kernel
     };
 
-    let res = (|| {
-        PAGE_FAULT_HANDLER.load()(
-            stack.instruction_pointer.as_u64() as _,
-            addr.as_u64() as _,
-            privilege,
-        )?;
-
-        Ok(NotHandled)
-    })();
+    let res = PAGE_FAULT_HANDLER.load()(
+        stack.instruction_pointer.as_u64() as _,
+        addr.as_u64() as _,
+        privilege,
+    );
 
     match res {
-        Ok(NotHandled) => {
+        PageFaultResult::NotHandled => {
             error!("INT: Page fault\nAddress: {addr:?}\nErrorCode: {ec:?}\n{stack:#?}");
             panic!();
         }
-        Err(Handled) => {
+        PageFaultResult::Handled => {
             // debug!("page fault handled");
         }
     };

@@ -30,7 +30,6 @@
 
 #![allow(clippy::comparison_chain)]
 
-use alloc::{boxed::Box, vec::Vec};
 use core::{
     arch::asm,
     fmt,
@@ -44,7 +43,7 @@ use hyperion_mem::{
     from_higher_half, is_higher_half,
     pmm::{self, PageFrame},
     to_higher_half,
-    vmm::{Handled, MapTarget, MemoryInfo, NotHandled, PageFaultResult, PageMapImpl, Privilege},
+    vmm::{MapTarget, MemoryInfo, PageFaultResult, PageMapImpl, Privilege},
 };
 use spin::{Once, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::{
@@ -205,10 +204,10 @@ fn v_addr_from_parts(
     assert!(p1_index < (1 << 9));
     assert!(offset < (1 << 12));
     VirtAddr::new_truncate(
-        (p4_index as u64) << 12 << 9 << 9 << 9
-            | (p3_index as u64) << 12 << 9 << 9
-            | (p2_index as u64) << 12 << 9
-            | (p1_index as u64) << 12
+        ((p4_index as u64) << 12 << 9 << 9 << 9)
+            | ((p3_index as u64) << 12 << 9 << 9)
+            | ((p2_index as u64) << 12 << 9)
+            | ((p1_index as u64) << 12)
             | (offset as u64),
     )
 }
@@ -242,7 +241,7 @@ fn page_fault_1gib(
         return page_fault_2mib(info, l3e, addr);
     }
 
-    Ok(NotHandled)
+    PageFaultResult::NotHandled
 }
 
 fn page_fault_2mib(
@@ -269,7 +268,7 @@ fn page_fault_2mib(
         return page_fault_4kib(info, l2e, addr);
     }
 
-    Ok(NotHandled)
+    PageFaultResult::NotHandled
 }
 
 fn page_fault_4kib(
@@ -299,13 +298,13 @@ fn page_fault_4kib(
         info.phys_pages.fetch_add(1, Ordering::Relaxed);
         PhysFrame::from_start_address(pmm::PFA.alloc(1).physical_addr()).unwrap()
     } else {
-        return Ok(NotHandled);
+        return PageFaultResult::NotHandled;
     };
 
     entry.set_frame(new_frame, flags);
     MapperFlush::new(Page::<Size4KiB>::containing_address(addr)).flush();
 
-    Err(Handled)
+    PageFaultResult::Handled
 }
 
 fn alloc_table(info: &MemoryInfo) -> PhysFrame {
@@ -383,7 +382,7 @@ impl PageMapImpl for PageMap {
     fn page_fault(&self, v_addr: VirtAddr, privilege: Privilege) -> PageFaultResult {
         if privilege == Privilege::User && is_higher_half(v_addr.as_u64()) {
             // the user process shouldn't touch kernel memory anyways
-            return Ok(NotHandled);
+            return PageFaultResult::NotHandled;
         }
 
         self.inner
@@ -838,7 +837,7 @@ impl LockedPageMap {
         // giant pages
         let l4e = &mut self.l4[v_addr.p4_index()];
         let Some(l3) = next_table(l4e) else {
-            return Ok(NotHandled);
+            return PageFaultResult::NotHandled;
         };
 
         // huge pages
