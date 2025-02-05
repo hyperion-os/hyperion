@@ -2,7 +2,7 @@ use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::{
     any::Any,
     mem,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
 use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
@@ -14,7 +14,10 @@ use hyperion_futures::{
     mpmc::Channel,
 };
 use hyperion_log::*;
-use hyperion_mem::buf::{Buffer, BufferMut};
+use hyperion_mem::{
+    buf::{Buffer, BufferMut},
+    vmm::PageMapImpl,
+};
 use hyperion_scheduler::{
     proc::Process,
     task::{RunnableTask, Task},
@@ -299,8 +302,31 @@ pub fn get_tid(args: &mut SyscallRegs) {
     set_result(args, Ok(Task::current().unwrap().tid.num()));
 }
 
+static FUTEX_MAP: AsyncHashMap<u64, FutexEntry>;
+
+struct FutexEntry {
+    this: RunnableTask,
+    next: Option<Box<FutexEntry>>,
+}
+
 /// [`hyperion_syscall::futex_wait`]
 pub fn futex_wait(args: &mut SyscallRegs) {
+    let addr = args.arg0;
+    let val = args.arg1;
+
+    let result: Result<()> = try {
+        let futex: &AtomicUsize = read_untrusted_ref(addr)?;
+
+        futex;
+    };
+
+    Process::current()
+        .unwrap()
+        .address_space
+        .virt_to_phys(VirtAddr::from_ptr());
+
+    FUTEX_MAP.get();
+
     set_result(args, Ok(0));
 }
 
