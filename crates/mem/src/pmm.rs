@@ -298,7 +298,6 @@ impl PageFrameAllocator {
         //     core::panic::Location::caller()
         // );
 
-        // TODO: lock-less page alloc
         let from = self.last_alloc_index.load(Ordering::SeqCst);
         let first_page = self.alloc_at(from, count).unwrap_or_else(|| {
             // TODO: handle OOM a bit better
