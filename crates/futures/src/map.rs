@@ -1,7 +1,6 @@
 use alloc::{sync::Arc, vec::Vec};
 use core::{
     hash::{Hash, Hasher},
-    marker::PhantomData,
     mem,
     ops::{Deref, DerefMut},
 };
@@ -15,25 +14,46 @@ use crate::{
 
 //
 
+pub struct LazyHasher {
+    inner: Once<DefaultHasher>,
+}
+
+impl LazyHasher {
+    pub const fn new() -> Self {
+        Self { inner: Once::new() }
+    }
+
+    pub async fn hash<K: Hash>(&self, key: &K) -> u64 {
+        self.inner
+            .call_once(async { DefaultHasher::new() })
+            .await
+            .hash(key)
+    }
+}
+
+impl Default for LazyHasher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+//
+
 pub const LOAD_FACTOR_NUMERATOR: usize = 75;
 pub const LOAD_FACTOR_DENOMINATOR: usize = 100;
 
 /// `SEGMENTS` has to be a power of 2
 pub struct AsyncHashMap<K, V, const SEGMENTS: usize = 32> {
     segments: [Mutex<Segment<K, V, SEGMENTS>>; 32],
-    hasher: Once<DefaultHasher>,
+    hasher: LazyHasher,
 }
 
 impl<K, V, const SEGMENTS: usize> AsyncHashMap<K, V, SEGMENTS> {
     pub const fn new() -> Self {
         Self {
             segments: [const { Mutex::new(Segment::new()) }; 32],
-            hasher: Once::new(),
+            hasher: LazyHasher::new(),
         }
-    }
-
-    async fn hasher(&self) -> &DefaultHasher {
-        self.hasher.call_once(async { DefaultHasher::new() }).await
     }
 
     async fn segment(&self, hash: u64) -> MutexGuard<'_, Segment<K, V, SEGMENTS>> {
@@ -44,7 +64,7 @@ impl<K, V, const SEGMENTS: usize> AsyncHashMap<K, V, SEGMENTS> {
 
 impl<K: Hash + Eq, V> AsyncHashMap<K, V> {
     pub async fn get(&self, key: &K) -> Option<Ref<K, V>> {
-        let hash = self.hasher().await.hash(key);
+        let hash = self.hasher.hash(key).await;
 
         Some(
             self.segment(hash)
@@ -57,7 +77,7 @@ impl<K: Hash + Eq, V> AsyncHashMap<K, V> {
     }
 
     pub async fn insert(&self, key: K, val: V) -> bool {
-        let hash = self.hasher().await.hash(&key);
+        let hash = self.hasher.hash(&key).await;
 
         // find the correct segment, each segment is individually locked
         self.segment(hash)
@@ -71,7 +91,7 @@ impl<K: Hash + Eq, V> AsyncHashMap<K, V> {
     }
 
     pub async fn remove(&self, key: &K) -> Option<Ref<K, V>> {
-        let hash = self.hasher().await.hash(&key);
+        let hash = self.hasher.hash(&key).await;
 
         // find the correct segment, each segment is individually locked
 
@@ -232,7 +252,6 @@ impl<K: Eq, V, const SEGMENTS: usize> Segment<K, V, SEGMENTS> {
 
     #[cold]
     fn resize(&mut self) {
-        hyperion_log::debug!("resizing");
         let new_len = (self.buckets.len() + 1).next_power_of_two();
 
         let mut new_self = Self {
