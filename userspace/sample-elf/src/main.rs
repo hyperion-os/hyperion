@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use alloc::{format, string::String, sync::Arc};
-use core::str::from_utf8;
+use core::{str::from_utf8, sync::atomic::AtomicUsize};
 
 use libstd::{
     fs::{self, File},
@@ -146,6 +146,8 @@ pub fn main() -> Result<()> {
     // _test_userspace_mutex();
     // _repeat_stdin_to_stdout();
 
+    futex_wait(&AtomicUsize::new(0), 1);
+    futex_wake(&AtomicUsize::new(0), 1);
     libstd::sys::log!("hello world");
 
     libstd::fs::OpenOptions::new()

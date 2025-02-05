@@ -1,7 +1,14 @@
-use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
+use alloc::{
+    boxed::Box,
+    collections::btree_map::{BTreeMap, Entry},
+    string::String,
+    sync::Arc,
+    vec::Vec,
+};
 use core::{
-    any::Any,
-    mem, str,
+    any::{type_name_of_val, Any},
+    mem::{self, MaybeUninit},
+    str,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
@@ -10,7 +17,7 @@ use hyperion_drivers::{log::KernelLogs, null::Null};
 use hyperion_futures::{
     lazy::{Lazy, Once},
     lock::Mutex,
-    map::{self, AsyncHashMap},
+    map::{self, AsyncHashMap, LazyHasher},
     mpmc::Channel,
 };
 use hyperion_log::*;
@@ -32,7 +39,7 @@ use hyperion_vfs::{
     tmpfs::TmpFs,
     OpenOptions,
 };
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
 
@@ -305,7 +312,10 @@ pub fn get_tid(args: &mut SyscallRegs) {
     set_result(args, Ok(Task::current().unwrap().tid.num()));
 }
 
-static FUTEX_MAP: AsyncHashMap<u64, FutexEntry>;
+// 32 pages for the futex map
+static FUTEX_MAP: [spin::Mutex<BTreeMap<PhysAddr, Box<FutexEntry>>>; 0x1000] =
+    [const { spin::Mutex::new(BTreeMap::new()) }; 0x1000];
+static FUTEX_MAP_HASHER: LazyHasher = LazyHasher::new();
 
 struct FutexEntry {
     this: RunnableTask,
@@ -317,25 +327,105 @@ pub fn futex_wait(args: &mut SyscallRegs) {
     let addr = args.arg0;
     let val = args.arg1;
 
-    let result: Result<()> = try {
-        let futex: &AtomicUsize = read_untrusted_ref(addr)?;
-
-        futex;
+    let futex: &AtomicUsize = match read_untrusted_ref(addr) {
+        Ok(v) => v,
+        Err(err) => {
+            set_result(args, Err(err));
+            return;
+        }
     };
 
-    Process::current()
+    let (addr, flags) = Process::current()
         .unwrap()
         .address_space
-        .virt_to_phys(VirtAddr::from_ptr());
+        .virt_to_phys(VirtAddr::from_ptr(futex))
+        .unwrap(); // FIXME: segfault the process, instead of crashing the kernel
 
-    FUTEX_MAP.get();
+    if !flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+        todo!("segfault"); // FIXME: same as above
+    }
 
-    set_result(args, Ok(0));
+    let mut entry: Box<MaybeUninit<FutexEntry>> = Box::new_uninit(); // preallocate cuz it could be slow, spinlock doesnt like slow things
+    let hash = hyperion_futures::block_on(FUTEX_MAP_HASHER.hash(&addr));
+    let mut tree = FUTEX_MAP[hash as usize % FUTEX_MAP.len()].lock();
+
+    // check if sleeping or not
+    if futex.load(Ordering::SeqCst) != val as usize {
+        set_result(args, Ok(0));
+        return;
+    }
+
+    // sleeping for sure
+    let mut entry = Box::write(
+        entry,
+        FutexEntry {
+            this: RunnableTask::active(args.clone()),
+            next: None,
+        },
+    );
+
+    match tree.entry(addr) {
+        Entry::Occupied(mut occupied_entry) => {
+            let val: &mut Box<FutexEntry> = occupied_entry.get_mut();
+            mem::swap(val, &mut entry);
+            val.next = Some(entry);
+        }
+        Entry::Vacant(vacant_entry) => {
+            vacant_entry.insert(entry);
+        }
+    }
+
+    *args = RunnableTask::next().set_active();
+    return;
 }
 
 /// [`hyperion_syscall::futex_wake`]
 pub fn futex_wake(args: &mut SyscallRegs) {
+    let addr = args.arg0;
+    let mut num = args.arg1;
+
+    if num == 0 {
+        return;
+    }
+
+    let futex: &AtomicUsize = match read_untrusted_ref(addr) {
+        Ok(v) => v,
+        Err(err) => {
+            set_result(args, Err(err));
+            return;
+        }
+    };
+
+    let (addr, flags) = Process::current()
+        .unwrap()
+        .address_space
+        .virt_to_phys(VirtAddr::from_ptr(futex))
+        .unwrap(); // FIXME: segfault the process, instead of crashing the kernel
+
+    if !flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+        todo!("segfault"); // FIXME: same as above
+    }
+
+    let hash = hyperion_futures::block_on(FUTEX_MAP_HASHER.hash(&addr));
+    let mut tree = FUTEX_MAP[hash as usize % FUTEX_MAP.len()].lock();
+
     set_result(args, Ok(0));
+
+    match tree.entry(addr) {
+        Entry::Vacant(..) => {}
+        Entry::Occupied(mut occupied_entry) => {
+            let first = occupied_entry.get_mut();
+
+            for _ in 0..num {
+                if let Some(next) = first.next.take() {
+                    mem::replace(first, next).this.ready();
+                } else {
+                    occupied_entry.remove().this.ready();
+                    break;
+                }
+            }
+        }
+    }
 }
 
 //

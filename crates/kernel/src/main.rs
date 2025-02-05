@@ -4,7 +4,13 @@
 #![no_main]
 //
 #![allow(internal_features)]
-#![feature(custom_test_frameworks, lang_items, naked_functions, try_blocks)]
+#![feature(
+    custom_test_frameworks,
+    lang_items,
+    naked_functions,
+    try_blocks,
+    box_uninit_write
+)]
 #![test_runner(crate::testfw::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![allow(clippy::needless_return)]

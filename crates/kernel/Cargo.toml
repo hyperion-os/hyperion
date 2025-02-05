@@ -17,6 +17,7 @@ multiboot2 = []
 # Pick limine OR bootboot OR multiboot1 OR multiboot2, they conflict with eachother
 
 [dependencies]
+spin.workspace = true
 time.workspace = true
 x86_64.workspace = true
 

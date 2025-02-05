@@ -742,6 +742,7 @@ dependencies = [
  "hyperion-syscall",
  "hyperion-vfs",
  "sample-elf",
+ "spin",
  "time",
  "x86_64",
 ]
