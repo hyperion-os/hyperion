@@ -96,25 +96,9 @@ pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
     let timer_irq = hyperion_interrupts::set_any_interrupt_handler(
         |irq| (0x30..=0xFF).contains(&irq),
         |irq, _| {
-            // hyperion_log::println!("AT@{ip:#018x}");
-
-            /* unsafe {
-                core::arch::asm!(
-                    "syscall",
-                    in("rax") syscall_id,
-                    in("rdi") arg0,
-                    in("rsi") arg1,
-                    in("rdx") arg2,
-                    in("r8") arg3,
-                    in("r9") arg4,
-                    lateout("rax") result
-                );
-            } */
-
+            // hyperion_log::info!("tick CPU-{}", hyperion_cpu_id::cpu_id());
             end_of_interrupt(irq);
             APIC_TIMER_HANDLER.load()();
-
-            // apic timer interrupt
         },
     )
     .expect("No avail APIC timer IRQ");
