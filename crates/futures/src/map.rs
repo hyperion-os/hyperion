@@ -17,23 +17,13 @@ use crate::{
 pub const LOAD_FACTOR_NUMERATOR: usize = 75;
 pub const LOAD_FACTOR_DENOMINATOR: usize = 100;
 
-/// has to be a power of 2
-pub const SEGMENTS: usize = 32;
-pub const SEGMENT_MASK: usize = SEGMENTS - 1;
-pub const SEGMENT_SHIFT: u32 = SEGMENTS.ilog2();
-
-const _: () = assert!(SEGMENTS.next_power_of_two() == SEGMENTS);
-
-//
-
-type Segments<K, V> = [Mutex<Segment<K, V>>; SEGMENTS];
-
-pub struct AsyncHashMap<K, V> {
-    segments: Segments<K, V>,
+/// `SEGMENTS` has to be a power of 2
+pub struct AsyncHashMap<K, V, const SEGMENTS: usize = 32> {
+    segments: [Mutex<Segment<K, V, SEGMENTS>>; 32],
     hasher: Once<DefaultHasher>,
 }
 
-impl<K, V> AsyncHashMap<K, V> {
+impl<K, V, const SEGMENTS: usize> AsyncHashMap<K, V, SEGMENTS> {
     pub const fn new() -> Self {
         Self {
             segments: [const { Mutex::new(Segment::new()) }; 32],
@@ -45,8 +35,9 @@ impl<K, V> AsyncHashMap<K, V> {
         self.hasher.call_once(async { DefaultHasher::new() }).await
     }
 
-    async fn segment(&self, hash: u64) -> MutexGuard<'_, Segment<K, V>> {
-        self.segments[segment_id(hash)].lock().await
+    async fn segment(&self, hash: u64) -> MutexGuard<'_, Segment<K, V, SEGMENTS>> {
+        let id = HashId::<SEGMENTS>::segment_id(hash);
+        self.segments[id].lock().await
     }
 }
 
@@ -95,6 +86,14 @@ impl<K, V> Default for AsyncHashMap<K, V> {
 
 //
 
+#[derive(Debug, Clone, Copy)]
+struct SplitHash {
+    segment_id: usize,
+    bucket_hash: usize,
+}
+
+//
+
 struct DefaultHasher {
     init_state: u128,
 }
@@ -130,12 +129,12 @@ impl DefaultHasher {
 
 //
 
-struct Segment<K, V> {
+struct Segment<K, V, const SEGMENTS: usize> {
     buckets: Vec<Bucket<K, V>>,
     count: usize,
 }
 
-impl<K, V> Segment<K, V> {
+impl<K, V, const SEGMENTS: usize> Segment<K, V, SEGMENTS> {
     const fn new() -> Self {
         Self {
             buckets: Vec::new(),
@@ -144,12 +143,12 @@ impl<K, V> Segment<K, V> {
     }
 
     fn bucket(&mut self, hash: u64) -> &mut Bucket<K, V> {
-        let n_buckets = self.buckets.len();
-        &mut self.buckets[bucket_id(hash, n_buckets)]
+        let id = HashId::<SEGMENTS>::bucket_id(hash, self.buckets.len());
+        &mut self.buckets[id]
     }
 }
 
-impl<K: Eq, V> Segment<K, V> {
+impl<K: Eq, V, const SEGMENTS: usize> Segment<K, V, SEGMENTS> {
     fn insert(&mut self, item: Arc<Item<K, V>>) -> Option<Arc<Item<K, V>>> {
         if self.count * LOAD_FACTOR_DENOMINATOR >= self.buckets.len() * LOAD_FACTOR_NUMERATOR {
             // the first insert always resizes
@@ -336,10 +335,18 @@ impl<K, V> Drop for Ref<K, V> {
 
 //
 
-fn segment_id(hash: u64) -> usize {
-    (hash as usize) & SEGMENT_MASK
-}
+struct HashId<const SEGMENTS: usize>;
 
-fn bucket_id(hash: u64, buckets: usize) -> usize {
-    (hash >> SEGMENT_SHIFT) as usize % buckets
+impl<const SEGMENTS: usize> HashId<SEGMENTS> {
+    pub const SEGMENT_MASK: usize = SEGMENTS - 1;
+    pub const SEGMENT_SHIFT: u32 = SEGMENTS.ilog2();
+    const _C: () = assert!(SEGMENTS.next_power_of_two() == SEGMENTS);
+
+    fn segment_id(hash: u64) -> usize {
+        (hash as usize) & Self::SEGMENT_MASK
+    }
+
+    fn bucket_id(hash: u64, n_buckets: usize) -> usize {
+        ((hash >> Self::SEGMENT_SHIFT) as usize) % n_buckets
+    }
 }
