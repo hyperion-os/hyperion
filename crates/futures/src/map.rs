@@ -1,6 +1,7 @@
 use alloc::{sync::Arc, vec::Vec};
 use core::{
     hash::{Hash, Hasher},
+    marker::PhantomData,
     mem,
     ops::{Deref, DerefMut},
 };
@@ -76,6 +77,21 @@ impl<K: Hash + Eq, V> AsyncHashMap<K, V> {
 
         Some(self.segment(hash).await.remove(hash, key)?.lock().await)
     }
+
+    /* pub async fn entry(&self, key: K) -> Entry<'_, K, V> {
+        let hash = self.hasher().await.hash(&key);
+
+        let bucket = self.segment(hash).await.bucket(hash);
+
+        if let Some(item) = bucket.find(&key).cloned() {
+            Entry::Occupied(OccupiedEntry {
+                item: item.lock().await,
+                _p: PhantomData,
+            })
+        } else {
+            Entry::Vacant(VacantEntry { bucket, hash, key })
+        }
+    } */
 }
 
 impl<K, V> Default for AsyncHashMap<K, V> {
@@ -86,11 +102,59 @@ impl<K, V> Default for AsyncHashMap<K, V> {
 
 //
 
-#[derive(Debug, Clone, Copy)]
-struct SplitHash {
-    segment_id: usize,
-    bucket_hash: usize,
+/* pub enum Entry<'a, K, V> {
+    Occupied(OccupiedEntry<'a, K, V>),
+    Vacant(VacantEntry<'a, K, V>),
 }
+
+pub struct OccupiedEntry<'a, K, V> {
+    item: Ref<K, V>,
+    _p: PhantomData<&'a ()>,
+}
+
+impl<'a, K, V> OccupiedEntry<'a, K, V> {
+    pub fn get(&self) -> &V {
+        &*self.item
+    }
+
+    pub fn get_mut(&mut self) -> &mut V {
+        &mut *self.item
+    }
+
+    pub fn insert(&mut self, mut val: V) -> V {
+        let old = self.get_mut();
+        mem::swap(old, &mut val);
+        val
+    }
+
+    #[deprecated = "unimplemented"]
+    pub fn remove(self) -> V {
+        unimplemented!()
+    }
+
+    pub fn inner(self) -> Ref<K, V> {
+        self.item
+    }
+}
+
+pub struct VacantEntry<'a, K, V> {
+    hash: u64,
+    key: K,
+    bucket: &'a mut Bucket<K, V>,
+}
+
+impl<'a, K: Eq + Hash, V> VacantEntry<'a, K, V> {
+    pub async fn insert(self, val: V) -> Ref<K, V> {
+        let item = Arc::new(Item {
+            hash: self.hash,
+            key: self.key,
+            val: Mutex::new(val),
+        });
+        let result = item.clone().lock().await;
+        self.bucket.insert(item);
+        result
+    }
+} */
 
 //
 
