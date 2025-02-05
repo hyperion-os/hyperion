@@ -176,7 +176,8 @@ pub fn main() {
         .expect("failed to open /dev/fb0");
     let meta = fbo.metadata().expect("failed to read fb file metadata");
 
-    let fbo_mapped = map_file(fbo.as_desc(), None, meta.len, 0).expect("failed to map the fb");
+    let fbo_mapped =
+        mem_map(None, meta.len, MemMapFlags::READ, fbo.as_desc(), 0).expect("failed to map the fb");
 
     let buf = unsafe { slice::from_raw_parts_mut(fbo_mapped.as_ptr() as *mut u8, meta.len) };
     let mut backbuf = vec![0u8; buf.len()];
@@ -185,7 +186,7 @@ pub fn main() {
 
     drawing(info, buf);
 
-    unmap_file(fbo.as_desc(), fbo_mapped, 0).expect("failed to unmap the fb");
+    mem_unmap(fbo_mapped, 0).expect("failed to unmap the fb");
 
     drop(fbo);
 

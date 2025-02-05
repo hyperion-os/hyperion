@@ -12,6 +12,7 @@ use core::{
 use arcstr::{literal, ArcStr};
 use crossbeam::epoch::Atomic;
 use hyperion_arch::{stack::USER_HEAP_TOP, vmm::PageMap};
+use hyperion_futures::lock::Mutex as FutMutex;
 use hyperion_mem::vmm::{MapTarget, PageMapImpl};
 use spin::{Mutex, Once};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
@@ -45,6 +46,9 @@ pub struct Process {
     /// process address space
     pub address_space: PageMap,
 
+    /// process maps
+    pub maps: FutMutex<BTreeMap<VirtAddr, ()>>,
+
     /// process heap beginning, the end of the user process
     pub heap_bottom: AtomicUsize,
 
@@ -68,6 +72,7 @@ impl Process {
             name: Atomic::new(literal!("uninitialized-process")),
             nanos: AtomicU64::new(0),
             address_space: PageMap::new(),
+            maps: FutMutex::new(BTreeMap::new()),
             heap_bottom: AtomicUsize::new(0x1000),
             ext: Once::new(),
         });

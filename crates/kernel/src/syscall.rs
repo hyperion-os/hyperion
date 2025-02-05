@@ -32,7 +32,7 @@ use hyperion_scheduler::{
 use hyperion_syscall::{
     err::{Error, Result},
     fs::FileOpenFlags,
-    id,
+    id, MemMapFlags,
 };
 use hyperion_vfs::{
     node::{DirDriverExt, FileDriver, FileDriverExt, FileNode, Ref},
@@ -56,7 +56,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         // id::TIMESTAMP => {},
         // id::NANOSLEEP => {},
         // id::NANOSLEEP_UNTIL => {},
-        // id::SPAWN => {},
+        id::SPAWN => spawn(args),
         id::PALLOC => palloc(args),
         // id::PFREE => {},
         // id::SEND => {},
@@ -82,8 +82,8 @@ pub fn syscall(args: &mut SyscallRegs) {
         id::FUTEX_WAIT => futex_wait(args),
         id::FUTEX_WAKE => futex_wake(args),
 
-        // id::MAP_FILE => {},
-        // id::UNMAP_FILE => {},
+        id::MEM_MAP => mem_map(args),
+        id::MEM_UNMAP => mem_unmap(args),
         // id::METADATA => {},
         // id::SEEK => {},
 
@@ -140,6 +140,16 @@ pub fn yield_now(args: &mut SyscallRegs) {
 
     *args = next.set_active();
     current.ready();
+}
+
+/// [`hyperion_syscall::spawn`]
+pub fn spawn(args: &mut SyscallRegs) {
+    let ip = args.arg0;
+    let sp = args.arg1;
+
+    // RunnableTask::new_in(ip, sp, Process::current().unwrap()).ready();
+
+    set_result(args, Ok(0));
 }
 
 /// [`hyperion_syscall::palloc`]
@@ -426,6 +436,59 @@ pub fn futex_wake(args: &mut SyscallRegs) {
             }
         }
     }
+}
+
+/// [`hyperion_syscall::mem_map`]
+fn mem_map(args: &mut SyscallRegs) {
+    set_result(
+        args,
+        _mem_map(args.arg0, args.arg1, args.arg2, args.arg3, args.arg4),
+    );
+}
+
+fn _mem_map(addr: u64, size: u64, flags: u64, fd: u64, offset: u64) -> Result<usize> {
+    let flags = MemMapFlags::from_bits_truncate(flags as u32);
+
+    hyperion_log::error!("mem_map({addr}, {size}, {flags:?}, {fd}, {offset})");
+
+    let addr = VirtAddr::try_new(addr).map_err(|_| Error::INVALID_ADDRESS)?;
+
+    if !flags.contains(MemMapFlags::ANON) {
+        todo!("mem_map called without ANON");
+    }
+
+    let mut mem_flags = PageTableFlags::USER_ACCESSIBLE;
+    if flags.contains(MemMapFlags::WRITE) {
+        mem_flags |= PageTableFlags::WRITABLE;
+    }
+    if !flags.contains(MemMapFlags::EXEC) {
+        mem_flags |= PageTableFlags::NO_EXECUTE;
+    }
+
+    let proc = Process::current().unwrap();
+
+    Err(Error::UNIMPLEMENTED)
+
+    // proc.address_space.map(VirtAddr::new(addr), p_addr, flags);
+
+    // hyperion_futures::spawn(async move {
+    //     let mut maps = proc.maps.lock().await;
+
+    //     maps.range(range)
+    // });
+
+    // TODO: error handling
+    // proc.alloc_at(n_pages, , flags);
+
+    // Ok(0)
+}
+
+/// [`hyperion_syscall::mem_unmap`]
+fn mem_unmap(args: &mut SyscallRegs) {
+    let addr = args.arg0;
+    let size = args.arg1;
+
+    hyperion_log::error!("mem_unmap({addr}, {size})");
 }
 
 //

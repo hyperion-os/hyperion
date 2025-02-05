@@ -36,6 +36,36 @@ extern "C" fn _start() -> ! {
     }
 }
 
+/* const USER_SPACE_TOP: usize = 0x8000_0000_0000;
+const MAIN_STACK_TOP: usize = USER_SPACE_TOP;
+const MAIN_STACK_SIZE: usize = 0x200_0000; // 32 MiB main thread stack
+const MAIN_STACK_BOTTOM: usize = USER_SPACE_TOP - MAIN_STACK_SIZE;
+const STACK_SERARATOR: usize = 0x10_0000; // 1 MiB of stack overflow guard pages
+
+static mut MAIN_THREAD_STACK: MaybeUninit<[Page; 8]> = MaybeUninit::zeroed();
+
+#[no_mangle]
+#[naked]
+extern "C" fn _start() -> ! {
+    unsafe {
+        naked_asm!(
+            "mov rax, {mem_map}",
+            "mov rdi, {main_thread_stack}",
+            "mov rsi, {main_thread_stack_len}",
+            "mov rdx, {map_flags}",
+            "mov r8, 0",
+            "mov r9, 0",
+            "syscall",
+            "mov rsp, rax",
+            "jmp _start_with_stack",
+            mem_map = const crate::sys::id::MEM_MAP,
+            main_thread_stack = const MAIN_STACK_BOTTOM,
+            main_thread_stack_len = const MAIN_STACK_SIZE,
+            map_flags = const crate::sys::MemMapFlags::RW.bits() | crate::sys::MemMapFlags::ANON.bits(),
+        );
+    }
+} */
+
 #[no_mangle]
 extern "C" fn _start_with_stack() -> ! {
     // init cli args from stack, move them to the heap

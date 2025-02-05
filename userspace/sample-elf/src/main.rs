@@ -6,7 +6,10 @@
 extern crate alloc;
 
 use alloc::{format, string::String, sync::Arc};
-use core::{str::from_utf8, sync::atomic::AtomicUsize};
+use core::{
+    str::from_utf8,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use libstd::{
     fs::{self, File},
@@ -146,8 +149,17 @@ pub fn main() -> Result<()> {
     // _test_userspace_mutex();
     // _repeat_stdin_to_stdout();
 
-    futex_wait(&AtomicUsize::new(0), 1);
-    futex_wake(&AtomicUsize::new(0), 1);
+    let futex1 = Arc::new(AtomicUsize::new(0));
+    let futex2 = futex1.clone();
+    spawn(move || {
+        for _ in 0..10 {
+            yield_now();
+        }
+        futex2.store(1, Ordering::Release);
+        futex_wake(&futex2, 1);
+    });
+    futex_wait(&futex1, 0);
+
     libstd::sys::log!("hello world");
 
     libstd::fs::OpenOptions::new()

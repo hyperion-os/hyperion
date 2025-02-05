@@ -5,10 +5,12 @@
 use core::{
     fmt::{self, Arguments, Write},
     mem::MaybeUninit,
+    num::NonZero,
     ptr::{self, NonNull},
     sync::atomic::AtomicUsize,
 };
 
+use bitflags::{bitflags, Flags};
 use err::Result;
 
 use crate::{
@@ -60,8 +62,8 @@ pub mod id {
     pub const FUTEX_WAIT: usize = 27;
     pub const FUTEX_WAKE: usize = 28;
 
-    pub const MAP_FILE: usize = 29; // TODO: merge into map
-    pub const UNMAP_FILE: usize = 30; // TODO: merge into unmap
+    pub const MEM_MAP: usize = 29;
+    pub const MEM_UNMAP: usize = 30;
     pub const METADATA: usize = 31;
     pub const SEEK: usize = 32;
 
@@ -162,6 +164,33 @@ pub fn _sys_log(args: Arguments) {
     }
 
     _ = SysLog.write_fmt(args);
+}
+
+//
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct MemMapFlags: u32 {
+        /// updates to the mapping are visible to
+        /// other processes that mapped the same file
+        const SHARED  = 0b0010_0000;
+        /// updates to the mapping are not visible to
+        /// other processes that mapped the same file,
+        /// instead a copy of the contents are made
+        const PRIVATE = 0b0001_0000;
+        /// doesnt use a file, but maps normal memory
+        /// that is lazy allocated and uninitialized (usually zeroed)
+        const ANON    = 0b0000_1000;
+
+        /// allows executing
+        const EXEC    = 0b0000_0100;
+        /// allows reading, always required
+        const READ    = 0b0000_0010;
+        /// allows writing
+        const WRITE   = 0b0000_0001;
+        const RWE     = Self::READ.bits() | Self::WRITE.bits() | Self::EXEC.bits();
+        const RW      = Self::READ.bits() | Self::WRITE.bits();
+    }
 }
 
 //
@@ -351,23 +380,21 @@ pub fn futex_wake(addr: &AtomicUsize, num: usize) {
 /// to the virtual address space at `align_down(at, 0x1000)`, or anywhere if `at` is None
 ///
 /// `at` should point to unmapped memory that has room for the pages
-pub fn map_file(
-    file: FileDesc,
-    at: Option<NonNull<()>>,
+pub fn mem_map(
+    addr: Option<NonNull<()>>,
     size: usize,
+    flags: MemMapFlags,
+    fd: FileDesc,
     offset: usize,
 ) -> Result<NonNull<()>> {
-    let at = at.map_or(ptr::null_mut(), NonNull::as_ptr) as usize;
-    unsafe { syscall_4(id::MAP_FILE, file.0, at, size, offset) }
+    let at = addr.map_or(ptr::null_mut(), NonNull::as_ptr) as usize;
+    unsafe { syscall_5(id::MEM_MAP, at, size, flags.bits() as _, fd.0, offset) }
         .map(|ptr| NonNull::new(ptr as _).unwrap())
 }
 
 /// unmap device/file mapped memory (munmap)
-///
-/// see [`unmap_file`]
-pub fn unmap_file(file: FileDesc, at: NonNull<()>, size: usize) -> Result<()> {
-    let at = at.as_ptr() as usize;
-    unsafe { syscall_3(id::UNMAP_FILE, file.0, at, size) }.map(|_| {})
+pub fn mem_unmap(addr: NonNull<()>, size: usize) -> Result<()> {
+    unsafe { syscall_2(id::MEM_UNMAP, addr.as_ptr() as usize, size) }.map(|_| {})
 }
 
 /// file metadata (stat)
