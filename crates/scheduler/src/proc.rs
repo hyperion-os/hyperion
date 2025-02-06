@@ -11,7 +11,7 @@ use core::{
 
 use arcstr::{literal, ArcStr};
 use crossbeam::epoch::Atomic;
-use hyperion_arch::{stack::USER_HEAP_TOP, vmm::PageMap};
+use hyperion_arch::vmm::PageMap;
 use hyperion_futures::lock::Mutex as FutMutex;
 use hyperion_mem::vmm::{MapTarget, PageMapImpl};
 use spin::{Mutex, Once};
@@ -49,9 +49,6 @@ pub struct Process {
     /// process maps
     pub maps: FutMutex<BTreeMap<VirtAddr, ()>>,
 
-    /// process heap beginning, the end of the user process
-    pub heap_bottom: AtomicUsize,
-
     /// TLS object data, each thread allocates one into the userspace
     /// and the $fs segment register should be set to point to it
     // pub master_tls: Once<(VirtAddr, Layout)>,
@@ -73,7 +70,6 @@ impl Process {
             nanos: AtomicU64::new(0),
             address_space: PageMap::new(),
             maps: FutMutex::new(BTreeMap::new()),
-            heap_bottom: AtomicUsize::new(0x1000),
             ext: Once::new(),
         });
 
@@ -88,65 +84,6 @@ impl Process {
 
     pub fn next_tid(&self) -> Tid {
         Tid::new(self.next_tid.fetch_add(1, Ordering::Relaxed))
-    }
-
-    pub fn alloc(&self, n_pages: usize, flags: PageTableFlags) -> Result<VirtAddr, AllocErr> {
-        let n_bytes = n_pages as u64 * 0x1000;
-
-        let Ok(at) = VirtAddr::try_new(
-            self.heap_bottom
-                .fetch_add(n_bytes as usize, Ordering::SeqCst) as _,
-        ) else {
-            return Err(AllocErr::OutOfVirtMem);
-        };
-
-        if (at + n_bytes).as_u64() >= USER_HEAP_TOP {
-            return Err(AllocErr::OutOfVirtMem);
-        }
-
-        self.alloc_at_keep_heap_bottom(n_pages, at, flags)?;
-
-        Ok(at)
-    }
-
-    pub fn alloc_at(
-        &self,
-        n_pages: usize,
-        at: VirtAddr,
-        flags: PageTableFlags,
-    ) -> Result<(), AllocErr> {
-        self.heap_bottom
-            .fetch_max(at.as_u64() as usize + n_pages * 0x1000, Ordering::SeqCst);
-        self.alloc_at_keep_heap_bottom(n_pages, at, flags)
-    }
-
-    pub fn free(&self, n_pages: usize, ptr: VirtAddr) -> Result<(), FreeErr> {
-        if !self.address_space.is_mapped(
-            ptr..ptr + n_pages as u64 * 0x1000,
-            PageTableFlags::USER_ACCESSIBLE,
-        ) {
-            return Err(FreeErr::InvalidAlloc);
-        }
-
-        let n_bytes = n_pages * 0x1000;
-
-        self.address_space.unmap(ptr..ptr + n_bytes as u64);
-
-        Ok(())
-    }
-
-    fn alloc_at_keep_heap_bottom(
-        &self,
-        n_pages: usize,
-        at: VirtAddr,
-        flags: PageTableFlags,
-    ) -> Result<(), AllocErr> {
-        let n_bytes = n_pages * 0x1000;
-
-        self.address_space
-            .map(at..at + n_bytes as u64, MapTarget::LazyAlloc, flags);
-
-        Ok(())
     }
 }
 

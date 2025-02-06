@@ -84,7 +84,7 @@ impl FileDevice for FboDevice {
 
         let end = v_addr.end.min(v_addr.start + frame.byte_len());
         vmm.map(
-            v_addr.start..end,
+            v_addr.start..end - 1,
             MapTarget::Borrowed(frame.physical_addr()),
             flags,
         );

@@ -265,7 +265,11 @@ impl<T: StackType + Debug> Stack<T> {
         let guard_bottom = guard_top - 0x1000u64;
 
         // the VMM allocates lazily
-        page_map.map(stack_bottom..stack_top, MapTarget::LazyAlloc, T::PAGE_FLAGS);
+        page_map.map(
+            stack_bottom..stack_top - 1,
+            MapTarget::LazyAlloc,
+            T::PAGE_FLAGS,
+        );
         page_map.unmap(guard_bottom..guard_top);
         // page_map.map(guard_bottom..guard_top, None, NO_MAP);
     }
@@ -284,12 +288,16 @@ impl<T: StackType + Debug> Stack<T> {
         let alloc = pmm::PFA.alloc(forced_pages as usize);
 
         page_map.map(
-            alloc_bottom..alloc_top,
+            alloc_bottom..alloc_top - 1,
             MapTarget::Preallocated(alloc.physical_addr()),
             T::PAGE_FLAGS,
         );
         // the VMM allocates lazily
-        page_map.map(stack_bottom..stack_top, MapTarget::LazyAlloc, T::PAGE_FLAGS);
+        page_map.map(
+            stack_bottom..stack_top - 1,
+            MapTarget::LazyAlloc,
+            T::PAGE_FLAGS,
+        );
         page_map.unmap(guard_bottom..guard_top);
         // page_map.map(guard_bottom..guard_top, None, NO_MAP);
     }

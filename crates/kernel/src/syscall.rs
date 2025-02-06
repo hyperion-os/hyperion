@@ -8,6 +8,7 @@ use alloc::{
 use core::{
     any::{type_name_of_val, Any},
     mem::{self, MaybeUninit},
+    ops::Range,
     str,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
@@ -24,7 +25,7 @@ use hyperion_log::*;
 use hyperion_mem::{
     buf::{Buffer, BufferMut},
     is_higher_half,
-    vmm::PageMapImpl,
+    vmm::{MapFlags, MapTarget, PageMapImpl},
 };
 use hyperion_scheduler::{
     proc::Process,
@@ -40,7 +41,7 @@ use hyperion_vfs::{
     tmpfs::TmpFs,
     OpenOptions,
 };
-use x86_64::{structures::paging::PageTableFlags, PhysAddr, VirtAddr};
+use x86_64::{align_down, structures::paging::PageTableFlags, PhysAddr, VirtAddr};
 
 //
 
@@ -58,8 +59,6 @@ pub fn syscall(args: &mut SyscallRegs) {
         // id::NANOSLEEP => {},
         // id::NANOSLEEP_UNTIL => {},
         id::SPAWN => spawn(args),
-        id::PALLOC => palloc(args),
-        // id::PFREE => {},
         // id::SEND => {},
         // id::RECV => {},
         // id::RENAME => {},
@@ -148,23 +147,9 @@ pub fn spawn(args: &mut SyscallRegs) {
     let ip = args.arg0;
     let sp = args.arg1;
 
-    // RunnableTask::new_in(ip, sp, Process::current().unwrap()).ready();
+    RunnableTask::new_in(ip, sp, Process::current().unwrap()).ready();
 
     set_result(args, Ok(0));
-}
-
-/// [`hyperion_syscall::palloc`]
-pub fn palloc(args: &mut SyscallRegs) {
-    let n_pages = args.arg0 as usize;
-    let flags = PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
-
-    let result = Process::current()
-        .unwrap()
-        .alloc(n_pages, flags)
-        .map(|ptr| ptr.as_u64() as usize)
-        .map_err(|_| Error::OUT_OF_VIRTUAL_MEMORY);
-
-    set_result(args, result);
 }
 
 async fn vfs_init() {
@@ -441,34 +426,43 @@ pub fn futex_wake(args: &mut SyscallRegs) {
 
 /// [`hyperion_syscall::mem_map`]
 fn mem_map(args: &mut SyscallRegs) {
-    set_result(
-        args,
-        _mem_map(args.arg0, args.arg1, args.arg2, args.arg3, args.arg4),
-    );
+    let result = _mem_map(args.arg0, args.arg1, args.arg2, args.arg3, args.arg4);
+    hyperion_log::error!("mem_map => {result:?}");
+    set_result(args, result);
 }
 
 fn _mem_map(addr: u64, size: u64, flags: u64, fd: u64, offset: u64) -> Result<usize> {
     let flags = MemMapFlags::from_bits_truncate(flags as u32);
 
-    hyperion_log::error!("mem_map({addr}, {size}, {flags:?}, {fd}, {offset})");
+    hyperion_log::debug!("mem_map({addr}, {size}, {flags:?}, {fd}, {offset})");
 
-    let addr = VirtAddr::try_new(addr).map_err(|_| Error::INVALID_ADDRESS)?;
+    let start = align_down(addr, 0x1000);
+    let end = align_down(
+        addr.checked_add(size).ok_or(Error::INVALID_ADDRESS)?,
+        0x1000,
+    );
+    let len = (end - start) as usize;
+
+    let (addr, len) = read_slice_parts(start, end - start)?;
 
     if !flags.contains(MemMapFlags::ANON) {
         todo!("mem_map called without ANON");
     }
 
-    let mut mem_flags = PageTableFlags::USER_ACCESSIBLE;
+    let mut mem_flags = MapFlags::USER;
     if flags.contains(MemMapFlags::WRITE) {
-        mem_flags |= PageTableFlags::WRITABLE;
+        mem_flags |= MapFlags::WRITE;
     }
-    if !flags.contains(MemMapFlags::EXEC) {
-        mem_flags |= PageTableFlags::NO_EXECUTE;
+    if flags.contains(MemMapFlags::EXEC) {
+        mem_flags |= MapFlags::EXEC;
+    }
+    if flags.contains(MemMapFlags::READ) {
+        mem_flags |= MapFlags::READ;
     }
 
-    let proc = Process::current().unwrap();
+    _mem_map_anon(addr, len, mem_flags);
 
-    Err(Error::UNIMPLEMENTED)
+    Ok(start as _)
 
     // proc.address_space.map(VirtAddr::new(addr), p_addr, flags);
 
@@ -482,6 +476,13 @@ fn _mem_map(addr: u64, size: u64, flags: u64, fd: u64, offset: u64) -> Result<us
     // proc.alloc_at(n_pages, , flags);
 
     // Ok(0)
+}
+
+fn _mem_map_anon(addr: VirtAddr, len: usize, flags: MapFlags) {
+    let proc = Process::current().unwrap();
+
+    proc.address_space
+        .map(addr, len, MapTarget::LazyAlloc, flags);
 }
 
 /// [`hyperion_syscall::mem_unmap`]
@@ -564,7 +565,7 @@ pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
         return Ok((VirtAddr::new_truncate(0), 0));
     }
 
-    let Some(end) = ptr.checked_add(len) else {
+    let Some(end) = ptr.checked_add(len - 1) else {
         return Err(Error::INVALID_ADDRESS);
     };
 
@@ -572,7 +573,7 @@ pub fn read_slice_parts(ptr: u64, len: u64) -> Result<(VirtAddr, usize)> {
         return Err(Error::INVALID_ADDRESS);
     };
 
-    if is_higher_half(end.as_u64()) {
+    if end.as_u64() >= 0x8000_0000_0000 {
         return Err(Error::INVALID_ADDRESS);
     }
 
@@ -603,7 +604,9 @@ pub fn read_untrusted_slice<'a, T: Copy>(ptr: u64, len: u64) -> Result<&'a [T]> 
         return Err(Error::INVALID_ADDRESS);
     }
 
-    let len = len.checked_mul(mem::size_of::<T>() as _).ok_or(Error::INVALID_ADDRESS)?;
+    let len = len
+        .checked_mul(mem::size_of::<T>() as _)
+        .ok_or(Error::INVALID_ADDRESS)?;
     read_slice_parts(ptr, len).map(|(start, len)| {
         if len == 0 {
             &[]

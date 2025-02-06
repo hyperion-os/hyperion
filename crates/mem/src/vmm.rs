@@ -1,5 +1,5 @@
 use core::{
-    fmt,
+    fmt::{self, Write},
     ops::Range,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -143,11 +143,27 @@ impl fmt::Display for MapTarget {
 //
 
 bitflags! {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MapFlags: u8 {
-    const WRITE   = 0b0000_0001;
-    const NO_EXEC = 0b0000_0010;
-    const USER    = 0b0000_0100;
+    /// non-read pages cant write or execute either,
+    /// they are basically guard pages
+    const READ    = 0b0001;
+    const WRITE   = 0b0010;
+    const EXEC    = 0b0100;
+    const USER    = 0b1000;
+    const NONE    = 0b0000;
 }
+}
+
+impl fmt::Display for MapFlags {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use core::fmt::Write;
+        f.write_char(if self.contains(Self::READ) { 'R' } else { '-' })?;
+        f.write_char(if self.contains(Self::WRITE) { 'W' } else { '-' })?;
+        f.write_char(if self.contains(Self::EXEC) { 'X' } else { '-' })?;
+        f.write_char(if self.contains(Self::USER) { 'U' } else { '-' })?;
+        Ok(())
+    }
 }
 
 //
@@ -177,52 +193,19 @@ pub trait PageMapImpl {
     /// convert virtual addr to physical addr, by reading the page tables
     fn virt_to_phys(&self, v_addr: VirtAddr) -> Option<(PhysAddr, PageTableFlags)>;
 
-    /// convert physical addr to virtual addr, by moving it to the higher half
-    fn phys_to_virt(&self, p_addr: PhysAddr) -> VirtAddr;
-
-    // /// get an address where anything can be mapped (temporarily)
-    // fn alloc_temporary(&self) -> Temporary<impl PageMapImpl>;
-
-    // fn free_temporary(&self, t: &Temporary<impl PageMapImpl>);
-
-    // fn make_buffer<T>(&self, data: *const [T]) -> Buffer<T>;
-
-    // fn map_temporary(&mut self, to: &[PhysAddr], flags: PageTableFlags) -> VirtAddr;
-
-    // fn share_pages(
-    //     &self,
-    //     v_addr: VirtAddr,
-    //     pages: u64,
-    //     has_at_least: PageTableFlags,
-    // ) -> Option<Box<[PhysAddr]>>;
-
-    fn temporary(index: u16) -> VirtAddr;
-
-    fn map_temporary(
-        &mut self,
-        info: &MemoryInfo,
-        to: PhysAddr,
-        bytes: usize,
-        flags: PageTableFlags,
-    ) -> VirtAddr;
-
-    fn unmap_temporary(&mut self, info: &MemoryInfo, from: VirtAddr);
-
-    /// map physical memory into virtual memory
-    ///
-    /// `p_addr` None means that the pages need to be allocated (possibly lazily on use)
-    fn map(&self, v_addr: Range<VirtAddr>, p_addr: MapTarget, flags: PageTableFlags);
+    /// map things into virtual memory
+    fn map(&self, addr: VirtAddr, len: usize, to: MapTarget, flags: MapFlags);
 
     // FIXME: use after free race condition, because of TLB cache, if other CPUs arent stopped
     /// unmap a range of virtual memory
-    fn unmap(&self, v_addr: Range<VirtAddr>);
+    fn unmap(&self, addr: VirtAddr, len: usize);
 
     // FIXME: use after free race condition, because of TLB cache, if other CPUs arent stopped
     /// remap the pages with new flags but the same physical memory
-    fn remap(&self, v_addr: Range<VirtAddr>, new_flags: PageTableFlags);
+    fn remap(&self, addr: VirtAddr, len: usize, new_flags: MapFlags);
 
     /// test if a virtual memory range is mapped with (at least) the given flags
-    fn is_mapped(&self, v_addr: Range<VirtAddr>, has_at_least: PageTableFlags) -> bool;
+    fn is_mapped(&self, addr: VirtAddr, len: usize, has_at_least: MapFlags) -> bool;
 }
 
 /* pub struct Temporary<'a, P: PageMapImpl> {

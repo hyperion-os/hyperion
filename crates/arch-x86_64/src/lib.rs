@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(abi_x86_interrupt, naked_functions, cell_leak)]
+#![feature(abi_x86_interrupt, naked_functions, cell_leak, unsigned_is_multiple_of)]
 
 //
 
@@ -19,7 +19,7 @@ use self::syscall::SyscallHandler;
 pub mod context;
 pub mod cpu;
 pub mod paging;
-pub mod stack;
+// pub mod stack;
 pub mod syscall;
 pub mod tls;
 pub mod vmm;

@@ -15,7 +15,10 @@ use elf::{
     ElfBytes,
 };
 use hyperion_log::*;
-use hyperion_mem::{is_higher_half, vmm::PageMapImpl};
+use hyperion_mem::{
+    is_higher_half,
+    vmm::{MapFlags, MapTarget, PageMapImpl},
+};
 use hyperion_scheduler::{proc::Process, task::RunnableTask};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 
@@ -92,18 +95,15 @@ impl<'a> Loader<'a> {
             .align_down(0x1000u64);
         let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
         let v_size = v_end - v_addr;
-        let n_pages = v_size as usize / 0x1000;
-        let init_flags = PageTableFlags::WRITABLE;
 
         if is_higher_half(v_end.as_u64()) {
             warn!("ELF segments cannot be mapped to higher half");
             return Err(LoadError::InvalidElf(InvalidElf));
         }
 
-        if let Err(err) = self.process.alloc_at(n_pages, v_addr, init_flags) {
-            error!("could not load ELF: out of VMEM, killing process: {err:?}");
-            return Err(LoadError::OutOfVirtMem(OutOfVirtMem));
-        };
+        self.process
+            .address_space
+            .map(v_addr, v_size as _, MapTarget::LazyAlloc, MapFlags::WRITE);
 
         Ok(())
     }
@@ -171,25 +171,24 @@ impl<'a> Loader<'a> {
             .align_down(align)
             .align_down(0x1000u64);
         let v_end = (VirtAddr::new(segment.p_vaddr) + segment.p_memsz).align_up(0x1000u64);
+        let v_size = v_end - v_addr;
         let flags = Self::flags(segment.p_flags);
 
         // println!("remap as {flags:?}");
-        self.process.address_space.remap(v_addr..v_end, flags);
+        self.process.address_space.remap(v_addr, v_size as _, flags);
     }
 
-    fn flags(p_flags: u32) -> PageTableFlags {
-        let mut flags = PageTableFlags::USER_ACCESSIBLE;
-        if p_flags & PF_X == 0 {
-            flags.insert(PageTableFlags::NO_EXECUTE);
+    fn flags(p_flags: u32) -> MapFlags {
+        let mut flags = MapFlags::USER;
+        if p_flags & PF_X != 0 {
+            flags.insert(MapFlags::EXEC);
         }
         if p_flags & PF_W != 0 {
-            flags.insert(PageTableFlags::WRITABLE);
+            flags.insert(MapFlags::WRITE);
         }
         if p_flags & PF_R != 0 {
-            // READ is always enabled
-            // TODO: read-only
+            flags.insert(MapFlags::READ);
         }
-
         flags
     }
 

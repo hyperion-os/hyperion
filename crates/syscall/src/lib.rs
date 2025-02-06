@@ -5,12 +5,11 @@
 use core::{
     fmt::{self, Arguments, Write},
     mem::MaybeUninit,
-    num::NonZero,
     ptr::{self, NonNull},
     sync::atomic::AtomicUsize,
 };
 
-use bitflags::{bitflags, Flags};
+use bitflags::bitflags;
 use err::Result;
 
 use crate::{
@@ -37,8 +36,6 @@ pub mod id {
     pub const NANOSLEEP_UNTIL: usize = 6;
 
     pub const SPAWN: usize = 8;
-    pub const PALLOC: usize = 9; // TODO: merge into map
-    pub const PFREE: usize = 10; // TODO: merge into unmap
     pub const SEND: usize = 11;
     pub const RECV: usize = 12;
     pub const RENAME: usize = 13;
@@ -171,20 +168,31 @@ pub fn _sys_log(args: Arguments) {
 bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct MemMapFlags: u32 {
+        /// shared memory
+        ///
         /// updates to the mapping are visible to
         /// other processes that mapped the same file
-        const SHARED  = 0b0010_0000;
+        const SHARED  = 0b0100_0000;
+        /// copy-on-write
+        ///
         /// updates to the mapping are not visible to
         /// other processes that mapped the same file,
         /// instead a copy of the contents are made
-        const PRIVATE = 0b0001_0000;
+        const PRIVATE = 0b0010_0000;
+        /// ram (instead of fd)
+        ///
         /// doesnt use a file, but maps normal memory
         /// that is lazy allocated and uninitialized (usually zeroed)
-        const ANON    = 0b0000_1000;
+        const ANON    = 0b0001_0000;
+        /// the addr hint isn't a hint but an exact address,
+        /// overlapping part of previous mappings get discarded
+        ///
+        /// mem_map doesn't overwrite old mappings without this (thats a lie)
+        const FIXED   = 0b0000_1000;
 
         /// allows executing
         const EXEC    = 0b0000_0100;
-        /// allows reading, always required
+        /// allows reading
         const READ    = 0b0000_0010;
         /// allows writing
         const WRITE   = 0b0000_0001;
@@ -242,18 +250,8 @@ pub fn nanosleep_until(deadline_nanos: u64) {
 }
 
 /// spawn a new pthread for the same process
-pub fn spawn(thread_entry: extern "C" fn(usize, usize) -> !, arg: usize) {
-    unsafe { syscall_2(id::SPAWN, thread_entry as usize, arg) }.unwrap();
-}
-
-/// allocate physical pages and map to heap
-pub fn palloc(pages: usize) -> Result<Option<NonNull<u8>>> {
-    unsafe { syscall_1(id::PALLOC, pages) }.map(|ptr| NonNull::new(ptr as _))
-}
-
-/// deallocate physical pages and unmap from heap
-pub fn pfree(ptr: NonNull<u8>, pages: usize) -> Result<()> {
-    unsafe { syscall_2(id::PFREE, ptr.as_ptr() as usize, pages) }.map(|_| {})
+pub fn spawn(ip: extern "C" fn(usize, usize) -> !, sp: usize) {
+    unsafe { syscall_2(id::SPAWN, ip as usize, sp) }.unwrap();
 }
 
 /// rename the current process

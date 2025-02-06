@@ -1,4 +1,9 @@
-use core::{arch::naked_asm, mem::MaybeUninit, ptr};
+use core::{
+    arch::naked_asm,
+    ptr::{self, NonNull},
+};
+
+use hyperion_syscall::{fs::FileDesc, mem_map, MemMapFlags};
 
 use crate::process::{ExitCode, Termination};
 
@@ -18,31 +23,13 @@ fn lang_start<T: Termination>(
     lang_start_internal(main)
 }
 
-#[allow(dead_code)]
-#[repr(align(0x1000))]
-struct Page([u8; 0x1000]);
-
-static mut MAIN_THREAD_STACK: MaybeUninit<[Page; 8]> = MaybeUninit::zeroed();
-
-#[no_mangle]
-#[naked]
-extern "C" fn _start() -> ! {
-    unsafe {
-        naked_asm!(
-            "lea rsp, {main_thread_stack} + 0x8000",
-            "jmp _start_with_stack",
-            main_thread_stack = sym MAIN_THREAD_STACK,
-        );
-    }
-}
-
-/* const USER_SPACE_TOP: usize = 0x8000_0000_0000;
-const MAIN_STACK_TOP: usize = USER_SPACE_TOP;
-const MAIN_STACK_SIZE: usize = 0x200_0000; // 32 MiB main thread stack
-const MAIN_STACK_BOTTOM: usize = USER_SPACE_TOP - MAIN_STACK_SIZE;
-const STACK_SERARATOR: usize = 0x10_0000; // 1 MiB of stack overflow guard pages
-
-static mut MAIN_THREAD_STACK: MaybeUninit<[Page; 8]> = MaybeUninit::zeroed();
+pub(crate) const USER_SPACE_TOP: usize = 0x8000_0000_0000;
+pub(crate) const MAIN_STACK_TOP: usize = USER_SPACE_TOP;
+pub(crate) const STACK_GUARD_SIZE: usize = 0x20_0000; // 2 MiB stack guard pages
+pub(crate) const MAIN_STACK_SIZE: usize = 0x200_0000 - STACK_GUARD_SIZE; // 30 MiB main thread stack
+pub(crate) const MAIN_STACK_BOTTOM: usize = USER_SPACE_TOP - MAIN_STACK_SIZE;
+pub(crate) const MAIN_STACK_GUARD_BOTTOM: usize =
+    USER_SPACE_TOP - MAIN_STACK_SIZE - STACK_GUARD_SIZE;
 
 #[no_mangle]
 #[naked]
@@ -56,18 +43,29 @@ extern "C" fn _start() -> ! {
             "mov r8, 0",
             "mov r9, 0",
             "syscall",
+
             "mov rsp, rax",
             "jmp _start_with_stack",
             mem_map = const crate::sys::id::MEM_MAP,
-            main_thread_stack = const MAIN_STACK_BOTTOM,
-            main_thread_stack_len = const MAIN_STACK_SIZE,
+            main_thread_stack = const MAIN_STACK_GUARD_BOTTOM,
+            main_thread_stack_len = const MAIN_STACK_SIZE + STACK_GUARD_SIZE,
             map_flags = const crate::sys::MemMapFlags::RW.bits() | crate::sys::MemMapFlags::ANON.bits(),
         );
     }
-} */
+}
 
 #[no_mangle]
 extern "C" fn _start_with_stack() -> ! {
+    // insert the guard page
+    mem_map(
+        NonNull::new(MAIN_STACK_GUARD_BOTTOM as _),
+        STACK_GUARD_SIZE,
+        MemMapFlags::FIXED | MemMapFlags::ANON,
+        FileDesc(0),
+        0,
+    )
+    .expect("failed to insert main thread guard page");
+
     // init cli args from stack, move them to the heap
     // crate::println!("init cli args");
     // unsafe { env::init_args(hyperion_cli_args_ptr) };

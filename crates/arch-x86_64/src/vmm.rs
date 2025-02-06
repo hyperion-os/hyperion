@@ -43,7 +43,7 @@ use hyperion_mem::{
     from_higher_half, is_higher_half,
     pmm::{self, PageFrame},
     to_higher_half,
-    vmm::{MapTarget, MemoryInfo, PageFaultResult, PageMapImpl, Privilege},
+    vmm::{MapFlags, MapTarget, MemoryInfo, PageFaultResult, PageMapImpl, Privilege},
 };
 use spin::{Once, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::{
@@ -57,11 +57,6 @@ use x86_64::{
     },
     PhysAddr, VirtAddr,
 };
-#[allow(unused)] // for rustdoc
-use {
-    crate::stack::{AddressSpace, USER_HEAP_TOP, VIRT_STACK_SIZE, VIRT_STACK_SIZE_ALL},
-    alloc::sync::Arc,
-};
 
 //
 
@@ -74,8 +69,6 @@ pub const CURRENT_ADDRESS_SPACE: VirtAddr = VirtAddr::new_truncate(0xFFFF_FFFF_F
 pub const NO_FREE: PageTableFlags = PageTableFlags::BIT_9;
 /// the page is shared and was originally writeable
 pub const COW: PageTableFlags = PageTableFlags::BIT_10;
-/// the page was mapped temporarily
-pub const OVERWRITEABLE: PageTableFlags = PageTableFlags::BIT_11;
 /// the page is allocated on first use using a page fault
 pub const LAZY_ALLOC: PageTableFlags = PageTableFlags::BIT_52;
 /// the page is a guard page
@@ -86,6 +79,34 @@ pub const NEVER_MAP: PageTableFlags = PageTableFlags::BIT_53;
 static IDLE_MAP: Once<PageMap> = Once::new();
 
 //
+
+pub fn as_flags(map_flags: MapFlags) -> PageTableFlags {
+    let mut flags = PageTableFlags::NO_EXECUTE;
+    if map_flags.contains(MapFlags::WRITE) {
+        flags.insert(PageTableFlags::WRITABLE);
+    }
+    if map_flags.contains(MapFlags::EXEC) {
+        flags.remove(PageTableFlags::NO_EXECUTE);
+    }
+    if map_flags.contains(MapFlags::USER) {
+        flags.insert(PageTableFlags::USER_ACCESSIBLE);
+    }
+    flags
+}
+
+pub fn as_map_flags(flags: PageTableFlags) -> MapFlags {
+    let mut map_flags = MapFlags::READ;
+    if flags.contains(PageTableFlags::WRITABLE) {
+        map_flags.insert(MapFlags::WRITE);
+    }
+    if flags.contains(PageTableFlags::NO_EXECUTE) {
+        map_flags.remove(MapFlags::EXEC);
+    }
+    if flags.contains(PageTableFlags::USER_ACCESSIBLE) {
+        map_flags.insert(MapFlags::USER);
+    }
+    map_flags
+}
 
 /// returns the private stack for this CPU
 pub fn get_stack() -> Range<VirtAddr> {
@@ -116,18 +137,11 @@ pub fn init() {
             // do a lazy map for every CPUs stack
             let stack = get_ap_stack(i);
             let guard_top = stack.start + 0x20_0000u64;
+            let stack_size = (stack.end - guard_top) as _;
             // map the 2MiB guard
-            boot_map.map(
-                stack.start..guard_top,
-                MapTarget::NeverMap,
-                PageTableFlags::NO_EXECUTE,
-            );
+            boot_map.map(stack.start, 0x20_0000, MapTarget::NeverMap, MapFlags::NONE);
             // map the actual 30MiB stack
-            boot_map.map(
-                guard_top..stack.end,
-                MapTarget::LazyAlloc,
-                PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
-            );
+            boot_map.map(guard_top, stack_size, MapTarget::LazyAlloc, MapFlags::WRITE);
         }
         boot_map.debug();
         let inner = boot_map.inner.0.write();
@@ -436,6 +450,7 @@ impl PageMapImpl for PageMap {
 
     fn fork(&self) -> Self {
         let new = Self::new();
+        let mut new_inner = new.inner.write();
 
         assert!(self.is_active());
 
@@ -532,13 +547,21 @@ impl PageMapImpl for PageMap {
                         };
 
                         l1e.set_flags(l0f);
-                        new.map(start..start + Size4KiB::SIZE, target, l0f);
+                        new_inner.map(
+                            &new.info,
+                            start,
+                            Size4KiB::SIZE as _,
+                            target,
+                            as_map_flags(l0f),
+                        );
                     }
                 }
             }
         }
 
         MapperFlushAll::new().flush_all();
+
+        drop(new_inner);
 
         new
     }
@@ -554,69 +577,20 @@ impl PageMapImpl for PageMap {
             .map(|(addr, _, flags)| (addr, flags))
     }
 
-    fn phys_to_virt(&self, addr: PhysAddr) -> VirtAddr {
-        to_higher_half(addr)
+    fn map(&self, addr: VirtAddr, len: usize, to: MapTarget, flags: MapFlags) {
+        self.inner.write().map(&self.info, addr, len, to, flags);
     }
 
-    /* fn share_pages(
-        &self,
-        v_addr: VirtAddr,
-        pages: u64,
-        has_at_least: PageTableFlags,
-    ) -> Option<Box<[PhysAddr]>> {
-        let mut inner = self.inner.write();
-
-        let mut flags = PageTableFlags::USER_ACCESSIBLE | PageTableFlags::WRITABLE;
-
-        let mut phys_pages: Vec<PhysAddr> = Vec::with_capacity(pages as _);
-
-        for i in 0..pages as u64 {
-            _ = inner.page_fault(&self.info, v_addr + i * 0x1000, Privilege::User); // try allocating the page if it is a lazy page
-            let (phys_page, _, flags) = inner.translate_addr(v_addr + i * 0x1000)?;
-
-            if !flags.contains(has_at_least) {
-                return None;
-            }
-
-            phys_pages.push(phys_page);
-        }
-
-        Some(phys_pages.into())
-    } */
-
-    fn temporary(index: u16) -> VirtAddr {
-        assert!(index < 512);
-        VirtAddr::new_truncate((500 << 39) | ((index as u64) << 30))
+    fn unmap(&self, addr: VirtAddr, len: usize) {
+        self.inner.write().unmap(&self.info, addr, len);
     }
 
-    fn map_temporary(
-        &mut self,
-        info: &MemoryInfo,
-        to: PhysAddr,
-        bytes: usize,
-        flags: PageTableFlags,
-    ) -> VirtAddr {
-        self.inner.write().map_temporary(info, to, bytes, flags)
+    fn remap(&self, addr: VirtAddr, len: usize, new_flags: MapFlags) {
+        self.inner.write().remap(addr, len, new_flags);
     }
 
-    fn unmap_temporary(&mut self, info: &MemoryInfo, from: VirtAddr) {
-        self.inner.write().unmap_temporary(info, from);
-    }
-
-    fn map(&self, v_addr: Range<VirtAddr>, p_addr: MapTarget, flags: PageTableFlags) {
-        self.inner.write().map(&self.info, v_addr, p_addr, flags);
-    }
-
-    fn unmap(&self, v_addr: Range<VirtAddr>) {
-        self.inner.write().unmap(&self.info, v_addr);
-    }
-
-    fn remap(&self, v_addr: Range<VirtAddr>, new_flags: PageTableFlags) {
-        self.inner.write().remap(v_addr, new_flags);
-    }
-
-    fn is_mapped(&self, v_addr: Range<VirtAddr>, has_at_least: PageTableFlags) -> bool {
-        self.inner.read().is_mapped(v_addr, has_at_least)
+    fn is_mapped(&self, addr: VirtAddr, len: usize, has_at_least: MapFlags) -> bool {
+        self.inner.read().is_mapped(addr, len, has_at_least)
     }
 }
 
@@ -904,71 +878,75 @@ impl LockedPageMap {
         tmpmap_table[page.p3_index()].set_unused();
     }
 
+    // -------
+    // mapping
+    // -------
+
     fn map(
         &mut self,
         info: &MemoryInfo,
-        Range { mut start, end }: Range<VirtAddr>,
+        mut addr: VirtAddr,
+        mut len: usize,
         mut to: MapTarget,
-        flags: PageTableFlags,
+        flags: MapFlags,
     ) {
-        if !start.is_aligned(Size4KiB::SIZE)
-            || !end.is_aligned(Size4KiB::SIZE)
+        hyperion_log::trace!(
+            "mapping [ 0x{addr:016x}..0x{:016x} ] to {to} with {flags:?}",
+            addr.as_u64() as usize + len
+        );
+
+        if !addr.is_aligned(Size4KiB::SIZE)
+            || !len.is_multiple_of(Size4KiB::SIZE as _)
             || !to.is_aligned(Size4KiB::SIZE)
         {
             panic!("Not aligned");
         }
 
-        if flags.intersects(PageTableFlags::PRESENT | LAZY_ALLOC) {
-            panic!("PRESENT and LAZY_ALLOC flags are not allowed, the VMM handles them");
+        fn advance<S: PageSize>(addr: &mut VirtAddr, len: &mut usize, to: &mut MapTarget) {
+            *len -= S::SIZE as usize;
+            if *len == 0 {
+                // addr could overflow and as length is 0,
+                // addr doesnt even matter anymore because mapping stops
+                return;
+            }
+            *addr += S::SIZE;
+            to.inc_addr(S::SIZE);
         }
-        hyperion_log::trace!("mapping [ 0x{start:016x}..0x{end:016x} ] to {to} with {flags:?}");
 
         loop {
-            if start == end {
+            if len == 0 {
                 break;
-            } else if start > end {
-                panic!("over-mapped");
             }
 
-            let Err(err_1gib) = self.try_map_1gib(info, start..end, to, flags) else {
-                // could crash if the last possible phys/virt page was mapped
-                start += Size1GiB::SIZE;
-                to.inc_addr(Size1GiB::SIZE);
+            // let Err(err_1gib) = self.try_map_1gib(info, addr, len, to, flags) else {
+            //     advance::<Size1GiB>(&mut addr, &mut len, &mut to);
+            //     continue;
+            // };
+
+            // let Err(err_2mib) = self.try_map_2mib(info, addr, len, to, flags) else {
+            //     advance::<Size2MiB>(&mut addr, &mut len, &mut to);
+            //     continue;
+            // };
+
+            let Err(err_4kib) = self.try_map_4kib(info, addr, len, to, flags) else {
+                advance::<Size4KiB>(&mut addr, &mut len, &mut to);
                 continue;
             };
 
-            let Err(err_2mib) = self.try_map_2mib(info, start..end, to, flags) else {
-                start += Size2MiB::SIZE;
-                to.inc_addr(Size2MiB::SIZE);
-                continue;
-            };
-
-            let Err(err_4kib) = self.try_map_4kib(info, start..end, to, flags) else {
-                start += Size4KiB::SIZE;
-                to.inc_addr(Size4KiB::SIZE);
-                continue;
-            };
-
-            hyperion_log::error!("FIXME: failed to map [ 0x{start:016x} to {to} ]");
-            hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
-            hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
+            hyperion_log::error!("FIXME: failed to map [ 0x{addr:016x} to {to} ]");
+            // hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
+            // hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
             hyperion_log::error!(" .. 4KiB: {err_4kib:?}");
             panic!();
         }
     }
 
-    fn is_map_valid<S: PageSize>(
-        Range { start, end }: Range<VirtAddr>,
-    ) -> Result<Page<S>, TryMapError<S>> {
-        let Ok(page) = Page::<S>::from_start_address(start) else {
+    fn is_map_valid<S: PageSize>(addr: VirtAddr, len: usize) -> Result<Page<S>, TryMapError<S>> {
+        let Ok(page) = Page::<S>::from_start_address(addr) else {
             return Err(TryMapError::NotAligned);
         };
 
-        let Some(limit) = end.as_u64().checked_sub(S::SIZE) else {
-            return Err(TryMapError::Overflow);
-        };
-
-        if start.as_u64() > limit {
+        if S::SIZE as usize > len {
             return Err(TryMapError::Overflow);
         }
 
@@ -1023,10 +1001,26 @@ impl LockedPageMap {
         let old: (PageTableFlags, PhysAddr) = (entry.flags(), entry.addr());
 
         let new: (PageTableFlags, PhysAddr) = match to {
-            MapTarget::Borrowed(to) => (flags | PageTableFlags::PRESENT | NO_FREE, to),
-            MapTarget::Preallocated(to) => (flags | PageTableFlags::PRESENT, to),
-            MapTarget::LazyAlloc => (flags | LAZY_ALLOC, PhysAddr::new_truncate(0)),
+            MapTarget::Borrowed(to) => (
+                // borrowed pages are already present
+                // and shouldn't be freed
+                flags | PageTableFlags::PRESENT | NO_FREE,
+                to,
+            ),
+            MapTarget::Preallocated(to) => (
+                // preallocated are the same as borrowed,
+                // except that they can be freed
+                flags | PageTableFlags::PRESENT,
+                to,
+            ),
+            MapTarget::LazyAlloc => (
+                // lazy pages are not present,
+                // so that page faults can allocate them
+                flags | LAZY_ALLOC,
+                PhysAddr::new_truncate(0),
+            ),
             MapTarget::NeverMap => (
+                // guard pages have no read, no write and no exec
                 PageTableFlags::NO_EXECUTE | NEVER_MAP,
                 PhysAddr::new_truncate(0),
             ),
@@ -1036,83 +1030,76 @@ impl LockedPageMap {
             // already mapped but it is already correct
             return Ok(());
         }
-        if entry.flags().contains(OVERWRITEABLE) {
-            entry.set_unused();
-        }
-        if !entry.is_unused() {
-            return Err(TryMapError::AlreadyMapped);
-        }
+
+        // discard the old mapping
+        Self::try_unmap_if_correct_size(info, entry, false)?;
 
         let n_pages = S::SIZE as usize / 0x1000;
         info.add_virt(n_pages);
-        if new.0.contains(NO_FREE) {
-            debug_assert_ne!(new.1.as_u64(), 0);
-        } else if new.0.contains(LAZY_ALLOC) || new.0.contains(NEVER_MAP) {
-            debug_assert_eq!(new.1.as_u64(), 0);
-        } else if new.0.contains(COW) || new.0.contains(PageTableFlags::PRESENT) {
-            debug_assert_ne!(new.1.as_u64(), 0);
+        if new.0.contains(COW) || new.0.contains(PageTableFlags::PRESENT) {
             info.add_phys(n_pages);
-        } else {
-            todo!()
         }
         entry.set_addr(new.1, new.0);
 
         Ok(())
     }
 
-    fn try_map_1gib(
-        &mut self,
-        info: &MemoryInfo,
-        Range { start, end }: Range<VirtAddr>,
-        to: MapTarget,
-        flags: PageTableFlags,
-    ) -> Result<(), TryMapError<Size1GiB>> {
-        let from = Self::is_map_valid(start..end)?;
-        Self::is_phys_map_valid(to)?;
+    // fn try_map_1gib(
+    //     &mut self,
+    //     info: &MemoryInfo,
+    //     addr: VirtAddr,
+    //     len: usize,
+    //     to: MapTarget,
+    //     flags: MapFlags,
+    // ) -> Result<(), TryMapError<Size1GiB>> {
+    //     let from = Self::is_map_valid(addr, len)?;
+    //     Self::is_phys_map_valid(to)?;
 
-        let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
-            unreachable!("512GiB maps are not supported");
-        };
-        let p3e = &mut p3[from.p3_index()];
+    //     let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
+    //         unreachable!("512GiB maps are not supported");
+    //     };
+    //     let p3e = &mut p3[from.p3_index()];
 
-        Self::try_map_if_diff(info, p3e, to, flags | PageTableFlags::HUGE_PAGE)?;
-        tlb::flush(from.start_address());
+    //     Self::try_map_if_diff(info, p3e, to, as_flags(flags) | PageTableFlags::HUGE_PAGE)?;
+    //     tlb::flush(from.start_address());
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    fn try_map_2mib(
-        &mut self,
-        info: &MemoryInfo,
-        Range { start, end }: Range<VirtAddr>,
-        to: MapTarget,
-        flags: PageTableFlags,
-    ) -> Result<(), TryMapError<Size2MiB>> {
-        let from = Self::is_map_valid(start..end)?;
-        Self::is_phys_map_valid(to)?;
+    // fn try_map_2mib(
+    //     &mut self,
+    //     info: &MemoryInfo,
+    //     addr: VirtAddr,
+    //     len: usize,
+    //     to: MapTarget,
+    //     flags: MapFlags,
+    // ) -> Result<(), TryMapError<Size2MiB>> {
+    //     let from = Self::is_map_valid(addr, len)?;
+    //     Self::is_phys_map_valid(to)?;
 
-        let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
-            unreachable!("512GiB maps are not supported");
-        };
-        let Some(p2) = Self::create_table(info, &mut p3[from.p3_index()]) else {
-            return Err(TryMapError::WrongSize);
-        };
-        let p2e = &mut p2[from.p2_index()];
+    //     let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
+    //         unreachable!("512GiB maps are not supported");
+    //     };
+    //     let Some(p2) = Self::create_table(info, &mut p3[from.p3_index()]) else {
+    //         return Err(TryMapError::WrongSize);
+    //     };
+    //     let p2e = &mut p2[from.p2_index()];
 
-        Self::try_map_if_diff(info, p2e, to, flags | PageTableFlags::HUGE_PAGE)?;
-        tlb::flush(from.start_address());
+    //     Self::try_map_if_diff(info, p2e, to, as_flags(flags) | PageTableFlags::HUGE_PAGE)?;
+    //     tlb::flush(from.start_address());
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     fn try_map_4kib(
         &mut self,
         info: &MemoryInfo,
-        Range { start, end }: Range<VirtAddr>,
+        addr: VirtAddr,
+        len: usize,
         to: MapTarget,
-        flags: PageTableFlags,
+        flags: MapFlags,
     ) -> Result<(), TryMapError<Size4KiB>> {
-        let from = Self::is_map_valid(start..end)?;
+        let from = Self::is_map_valid(addr, len)?;
         Self::is_phys_map_valid(to)?;
 
         let Some(p3) = Self::create_table(info, &mut self.l4[from.p4_index()]) else {
@@ -1126,47 +1113,85 @@ impl LockedPageMap {
         };
         let p1e = &mut p1[from.p1_index()];
 
-        Self::try_map_if_diff(info, p1e, to, flags)?;
+        Self::try_map_if_diff(info, p1e, to, as_flags(flags))?;
         tlb::flush(from.start_address());
 
         Ok(())
     }
 
-    fn unmap(&mut self, info: &MemoryInfo, Range { mut start, end }: Range<VirtAddr>) {
-        if !start.is_aligned(Size4KiB::SIZE) || !end.is_aligned(Size4KiB::SIZE) {
+    fn split_1gib_to_2mib(info: &MemoryInfo, p3_entry: &mut PageTableEntry) {
+        // if !p3_entry.flags().contains(PageTableFlags::HUGE_PAGE) {
+        //     return;
+        // }
+
+        let addr = p3_entry.addr();
+        let f = p3_entry.flags();
+        let mut new_p3_entry = PageTableEntry::new();
+        let p2_table = Self::create_table(info, &mut new_p3_entry).unwrap();
+
+        if f.contains(LAZY_ALLOC) {
+            for p2_entry in p2_table.iter_mut() {
+                p2_entry.set_flags(f);
+            }
+        } else if f.contains(NO_FREE) {
+            for (i, p2_entry) in p2_table.iter_mut().enumerate() {
+                p2_entry.set_addr(addr + i as u64 * Size2MiB::SIZE, f);
+            }
+        } else if f.contains(COW) {
+            todo!("split 1gib CoW page")
+        } else {
+            todo!("split 1gib allocated page")
+        }
+
+        *p3_entry = new_p3_entry;
+    }
+
+    // ---------
+    // unmapping
+    // ---------
+
+    fn unmap(&mut self, info: &MemoryInfo, mut addr: VirtAddr, mut len: usize) {
+        hyperion_log::trace!(
+            "unmapping [ 0x{addr:016x}..0x{:016x} ]",
+            addr.as_u64() as usize + len
+        );
+
+        if !addr.is_aligned(Size4KiB::SIZE) || !len.is_multiple_of(Size4KiB::SIZE as _) {
             panic!("Not aligned");
         }
 
-        hyperion_log::trace!("unmapping [ 0x{start:016x}..0x{end:016x} ]");
+        fn advance<S: PageSize>(addr: &mut VirtAddr, len: &mut usize) {
+            *len -= S::SIZE as usize;
+            if *len == 0 {
+                return;
+            }
+            *addr += S::SIZE;
+        }
 
         loop {
-            if start == end {
+            if len == 0 {
                 break;
-            } else if start > end {
-                panic!("over-unmapped");
             }
 
-            hyperion_log::trace!("unmapping {start:#018x}");
+            // let Err(err_1gib) = self.try_unmap_1gib(info, start..end) else {
+            //     // could crash if the last possible phys/virt page was mapped
+            //     start += Size1GiB::SIZE;
+            //     continue;
+            // };
 
-            let Err(err_1gib) = self.try_unmap_1gib(info, start..end) else {
-                // could crash if the last possible phys/virt page was mapped
-                start += Size1GiB::SIZE;
+            // let Err(err_2mib) = self.try_unmap_2mib(info, start..end) else {
+            //     start += Size2MiB::SIZE;
+            //     continue;
+            // };
+
+            let Err(err_4kib) = self.try_unmap_4kib(info, addr, len) else {
+                advance::<Size4KiB>(&mut addr, &mut len);
                 continue;
             };
 
-            let Err(err_2mib) = self.try_unmap_2mib(info, start..end) else {
-                start += Size2MiB::SIZE;
-                continue;
-            };
-
-            let Err(err_4kib) = self.try_unmap_4kib(info, start..end) else {
-                start += Size4KiB::SIZE;
-                continue;
-            };
-
-            hyperion_log::error!("FIXME: failed to unmap [ 0x{start:016x} ]");
-            hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
-            hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
+            hyperion_log::error!("FIXME: failed to unmap [ 0x{addr:016x} ]");
+            // hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
+            // hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
             hyperion_log::error!(" .. 4KiB: {err_4kib:?}");
             panic!();
         }
@@ -1208,13 +1233,9 @@ impl LockedPageMap {
         } else if f.contains(LAZY_ALLOC) {
             debug_assert_eq!(entry.addr().as_u64(), 0);
             // lazy allocs are not allocated yet so they cant be freed yet either
-        } else if f.contains(COW) {
+        } else if f.contains(COW) || f.contains(PageTableFlags::PRESENT) {
             debug_assert_ne!(entry.addr().as_u64(), 0);
             // the PMM handles double frees with CoW maps
-            frames.free();
-            info.sub_phys(n_pages);
-        } else if f.contains(PageTableFlags::PRESENT) {
-            debug_assert_ne!(entry.addr().as_u64(), 0);
             frames.free();
             info.sub_phys(n_pages);
         } else {
@@ -1226,51 +1247,52 @@ impl LockedPageMap {
         Ok(())
     }
 
-    fn try_unmap_1gib(
-        &mut self,
-        info: &MemoryInfo,
-        Range { start, end }: Range<VirtAddr>,
-    ) -> Result<(), TryMapError<Size1GiB>> {
-        let from = Self::is_map_valid(start..end)?;
+    // fn try_unmap_1gib(
+    //     &mut self,
+    //     info: &MemoryInfo,
+    //     Range { start, end }: Range<VirtAddr>,
+    // ) -> Result<(), TryMapError<Size1GiB>> {
+    //     let from = Self::is_map_valid(start..end)?;
 
-        let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
-            unreachable!("512GiB maps are not supported");
-        };
-        let p3e = &mut p3[from.p3_index()];
+    //     let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
+    //         unreachable!("512GiB maps are not supported");
+    //     };
+    //     let p3e = &mut p3[from.p3_index()];
 
-        Self::try_unmap_if_correct_size(info, p3e, true)?;
-        tlb::flush(from.start_address());
+    //     Self::try_unmap_if_correct_size(info, p3e, true)?;
+    //     tlb::flush(from.start_address());
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    fn try_unmap_2mib(
-        &mut self,
-        info: &MemoryInfo,
-        Range { start, end }: Range<VirtAddr>,
-    ) -> Result<(), TryMapError<Size2MiB>> {
-        let from = Self::is_map_valid(start..end)?;
+    // fn try_unmap_2mib(
+    //     &mut self,
+    //     info: &MemoryInfo,
+    //     Range { start, end }: Range<VirtAddr>,
+    // ) -> Result<(), TryMapError<Size2MiB>> {
+    //     let from = Self::is_map_valid(start..end)?;
 
-        let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
-            unreachable!("512GiB maps are not supported");
-        };
-        let Some(p2) = Self::read_table(&mut p3[from.p3_index()])? else {
-            return Ok(());
-        };
-        let p2e = &mut p2[from.p2_index()];
+    //     let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
+    //         unreachable!("512GiB maps are not supported");
+    //     };
+    //     let Some(p2) = Self::read_table(&mut p3[from.p3_index()])? else {
+    //         return Ok(());
+    //     };
+    //     let p2e = &mut p2[from.p2_index()];
 
-        Self::try_unmap_if_correct_size(info, p2e, true)?;
-        tlb::flush(from.start_address());
+    //     Self::try_unmap_if_correct_size(info, p2e, true)?;
+    //     tlb::flush(from.start_address());
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     fn try_unmap_4kib(
         &mut self,
         info: &MemoryInfo,
-        Range { start, end }: Range<VirtAddr>,
+        addr: VirtAddr,
+        len: usize,
     ) -> Result<(), TryMapError<Size4KiB>> {
-        let from = Self::is_map_valid(start..end)?;
+        let from = Self::is_map_valid(addr, len)?;
 
         let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
             return Ok(());
@@ -1289,39 +1311,52 @@ impl LockedPageMap {
         Ok(())
     }
 
-    fn remap(&mut self, Range { mut start, end }: Range<VirtAddr>, new_flags: PageTableFlags) {
-        if !start.is_aligned(Size4KiB::SIZE) || !end.is_aligned(Size4KiB::SIZE) {
+    // ---------
+    // remapping
+    // ---------
+
+    fn remap(&mut self, mut addr: VirtAddr, mut len: usize, new_flags: MapFlags) {
+        if !addr.is_aligned(Size4KiB::SIZE) || !len.is_multiple_of(Size4KiB::SIZE as _) {
             panic!("Not aligned");
         }
 
-        hyperion_log::trace!("remapping [ 0x{start:016x}..0x{end:016x} ] with {new_flags:?}");
+        hyperion_log::trace!(
+            "remapping [ 0x{addr:016x}..0x{:016x} ] with {new_flags:?}",
+            addr.as_u64() as usize + len
+        );
+
+        fn advance<S: PageSize>(addr: &mut VirtAddr, len: &mut usize) {
+            *len -= S::SIZE as usize;
+            if *len == 0 {
+                return;
+            }
+            *addr += S::SIZE;
+        }
 
         loop {
-            if start == end {
+            if len == 0 {
                 break;
-            } else if start > end {
-                panic!("over-unmapped");
             }
 
-            let Err(err_1gib) = self.try_remap_1gib(start..end, new_flags) else {
-                // could crash if the last possible phys/virt page was mapped
-                start += Size1GiB::SIZE;
+            // let Err(err_1gib) = self.try_remap_1gib(start..end, new_flags) else {
+            //     // could crash if the last possible phys/virt page was mapped
+            //     start += Size1GiB::SIZE;
+            //     continue;
+            // };
+
+            // let Err(err_2mib) = self.try_remap_2mib(start..end, new_flags) else {
+            //     start += Size2MiB::SIZE;
+            //     continue;
+            // };
+
+            let Err(err_4kib) = self.try_remap_4kib(addr, len, new_flags) else {
+                advance::<Size4KiB>(&mut addr, &mut len);
                 continue;
             };
 
-            let Err(err_2mib) = self.try_remap_2mib(start..end, new_flags) else {
-                start += Size2MiB::SIZE;
-                continue;
-            };
-
-            let Err(err_4kib) = self.try_remap_4kib(start..end, new_flags) else {
-                start += Size4KiB::SIZE;
-                continue;
-            };
-
-            hyperion_log::error!("FIXME: failed to remap [ 0x{start:016x} ]");
-            hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
-            hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
+            hyperion_log::error!("FIXME: failed to remap [ 0x{addr:016x} ]");
+            // hyperion_log::error!(" .. 1GiB: {err_1gib:?}");
+            // hyperion_log::error!(" .. 2MiB: {err_2mib:?}");
             hyperion_log::error!(" .. 4KiB: {err_4kib:?}");
             panic!();
         }
@@ -1329,12 +1364,14 @@ impl LockedPageMap {
 
     fn try_remap<S: PageSize>(
         entry: &mut PageTableEntry,
-        mut flags: PageTableFlags,
+        flags: MapFlags,
         addr: VirtAddr,
     ) -> Result<(), TryMapError<S>> {
         if entry.is_unused() {
             return Err(TryMapError::NotMapped);
         }
+
+        let mut flags = as_flags(flags);
 
         flags.insert(entry.flags().intersection(
             PageTableFlags::PRESENT
@@ -1358,57 +1395,60 @@ impl LockedPageMap {
         Ok(())
     }
 
-    fn try_remap_1gib(
-        &mut self,
-        Range { start, end }: Range<VirtAddr>,
-        flags: PageTableFlags,
-    ) -> Result<(), TryMapError<Size1GiB>> {
-        let from = Self::is_map_valid(start..end)?;
+    // fn try_remap_1gib(
+    //     &mut self,
+    //     addr: VirtAddr,
+    //     len: usize,
+    //     flags: PageTableFlags,
+    // ) -> Result<(), TryMapError<Size1GiB>> {
+    //     let from = Self::is_map_valid(addr, len)?;
 
-        let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
-            return Ok(());
-        };
-        let p3e = &mut p3[from.p3_index()];
+    //     let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
+    //         return Ok(());
+    //     };
+    //     let p3e = &mut p3[from.p3_index()];
 
-        if !flags.contains(PageTableFlags::HUGE_PAGE) {
-            return Err(TryMapError::WrongSize);
-        }
+    //     if !flags.contains(PageTableFlags::HUGE_PAGE) {
+    //         return Err(TryMapError::WrongSize);
+    //     }
 
-        Self::try_remap(p3e, flags | PageTableFlags::HUGE_PAGE, from.start_address())?;
+    //     Self::try_remap(p3e, flags | PageTableFlags::HUGE_PAGE, from.start_address())?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    fn try_remap_2mib(
-        &mut self,
-        Range { start, end }: Range<VirtAddr>,
-        flags: PageTableFlags,
-    ) -> Result<(), TryMapError<Size2MiB>> {
-        let from = Self::is_map_valid(start..end)?;
+    // fn try_remap_2mib(
+    //     &mut self,
+    //     addr: VirtAddr,
+    //     len: usize,
+    //     flags: PageTableFlags,
+    // ) -> Result<(), TryMapError<Size2MiB>> {
+    //     let from = Self::is_map_valid(addr, len)?;
 
-        let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
-            return Ok(());
-        };
-        let Some(p2) = Self::read_table(&mut p3[from.p3_index()])? else {
-            return Ok(());
-        };
-        let p2e = &mut p2[from.p2_index()];
+    //     let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
+    //         return Ok(());
+    //     };
+    //     let Some(p2) = Self::read_table(&mut p3[from.p3_index()])? else {
+    //         return Ok(());
+    //     };
+    //     let p2e = &mut p2[from.p2_index()];
 
-        if !flags.contains(PageTableFlags::HUGE_PAGE) {
-            return Err(TryMapError::WrongSize);
-        }
+    //     if !flags.contains(PageTableFlags::HUGE_PAGE) {
+    //         return Err(TryMapError::WrongSize);
+    //     }
 
-        Self::try_remap(p2e, flags | PageTableFlags::HUGE_PAGE, from.start_address())?;
+    //     Self::try_remap(p2e, flags | PageTableFlags::HUGE_PAGE, from.start_address())?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     fn try_remap_4kib(
         &mut self,
-        Range { start, end }: Range<VirtAddr>,
-        flags: PageTableFlags,
+        addr: VirtAddr,
+        len: usize,
+        flags: MapFlags,
     ) -> Result<(), TryMapError<Size4KiB>> {
-        let from = Self::is_map_valid(start..end)?;
+        let from = Self::is_map_valid(addr, len)?;
 
         let Some(p3) = Self::read_table(&mut self.l4[from.p4_index()])? else {
             return Ok(());
@@ -1421,35 +1461,36 @@ impl LockedPageMap {
         };
         let p1e = &mut p1[from.p1_index()];
 
-        if flags.contains(PageTableFlags::HUGE_PAGE) {
-            return Err(TryMapError::WrongSize);
-        }
-
         Self::try_remap(p1e, flags, from.start_address())?;
 
         Ok(())
     }
 
-    fn is_mapped(
-        &self,
-        Range { mut start, mut end }: Range<VirtAddr>,
-        contains: PageTableFlags,
-    ) -> bool {
-        start = start.align_down(Size4KiB::SIZE);
-        end = end.align_up(Size4KiB::SIZE);
+    fn is_mapped(&self, mut addr: VirtAddr, mut len: usize, contains: MapFlags) -> bool {
+        let end = (addr + len as u64).align_up(Size4KiB::SIZE);
+        addr = addr.align_down(Size4KiB::SIZE);
+        len = (end - addr) as usize;
+
+        fn advance<S: PageSize>(addr: &mut VirtAddr, len: &mut usize) {
+            *len -= S::SIZE as usize;
+            if *len == 0 {
+                return;
+            }
+            *addr += S::SIZE;
+        }
 
         loop {
-            if start >= end {
+            if len == 0 {
                 return true;
             }
 
-            let l4 = &self.l4[start.p4_index()];
+            let l4 = &self.l4[addr.p4_index()];
             if !self.is_mapped_layer(l4, contains) {
                 return false;
             }
 
             let l3 = match Self::translate_layer(l4) {
-                Some(Ok(next)) => &next[start.p3_index()],
+                Some(Ok(next)) => &next[addr.p3_index()],
                 Some(Err(())) => unreachable!(),
                 None => return false,
             };
@@ -1458,14 +1499,14 @@ impl LockedPageMap {
             }
 
             let l2 = match Self::translate_layer(l3) {
-                Some(Ok(next)) => &next[start.p2_index()],
+                Some(Ok(next)) => &next[addr.p2_index()],
                 Some(Err(())) => {
                     // giant page
-                    if !l3.flags().contains(contains) {
+                    if !as_map_flags(l3.flags()).contains(contains) {
                         return false;
                     }
 
-                    start += Size1GiB::SIZE;
+                    advance::<Size1GiB>(&mut addr, &mut len);
                     continue;
                 }
                 None => return false,
@@ -1475,14 +1516,14 @@ impl LockedPageMap {
             }
 
             let l1 = match Self::translate_layer(l2) {
-                Some(Ok(next)) => &next[start.p1_index()],
+                Some(Ok(next)) => &next[addr.p1_index()],
                 Some(Err(())) => {
                     // huge page
-                    if !l2.flags().contains(contains) {
+                    if !as_map_flags(l2.flags()).contains(contains) {
                         return false;
                     }
 
-                    start += Size2MiB::SIZE;
+                    advance::<Size2MiB>(&mut addr, &mut len);
                     continue;
                 }
                 None => return false,
@@ -1491,22 +1532,20 @@ impl LockedPageMap {
                 return false;
             }
 
-            if !l2.flags().contains(contains) {
+            if !as_map_flags(l2.flags()).contains(contains) {
                 return false;
             }
 
-            start += Size4KiB::SIZE;
+            advance::<Size4KiB>(&mut addr, &mut len);
         }
     }
 
-    fn is_mapped_layer(&self, entry: &PageTableEntry, flags: PageTableFlags) -> bool {
+    fn is_mapped_layer(&self, entry: &PageTableEntry, flags: MapFlags) -> bool {
         let lf = entry.flags();
         if lf.contains(LAZY_ALLOC) {
-            lf.difference(LAZY_ALLOC).contains(flags)
+            as_map_flags(lf).contains(flags)
         } else if lf.contains(COW) {
-            lf.difference(COW)
-                .union(PageTableFlags::WRITABLE)
-                .contains(flags)
+            as_map_flags(lf).union(MapFlags::WRITE).contains(flags)
         } else {
             true
         }
