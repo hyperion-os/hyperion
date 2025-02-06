@@ -603,6 +603,7 @@ pub fn read_untrusted_slice<'a, T: Copy>(ptr: u64, len: u64) -> Result<&'a [T]> 
         return Err(Error::INVALID_ADDRESS);
     }
 
+    let len = len.checked_mul(mem::size_of::<T>() as _).ok_or(Error::INVALID_ADDRESS)?;
     read_slice_parts(ptr, len).map(|(start, len)| {
         if len == 0 {
             &[]
