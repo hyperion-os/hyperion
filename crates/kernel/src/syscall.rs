@@ -50,6 +50,8 @@ pub static TASKS: Channel<SyscallRegs> = Channel::new();
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
+    hyperion_log::debug!("syscall={}", args.syscall_id);
+
     match args.syscall_id as usize {
         id::LOG => log(args),
         id::EXIT => exit(args),
@@ -147,6 +149,7 @@ pub fn spawn(args: &mut SyscallRegs) {
     let ip = args.arg0;
     let sp = args.arg1;
 
+    hyperion_log::debug!("spawn({ip:#x}, {sp:#x})");
     RunnableTask::new_in(ip, sp, Process::current().unwrap()).ready();
 
     set_result(args, Ok(0));
@@ -427,7 +430,7 @@ pub fn futex_wake(args: &mut SyscallRegs) {
 /// [`hyperion_syscall::mem_map`]
 fn mem_map(args: &mut SyscallRegs) {
     let result = _mem_map(args.arg0, args.arg1, args.arg2, args.arg3, args.arg4);
-    hyperion_log::error!("mem_map => {result:?}");
+    hyperion_log::debug!("mem_map => {result:?}");
     set_result(args, result);
 }
 
@@ -490,7 +493,7 @@ fn mem_unmap(args: &mut SyscallRegs) {
     let addr = args.arg0;
     let size = args.arg1;
 
-    hyperion_log::error!("mem_unmap({addr}, {size})");
+    hyperion_log::debug!("mem_unmap({addr}, {size})");
 }
 
 //

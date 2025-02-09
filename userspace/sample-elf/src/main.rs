@@ -149,6 +149,8 @@ pub fn main() -> Result<()> {
     // _test_userspace_mutex();
     // _repeat_stdin_to_stdout();
 
+    libstd::sys::log!("hello world");
+
     let futex1 = Arc::new(AtomicUsize::new(0));
     let futex2 = futex1.clone();
     spawn(move || {
@@ -159,8 +161,6 @@ pub fn main() -> Result<()> {
         futex_wake(&futex2, 1);
     });
     futex_wait(&futex1, 0);
-
-    libstd::sys::log!("hello world");
 
     libstd::fs::OpenOptions::new()
         .read(true)
