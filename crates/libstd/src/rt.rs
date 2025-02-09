@@ -44,10 +44,11 @@ extern "C" fn _start() -> ! {
             "mov r9, 0",
             "syscall",
 
-            "mov rsp, rax",
+            "mov rsp, {main_thread_stack_top}",
             "jmp _start_with_stack",
             mem_map = const crate::sys::id::MEM_MAP,
             main_thread_stack = const MAIN_STACK_GUARD_BOTTOM,
+            main_thread_stack_top = const MAIN_STACK_TOP,
             main_thread_stack_len = const MAIN_STACK_SIZE + STACK_GUARD_SIZE,
             map_flags = const crate::sys::MemMapFlags::RW.bits() | crate::sys::MemMapFlags::ANON.bits(),
         );

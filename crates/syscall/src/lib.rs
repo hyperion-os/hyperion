@@ -196,8 +196,13 @@ bitflags! {
         const READ    = 0b0000_0010;
         /// allows writing
         const WRITE   = 0b0000_0001;
+
+        /// just an alias for read+write+exec
         const RWE     = Self::READ.bits() | Self::WRITE.bits() | Self::EXEC.bits();
+        /// just an alias for read+write
         const RW      = Self::READ.bits() | Self::WRITE.bits();
+        /// just an alias for read+write+anon
+        const HEAP    = Self::READ.bits() | Self::WRITE.bits() | Self::ANON.bits();
     }
 }
 
