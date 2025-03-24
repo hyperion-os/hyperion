@@ -69,7 +69,7 @@ fn select_cpu_id_dyn() {
 /// - my laptop:  not supported
 /// - my desktop: 5M cpu_id calls in 2ms303µs450ns
 #[inline(always)]
-fn _cpu_id_rdpid() -> usize {
+pub fn _cpu_id_rdpid() -> usize {
     let cpu_id: usize;
     unsafe {
         asm!("rdpid {x}", x = out(reg) cpu_id);
@@ -82,7 +82,7 @@ fn _cpu_id_rdpid() -> usize {
 /// - my laptop:  5M cpu_id calls in 45ms973µs460ns
 /// - my desktop: 5M cpu_id calls in 74ms661µs860ns
 #[inline(always)]
-fn _cpu_id_rdtscp() -> usize {
+pub fn _cpu_id_rdtscp() -> usize {
     let cpu_id: usize;
     unsafe {
         asm!("rdtscp", out("rdx") _, out("rax") _, out("rcx") cpu_id);
@@ -95,9 +95,17 @@ fn _cpu_id_rdtscp() -> usize {
 /// - my laptop:  5M cpu_id calls in 3s410ms622µs880ns
 /// - my desktop: 5M cpu_id calls in 3s66ms322µs470ns
 #[inline(always)]
-fn _cpu_id_tsc_msr() -> usize {
+pub fn _cpu_id_tsc_msr() -> usize {
     let tsc = Msr::new(IA32_TSC_AUX);
     unsafe { tsc.read() as _ }
+}
+
+pub fn _cpu_id_gs() -> usize {
+    let cpu_id: usize;
+    unsafe {
+        asm!("mov {x}, gs:0", x = out(reg) cpu_id);
+    }
+    cpu_id
 }
 
 /* fn benchmark() -> ! {

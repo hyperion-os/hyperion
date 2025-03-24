@@ -18,7 +18,8 @@ pub fn init(tls: &'static ThreadLocalStorage) {
     KernelGsBase::write(VirtAddr::new(tls as *const _ as usize as u64));
     // and before entering userland `swapgs` is used so that
     // in user space, GS points to user data
-    GsBase::write(VirtAddr::new_truncate(0));
+    GsBase::write(VirtAddr::new(tls as *const _ as usize as u64));
+    // GsBase::write(VirtAddr::new_truncate(0));
 }
 
 //
