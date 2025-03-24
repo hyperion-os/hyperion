@@ -17,7 +17,25 @@ pub struct Futex {
     futex: AtomicUsize,
 }
 
-//
+impl Futex {
+    #[cold]
+    fn lock_slow(&self) {
+        while self
+            .futex
+            .compare_exchange(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            _ = self.futex.compare_exchange(
+                LOCKED,
+                LOCKED_CONTENDED,
+                Ordering::Acquire,
+                Ordering::Relaxed,
+            );
+
+            futex_wait(&self.futex, LOCKED_CONTENDED);
+        }
+    }
+}
 
 unsafe impl RawMutex for Futex {
     #[allow(clippy::declare_interior_mutable_const)]
@@ -28,27 +46,25 @@ unsafe impl RawMutex for Futex {
     type GuardMarker = GuardSend;
 
     fn lock(&self) {
-        while self
-            .futex
-            .compare_exchange(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
-            .is_err()
-        {
-            futex_wait(&self.futex, LOCKED);
+        if !self.try_lock() {
+            self.lock_slow();
         }
     }
 
     fn try_lock(&self) -> bool {
         self.futex
-            .compare_exchange_weak(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
+            .compare_exchange(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
             .is_ok()
     }
 
     unsafe fn unlock(&self) {
         // unlock the mutex
-        self.futex.store(UNLOCKED, Ordering::Release);
+        let old = self.futex.swap(UNLOCKED, Ordering::Release);
 
-        // and THEN wake up waiting threads
-        futex_wake(&self.futex, 1);
+        if old == LOCKED_CONTENDED {
+            // and THEN wake up waiting threads
+            futex_wake(&self.futex, 1);
+        }
     }
 }
 
@@ -56,6 +72,7 @@ unsafe impl RawMutex for Futex {
 
 const UNLOCKED: usize = 0;
 const LOCKED: usize = 1;
+const LOCKED_CONTENDED: usize = 2;
 
 //
 
