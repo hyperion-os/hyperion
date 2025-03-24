@@ -153,13 +153,16 @@ pub fn main() -> Result<()> {
 
     let futex1 = Arc::new(AtomicUsize::new(0));
     let futex2 = futex1.clone();
+    libstd::sys::log!("spawn");
     spawn(move || {
+        libstd::sys::log!("running");
         for _ in 0..10 {
             yield_now();
         }
         futex2.store(1, Ordering::Release);
         futex_wake(&futex2, 1);
     });
+    libstd::sys::log!("wait");
     futex_wait(&futex1, 0);
 
     libstd::fs::OpenOptions::new()

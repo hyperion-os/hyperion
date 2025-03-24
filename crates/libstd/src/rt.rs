@@ -46,7 +46,7 @@ extern "C" fn _start() -> ! {
 
             "mov rsp, {main_thread_stack_top}",
             "jmp _start_with_stack",
-            mem_map = const crate::sys::id::MEM_MAP,
+            mem_map = const crate::sys::Id::MemMap as usize,
             main_thread_stack = const MAIN_STACK_GUARD_BOTTOM,
             main_thread_stack_top = const MAIN_STACK_TOP,
             main_thread_stack_len = const MAIN_STACK_SIZE + STACK_GUARD_SIZE,

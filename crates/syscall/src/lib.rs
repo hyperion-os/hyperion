@@ -26,47 +26,82 @@ pub mod net;
 #[cfg(feature = "rustc-dep-of-std")]
 pub mod libc;
 
-pub mod id {
-    pub const LOG: usize = 1;
-    pub const EXIT: usize = 420;
-    pub const DONE: usize = 421;
-    pub const YIELD_NOW: usize = 3;
-    pub const TIMESTAMP: usize = 4;
-    pub const NANOSLEEP: usize = 5;
-    pub const NANOSLEEP_UNTIL: usize = 6;
+//
 
-    pub const SPAWN: usize = 8;
-    pub const SEND: usize = 11;
-    pub const RECV: usize = 12;
-    pub const RENAME: usize = 13;
+macro_rules! impl_try_into {
+    (pub enum Id {
+        $($variant:ident = $id:literal),* $(,)?
+    }) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        pub enum Id {
+            $($variant = $id,)*
+        }
 
-    pub const OPEN: usize = 14;
-    pub const CLOSE: usize = 15;
-    pub const READ: usize = 16;
-    pub const WRITE: usize = 17;
+        impl TryFrom<usize> for Id {
+            type Error = InvalidSyscall;
 
-    pub const SOCKET: usize = 18;
-    pub const BIND: usize = 19;
-    pub const LISTEN: usize = 20;
-    pub const ACCEPT: usize = 21;
-    pub const CONNECT: usize = 22;
+            fn try_from(value: usize) -> Result<Self, Self::Error> {
+                match value {
+                    $($id => Ok(Id::$variant),)*
+                    _ => Err(InvalidSyscall),
+                }
+            }
+        }
+    };
+}
 
-    pub const GET_PID: usize = 23;
-    pub const GET_TID: usize = 24;
+impl_try_into! {
+pub enum Id {
+    Log = 1,
+    Exit = 420,
+    Done = 421,
+    YieldNow = 3,
+    Timestamp = 4,
+    Nanosleep = 5,
+    NanosleepUntil = 6,
 
-    pub const DUP: usize = 25;
-    pub const PIPE: usize = 26;
-    pub const FUTEX_WAIT: usize = 27;
-    pub const FUTEX_WAKE: usize = 28;
+    Spawn = 8,
+    Send = 11,
+    Recv = 12,
+    Rename = 13,
 
-    pub const MEM_MAP: usize = 29;
-    pub const MEM_UNMAP: usize = 30;
-    pub const METADATA: usize = 31;
-    pub const SEEK: usize = 32;
+    Open = 14,
+    Close = 15,
+    Read = 16,
+    Write = 17,
 
-    pub const SYSTEM: usize = 33;
-    pub const FORK: usize = 34;
-    pub const WAITPID: usize = 35;
+    Socket = 18,
+    Bind = 19,
+    Listen = 20,
+    Accept = 21,
+    Connect = 22,
+
+    GetPid = 23,
+    GetTid = 24,
+
+    Dup = 25,
+    Pipe = 26,
+    FutexWait = 27,
+    FutexWake = 28,
+
+    MemMap = 29,
+    MemUnmap = 30,
+    Metadata = 31,
+    Seek = 32,
+
+    System = 33,
+    Fork = 34,
+    Waitpid = 35,
+}
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct InvalidSyscall;
+
+impl fmt::Display for InvalidSyscall {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("invalid syscall")
+    }
 }
 
 //
@@ -96,9 +131,11 @@ macro_rules! syscall {
             /// TODO:
             /// invalid syscall args can terminate this process
             pub unsafe fn $name(
-                mut $id: usize
+                $id: Id
                 $(, $a0: usize $(, $a1: usize $(, $a2: usize $(, $a3: usize $(, $a4: usize)?)?)?)?)?
             ) -> $crate::err::Result<usize> {
+                let mut $id = $id as usize;
+
                 unsafe { core::arch::asm!(
                     "syscall",
 
@@ -213,37 +250,37 @@ pub fn log(str: &str) -> Result<()> {
     // TODO: should null terminated strings be used instead to save registers?
     // decide later™
 
-    unsafe { syscall_2(id::LOG, str.as_ptr() as usize, str.len()) }.map(|_| {})
+    unsafe { syscall_2(Id::Log, str.as_ptr() as usize, str.len()) }.map(|_| {})
 }
 
 /// exit the process with a code
 pub fn exit(code: i64) -> ! {
-    let result = unsafe { syscall_1(id::EXIT, code as usize) };
+    let result = unsafe { syscall_1(Id::Exit, code as usize) };
     unreachable!("{result:?}");
 }
 
 /// exit the thread with a code
 pub fn done(code: i64) -> ! {
-    let result = unsafe { syscall_1(id::DONE, code as usize) };
+    let result = unsafe { syscall_1(Id::Done, code as usize) };
     unreachable!("{result:?}");
 }
 
 /// context switch from this process, no guarantees about actually switching
 pub fn yield_now() {
-    _ = unsafe { syscall_0(id::YIELD_NOW) };
+    _ = unsafe { syscall_0(Id::YieldNow) };
 }
 
 /// u128 nanoseconds since boot
 pub fn timestamp() -> Result<u128> {
     let mut result: u128 = 0;
-    unsafe { syscall_1(id::TIMESTAMP, core::ptr::addr_of_mut!(result) as usize) }
+    unsafe { syscall_1(Id::Timestamp, core::ptr::addr_of_mut!(result) as usize) }
         .map(move |_| result)
 }
 
 /// context switch from this process and switch back when `nanos` nanoseconds have passed
 pub fn nanosleep(nanos: u64) {
     // TODO: u128
-    unsafe { syscall_1(id::NANOSLEEP, nanos as usize) }.unwrap();
+    unsafe { syscall_1(Id::Nanosleep, nanos as usize) }.unwrap();
 }
 
 /// context switch from this process and switch back when [`timestamp()`] > `deadline_nanos`
@@ -251,24 +288,24 @@ pub fn nanosleep(nanos: u64) {
 /// might not happen immediately when it is true
 pub fn nanosleep_until(deadline_nanos: u64) {
     // TODO: u128
-    unsafe { syscall_1(id::NANOSLEEP_UNTIL, deadline_nanos as usize) }.unwrap();
+    unsafe { syscall_1(Id::NanosleepUntil, deadline_nanos as usize) }.unwrap();
 }
 
 /// spawn a new pthread for the same process
 pub fn spawn(ip: extern "C" fn(usize, usize) -> !, sp: usize) {
-    unsafe { syscall_2(id::SPAWN, ip as usize, sp) }.unwrap();
+    unsafe { syscall_2(Id::Spawn, ip as usize, sp) }.unwrap();
 }
 
 /// rename the current process
 pub fn rename(new_name: &str) -> Result<()> {
-    unsafe { syscall_2(id::RENAME, new_name.as_ptr() as usize, new_name.len()) }.map(|_| {})
+    unsafe { syscall_2(Id::Rename, new_name.as_ptr() as usize, new_name.len()) }.map(|_| {})
 }
 
 /// open a file
 pub fn open(path: &str, flags: FileOpenFlags, mode: usize) -> Result<FileDesc> {
     unsafe {
         syscall_4(
-            id::OPEN,
+            Id::Open,
             path.as_ptr() as usize,
             path.len(),
             flags.bits(),
@@ -280,84 +317,84 @@ pub fn open(path: &str, flags: FileOpenFlags, mode: usize) -> Result<FileDesc> {
 
 /// close a file
 pub fn close(file: FileDesc) -> Result<()> {
-    unsafe { syscall_1(id::CLOSE, file.0) }.map(|_| {})
+    unsafe { syscall_1(Id::Close, file.0) }.map(|_| {})
 }
 
 /// read from a file
 pub fn read(file: FileDesc, buf: &mut [u8]) -> Result<usize> {
-    unsafe { syscall_3(id::READ, file.0, buf.as_mut_ptr() as usize, buf.len()) }
+    unsafe { syscall_3(Id::Read, file.0, buf.as_mut_ptr() as usize, buf.len()) }
 }
 
 /// read from a file
 pub fn read_uninit(file: FileDesc, buf: &mut [MaybeUninit<u8>]) -> Result<usize> {
-    unsafe { syscall_3(id::READ, file.0, buf.as_mut_ptr() as usize, buf.len()) }
+    unsafe { syscall_3(Id::Read, file.0, buf.as_mut_ptr() as usize, buf.len()) }
 }
 
 /// write into a file
 pub fn write(file: FileDesc, buf: &[u8]) -> Result<usize> {
-    unsafe { syscall_3(id::WRITE, file.0, buf.as_ptr() as usize, buf.len()) }
+    unsafe { syscall_3(Id::Write, file.0, buf.as_ptr() as usize, buf.len()) }
 }
 
 /// create a socket
 pub fn socket(domain: SocketDomain, ty: SocketType, protocol: Protocol) -> Result<FileDesc> {
-    unsafe { syscall_3(id::SOCKET, domain.0, ty.0, protocol.0) }.map(FileDesc)
+    unsafe { syscall_3(Id::Socket, domain.0, ty.0, protocol.0) }.map(FileDesc)
 }
 
 /// bind a name to a socket
 pub fn bind(socket: FileDesc, addr: &str) -> Result<()> {
-    unsafe { syscall_3(id::BIND, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
+    unsafe { syscall_3(Id::Bind, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
 }
 
 /// start listening for connections on a socket
 pub fn listen(socket: FileDesc) -> Result<()> {
-    unsafe { syscall_1(id::LISTEN, socket.0) }.map(|_| {})
+    unsafe { syscall_1(Id::Listen, socket.0) }.map(|_| {})
 }
 
 /// accept a connection on a socket
 pub fn accept(socket: FileDesc) -> Result<FileDesc> {
-    unsafe { syscall_1(id::ACCEPT, socket.0) }.map(FileDesc)
+    unsafe { syscall_1(Id::Accept, socket.0) }.map(FileDesc)
 }
 
 /// connect to a socket
 pub fn connect(socket: FileDesc, addr: &str) -> Result<()> {
-    unsafe { syscall_3(id::CONNECT, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
+    unsafe { syscall_3(Id::Connect, socket.0, addr.as_ptr() as _, addr.len()) }.map(|_| {})
 }
 
 /// send data to a socket
 pub fn send(socket: FileDesc, data: &[u8], flags: usize) -> Result<usize> {
     let (data, data_len) = (data.as_ptr() as usize, data.len());
-    unsafe { syscall_4(id::SEND, socket.0, data, data_len, flags) }
+    unsafe { syscall_4(Id::Send, socket.0, data, data_len, flags) }
 }
 
 /// read data from a socket
 pub fn recv(socket: FileDesc, buf: &mut [u8], flags: usize) -> Result<usize> {
     let (buf, buf_len) = (buf.as_ptr() as usize, buf.len());
-    unsafe { syscall_4(id::RECV, socket.0, buf, buf_len, flags) }
+    unsafe { syscall_4(Id::Recv, socket.0, buf, buf_len, flags) }
 }
 
 /// get the current process id
 #[must_use]
 pub fn get_pid() -> usize {
     // SAFETY: this syscall cannot fail, look at the source
-    unsafe { syscall_0(id::GET_PID).unwrap_unchecked() }
+    unsafe { syscall_0(Id::GetPid).unwrap_unchecked() }
 }
 
 /// get the current thread id
 #[must_use]
 pub fn get_tid() -> usize {
     // SAFETY: this syscall cannot fail, look at the source
-    unsafe { syscall_0(id::GET_TID).unwrap_unchecked() }
+    unsafe { syscall_0(Id::GetTid).unwrap_unchecked() }
 }
 
 /// duplicate a file descriptor
 pub fn dup(old: FileDesc, new: FileDesc) -> Result<FileDesc> {
-    unsafe { syscall_2(id::DUP, old.0, new.0) }.map(FileDesc)
+    unsafe { syscall_2(Id::Dup, old.0, new.0) }.map(FileDesc)
 }
 
 /// create a new pipe
 pub fn pipe() -> Result<[FileDesc; 2]> {
     let mut pipes = [FileDesc(0); 2];
-    unsafe { syscall_1(id::PIPE, pipes.as_mut_ptr() as usize) }?;
+    unsafe { syscall_1(Id::Pipe, pipes.as_mut_ptr() as usize) }?;
     Ok(pipes)
 }
 
@@ -367,14 +404,14 @@ pub fn pipe() -> Result<[FileDesc; 2]> {
 ///
 /// the addr is translated so futexes in inter-process shmem should still work
 pub fn futex_wait(addr: &AtomicUsize, val: usize) {
-    unsafe { syscall_2(id::FUTEX_WAIT, addr as *const _ as usize, val) }.unwrap();
+    unsafe { syscall_2(Id::FutexWait, addr as *const _ as usize, val) }.unwrap();
 }
 
 /// wake `num` threads that are sleeping on this `addr`
 ///
 /// see [`futex_wait`]
 pub fn futex_wake(addr: &AtomicUsize, num: usize) {
-    unsafe { syscall_2(id::FUTEX_WAKE, addr as *const _ as usize, num) }.unwrap();
+    unsafe { syscall_2(Id::FutexWake, addr as *const _ as usize, num) }.unwrap();
 }
 
 /// map file contents to memory (mmap)
@@ -391,30 +428,30 @@ pub fn mem_map(
     offset: usize,
 ) -> Result<NonNull<()>> {
     let at = addr.map_or(ptr::null_mut(), NonNull::as_ptr) as usize;
-    unsafe { syscall_5(id::MEM_MAP, at, size, flags.bits() as _, fd.0, offset) }
+    unsafe { syscall_5(Id::MemMap, at, size, flags.bits() as _, fd.0, offset) }
         .map(|ptr| NonNull::new(ptr as _).unwrap())
 }
 
 /// unmap device/file mapped memory (munmap)
 pub fn mem_unmap(addr: NonNull<()>, size: usize) -> Result<()> {
-    unsafe { syscall_2(id::MEM_UNMAP, addr.as_ptr() as usize, size) }.map(|_| {})
+    unsafe { syscall_2(Id::MemUnmap, addr.as_ptr() as usize, size) }.map(|_| {})
 }
 
 /// file metadata (stat)
 pub fn metadata(file: FileDesc, metadata: &mut Metadata) -> Result<()> {
-    unsafe { syscall_2(id::METADATA, file.0, metadata as *mut _ as usize) }.map(|_| {})
+    unsafe { syscall_2(Id::Metadata, file.0, metadata as *mut _ as usize) }.map(|_| {})
 }
 
 /// file position seek (fseek)
 pub fn seek(file: FileDesc, offset: isize, origin: usize) -> Result<()> {
-    unsafe { syscall_3(id::SEEK, file.0, offset as _, origin) }.map(|_| {})
+    unsafe { syscall_3(Id::Seek, file.0, offset as _, origin) }.map(|_| {})
 }
 
 /// launch a process
 pub fn system(path: &str, args: &[&str]) -> Result<usize> {
     unsafe {
         syscall_5(
-            id::SYSTEM,
+            Id::System,
             path.as_ptr() as usize,
             path.len(),
             args.as_ptr() as usize,
@@ -428,7 +465,7 @@ pub fn system(path: &str, args: &[&str]) -> Result<usize> {
 pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<usize> {
     unsafe {
         syscall_5(
-            id::SYSTEM,
+            Id::System,
             path.as_ptr() as usize,
             path.len(),
             args.as_ptr() as usize,
@@ -440,11 +477,11 @@ pub fn system_with(path: &str, args: &[&str], cfg: LaunchConfig) -> Result<usize
 
 /// fork the current process and return the PID
 pub fn fork() -> usize {
-    unsafe { syscall_0(id::FORK) }.unwrap()
+    unsafe { syscall_0(Id::Fork) }.unwrap()
 }
 
 /// wait for a PID to exit
 /// TODO: this should be like https://linux.die.net/man/2/waitpid in the future
 pub fn waitpid(pid: usize) -> usize {
-    unsafe { syscall_1(id::WAITPID, pid) }.unwrap()
+    unsafe { syscall_1(Id::Waitpid, pid) }.unwrap()
 }

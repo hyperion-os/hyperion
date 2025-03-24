@@ -84,20 +84,21 @@ extern "C" fn _start() -> ! {
         let mut i = 0usize;
         let start = hyperion_instant::Instant::now();
         for _ in 0..5_000_000 {
-            i += core::hint::black_box(&f)();
+            let n = core::hint::black_box(&f)();
+            i = unsafe { i.wrapping_add(n) };
         }
         core::hint::black_box(i);
         println!("5M cpu_id calls in {}", start.elapsed());
     }
-    println!("benchmark _cpu_id_rdpid");
-    benchmark(|| hyperion_cpu_id::_cpu_id_rdpid());
-    println!("benchmark _cpu_id_rdtscp");
-    benchmark(|| hyperion_cpu_id::_cpu_id_rdtscp());
-    println!("benchmark _cpu_id_gs");
-    benchmark(|| hyperion_cpu_id::_cpu_id_gs());
-    println!("benchmark _cpu_id_tsc_msr");
-    benchmark(|| hyperion_cpu_id::_cpu_id_tsc_msr());
-    panic!();
+    // println!("benchmark _cpu_id_rdpid");
+    // benchmark(|| hyperion_cpu_id::_cpu_id_rdpid());
+    // println!("benchmark _cpu_id_rdtscp");
+    // benchmark(|| hyperion_cpu_id::_cpu_id_rdtscp());
+    // println!("benchmark _cpu_id_gs");
+    // benchmark(|| hyperion_cpu_id::_cpu_id_gs());
+    // println!("benchmark _cpu_id_tsc_msr");
+    // benchmark(|| hyperion_cpu_id::_cpu_id_tsc_msr());
+    // panic!();
 
     if sync::once!() {
         futures::spawn(async move {

@@ -34,7 +34,7 @@ use hyperion_scheduler::{
 use hyperion_syscall::{
     err::{Error, Result},
     fs::FileOpenFlags,
-    id, MemMapFlags,
+    Id, MemMapFlags,
 };
 use hyperion_vfs::{
     node::{DirDriverExt, FileDriver, FileDriverExt, FileNode, Ref},
@@ -50,50 +50,56 @@ pub static TASKS: Channel<SyscallRegs> = Channel::new();
 //
 
 pub fn syscall(args: &mut SyscallRegs) {
-    hyperion_log::debug!("syscall={}", args.syscall_id);
+    let Ok(syscall) = Id::try_from(args.syscall_id as usize) else {
+        hyperion_log::debug!("invalid syscall from user-space: {}", args.syscall_id);
+        set_result(args, Err(Error::INVALID_ARGUMENT));
+        return;
+    };
 
-    match args.syscall_id as usize {
-        id::LOG => log(args),
-        id::EXIT => exit(args),
-        id::DONE => done(args),
-        id::YIELD_NOW => yield_now(args),
-        // id::TIMESTAMP => {},
-        // id::NANOSLEEP => {},
-        // id::NANOSLEEP_UNTIL => {},
-        id::SPAWN => spawn(args),
-        // id::SEND => {},
-        // id::RECV => {},
-        // id::RENAME => {},
+    hyperion_log::debug!("syscall={syscall:?}");
+
+    match syscall {
+        Id::Log => log(args),
+        Id::Exit => exit(args),
+        Id::Done => done(args),
+        Id::YieldNow => yield_now(args),
+        // Id::TIMESTAMP => {},
+        // Id::NANOSLEEP => {},
+        // Id::NANOSLEEP_UNTIL => {},
+        Id::Spawn => spawn(args),
+        // Id::SEND => {},
+        // Id::RECV => {},
+        // Id::RENAME => {},
         //
-        id::OPEN => open(args),
-        id::CLOSE => close(args),
-        id::READ => read(args),
-        id::WRITE => write(args),
+        Id::Open => open(args),
+        Id::Close => close(args),
+        Id::Read => read(args),
+        Id::Write => write(args),
 
-        // id::SOCKET => {},
-        // id::BIND => {},
-        // id::LISTEN => {},
-        // id::ACCEPT => {},
-        // id::CONNECT => {},
+        // Id::SOCKET => {},
+        // Id::BIND => {},
+        // Id::LISTEN => {},
+        // Id::ACCEPT => {},
+        // Id::CONNECT => {},
         //
-        id::GET_PID => get_pid(args),
-        id::GET_TID => get_tid(args),
+        Id::GetPid => get_pid(args),
+        Id::GetTid => get_tid(args),
 
-        // id::DUP => {},
-        // id::PIPE => {},
-        id::FUTEX_WAIT => futex_wait(args),
-        id::FUTEX_WAKE => futex_wake(args),
+        // Id::DUP => {},
+        // Id::PIPE => {},
+        Id::FutexWait => futex_wait(args),
+        Id::FutexWake => futex_wake(args),
 
-        id::MEM_MAP => mem_map(args),
-        id::MEM_UNMAP => mem_unmap(args),
-        // id::METADATA => {},
-        // id::SEEK => {},
+        Id::MemMap => mem_map(args),
+        Id::MemUnmap => mem_unmap(args),
+        // Id::METADATA => {},
+        // Id::SEEK => {},
 
-        // id::SYSTEM => {},
-        // id::FORK => {},
-        // id::WAITPID => {},
+        // Id::SYSTEM => {},
+        // Id::FORK => {},
+        // Id::WAITPID => {},
         other => {
-            debug!("invalid syscall ({other})");
+            todo!("unimplemented syscall ({other:?})");
             *args = RunnableTask::next().set_active();
             return;
         }
