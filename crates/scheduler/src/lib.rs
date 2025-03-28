@@ -28,6 +28,8 @@ pub fn init() {
 }
 
 fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaultResult {
+    hyperion_log::trace!("page fault ip={_ip:x} addr={addr:x} priv={privilege:?}");
+
     if privilege == Privilege::Kernel && addr >= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
         // modify the global kernel maps
         // FIXME: lock the global pages when fixing page faults and mapping
@@ -39,7 +41,6 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
         }
     }
 
-    // hyperion_log::debug!("page fault ip={_ip:x} addr={addr:x}");
     let Some(proc) = Process::current() else {
         return PageFaultResult::NotHandled;
     };
@@ -57,6 +58,7 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
         // FIXME: syscall exit to not use the page fault stack
         RunnableTask::next().enter();
         // unreachable
+        hyperion_log::warn!("user-space page fault");
     }
 
     PageFaultResult::NotHandled

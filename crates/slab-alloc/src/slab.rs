@@ -60,7 +60,7 @@ where
 {
     pub fn alloc(&self, idx: u8, stats: &SlabAllocatorStats) -> *mut u8 {
         #[cfg(feature = "log")]
-        hyperion_log::debug!("alloc {}", self.size);
+        hyperion_log::trace!("alloc {}", self.size);
 
         stats.used.fetch_add(self.size, Ordering::Relaxed);
         self.pop(idx, stats).cast().as_ptr()
@@ -71,7 +71,7 @@ where
     /// with this specific [`Slab`]
     pub unsafe fn free(&self, stats: &SlabAllocatorStats, block: NonNull<u8>) {
         #[cfg(feature = "log")]
-        hyperion_log::debug!("free {}", self.size);
+        hyperion_log::trace!("free {}", self.size);
 
         stats.used.fetch_sub(self.size, Ordering::Relaxed);
         self.push(block.cast());
@@ -156,7 +156,7 @@ where
         next: *mut Block,
     ) -> *mut Block {
         #[cfg(feature = "log")]
-        hyperion_log::debug!("alloc pages {size}");
+        hyperion_log::trace!("alloc pages {size}");
         let page = unsafe { P::alloc(1) };
         stats.allocated.fetch_add(1, Ordering::Relaxed);
 

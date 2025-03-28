@@ -37,10 +37,10 @@ pub fn spawn<F: FnOnce() + Send + 'static>(f: F) {
     push(&mut sp, meta);
     let meta_ptr = sp;
 
-    hyperion_syscall::log!("meta_ptr={meta_ptr:?} data_ptr={data_ptr:}");
+    // hyperion_syscall::log!("meta_ptr={meta_ptr:#018x} data_ptr={data_ptr:#018x}");
 
-    push(&mut sp, data_ptr);
-    push(&mut sp, meta_ptr);
+    // push(&mut sp, data_ptr);
+    // push(&mut sp, meta_ptr);
 
     // spawn a new process in the same memory space with
     // `sp` as its stack, running `_thread_entry`
@@ -124,15 +124,15 @@ extern "C" fn _thread_entry() -> ! {
 
 #[no_mangle]
 extern "C" fn _thread_entry_rust(sp: usize) -> ! {
-    hyperion_syscall::log!("_thread_entry_rust");
+    // hyperion_syscall::log!("_thread_entry_rust");
     let meta_ptr = sp as *mut DynMetadata<dyn Fn() + Send + 'static>;
     let data_ptr = (sp + mem::size_of::<usize>()) as *mut ();
 
-    hyperion_syscall::log!("meta_ptr={meta_ptr:?} data_ptr={data_ptr:?}");
+    // hyperion_syscall::log!("meta_ptr={meta_ptr:?} data_ptr={data_ptr:?}");
 
     let metadata = unsafe { meta_ptr.read_volatile() };
 
-    hyperion_syscall::log!("exec entry fn");
+    // hyperion_syscall::log!("exec entry fn");
     let entry_fn = ptr::from_raw_parts_mut::<dyn Fn() + Send + 'static>(data_ptr, metadata);
 
     unsafe { (*entry_fn)() };
