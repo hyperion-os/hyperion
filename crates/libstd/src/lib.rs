@@ -5,7 +5,8 @@
     str_split_remainder,
     lang_items,
     never_type,
-    naked_functions
+    naked_functions,
+    ptr_metadata
 )]
 
 //

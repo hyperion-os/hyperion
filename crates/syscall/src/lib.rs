@@ -292,7 +292,7 @@ pub fn nanosleep_until(deadline_nanos: u64) {
 }
 
 /// spawn a new pthread for the same process
-pub fn spawn(ip: extern "C" fn(usize, usize) -> !, sp: usize) {
+pub fn spawn(ip: extern "C" fn() -> !, sp: usize) {
     unsafe { syscall_2(Id::Spawn, ip as usize, sp) }.unwrap();
 }
 

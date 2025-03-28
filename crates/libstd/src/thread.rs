@@ -1,10 +1,11 @@
 use core::{
-    mem,
-    ptr::{self, NonNull},
+    arch::naked_asm,
+    mem::{self, MaybeUninit},
+    ptr::{self, DynMetadata, NonNull},
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use hyperion_syscall::{done, fs::FileDesc, MemMapFlags};
+use hyperion_syscall::{done, fs::FileDesc, InvalidSyscall, MemMapFlags};
 
 use crate::{
     rt::{MAIN_STACK_GUARD_BOTTOM, MAIN_STACK_SIZE, STACK_GUARD_SIZE},
@@ -14,19 +15,36 @@ use crate::{
 //
 
 pub fn spawn<F: FnOnce() + Send + 'static>(f: F) {
+    let f_inner = MaybeUninit::new(f);
+    let f = move || {
+        unsafe { f_inner.assume_init_read()() };
+    };
+
     // allocate a new stack for the new thread
     let mut sp = alloc_stack() as usize;
 
-    // allocate memory from the stack for `f`
-    sp -= mem::size_of::<F>();
-    // align it correctly
-    sp &= !(mem::align_of::<F>() - 1);
-    // write `f` into the stack
-    unsafe { (sp as *mut F).write_volatile(f) };
+    let meta = ptr::metadata(&f as &(dyn Fn() + Send + 'static));
+
+    fn push<T>(sp: &mut usize, val: T) {
+        *sp -= mem::size_of::<T>();
+        *sp &= !(mem::align_of::<T>() - 1);
+        unsafe { (*sp as *mut T).write_volatile(val) };
+    }
+
+    push(&mut sp, f);
+    let data_ptr = sp;
+
+    push(&mut sp, meta);
+    let meta_ptr = sp;
+
+    hyperion_syscall::log!("meta_ptr={meta_ptr:?} data_ptr={data_ptr:}");
+
+    push(&mut sp, data_ptr);
+    push(&mut sp, meta_ptr);
 
     // spawn a new process in the same memory space with
-    // `sp` as its stack, running `thread_entry`
-    hyperion_syscall::spawn(thread_entry, sp);
+    // `sp` as its stack, running `_thread_entry`
+    hyperion_syscall::spawn(_thread_entry, sp);
 }
 
 /// returns a pointer to the top of a new stack
@@ -66,8 +84,7 @@ pub fn alloc_stack() -> *mut () {
     )
     .unwrap();
 
-    let top = MAIN_STACK_SIZE + STACK_GUARD_SIZE;
-    top as _
+    stack_ptr as _
 }
 
 /// # Safety
@@ -97,17 +114,28 @@ struct StackChain {
 
 //
 
-extern "C" fn thread_entry(ip: usize, sp: usize) -> ! {
-    crate::println!("_thread_entry(ip={ip:#x}, sp={sp:#x})");
-    // println!("_thread_entry {_stack_ptr} {arg}");
-    // let f_fatptr_box: *mut Box<dyn FnOnce() + Send + 'static> = arg as _;
-    // let f_fatptr: Box<dyn FnOnce() + Send + 'static> = *unsafe { Box::from_raw(f_fatptr_box) };
+#[no_mangle]
+#[naked]
+extern "C" fn _thread_entry() -> ! {
+    unsafe {
+        naked_asm!("mov rdi, rsp", "jmp _thread_entry_rust");
+    }
+}
 
-    // println!("addr {:0x}", (&*f_fatptr) as *const _ as *const () as usize);
+#[no_mangle]
+extern "C" fn _thread_entry_rust(sp: usize) -> ! {
+    hyperion_syscall::log!("_thread_entry_rust");
+    let meta_ptr = sp as *mut DynMetadata<dyn Fn() + Send + 'static>;
+    let data_ptr = (sp + mem::size_of::<usize>()) as *mut ();
 
-    // f_fatptr();
-    // println!("_thread_entry f call");
+    hyperion_syscall::log!("meta_ptr={meta_ptr:?} data_ptr={data_ptr:?}");
 
-    // TODO: pthread_exit + exit should kill all threads
+    let metadata = unsafe { meta_ptr.read_volatile() };
+
+    hyperion_syscall::log!("exec entry fn");
+    let entry_fn = ptr::from_raw_parts_mut::<dyn Fn() + Send + 'static>(data_ptr, metadata);
+
+    unsafe { (*entry_fn)() };
+
     done(0);
 }
