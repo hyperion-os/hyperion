@@ -12,7 +12,7 @@ use core::{
 use arcstr::{literal, ArcStr};
 use crossbeam::epoch::Atomic;
 use hyperion_arch::vmm::PageMap;
-use hyperion_futures::lock::Mutex as FutMutex;
+use hyperion_futures::mutex::Mutex as FutMutex;
 use hyperion_mem::vmm::{MapTarget, PageMapImpl};
 use spin::{Mutex, Once};
 use x86_64::{structures::paging::PageTableFlags, VirtAddr};
@@ -78,6 +78,27 @@ impl Process {
         this
     }
 
+    pub async fn fork(&self) -> Arc<Self> {
+        let this = Arc::new(Self {
+            pid: Pid::next(),
+            next_tid: AtomicUsize::new(0),
+            threads: AtomicUsize::new(0),
+            name: self.name.clone(),
+            nanos: self.nanos.load(Ordering::Acquire).into(),
+            address_space: self.address_space.fork(),
+            maps: FutMutex::new(self.maps.lock().await.clone()),
+            ext: if let Some(ext) = self.ext.get() {
+                Once::initialized(ext.fork())
+            } else {
+                Once::new()
+            },
+        });
+
+        PROCESSES.lock().insert(this.pid, Arc::downgrade(&this));
+
+        this
+    }
+
     pub fn current() -> Option<Arc<Self>> {
         Some(Task::current()?.process.clone())
     }
@@ -133,6 +154,8 @@ impl fmt::Display for Pid {
 
 pub trait ProcessExt: Sync + Send {
     fn as_any(&self) -> &dyn Any;
+
+    fn fork(&self) -> Box<dyn ProcessExt>;
 
     /// close everything before the actual process closes,
     /// because there might be no tasks to switch to (and that would keep this open)

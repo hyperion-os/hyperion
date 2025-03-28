@@ -10,7 +10,7 @@ use hyperion_random::Rng;
 
 use crate::{
     lazy::Once,
-    lock::{Mutex, MutexGuard},
+    mutex::{Mutex, MutexGuard},
 };
 
 //
@@ -31,6 +31,18 @@ impl LazyHasher {
             .hash(key)
     }
 }
+
+// impl Clone for LazyHasher {
+//     fn clone(&self) -> Self {
+//         LazyHasher {
+//             inner: if let Some(inner) = self.inner.get() {
+//                 Once::initialized(*inner)
+//             } else {
+//                 Once::new()
+//             },
+//         }
+//     }
+// }
 
 impl Default for LazyHasher {
     fn default() -> Self {
@@ -184,6 +196,7 @@ impl<K: Eq + Hash, V> VacantEntry<'_, K, V> {
 
 //
 
+#[derive(Clone, Copy)]
 struct DefaultHasher {
     init_state: u128,
 }

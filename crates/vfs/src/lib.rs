@@ -12,7 +12,7 @@
 use alloc::{collections::btree_map::BTreeMap, sync::Arc};
 use core::future::join;
 
-use hyperion_futures::lock::Mutex;
+use hyperion_futures::mutex::Mutex;
 use hyperion_scheduler::proc::Process;
 use hyperion_syscall::{
     err::{Error, Result},

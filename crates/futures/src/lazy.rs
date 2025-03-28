@@ -52,6 +52,14 @@ impl<T> Once<T> {
         }
     }
 
+    pub const fn initialized(val: T) -> Self {
+        Self {
+            val: UnsafeCell::new(MaybeUninit::new(val)),
+            complete: AtomicU8::new(COMPLETE),
+            waiting: Event::new(),
+        }
+    }
+
     pub async fn call_once(&self, f: impl Future<Output = T>) -> &T {
         if let Some(val) = self.get() {
             val

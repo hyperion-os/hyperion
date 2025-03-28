@@ -4,7 +4,6 @@ use core::{
     future::Future,
     mem,
     ops::{Deref, DerefMut},
-    ptr,
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -89,6 +88,9 @@ impl<T: ?Sized> Mutex<T> {
         }
     }
 
+    /// # Safety
+    /// unlocking is only safe when the MutexGuard is lost
+    /// and its drop never ran, like with mem::forget
     pub unsafe fn unlock(&self) {
         unsafe { self.lock.unlock() };
     }
@@ -228,7 +230,7 @@ impl Lock {
     pub fn lock_spin(&self) {
         while self
             .state
-            .compare_exchange(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
+            .compare_exchange_weak(UNLOCKED, LOCKED, Ordering::Acquire, Ordering::Relaxed)
             .is_err()
         {
             while self.is_locked() {

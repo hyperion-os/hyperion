@@ -3,7 +3,7 @@ use core::{mem::MaybeUninit, ptr, slice};
 
 use async_trait::async_trait;
 use hyperion_arch::vmm::PageMap;
-use hyperion_futures::lock::Mutex;
+use hyperion_futures::mutex::Mutex;
 use hyperion_mem::{
     buf::{Buffer, BufferMut},
     pmm::PageFrame,

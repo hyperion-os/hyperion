@@ -8,10 +8,11 @@ extern crate alloc;
 
 pub mod keyboard;
 pub mod lazy;
-pub mod lock;
 pub mod map;
 pub mod mouse;
 pub mod mpmc;
+pub mod mutex;
+pub mod rwlock;
 pub mod timer;
 
 mod block;

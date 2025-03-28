@@ -17,9 +17,9 @@ use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
 use hyperion_drivers::{log::KernelLogs, null::Null};
 use hyperion_futures::{
     lazy::{Lazy, Once},
-    lock::Mutex,
     map::{self, AsyncHashMap, LazyHasher},
     mpmc::Channel,
+    mutex::Mutex,
 };
 use hyperion_log::*;
 use hyperion_mem::{
@@ -96,7 +96,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         // Id::SEEK => {},
 
         // Id::SYSTEM => {},
-        // Id::FORK => {},
+        Id::Fork => {}
         // Id::WAITPID => {},
         other => {
             todo!("unimplemented syscall ({other:?})");
@@ -505,17 +505,39 @@ fn mem_unmap(args: &mut SyscallRegs) {
     hyperion_log::trace!("mem_unmap({addr}, {size})");
 }
 
+/// [`hyperion_syscall::fork`]
+fn fork(args: &mut SyscallRegs) {
+    let mut task = RunnableTask::active(args.clone());
+
+    hyperion_futures::spawn(async move {
+        let mut other = task.fork().await;
+
+        set_result(&mut other.trap, Ok(0));
+        set_result(&mut task.trap, Ok(other.task.process.pid.num()));
+
+        other.ready();
+        task.ready();
+    });
+
+    *args = RunnableTask::next().set_active();
+}
+
 //
 
 #[derive(Default)]
 struct ProcessExt {
     fds: AsyncHashMap<u64, FileDescriptor>,
+    // fds: RwLock<BTreeMap<u64, FileDescriptor>>,
     next_fd: AtomicU64,
 }
 
 impl hyperion_scheduler::proc::ProcessExt for ProcessExt {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn fork(&self) -> Box<dyn hyperion_scheduler::proc::ProcessExt> {
+        todo!()
     }
 
     fn close(&self) {}

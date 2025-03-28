@@ -100,6 +100,16 @@ impl RunnableTask {
     pub fn ready(self) {
         TASKS.send(self);
     }
+
+    pub async fn fork(&self) -> Self {
+        Self {
+            trap: self.trap.clone(),
+            task: Box::new(Task {
+                tid: Tid(0),
+                process: self.task.process.fork().await,
+            }),
+        }
+    }
 }
 
 //

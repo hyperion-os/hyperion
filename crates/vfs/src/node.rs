@@ -3,7 +3,7 @@ use core::{fmt, ops::Deref, ptr::NonNull};
 
 use async_trait::async_trait;
 use hyperion_arch::vmm::PageMap;
-use hyperion_futures::lock::Mutex;
+use hyperion_futures::mutex::Mutex;
 use hyperion_mem::buf::{Buffer, BufferMut};
 use hyperion_scheduler::proc::Process;
 use hyperion_syscall::err::{Error, Result};
