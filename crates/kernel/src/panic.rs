@@ -6,7 +6,7 @@ use core::panic::PanicInfo;
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     hyperion_log::error!("Kernel CPU {info}");
-    // hyperion_backtrace::print_backtrace();
+    hyperion_backtrace::print_backtrace();
 
     // if hyperion_scheduler::running() {
     //     hyperion_scheduler::done();

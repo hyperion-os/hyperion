@@ -187,6 +187,7 @@ pub fn current_registers(mut f: impl FnMut(UnwindRegs)) {
 /// caller must ensure that `ip` points to a valid stack frame
 /// and that stackframes end with a NULL
 pub unsafe fn unwind_stack_from(ip: VirtAddr, mut f: impl FnMut(FrameInfo)) {
+    #[repr(C)]
     struct RawStackFrame {
         next: *const RawStackFrame,
         instr_ptr: u64,
@@ -230,6 +231,22 @@ pub unsafe fn print_backtrace_from(ip: VirtAddr) {
         "begin",
         format_args!("\n"),
     );
+
+    if ip.is_null() {
+        println!("??");
+    } else {
+        print_backtrace_from_inner(ip);
+    }
+
+    hyperion_log::_print_log_custom(
+        LogLevel::Info,
+        " BACKTRACE".true_yellow(),
+        "end",
+        format_args!("\n"),
+    );
+}
+
+fn print_backtrace_from_inner(ip: VirtAddr) {
     let mut i = 0usize;
     let frame_walker = |FrameInfo {
                             instr_ptr: ip,
@@ -249,12 +266,6 @@ pub unsafe fn print_backtrace_from(ip: VirtAddr) {
         i += 1;
     };
     unsafe { unwind_stack_from(ip, frame_walker) };
-    hyperion_log::_print_log_custom(
-        LogLevel::Info,
-        " BACKTRACE".true_yellow(),
-        "end",
-        format_args!("\n"),
-    );
 }
 
 pub fn print_backtrace() {

@@ -118,8 +118,8 @@ pub fn spin_loop() {
 /// `HCF` - halt the cpu forever
 pub fn die() -> ! {
     loop {
-        // spin_loop();
-        int::wait()
+        int::disable();
+        x86_64::instructions::hlt();
     }
 }
 
