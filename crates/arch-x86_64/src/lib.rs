@@ -5,6 +5,8 @@
 
 extern crate alloc;
 
+use core::arch::asm;
+
 use hyperion_cpu_id::{self as cpu_id, cpu_id};
 use hyperion_log::*;
 use x86_64::{
@@ -44,9 +46,13 @@ pub fn init(handler: SyscallHandler) {
     syscall::init(tls.cpu.gdt.selectors, handler);
 }
 
+pub fn reset_rbp() {
+    unsafe { asm!("mov $rbp, 0") };
+}
+
 fn init_features() {
     let res = unsafe { core::arch::x86_64::__cpuid(0x1) };
-    if res.edx & 1 << 25 == 0 {
+    if res.edx & (1 << 25) == 0 {
         panic!("No SSE HW support");
     }
 

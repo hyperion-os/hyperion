@@ -220,6 +220,8 @@ macro_rules! generate_handler {
                     "push r14",
                     "push r15",
 
+                    "mov rbp, 0",
+
                     // save FPU/SSE/MMX state
                     "sub rsp, 512",
                     "fxsave64 [rsp]",
