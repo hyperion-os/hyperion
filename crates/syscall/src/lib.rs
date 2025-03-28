@@ -33,6 +33,7 @@ macro_rules! impl_try_into {
         $($variant:ident = $id:literal),* $(,)?
     }) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        #[repr(usize)]
         pub enum Id {
             $($variant = $id,)*
         }

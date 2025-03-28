@@ -901,6 +901,7 @@ dependencies = [
  "hyperion-log",
  "hyperion-mem",
  "hyperion-sync",
+ "hyperion-syscall",
  "spin",
  "x86_64",
 ]

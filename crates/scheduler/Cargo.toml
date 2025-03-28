@@ -15,6 +15,7 @@ hyperion-futures.path = "../futures"
 hyperion-mem.path = "../mem"
 hyperion-log.path = "../log"
 hyperion-sync.path = "../sync"
+hyperion-syscall.path = "../syscall"
 
 [lints]
 workspace = true
