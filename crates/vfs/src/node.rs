@@ -81,8 +81,14 @@ pub trait FileDriver: Send + Sync {
     }
 }
 
-pub trait FileDriverExt: FileDriver {
+pub trait FileDriverExt: FileDriver + Sized {
     fn into_file_ref(self) -> Ref<dyn FileDriver>;
+
+    fn into_node(self) -> Node {
+        Node::File(Ref::from_arc(Arc::new(FileNode {
+            driver: Mutex::new(self.into_file_ref()),
+        })))
+    }
 }
 
 impl<T: FileDriver + 'static> FileDriverExt for T {
@@ -125,8 +131,15 @@ pub trait DirDriver: Send + Sync {
     }
 }
 
-pub trait DirDriverExt: DirDriver {
+pub trait DirDriverExt: DirDriver + Sized {
     fn into_dir_ref(self) -> Ref<dyn DirDriver>;
+
+    fn into_node(self) -> Node {
+        Node::Dir(Ref::from_arc(Arc::new(DirNode {
+            nodes: Mutex::new(BTreeMap::new()),
+            driver: Mutex::new(self.into_dir_ref()),
+        })))
+    }
 }
 
 impl<T: DirDriver + 'static> DirDriverExt for T {

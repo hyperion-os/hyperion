@@ -1,6 +1,7 @@
 use alloc::{sync::Arc, vec::Vec};
 use core::{
     hash::{Hash, Hasher},
+    marker::PhantomData,
     mem,
     ops::{Deref, DerefMut},
 };
@@ -98,10 +99,15 @@ impl<K: Hash + Eq, V> AsyncHashMap<K, V> {
         Some(self.segment(hash).await.remove(hash, key)?.lock().await)
     }
 
-    /* pub async fn entry(&self, key: K) -> Entry<'_, K, V> {
-        let hash = self.hasher().await.hash(&key);
+    pub async fn entry(&self, key: K) -> Entry<'_, K, V> {
+        let hash = self.hasher.hash(&key).await;
 
-        let bucket = self.segment(hash).await.bucket(hash);
+        let mut bucket = MutexGuard::map(self.segment(hash).await, |buckets| {
+            if buckets.buckets.is_empty() {
+                buckets.buckets.push(Bucket::new());
+            }
+            buckets.bucket(hash)
+        });
 
         if let Some(item) = bucket.find(&key).cloned() {
             Entry::Occupied(OccupiedEntry {
@@ -111,7 +117,7 @@ impl<K: Hash + Eq, V> AsyncHashMap<K, V> {
         } else {
             Entry::Vacant(VacantEntry { bucket, hash, key })
         }
-    } */
+    }
 }
 
 impl<K, V> Default for AsyncHashMap<K, V> {
@@ -122,7 +128,7 @@ impl<K, V> Default for AsyncHashMap<K, V> {
 
 //
 
-/* pub enum Entry<'a, K, V> {
+pub enum Entry<'a, K, V> {
     Occupied(OccupiedEntry<'a, K, V>),
     Vacant(VacantEntry<'a, K, V>),
 }
@@ -132,13 +138,13 @@ pub struct OccupiedEntry<'a, K, V> {
     _p: PhantomData<&'a ()>,
 }
 
-impl<'a, K, V> OccupiedEntry<'a, K, V> {
+impl<K, V> OccupiedEntry<'_, K, V> {
     pub fn get(&self) -> &V {
-        &*self.item
+        &self.item
     }
 
     pub fn get_mut(&mut self) -> &mut V {
-        &mut *self.item
+        &mut self.item
     }
 
     pub fn insert(&mut self, mut val: V) -> V {
@@ -160,11 +166,11 @@ impl<'a, K, V> OccupiedEntry<'a, K, V> {
 pub struct VacantEntry<'a, K, V> {
     hash: u64,
     key: K,
-    bucket: &'a mut Bucket<K, V>,
+    bucket: MutexGuard<'a, Bucket<K, V>>,
 }
 
-impl<'a, K: Eq + Hash, V> VacantEntry<'a, K, V> {
-    pub async fn insert(self, val: V) -> Ref<K, V> {
+impl<K: Eq + Hash, V> VacantEntry<'_, K, V> {
+    pub async fn insert(mut self, val: V) -> Ref<K, V> {
         let item = Arc::new(Item {
             hash: self.hash,
             key: self.key,
@@ -174,7 +180,7 @@ impl<'a, K: Eq + Hash, V> VacantEntry<'a, K, V> {
         self.bucket.insert(item);
         result
     }
-} */
+}
 
 //
 
@@ -354,7 +360,7 @@ impl<K: Eq, V> Bucket<K, V> {
 
     // remove with a hash collision
     #[cold]
-    fn remove_slow<'a>(list: &'a mut Vec<Arc<Item<K, V>>>, key: &K) -> Option<Arc<Item<K, V>>> {
+    fn remove_slow(list: &mut Vec<Arc<Item<K, V>>>, key: &K) -> Option<Arc<Item<K, V>>> {
         let index = list.iter_mut().position(|item| item.matches(key))?;
         Some(list.remove(index))
     }

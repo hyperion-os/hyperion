@@ -56,7 +56,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         return;
     };
 
-    hyperion_log::debug!("syscall={syscall:?}");
+    hyperion_log::trace!("syscall={syscall:?}");
 
     match syscall {
         Id::Log => log(args),
@@ -155,7 +155,7 @@ pub fn spawn(args: &mut SyscallRegs) {
     let ip = args.arg0;
     let sp = args.arg1;
 
-    hyperion_log::debug!("spawn({ip:#x}, {sp:#x})");
+    hyperion_log::trace!("spawn({ip:#x}, {sp:#x})");
     RunnableTask::new_in(ip, sp, Process::current().unwrap()).ready();
 
     set_result(args, Ok(0));
@@ -195,7 +195,6 @@ pub fn open(args: &mut SyscallRegs) {
 
         let path = str::from_utf8(read_untrusted_bytes(ptr, len)?.into())
             .map_err(|_| Error::INVALID_UTF8)?;
-        let path = path.strip_prefix('/').unwrap_or(path);
 
         // copy the path to kernel memory
         let path: Box<str> = path.into();
@@ -221,12 +220,14 @@ pub fn open(args: &mut SyscallRegs) {
                 fd_push(&task.task.process, file).await as usize
             };
 
+            hyperion_log::trace!("open(\"{path}\", {flags:?}, {_mode:?}) => {result:?}");
             set_result(&mut task.trap, result);
             task.ready();
         });
     };
 
     if let Err(err) = err {
+        hyperion_log::trace!("open(??, {flags:?}, {_mode:?}) => Err({err:?})");
         set_result(args, Err(err));
         return;
     }
@@ -285,6 +286,8 @@ pub fn write(args: &mut SyscallRegs) {
     let fd = args.arg0;
     let ptr = args.arg1;
     let len = args.arg2;
+
+    let fdn = fd;
 
     let mut prev = RunnableTask::active(args.clone());
 
@@ -436,14 +439,14 @@ pub fn futex_wake(args: &mut SyscallRegs) {
 /// [`hyperion_syscall::mem_map`]
 fn mem_map(args: &mut SyscallRegs) {
     let result = _mem_map(args.arg0, args.arg1, args.arg2, args.arg3, args.arg4);
-    hyperion_log::debug!("mem_map => {result:?}");
+    hyperion_log::trace!("mem_map => {result:?}");
     set_result(args, result);
 }
 
 fn _mem_map(addr: u64, size: u64, flags: u64, fd: u64, offset: u64) -> Result<usize> {
     let flags = MemMapFlags::from_bits_truncate(flags as u32);
 
-    hyperion_log::debug!("mem_map({addr}, {size}, {flags:?}, {fd}, {offset})");
+    hyperion_log::trace!("mem_map({addr}, {size}, {flags:?}, {fd}, {offset})");
 
     let start = align_down(addr, 0x1000);
     let end = align_down(
@@ -499,7 +502,7 @@ fn mem_unmap(args: &mut SyscallRegs) {
     let addr = args.arg0;
     let size = args.arg1;
 
-    hyperion_log::debug!("mem_unmap({addr}, {size})");
+    hyperion_log::trace!("mem_unmap({addr}, {size})");
 }
 
 //
@@ -542,9 +545,15 @@ pub async fn fd_insert(proc: &Process, fd: u64, file: Ref<dyn FileDriver>) {
 
 pub async fn fd_push(proc: &Process, file: Ref<dyn FileDriver>) -> u64 {
     let proc_ext = process_ext(proc);
-    let fd = proc_ext.next_fd.fetch_add(1, Ordering::Relaxed);
-    proc_ext.fds.insert(fd, FileDescriptor { file }).await;
-    fd
+
+    // FIXME: denial-of-service
+    loop {
+        let fd = proc_ext.next_fd.fetch_add(1, Ordering::Relaxed);
+        if let map::Entry::Vacant(entry) = proc_ext.fds.entry(fd).await {
+            entry.insert(FileDescriptor { file }).await;
+            return fd;
+        }
+    }
 }
 
 pub async fn fd_get(proc: &Process, fd: u64) -> Option<map::Ref<u64, FileDescriptor>> {
