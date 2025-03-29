@@ -45,6 +45,10 @@ struct Args {
     /// start QEMU with -s -S
     #[arg(short, long)]
     gdb: bool,
+
+    /// just build the ISO
+    #[arg(short, long)]
+    norun: bool,
 }
 
 //
@@ -56,7 +60,9 @@ fn main() {
 
     let mut cmd = Command::new("make");
 
-    if args.test {
+    if args.norun {
+        cmd.arg("iso");
+    } else if args.test {
         cmd.arg("test");
     } else {
         cmd.arg("run");
