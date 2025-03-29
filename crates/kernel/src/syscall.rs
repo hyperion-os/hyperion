@@ -26,7 +26,7 @@ use hyperion_syscall::{
     Id, MemMapFlags,
 };
 use hyperion_vfs::{
-    node::{FileDriver, FileDriverExt, Ref},
+    node::{FileDriver, FileDriverExt, Node, Ref},
     OpenOptions,
 };
 use x86_64::{align_down, structures::paging::PageTableFlags, PhysAddr, VirtAddr};
@@ -196,17 +196,15 @@ pub fn open(args: &mut SyscallRegs) {
             vfs_init().await;
 
             let result = try {
-                if flags.contains(FileOpenFlags::IS_DIR) {
-                    Err(Error::UNIMPLEMENTED)?;
-                }
+                let node = hyperion_vfs::get(Some(&task.task.process), path.as_ref(), opts).await?;
+                let is_dir = flags.contains(FileOpenFlags::IS_DIR);
 
-                let file = hyperion_vfs::get(Some(&task.task.process), path.as_ref(), opts)
-                    .await
-                    .and_then(|node| node.to_file().ok_or(Error::NOT_A_FILE))?
-                    .driver
-                    .lock()
-                    .await
-                    .clone();
+                let file = match (node, is_dir) {
+                    (Node::File(file), false) => file.driver.lock().await.clone(),
+                    (Node::Dir(dir), true) => dir.as_opendir(),
+                    (_, false) => Err(Error::NOT_A_FILE)?,
+                    (_, true) => Err(Error::NOT_A_DIRECTORY)?,
+                };
 
                 fd_push(&task.task.process, file).await as usize
             };

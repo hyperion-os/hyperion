@@ -6,7 +6,8 @@
     coerce_unsized,
     unsize,
     future_join,
-    map_try_insert
+    map_try_insert,
+    arbitrary_self_types
 )]
 
 use alloc::collections::btree_map::BTreeMap;
@@ -60,15 +61,21 @@ impl OpenOptions {
     }
 
     pub fn from_flags(f: FileOpenFlags) -> Self {
+        let missing = if f.contains(FileOpenFlags::IS_DIR) {
+            MissingPolicy::CreateDir
+        } else {
+            MissingPolicy::CreateFile
+        };
+
         if f.contains(FileOpenFlags::CREATE_NEW) {
             Self {
                 existing: ExistingPolicy::Error,
-                missing: MissingPolicy::CreateFile,
+                missing,
             }
         } else if f.contains(FileOpenFlags::CREATE) {
             Self {
                 existing: ExistingPolicy::UseExisting,
-                missing: MissingPolicy::CreateFile,
+                missing,
             }
         } else {
             Self {

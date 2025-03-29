@@ -1,4 +1,5 @@
 use core::{
+    fmt,
     marker::PhantomData,
     mem::MaybeUninit,
     ops::{Deref, Range},
@@ -166,11 +167,66 @@ impl<'a, T, P: PageMapImpl> BufferMut<'a, T, P> {
     }
 }
 
+impl<'a, P: PageMapImpl> BufferMut<'a, u8, P> {
+    pub fn offset_writer(&'a mut self, from_offset: usize) -> BufferOffsetWriter<'a, P> {
+        BufferOffsetWriter {
+            from_offset,
+            written: 0,
+            buf: self,
+        }
+    }
+}
+
 impl<'a, T, P> Deref for BufferMut<'a, T, P> {
     type Target = Buffer<'a, T, P>;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+//
+
+pub struct BufferOffsetWriter<'a, P> {
+    from_offset: usize,
+    pub written: usize,
+    buf: &'a mut BufferMut<'a, u8, P>,
+}
+
+impl<P: PageMapImpl> BufferOffsetWriter<'_, P> {
+    pub fn write(&mut self, bytes: &[u8]) {
+        let from = self.from_offset;
+        self.from_offset = self.from_offset.saturating_add(bytes.len());
+
+        if from >= bytes.len() {
+            return;
+        }
+        if self.written >= self.buf.len() {
+            return;
+        }
+
+        unsafe {
+            self.buf.with_slice_mut(|s| {
+                let from = &bytes[from..];
+                let to = &mut s[self.written..];
+
+                let write = from.len().min(to.len());
+
+                let from = &from[..write];
+                let to = &mut to[..write];
+
+                MaybeUninit::copy_from_slice(to, from);
+
+                self.written = self.written.saturating_add(write);
+            });
+        }
+    }
+}
+
+impl<P: PageMapImpl> fmt::Write for BufferOffsetWriter<'_, P> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write(s.as_bytes());
+        Ok(())
     }
 }
 

@@ -5,7 +5,8 @@
     maybe_uninit_slice,
     core_intrinsics,
     must_not_suspend,
-    slice_ptr_get
+    slice_ptr_get,
+    maybe_uninit_write_slice
 )]
 #![allow(internal_features)]
 
