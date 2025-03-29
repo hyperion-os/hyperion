@@ -1,14 +1,14 @@
 #![no_std]
-#![feature(maybe_uninit_slice)]
+#![feature(maybe_uninit_slice, maybe_uninit_fill)]
 
 //
 
+use hyperion_futures::lazy::Once;
 // pub use hyperion_driver_acpi as acpi;
 // pub use hyperion_driver_framebuffer as fbo;
 // pub use hyperion_driver_pic as pic;
 // pub use hyperion_driver_pit as pit;
 // pub use hyperion_driver_rtc as rtc;
-use hyperion_sync as sync;
 
 //
 
@@ -24,10 +24,24 @@ pub mod rand;
 
 //
 
-pub fn lazy_install_early() {
-    if !sync::once!() {
-        return;
-    }
+pub async fn lazy_install() {
+    static VFS_INIT: Once<()> = Once::new();
+    VFS_INIT.call_once(lazy_install_inner()).await;
+}
+
+async fn lazy_install_inner() {
+    hyperion_vfs::bind(None, "/dev/null", null::DEV_NULL.clone())
+        .await
+        .unwrap();
+    hyperion_vfs::bind(None, "/dev/log", log::DEV_LOG.clone())
+        .await
+        .unwrap();
+    hyperion_vfs::bind(None, "/dev/random", rand::DEV_RANDOM.clone())
+        .await
+        .unwrap();
+    hyperion_vfs::bind(None, "/dev/urandom", rand::DEV_RANDOM.clone())
+        .await
+        .unwrap();
 
     // let root = root.into_node().find("dev", true).unwrap();
     // root.install_dev("null", null::Null);
@@ -51,5 +65,3 @@ pub fn lazy_install_early() {
     // hyperion_driver_ps2::keyboard::init();
     // hyperion_driver_ps2::mouse::init();
 }
-
-pub fn lazy_install_late() {}

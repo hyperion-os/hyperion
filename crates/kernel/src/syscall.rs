@@ -10,8 +10,7 @@ use core::{
 };
 
 use hyperion_arch::syscall::SyscallRegs;
-use hyperion_drivers::{log::KernelLogs, null::Null};
-use hyperion_futures::{lazy::Once, map::LazyHasher, mpmc::Channel, rwlock::RwLock};
+use hyperion_futures::{map::LazyHasher, mpmc::Channel, rwlock::RwLock};
 use hyperion_mem::{
     buf::{Buffer, BufferMut},
     vmm::{MapFlags, MapTarget, PageMapImpl},
@@ -26,7 +25,7 @@ use hyperion_syscall::{
     Id, MemMapFlags,
 };
 use hyperion_vfs::{
-    node::{FileDriver, FileDriverExt, Node, Ref},
+    node::{FileDriver, Node, Ref},
     OpenOptions,
 };
 use x86_64::{align_down, structures::paging::PageTableFlags, PhysAddr, VirtAddr};
@@ -152,23 +151,6 @@ pub fn spawn(args: &mut SyscallRegs) {
     set_result(args, Ok(0));
 }
 
-async fn vfs_init() {
-    static VFS_INIT: Once<()> = Once::new();
-    VFS_INIT
-        .call_once(async move {
-            // hyperion_vfs::mount(None, "/", TmpFs::new().into_dir_ref())
-            //     .await
-            //     .unwrap();
-            hyperion_vfs::bind(None, "/dev/null", Null.into_file_ref())
-                .await
-                .unwrap();
-            hyperion_vfs::bind(None, "/dev/log", KernelLogs.into_file_ref())
-                .await
-                .unwrap();
-        })
-        .await;
-}
-
 /// [`hyperion_syscall::open`]
 pub fn open(args: &mut SyscallRegs) {
     let ptr = args.arg0;
@@ -193,8 +175,6 @@ pub fn open(args: &mut SyscallRegs) {
         let mut task = RunnableTask::active(args.clone());
 
         hyperion_futures::spawn(async move {
-            vfs_init().await;
-
             let result = try {
                 let node = hyperion_vfs::get(Some(&task.task.process), path.as_ref(), opts).await?;
                 let is_dir = flags.contains(FileOpenFlags::IS_DIR);

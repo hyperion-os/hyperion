@@ -1,30 +1,47 @@
-use hyperion_vfs::node::FileDriver;
+use alloc::boxed::Box;
+use core::mem::MaybeUninit;
+
+use async_trait::async_trait;
+use hyperion_arch::vmm::PageMap;
+use hyperion_mem::buf::{Buffer, BufferMut};
+use hyperion_random::Rng;
+use hyperion_scheduler::proc::Process;
+use hyperion_syscall::err::Result;
+use hyperion_vfs::node::{FileDriver, Ref};
 
 //
 
+pub static DEV_RANDOM: Ref<dyn FileDriver> = Ref::new_static(&Random);
+
+//
+
+/// `/dev/random` which just reads from the rng device
 pub struct Random;
 
-// #[async_trait]
+#[async_trait]
 impl FileDriver for Random {
-    // fn as_any(&self) -> &dyn Any {
-    //     self
-    // }
+    async fn read(
+        &self,
+        _: Option<&Process>,
+        _: usize,
+        mut buf: BufferMut<'_, u8, PageMap>,
+    ) -> Result<usize> {
+        unsafe {
+            buf.with_slice_mut(|s| {
+                let s = MaybeUninit::fill(s, 0); // fill with 0's first, because Rust
+                hyperion_random::next_fast_rng().fill(s);
+            });
+        }
 
-    // fn len(&self) -> usize {
-    //     1
-    // }
+        Ok(buf.len())
+    }
 
-    // fn set_len(&mut self, _: usize) -> IoResult<()> {
-    //     Err(IoError::PermissionDenied)
-    // }
-
-    //     async fn read(&self, _: usize, buf: &mut [u8]) -> Result<usize> {
-    //         let mut rng = hyperion_random::next_fast_rng();
-    //         rng.fill_bytes(buf);
-    //         Ok(buf.len())
-    //     }
-
-    //     async fn write(&mut self, _: usize, buf: &[u8]) -> Result<usize> {
-    //         Ok(buf.len())
-    //     }
+    async fn write(
+        &self,
+        _: Option<&Process>,
+        _: usize,
+        buf: Buffer<'_, u8, PageMap>,
+    ) -> Result<usize> {
+        Ok(buf.len())
+    }
 }

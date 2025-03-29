@@ -101,36 +101,45 @@ extern "C" fn _start() -> ! {
     // panic!();
 
     if sync::once!() {
-        futures::spawn(async move {
-            let proc = scheduler::proc::Process::new();
-
-            fd_insert(&proc, 0, hyperion_drivers::null::DEV_NULL.clone()).await;
-            fd_insert(&proc, 1, hyperion_drivers::log::DEV_LOG.clone()).await;
-            fd_insert(&proc, 2, hyperion_drivers::log::DEV_LOG.clone()).await;
-
-            let tmptask = scheduler::task::RunnableTask::new_in(0, 0, proc.clone());
-            tmptask.set_active();
-
-            let bin = include_bytes!(env!("CARGO_BIN_FILE_SAMPLE_ELF"));
-            let mut loader = Loader::new(bin, proc).unwrap();
-
-            loader.load().unwrap();
-            loader.finish().unwrap().ready();
-        });
-        futures::spawn(async move {
-            hyperion_log::debug!("running tick task");
-
-            loop {
-                hyperion_log::debug!("tick (CPU-{})", cpu_id());
-                futures::timer::sleep(time::Duration::milliseconds(1000)).await;
-            }
-        });
+        futures::spawn(init());
     }
 
     // init scheduling
     debug!("init CPU-{}", cpu_id());
     scheduler::init();
     hyperion_syscall::exit(0); // use a syscall from kernel space to enter the main loop
+}
+
+async fn init() {
+    hyperion_drivers::lazy_install().await;
+
+    // debug heartbeat service
+    futures::spawn(async move {
+        hyperion_log::debug!("running tick task");
+
+        loop {
+            hyperion_log::debug!("tick (CPU-{})", cpu_id());
+            futures::timer::sleep(time::Duration::milliseconds(1000)).await;
+        }
+    });
+
+    // set up and execute the user-space init process
+    futures::spawn(async move {
+        let proc = scheduler::proc::Process::new();
+
+        fd_insert(&proc, 0, hyperion_drivers::null::DEV_NULL.clone()).await;
+        fd_insert(&proc, 1, hyperion_drivers::log::DEV_LOG.clone()).await;
+        fd_insert(&proc, 2, hyperion_drivers::log::DEV_LOG.clone()).await;
+
+        let tmptask = scheduler::task::RunnableTask::new_in(0, 0, proc.clone());
+        tmptask.set_active();
+
+        let bin = include_bytes!(env!("CARGO_BIN_FILE_FBTEST"));
+        let mut loader = Loader::new(bin, proc).unwrap();
+
+        loader.load().unwrap();
+        loader.finish().unwrap().ready();
+    });
 }
 
 // to fix `cargo clippy` without a target
