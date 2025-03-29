@@ -56,7 +56,7 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
     if addr <= HIGHER_HALF_DIRECT_MAPPING.as_u64() as usize {
         // TODO: sig segv
         // FIXME: syscall exit to not use the page fault stack
-        hyperion_log::warn!("user-space page fault");
+        hyperion_log::warn!("user-space page fault ip={_ip:#x} addr={addr:#x}");
         hyperion_syscall::exit(0);
     }
 

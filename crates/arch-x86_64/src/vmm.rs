@@ -386,6 +386,38 @@ impl<T> SafeRwLock<T> {
 
 //
 
+// pub struct Hhdm<T> {
+//     addr: PhysAddr,
+//     _p: PhantomData<T>,
+// }
+
+// impl<T> core::ops::Receiver for Hhdm<T> {
+//     type Target = T;
+// }
+
+// pub struct CowPageTable<const L: u8> {
+//     inner: PhysFrame,
+// }
+
+// impl<const L: u8> CowPageTable<L> {
+//     pub fn new(info: &MemoryInfo) -> Self {
+//         Self {
+//             inner: alloc_table(info),
+//         }
+//     }
+
+//     pub fn get(&self, i: usize) {}
+// }
+
+// #[derive(Default)]
+// pub enum Entry {
+//     Table(),
+//     #[default]
+//     None,
+// }
+
+//
+
 pub struct PageMap {
     inner: ManuallyDrop<SafeRwLock<LockedPageMap>>,
     owned: bool,
@@ -519,6 +551,7 @@ impl PageMapImpl for PageMap {
                         unsafe { &mut *to_higher_half(l1.start_address()).as_mut_ptr() };
                     for (l1i, l1e) in l1.iter_mut().enumerate() {
                         let l0 = match l1e.frame() {
+                            // FIXME: lazy_alloc pages are "not present" so they get skipped
                             Err(FrameError::FrameNotPresent) => continue,
                             Err(FrameError::HugeFrame) => {
                                 unreachable!()
@@ -531,7 +564,11 @@ impl PageMapImpl for PageMap {
                         // 4 KiB page
 
                         let mut l0f = l1e.flags();
+                        l0f.remove(PageTableFlags::ACCESSED | PageTableFlags::DIRTY);
+                        let old = l0f;
                         let target = if l0f.contains(LAZY_ALLOC) {
+                            l0f.remove(LAZY_ALLOC);
+                            l0f.remove(PageTableFlags::PRESENT);
                             MapTarget::LazyAlloc
                         } else {
                             if l0f.contains(PageTableFlags::WRITABLE) {
@@ -546,14 +583,9 @@ impl PageMapImpl for PageMap {
                             MapTarget::Preallocated(new_frame)
                         };
 
+                        // hyperion_log::println!("forked {old:?} as {l0f:?}");
                         l1e.set_flags(l0f);
-                        new_inner.map(
-                            &new.info,
-                            start,
-                            Size4KiB::SIZE as _,
-                            target,
-                            as_map_flags(l0f),
-                        );
+                        new_inner.map(&new.info, start, Size4KiB::SIZE as _, target, l0f);
                     }
                 }
             }
@@ -578,7 +610,9 @@ impl PageMapImpl for PageMap {
     }
 
     fn map(&self, addr: VirtAddr, len: usize, to: MapTarget, flags: MapFlags) {
-        self.inner.write().map(&self.info, addr, len, to, flags);
+        self.inner
+            .write()
+            .map(&self.info, addr, len, to, as_flags(flags));
     }
 
     fn unmap(&self, addr: VirtAddr, len: usize) {
@@ -888,7 +922,7 @@ impl LockedPageMap {
         mut addr: VirtAddr,
         mut len: usize,
         mut to: MapTarget,
-        flags: MapFlags,
+        flags: PageTableFlags,
     ) {
         hyperion_log::trace!(
             "mapping [ 0x{addr:016x}..0x{:016x} ] to {to} with {flags:?}",
@@ -1097,7 +1131,7 @@ impl LockedPageMap {
         addr: VirtAddr,
         len: usize,
         to: MapTarget,
-        flags: MapFlags,
+        flags: PageTableFlags,
     ) -> Result<(), TryMapError<Size4KiB>> {
         let from = Self::is_map_valid(addr, len)?;
         Self::is_phys_map_valid(to)?;
@@ -1113,7 +1147,7 @@ impl LockedPageMap {
         };
         let p1e = &mut p1[from.p1_index()];
 
-        Self::try_map_if_diff(info, p1e, to, as_flags(flags))?;
+        Self::try_map_if_diff(info, p1e, to, flags)?;
         tlb::flush(from.start_address());
 
         Ok(())
@@ -1609,7 +1643,10 @@ impl LockedPageMap {
     }
 
     fn free_table(info: &MemoryInfo, layer: u8, table: &mut PageTable) {
-        for entry in table.iter_mut() {
+        // prevent freeing kernel tables
+        let limit = if layer == 4 { 256 } else { 512 };
+
+        for entry in table.iter_mut().take(limit) {
             Self::free_entry(info, layer, entry);
         }
     }

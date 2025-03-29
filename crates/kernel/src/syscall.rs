@@ -20,6 +20,7 @@ use hyperion_futures::{
     map::{self, AsyncHashMap, LazyHasher},
     mpmc::Channel,
     mutex::Mutex,
+    rwlock::RwLock,
 };
 use hyperion_log::*;
 use hyperion_mem::{
@@ -56,7 +57,10 @@ pub fn syscall(args: &mut SyscallRegs) {
         return;
     };
 
-    hyperion_log::trace!("syscall={syscall:?}");
+    hyperion_log::trace!(
+        "syscall={syscall:?} {:?}",
+        [args.arg0, args.arg1, args.arg2, args.arg3, args.arg4],
+    );
 
     match syscall {
         Id::Log => log(args),
@@ -96,7 +100,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         // Id::SEEK => {},
 
         // Id::SYSTEM => {},
-        Id::Fork => {}
+        Id::Fork => fork(args),
         // Id::WAITPID => {},
         other => {
             todo!("unimplemented syscall ({other:?})");
@@ -510,10 +514,18 @@ fn fork(args: &mut SyscallRegs) {
     let mut task = RunnableTask::active(args.clone());
 
     hyperion_futures::spawn(async move {
-        let mut other = task.fork().await;
+        let ext = process_ext(&task.task.process).fork().await;
+
+        let mut other = task.fork(Box::new(ext)).await;
 
         set_result(&mut other.trap, Ok(0));
         set_result(&mut task.trap, Ok(other.task.process.pid.num()));
+
+        // hyperion_log::debug!(
+        //     "fork ready0={} ready1={}",
+        //     other.task.process.pid,
+        //     task.task.process.pid,
+        // );
 
         other.ready();
         task.ready();
@@ -526,9 +538,18 @@ fn fork(args: &mut SyscallRegs) {
 
 #[derive(Default)]
 struct ProcessExt {
-    fds: AsyncHashMap<u64, FileDescriptor>,
-    // fds: RwLock<BTreeMap<u64, FileDescriptor>>,
+    // fds: AsyncHashMap<u64, FileDescriptor>,
+    fds: RwLock<BTreeMap<u64, FileDescriptor>>,
     next_fd: AtomicU64,
+}
+
+impl ProcessExt {
+    async fn fork(&self) -> Self {
+        Self {
+            fds: RwLock::new(self.fds.read().await.clone()),
+            next_fd: AtomicU64::new(0),
+        }
+    }
 }
 
 impl hyperion_scheduler::proc::ProcessExt for ProcessExt {
@@ -536,15 +557,12 @@ impl hyperion_scheduler::proc::ProcessExt for ProcessExt {
         self
     }
 
-    fn fork(&self) -> Box<dyn hyperion_scheduler::proc::ProcessExt> {
-        todo!()
-    }
-
     fn close(&self) {}
 }
 
 //
 
+#[derive(Clone)]
 struct FileDescriptor {
     // readonly: bool,
     file: Ref<dyn FileDriver>,
@@ -562,30 +580,36 @@ pub fn process_ext(proc: &Process) -> &ProcessExt {
 
 pub async fn fd_insert(proc: &Process, fd: u64, file: Ref<dyn FileDriver>) {
     let proc_ext = process_ext(proc);
-    proc_ext.fds.insert(fd, FileDescriptor { file }).await;
+    proc_ext
+        .fds
+        .write()
+        .await
+        .insert(fd, FileDescriptor { file });
 }
 
 pub async fn fd_push(proc: &Process, file: Ref<dyn FileDriver>) -> u64 {
     let proc_ext = process_ext(proc);
+    let mut fds = proc_ext.fds.write().await;
 
     // FIXME: denial-of-service
     loop {
         let fd = proc_ext.next_fd.fetch_add(1, Ordering::Relaxed);
-        if let map::Entry::Vacant(entry) = proc_ext.fds.entry(fd).await {
-            entry.insert(FileDescriptor { file }).await;
+
+        if let Entry::Vacant(vacant_entry) = fds.entry(fd) {
+            vacant_entry.insert(FileDescriptor { file });
             return fd;
         }
     }
 }
 
-pub async fn fd_get(proc: &Process, fd: u64) -> Option<map::Ref<u64, FileDescriptor>> {
+pub async fn fd_get(proc: &Process, fd: u64) -> Option<FileDescriptor> {
     let proc_ext = process_ext(proc);
-    proc_ext.fds.get(&fd).await
+    Some(proc_ext.fds.read().await.get(&fd)?.clone())
 }
 
-pub async fn fd_remove(proc: &Process, fd: u64) -> Option<map::Ref<u64, FileDescriptor>> {
+pub async fn fd_remove(proc: &Process, fd: u64) -> Option<FileDescriptor> {
     let proc_ext = process_ext(proc);
-    proc_ext.fds.remove(&fd).await
+    Some(proc_ext.fds.write().await.remove(&fd)?.clone())
 }
 
 // +------------------------+

@@ -78,7 +78,7 @@ impl Process {
         this
     }
 
-    pub async fn fork(&self) -> Arc<Self> {
+    pub async fn fork(&self, new_ext: Box<dyn ProcessExt>) -> Arc<Self> {
         let this = Arc::new(Self {
             pid: Pid::next(),
             next_tid: AtomicUsize::new(0),
@@ -87,11 +87,7 @@ impl Process {
             nanos: self.nanos.load(Ordering::Acquire).into(),
             address_space: self.address_space.fork(),
             maps: FutMutex::new(self.maps.lock().await.clone()),
-            ext: if let Some(ext) = self.ext.get() {
-                Once::initialized(ext.fork())
-            } else {
-                Once::new()
-            },
+            ext: Once::initialized(new_ext),
         });
 
         PROCESSES.lock().insert(this.pid, Arc::downgrade(&this));
@@ -154,8 +150,6 @@ impl fmt::Display for Pid {
 
 pub trait ProcessExt: Sync + Send {
     fn as_any(&self) -> &dyn Any;
-
-    fn fork(&self) -> Box<dyn ProcessExt>;
 
     /// close everything before the actual process closes,
     /// because there might be no tasks to switch to (and that would keep this open)

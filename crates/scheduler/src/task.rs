@@ -11,7 +11,7 @@ use hyperion_futures::mpmc::Channel;
 use hyperion_mem::vmm::PageMapImpl;
 use spin::Lazy;
 
-use crate::proc::Process;
+use crate::proc::{Process, ProcessExt};
 
 //
 
@@ -101,14 +101,12 @@ impl RunnableTask {
         TASKS.send(self);
     }
 
-    pub async fn fork(&self) -> Self {
-        Self {
-            trap: self.trap.clone(),
-            task: Box::new(Task {
-                tid: Tid(0),
-                process: self.task.process.fork().await,
-            }),
-        }
+    pub async fn fork(&self, new_ext: Box<dyn ProcessExt>) -> Self {
+        let process = self.task.process.fork(new_ext).await;
+        let trap = self.trap.clone();
+        let tid = process.next_tid();
+        let task = Box::new(Task { tid, process });
+        Self { trap, task }
     }
 }
 
