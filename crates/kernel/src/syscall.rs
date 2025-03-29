@@ -1,31 +1,19 @@
 use alloc::{
     boxed::Box,
     collections::btree_map::{BTreeMap, Entry},
-    string::String,
-    sync::Arc,
-    vec::Vec,
 };
 use core::{
-    any::{type_name_of_val, Any},
+    any::Any,
     mem::{self, MaybeUninit},
-    ops::Range,
     str,
     sync::atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
-use hyperion_arch::{syscall::SyscallRegs, vmm::HIGHER_HALF_DIRECT_MAPPING};
+use hyperion_arch::syscall::SyscallRegs;
 use hyperion_drivers::{log::KernelLogs, null::Null};
-use hyperion_futures::{
-    lazy::{Lazy, Once},
-    map::{self, AsyncHashMap, LazyHasher},
-    mpmc::Channel,
-    mutex::Mutex,
-    rwlock::RwLock,
-};
-use hyperion_log::*;
+use hyperion_futures::{lazy::Once, map::LazyHasher, mpmc::Channel, rwlock::RwLock};
 use hyperion_mem::{
     buf::{Buffer, BufferMut},
-    is_higher_half,
     vmm::{MapFlags, MapTarget, PageMapImpl},
 };
 use hyperion_scheduler::{
@@ -38,8 +26,7 @@ use hyperion_syscall::{
     Id, MemMapFlags,
 };
 use hyperion_vfs::{
-    node::{DirDriverExt, FileDriver, FileDriverExt, FileNode, Ref},
-    tmpfs::TmpFs,
+    node::{FileDriver, FileDriverExt, Ref},
     OpenOptions,
 };
 use x86_64::{align_down, structures::paging::PageTableFlags, PhysAddr, VirtAddr};
@@ -103,7 +90,7 @@ pub fn syscall(args: &mut SyscallRegs) {
         Id::Fork => fork(args),
         // Id::WAITPID => {},
         other => {
-            todo!("unimplemented syscall ({other:?})");
+            hyperion_log::error!("unimplemented syscall ({other:?})");
             *args = RunnableTask::next().set_active();
             return;
         }
@@ -270,9 +257,9 @@ pub fn read(args: &mut SyscallRegs) {
         let fd = fd_get(&prev.task.process, fd).await;
 
         let result = try {
-            let mut fd = fd.ok_or(Error::BAD_FILE_DESCRIPTOR)?;
+            let fd = fd.ok_or(Error::BAD_FILE_DESCRIPTOR)?;
 
-            let mut buffer =
+            let buffer =
                 unsafe { BufferMut::new(&prev.task.process.address_space, ptr as _, len as _) };
 
             fd.file.read(Some(&prev.task.process), 0, buffer).await?
@@ -291,15 +278,13 @@ pub fn write(args: &mut SyscallRegs) {
     let ptr = args.arg1;
     let len = args.arg2;
 
-    let fdn = fd;
-
     let mut prev = RunnableTask::active(args.clone());
 
     hyperion_futures::spawn(async move {
         let fd = fd_get(&prev.task.process, fd).await;
 
         let result = try {
-            let mut fd = fd.ok_or(Error::BAD_FILE_DESCRIPTOR)?;
+            let fd = fd.ok_or(Error::BAD_FILE_DESCRIPTOR)?;
 
             let buffer =
                 unsafe { Buffer::new(&prev.task.process.address_space, ptr as _, len as _) };
@@ -357,7 +342,7 @@ pub fn futex_wait(args: &mut SyscallRegs) {
         todo!("segfault"); // FIXME: same as above
     }
 
-    let mut entry: Box<MaybeUninit<FutexEntry>> = Box::new_uninit(); // preallocate cuz it could be slow, spinlock doesnt like slow things
+    let entry: Box<MaybeUninit<FutexEntry>> = Box::new_uninit(); // preallocate cuz it could be slow, spinlock doesnt like slow things
     let hash = hyperion_futures::block_on(FUTEX_MAP_HASHER.hash(&addr));
     let mut tree = FUTEX_MAP[hash as usize % FUTEX_MAP.len()].lock();
 
@@ -394,7 +379,7 @@ pub fn futex_wait(args: &mut SyscallRegs) {
 /// [`hyperion_syscall::futex_wake`]
 pub fn futex_wake(args: &mut SyscallRegs) {
     let addr = args.arg0;
-    let mut num = args.arg1;
+    let num = args.arg1;
 
     if num == 0 {
         return;
@@ -457,7 +442,6 @@ fn _mem_map(addr: u64, size: u64, flags: u64, fd: u64, offset: u64) -> Result<us
         addr.checked_add(size).ok_or(Error::INVALID_ADDRESS)?,
         0x1000,
     );
-    let len = (end - start) as usize;
 
     let (addr, len) = read_slice_parts(start, end - start)?;
 
@@ -570,7 +554,7 @@ struct FileDescriptor {
 
 //
 
-pub fn process_ext(proc: &Process) -> &ProcessExt {
+fn process_ext(proc: &Process) -> &ProcessExt {
     proc.ext
         .call_once(|| Box::new(ProcessExt::default()))
         .as_any()
@@ -602,12 +586,12 @@ pub async fn fd_push(proc: &Process, file: Ref<dyn FileDriver>) -> u64 {
     }
 }
 
-pub async fn fd_get(proc: &Process, fd: u64) -> Option<FileDescriptor> {
+async fn fd_get(proc: &Process, fd: u64) -> Option<FileDescriptor> {
     let proc_ext = process_ext(proc);
     Some(proc_ext.fds.read().await.get(&fd)?.clone())
 }
 
-pub async fn fd_remove(proc: &Process, fd: u64) -> Option<FileDescriptor> {
+async fn fd_remove(proc: &Process, fd: u64) -> Option<FileDescriptor> {
     let proc_ext = process_ext(proc);
     Some(proc_ext.fds.write().await.remove(&fd)?.clone())
 }

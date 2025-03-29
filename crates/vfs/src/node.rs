@@ -66,7 +66,7 @@ pub trait FileDriver: Send + Sync {
         offset: usize,
         buf: BufferMut<'_, u8, PageMap>,
     ) -> Result<usize> {
-        _ = (proc, buf);
+        _ = (proc, offset, buf);
         Err(Error::PERMISSION_DENIED)
     }
 
@@ -76,7 +76,7 @@ pub trait FileDriver: Send + Sync {
         offset: usize,
         buf: Buffer<'_, u8, PageMap>,
     ) -> Result<usize> {
-        _ = (proc, buf);
+        _ = (proc, offset, buf);
         Err(Error::PERMISSION_DENIED)
     }
 }

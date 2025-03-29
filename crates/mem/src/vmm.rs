@@ -1,6 +1,5 @@
 use core::{
-    fmt::{self, Write},
-    ops::Range,
+    fmt,
     sync::atomic::{AtomicUsize, Ordering},
 };
 

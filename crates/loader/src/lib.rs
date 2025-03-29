@@ -20,7 +20,7 @@ use hyperion_mem::{
     vmm::{MapFlags, MapTarget, PageMapImpl},
 };
 use hyperion_scheduler::{proc::Process, task::RunnableTask};
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::VirtAddr;
 
 //
 

@@ -1,5 +1,5 @@
 use alloc::{boxed::Box, collections::btree_map::BTreeMap, sync::Arc, vec::Vec};
-use core::{mem::MaybeUninit, ptr, slice};
+use core::{mem::MaybeUninit, slice};
 
 use async_trait::async_trait;
 use hyperion_arch::vmm::PageMap;
@@ -11,9 +11,7 @@ use hyperion_mem::{
 use hyperion_scheduler::proc::Process;
 use hyperion_syscall::err::{Error, Result};
 
-use crate::node::{
-    CacheAllowed, DirDriver, DirDriverExt, DirNode, FileDriver, FileDriverExt, FileNode, Node, Ref,
-};
+use crate::node::{CacheAllowed, DirDriver, DirDriverExt, FileDriver, FileDriverExt, Node};
 
 //
 
@@ -89,7 +87,7 @@ impl Default for TmpFsFile {
 impl FileDriver for TmpFsFile {
     async fn read(
         &self,
-        proc: Option<&Process>,
+        _: Option<&Process>,
         offset: usize,
         mut buf: BufferMut<'_, u8, PageMap>,
     ) -> Result<usize> {
@@ -97,7 +95,7 @@ impl FileDriver for TmpFsFile {
         let last = offset.saturating_add(buf.len()) >> 12;
         let count = last - first + 1;
 
-        let mut pages = self.pages.lock().await;
+        let pages = self.pages.lock().await;
 
         let mut pages = pages.iter().skip(last).take(count);
 
@@ -153,7 +151,7 @@ impl FileDriver for TmpFsFile {
 
     async fn write(
         &self,
-        proc: Option<&Process>,
+        _: Option<&Process>,
         offset: usize,
         buf: Buffer<'_, u8, PageMap>,
     ) -> Result<usize> {

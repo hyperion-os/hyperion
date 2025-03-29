@@ -565,7 +565,7 @@ impl PageMapImpl for PageMap {
 
                         let mut l0f = l1e.flags();
                         l0f.remove(PageTableFlags::ACCESSED | PageTableFlags::DIRTY);
-                        let old = l0f;
+                        // let old = l0f;
                         let target = if l0f.contains(LAZY_ALLOC) {
                             l0f.remove(LAZY_ALLOC);
                             l0f.remove(PageTableFlags::PRESENT);
@@ -864,54 +864,6 @@ impl LockedPageMap {
         page_fault_4kib(info, l1e, v_addr)
     }
 
-    // TODO: tmp map smart pointer
-    fn map_temporary(
-        &mut self,
-        info: &MemoryInfo,
-        to: PhysAddr,
-        bytes: usize,
-        flags: PageTableFlags,
-    ) -> VirtAddr {
-        let bottom = x86_64::align_down(to.as_u64(), Size1GiB::SIZE);
-        let offset = to.as_u64() - bottom;
-        let bytes_after_to_mapped = bottom + Size1GiB::SIZE - to.as_u64();
-
-        if bytes as u64 > bytes_after_to_mapped {
-            // TODO: map 2 because it is split in 2
-            todo!("address is on 1gib boundry")
-        }
-
-        let tmpmap_table = Self::create_table(info, &mut self.l4[500]).expect("no 512GiB pages");
-
-        let avail_entry = tmpmap_table
-            .iter_mut()
-            .enumerate()
-            .find(|entry| entry.1.is_unused())
-            .expect("too many tmp entries in use");
-
-        avail_entry.1.set_addr(
-            PhysAddr::new(bottom),
-            flags | PageTableFlags::HUGE_PAGE | NO_FREE,
-        );
-
-        Page::from_page_table_indices_1gib(
-            PageTableIndex::new(500),
-            PageTableIndex::new(avail_entry.0 as u16),
-        )
-        .start_address()
-            + offset
-    }
-
-    fn unmap_temporary(&mut self, info: &MemoryInfo, from: VirtAddr) {
-        let page = Page::<Size1GiB>::containing_address(from);
-        assert_eq!(u16::from(page.p4_index()), 500);
-
-        // TODO: the table should already be created
-        let tmpmap_table = Self::create_table(info, &mut self.l4[500]).expect("no 512GiB pages");
-
-        tmpmap_table[page.p3_index()].set_unused();
-    }
-
     // -------
     // mapping
     // -------
@@ -1151,33 +1103,6 @@ impl LockedPageMap {
         tlb::flush(from.start_address());
 
         Ok(())
-    }
-
-    fn split_1gib_to_2mib(info: &MemoryInfo, p3_entry: &mut PageTableEntry) {
-        // if !p3_entry.flags().contains(PageTableFlags::HUGE_PAGE) {
-        //     return;
-        // }
-
-        let addr = p3_entry.addr();
-        let f = p3_entry.flags();
-        let mut new_p3_entry = PageTableEntry::new();
-        let p2_table = Self::create_table(info, &mut new_p3_entry).unwrap();
-
-        if f.contains(LAZY_ALLOC) {
-            for p2_entry in p2_table.iter_mut() {
-                p2_entry.set_flags(f);
-            }
-        } else if f.contains(NO_FREE) {
-            for (i, p2_entry) in p2_table.iter_mut().enumerate() {
-                p2_entry.set_addr(addr + i as u64 * Size2MiB::SIZE, f);
-            }
-        } else if f.contains(COW) {
-            todo!("split 1gib CoW page")
-        } else {
-            todo!("split 1gib allocated page")
-        }
-
-        *p3_entry = new_p3_entry;
     }
 
     // ---------

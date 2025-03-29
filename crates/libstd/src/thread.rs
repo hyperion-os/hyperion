@@ -5,7 +5,7 @@ use core::{
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use hyperion_syscall::{done, fs::FileDesc, InvalidSyscall, MemMapFlags};
+use hyperion_syscall::{done, fs::FileDesc, MemMapFlags};
 
 use crate::{
     rt::{MAIN_STACK_GUARD_BOTTOM, MAIN_STACK_SIZE, STACK_GUARD_SIZE},
@@ -32,15 +32,7 @@ pub fn spawn<F: FnOnce() + Send + 'static>(f: F) {
     }
 
     push(&mut sp, f);
-    let data_ptr = sp;
-
     push(&mut sp, meta);
-    let meta_ptr = sp;
-
-    // hyperion_syscall::log!("meta_ptr={meta_ptr:#018x} data_ptr={data_ptr:#018x}");
-
-    // push(&mut sp, data_ptr);
-    // push(&mut sp, meta_ptr);
 
     // spawn a new process in the same memory space with
     // `sp` as its stack, running `_thread_entry`
@@ -128,11 +120,8 @@ extern "C" fn _thread_entry_rust(sp: usize) -> ! {
     let meta_ptr = sp as *mut DynMetadata<dyn Fn() + Send + 'static>;
     let data_ptr = (sp + mem::size_of::<usize>()) as *mut ();
 
-    // hyperion_syscall::log!("meta_ptr={meta_ptr:?} data_ptr={data_ptr:?}");
-
     let metadata = unsafe { meta_ptr.read_volatile() };
 
-    // hyperion_syscall::log!("exec entry fn");
     let entry_fn = ptr::from_raw_parts_mut::<dyn Fn() + Send + 'static>(data_ptr, metadata);
 
     unsafe { (*entry_fn)() };

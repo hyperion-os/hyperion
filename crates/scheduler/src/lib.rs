@@ -9,10 +9,10 @@ use hyperion_arch::{
     cpu::ints::PAGE_FAULT_HANDLER,
     vmm::{PageMap, HIGHER_HALF_DIRECT_MAPPING},
 };
-use hyperion_mem::vmm::{NotHandled, PageFaultResult, PageMapImpl, Privilege};
+use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
 use x86_64::VirtAddr;
 
-use self::{proc::Process, task::RunnableTask};
+use self::proc::Process;
 
 //
 

@@ -1,11 +1,11 @@
 use alloc::boxed::Box;
-use core::{any::Any, mem::MaybeUninit};
+use core::mem::MaybeUninit;
 
 use async_trait::async_trait;
 use hyperion_arch::vmm::PageMap;
 use hyperion_mem::buf::{Buffer, BufferMut};
 use hyperion_scheduler::proc::Process;
-use hyperion_syscall::err::{Error, Result};
+use hyperion_syscall::err::Result;
 use hyperion_vfs::node::{FileDriver, Ref};
 
 //

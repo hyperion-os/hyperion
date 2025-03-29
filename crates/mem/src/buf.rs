@@ -176,47 +176,17 @@ impl<'a, T, P> Deref for BufferMut<'a, T, P> {
 
 //
 
-struct PageIter {
-    beg: VirtAddr,
-    end: VirtAddr,
-    n_full_pages: u64,
-    n_pages: u64,
-}
-
-impl Iterator for PageIter {
-    type Item = Range<VirtAddr>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.beg == self.end {
-            return None;
-        }
-
-        let next_beg = self.beg;
-        self.beg = self.beg.align_up(0x1000u64).min(self.end);
-
-        Some(next_beg..self.beg)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let min = self.beg.align_down(0x1000u64);
-        let max = self.end.align_up(0x1000u64);
-        let len = (max - min) as usize / 0x1000;
-
-        (len, Some(len))
-    }
-}
-
-struct PtrRangeInfo {
-    beg: VirtAddr,
-    end: VirtAddr,
-    inside_aligned_beg: VirtAddr,
-    inside_aligned_end: VirtAddr,
-    aligned_beg: VirtAddr,
-    aligned_end: VirtAddr,
-    first_page_size: u64,
-    last_page_size: u64,
-    n_full_pages: u64,
-    n_pages: u64,
+pub struct PtrRangeInfo {
+    pub beg: VirtAddr,
+    pub end: VirtAddr,
+    pub inside_aligned_beg: VirtAddr,
+    pub inside_aligned_end: VirtAddr,
+    pub aligned_beg: VirtAddr,
+    pub aligned_end: VirtAddr,
+    pub first_page_size: u64,
+    pub last_page_size: u64,
+    pub n_full_pages: u64,
+    pub n_pages: u64,
 }
 
 pub fn ptr_range_info(buf: Range<VirtAddr>) -> PtrRangeInfo {

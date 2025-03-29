@@ -59,7 +59,7 @@ impl Color {
         }
 
         const fn parse_byte(str_byte: [u8; 2]) -> u8 {
-            parse_hex_char(str_byte[0]) | parse_hex_char(str_byte[1]) << 4
+            parse_hex_char(str_byte[0]) | (parse_hex_char(str_byte[1]) << 4)
         }
 
         let r = parse_byte([hex_code[0], hex_code[1]]);

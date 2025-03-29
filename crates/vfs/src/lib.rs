@@ -9,7 +9,7 @@
     map_try_insert
 )]
 
-use alloc::{collections::btree_map::BTreeMap, sync::Arc};
+use alloc::collections::btree_map::BTreeMap;
 use core::future::join;
 
 use hyperion_futures::mutex::Mutex;
@@ -18,7 +18,6 @@ use hyperion_syscall::{
     err::{Error, Result},
     fs::FileOpenFlags,
 };
-use spin::Once;
 
 use self::{
     node::{DirDriver, DirNode, FileDriver, FileNode, Node, Ref},

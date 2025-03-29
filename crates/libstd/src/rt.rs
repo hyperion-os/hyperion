@@ -27,7 +27,6 @@ pub(crate) const USER_SPACE_TOP: usize = 0x8000_0000_0000;
 pub(crate) const MAIN_STACK_TOP: usize = USER_SPACE_TOP;
 pub(crate) const STACK_GUARD_SIZE: usize = 0x20_0000; // 2 MiB stack guard pages
 pub(crate) const MAIN_STACK_SIZE: usize = 0x200_0000 - STACK_GUARD_SIZE; // 30 MiB main thread stack
-pub(crate) const MAIN_STACK_BOTTOM: usize = USER_SPACE_TOP - MAIN_STACK_SIZE;
 pub(crate) const MAIN_STACK_GUARD_BOTTOM: usize =
     USER_SPACE_TOP - MAIN_STACK_SIZE - STACK_GUARD_SIZE;
 

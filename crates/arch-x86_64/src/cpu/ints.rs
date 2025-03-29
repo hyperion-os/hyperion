@@ -1,6 +1,6 @@
 use crossbeam::atomic::AtomicCell;
 use hyperion_log::*;
-use hyperion_mem::vmm::{Handled, NotHandled, PageFaultResult, Privilege};
+use hyperion_mem::vmm::{PageFaultResult, Privilege};
 use x86_64::{
     registers::{control::Cr2, mxcsr},
     structures::idt::{InterruptStackFrame, PageFaultErrorCode},

@@ -13,9 +13,9 @@ use arcstr::{literal, ArcStr};
 use crossbeam::epoch::Atomic;
 use hyperion_arch::vmm::PageMap;
 use hyperion_futures::mutex::Mutex as FutMutex;
-use hyperion_mem::vmm::{MapTarget, PageMapImpl};
+use hyperion_mem::vmm::PageMapImpl;
 use spin::{Mutex, Once};
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::VirtAddr;
 
 use crate::task::{Task, Tid};
 
@@ -49,8 +49,8 @@ pub struct Process {
     /// process maps
     pub maps: FutMutex<BTreeMap<VirtAddr, ()>>,
 
-    /// TLS object data, each thread allocates one into the userspace
-    /// and the $fs segment register should be set to point to it
+    // /// TLS object data, each thread allocates one into the userspace
+    // /// and the $fs segment register should be set to point to it
     // pub master_tls: Once<(VirtAddr, Layout)>,
 
     // FIXME: static type instead of this Box dyn

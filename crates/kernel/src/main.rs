@@ -24,7 +24,7 @@ use hyperion_arch::{self as arch, generate_handler};
 use hyperion_boot as boot;
 use hyperion_cpu_id::cpu_id;
 // use hyperion_drivers as drivers;
-use hyperion_futures::{self as futures, map::AsyncHashMap};
+use hyperion_futures::{self as futures};
 // use hyperion_kernel_impl::VFS_ROOT;
 use hyperion_kernel_info::{NAME, VERSION};
 use hyperion_loader::Loader;
@@ -33,7 +33,6 @@ use hyperion_log_multi as log_multi;
 use hyperion_random as random;
 use hyperion_scheduler as scheduler;
 use hyperion_sync as sync;
-use hyperion_vfs::node::Ref;
 
 use self::syscall::fd_insert;
 
@@ -81,16 +80,16 @@ extern "C" fn _start() -> ! {
         test_main();
     }
 
-    fn benchmark(f: impl Fn() -> usize) {
-        let mut i = 0usize;
-        let start = hyperion_instant::Instant::now();
-        for _ in 0..5_000_000 {
-            let n = core::hint::black_box(&f)();
-            i = unsafe { i.wrapping_add(n) };
-        }
-        core::hint::black_box(i);
-        println!("5M cpu_id calls in {}", start.elapsed());
-    }
+    // fn benchmark(f: impl Fn() -> usize) {
+    //     let mut i = 0usize;
+    //     let start = hyperion_instant::Instant::now();
+    //     for _ in 0..5_000_000 {
+    //         let n = core::hint::black_box(&f)();
+    //         i = unsafe { i.wrapping_add(n) };
+    //     }
+    //     core::hint::black_box(i);
+    //     println!("5M cpu_id calls in {}", start.elapsed());
+    // }
     // println!("benchmark _cpu_id_rdpid");
     // benchmark(|| hyperion_cpu_id::_cpu_id_rdpid());
     // println!("benchmark _cpu_id_rdtscp");
