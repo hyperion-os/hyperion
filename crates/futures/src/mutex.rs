@@ -67,12 +67,8 @@ impl<T: ?Sized> Mutex<T> {
         unsafe { self.arc_guard() }
     }
 
-    pub unsafe fn get_force(&self) -> &T {
-        unsafe { &*self.value.get() }
-    }
-
-    pub unsafe fn get_mut_force(&self) -> &mut T {
-        unsafe { &mut *self.value.get() }
+    pub fn get(&self) -> *mut T {
+        self.value.get()
     }
 
     unsafe fn guard(&self) -> MutexGuard<T> {
@@ -182,13 +178,13 @@ impl<T: ?Sized> Deref for ArcMutexGuard<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { self.mutex.get_force() }
+        unsafe { &*self.mutex.get() }
     }
 }
 
 impl<T: ?Sized> DerefMut for ArcMutexGuard<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { self.mutex.get_mut_force() }
+        unsafe { &mut *self.mutex.get() }
     }
 }
 

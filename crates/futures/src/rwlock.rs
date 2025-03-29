@@ -15,6 +15,9 @@ pub struct RwLock<T: ?Sized> {
     val: UnsafeCell<T>,
 }
 
+unsafe impl<T: ?Sized + Send> Sync for RwLock<T> {}
+unsafe impl<T: ?Sized + Send + Sync> Send for RwLock<T> {}
+
 impl<T> RwLock<T> {
     pub const fn new(val: T) -> Self {
         Self {
@@ -25,20 +28,34 @@ impl<T> RwLock<T> {
 }
 
 impl<T: ?Sized> RwLock<T> {
-    /// # Safety
-    /// very unsafe
-    ///
-    /// the lock has to be read locked AND the read guard has to be forgotten
-    pub unsafe fn get_force(&self) -> &T {
-        unsafe { &*self.val.get() }
+    pub async fn read(&self) -> RwLockReadGuard<T> {
+        self.lock.read().await;
+        unsafe { self.read_guard() }
     }
 
-    /// # Safety
-    /// extremely unsafe
-    ///
-    /// the lock has to be write locked AND the write guard has to be forgotten
-    pub unsafe fn get_mut_force(&self) -> &mut T {
-        unsafe { &mut *self.val.get() }
+    pub fn try_read(&self) -> Option<RwLockReadGuard<T>> {
+        if self.lock.try_read() {
+            Some(unsafe { self.read_guard() })
+        } else {
+            None
+        }
+    }
+
+    pub async fn write(&self) -> RwLockWriteGuard<T> {
+        self.lock.write().await;
+        unsafe { self.write_guard() }
+    }
+
+    pub fn try_write(&self) -> Option<RwLockWriteGuard<T>> {
+        if self.lock.try_write() {
+            Some(unsafe { self.write_guard() })
+        } else {
+            None
+        }
+    }
+
+    pub fn get(&self) -> *mut T {
+        self.val.get()
     }
 
     unsafe fn read_guard(&self) -> RwLockReadGuard<T> {
@@ -78,6 +95,12 @@ impl<T: ?Sized> RwLock<T> {
     }
 }
 
+impl<T: Default> Default for RwLock<T> {
+    fn default() -> Self {
+        Self::new(T::default())
+    }
+}
+
 //
 
 pub struct RwLockReadGuard<'a, T: ?Sized> {
@@ -85,8 +108,8 @@ pub struct RwLockReadGuard<'a, T: ?Sized> {
     val: *const T,
 }
 
-unsafe impl<T: ?Sized + Send> Sync for RwLockReadGuard<'_, T> {}
-unsafe impl<T: ?Sized + Send> Send for RwLockReadGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send + Sync> Sync for RwLockReadGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send + Sync> Send for RwLockReadGuard<'_, T> {}
 
 impl<T: ?Sized> Drop for RwLockReadGuard<'_, T> {
     fn drop(&mut self) {
@@ -107,8 +130,8 @@ pub struct RwLockWriteGuard<'a, T: ?Sized> {
     val: *mut T,
 }
 
-unsafe impl<T: ?Sized + Send> Sync for RwLockWriteGuard<'_, T> {}
-unsafe impl<T: ?Sized + Send> Send for RwLockWriteGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send + Sync> Sync for RwLockWriteGuard<'_, T> {}
+unsafe impl<T: ?Sized + Send + Sync> Send for RwLockWriteGuard<'_, T> {}
 
 impl<T: ?Sized> Deref for RwLockWriteGuard<'_, T> {
     type Target = T;
@@ -168,7 +191,7 @@ impl Lock {
             return;
         }
 
-        self.read_slow();
+        self.read_slow().await;
     }
 
     /// # Safety
@@ -202,10 +225,12 @@ impl Lock {
             .is_ok()
     }
 
-    pub fn write(&self) {
+    pub async fn write(&self) {
         if self.try_write() {
             return;
         }
+
+        self.write_slow().await;
     }
 
     #[cold]
@@ -232,6 +257,12 @@ impl Lock {
         self.state.fetch_and(!(WRITER | UPGRADE), Ordering::Release);
         self.readers.notify(usize::MAX);
         self.writers.notify(1);
+    }
+}
+
+impl Default for Lock {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

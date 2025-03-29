@@ -417,14 +417,14 @@ impl<K, V> Deref for Ref<K, V> {
 
     fn deref(&self) -> &Self::Target {
         // SAFETY: Ref keeps the mutex locked without the guard
-        unsafe { self.item.val.get_force() }
+        unsafe { &*self.item.val.get() }
     }
 }
 
 impl<K, V> DerefMut for Ref<K, V> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         // SAFETY: Ref keeps the mutex locked without the guard
-        unsafe { self.item.val.get_mut_force() }
+        unsafe { &mut *self.item.val.get() }
     }
 }
 
