@@ -589,7 +589,7 @@ fn fill_maybeuninit_slice<T: Copy>(s: &mut [MaybeUninit<T>], v: T) -> &mut [T] {
     }
 
     // Safety: The whole slice has been filled with copies of `v`
-    unsafe { MaybeUninit::slice_assume_init_mut(s) }
+    unsafe { s.assume_init_mut() }
 }
 
 fn fill_maybeuninit_slice_with<T>(s: &mut [MaybeUninit<T>], v: impl Fn() -> T) -> &mut [T] {
@@ -598,7 +598,7 @@ fn fill_maybeuninit_slice_with<T>(s: &mut [MaybeUninit<T>], v: impl Fn() -> T) -
     }
 
     // Safety: The whole slice has been filled with copies of `v`
-    unsafe { MaybeUninit::slice_assume_init_mut(s) }
+    unsafe { s.assume_init_mut() }
 }
 
 #[cfg(test)]

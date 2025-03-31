@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use core::mem::MaybeUninit;
 
 use async_trait::async_trait;
 use hyperion_arch::vmm::PageMap;
@@ -28,7 +27,7 @@ impl FileDriver for Random {
     ) -> Result<usize> {
         unsafe {
             buf.with_slice_mut(|s| {
-                let s = MaybeUninit::fill(s, 0); // fill with 0's first, because Rust
+                let s = s.write_filled(0u8); // fill with 0's first, because Rust
                 hyperion_random::next_fast_rng().fill(s);
             });
         }

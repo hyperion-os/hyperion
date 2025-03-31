@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(abi_x86_interrupt, naked_functions, cell_leak, unsigned_is_multiple_of)]
+#![feature(abi_x86_interrupt, naked_functions, cell_leak)]
 
 //
 

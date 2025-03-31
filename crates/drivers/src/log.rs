@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use core::mem::MaybeUninit;
 
 use async_trait::async_trait;
 use hyperion_arch::vmm::PageMap;
@@ -36,7 +35,7 @@ impl FileDriver for KernelLogs {
     ) -> Result<usize> {
         unsafe {
             buf.with_slice(|slice| {
-                let bytes = MaybeUninit::slice_assume_init_ref(slice);
+                let bytes = slice.assume_init_ref();
                 let str = core::str::from_utf8(bytes).map_err(|_| Error::INVALID_UTF8)?;
                 hyperion_log::print!("{str}");
                 Ok(())

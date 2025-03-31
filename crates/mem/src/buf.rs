@@ -215,7 +215,7 @@ impl<P: PageMapImpl> BufferOffsetWriter<'_, P> {
                 let from = &from[..write];
                 let to = &mut to[..write];
 
-                MaybeUninit::copy_from_slice(to, from);
+                to.write_copy_of_slice(from);
 
                 self.written = self.written.saturating_add(write);
             });

@@ -9,7 +9,6 @@
     lang_items,
     naked_functions,
     try_blocks,
-    box_uninit_write,
     map_try_insert
 )]
 #![test_runner(crate::testfw::test_runner)]
