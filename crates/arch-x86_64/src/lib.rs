@@ -46,8 +46,9 @@ pub fn init(handler: SyscallHandler) {
     syscall::init(tls.cpu.gdt.selectors, handler);
 }
 
-pub fn reset_rbp() {
-    unsafe { asm!("mov $rbp, 0") };
+#[inline(never)]
+pub extern "C" fn reset_rbp() {
+    unsafe { asm!("mov rbp, 0") };
 }
 
 fn init_features() {
