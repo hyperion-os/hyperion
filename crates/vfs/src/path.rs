@@ -19,7 +19,7 @@ impl<'a> PathIter<'a> {
     }
 
     pub fn file_name(&self) -> Option<&'a str> {
-        self.inner.clone().last()
+        self.inner.clone().next_back()
     }
 }
 
