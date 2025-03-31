@@ -1,8 +1,9 @@
 use core::{arch::naked_asm, fmt, sync::atomic::Ordering};
 
+use spin::Once;
 use x86_64::{
     registers::{
-        model_specific::{Efer, EferFlags, KernelGsBase, LStar, SFMask, Star},
+        model_specific::{Efer, EferFlags, LStar, SFMask, Star},
         mxcsr::{self, MxCsr},
         rflags::RFlags,
     },
@@ -46,6 +47,14 @@ pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
         });
     }
 }
+
+/// jump back into the syscall handler
+/// almost like `syscall` but from kernel-space
+pub fn reset() -> ! {
+    RESET_HANDLER.get().unwrap()();
+}
+
+static RESET_HANDLER: Once<fn() -> !> = Once::new();
 
 //
 
@@ -258,6 +267,53 @@ macro_rules! generate_handler {
                     syscall = sym syscall,
                     user_stack =   const($crate::tls::ThreadLocalStorage::USER_STACK),
                     kernel_stack = const($crate::tls::ThreadLocalStorage::KERNEL_STACK),
+                );
+            }
+
+        }
+
+
+        fn reset() -> ! {
+            let rsp = $crate::cpu_local().kernel_stack.load(core::sync::atomic::Ordering::Relaxed);
+            // let rip = HANDLER.load(core::sync::atomic::Ordering::Relaxed) as *mut u8;
+
+            unsafe {
+                core::arch::asm!(
+                    "mov rsp, {rsp}",
+
+                    // save registers
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+                    "push 0",
+
+                    // save FPU/SSE/MMX state
+                    "sub rsp, 512",
+                    "fxsave64 [rsp]",
+
+                    // call the real syscall handler
+                    "mov rdi, rsp",
+                    "jmp {syscall}",
+
+                    // shouldn't return because the syscall
+                    // handler should remove this thread
+                    "ub3",
+                    "ub3",
+                    "ub3",
+                    rsp = in(reg) rsp,
+                    syscall = sym syscall,
+                    options(noreturn)
                 );
             }
         }

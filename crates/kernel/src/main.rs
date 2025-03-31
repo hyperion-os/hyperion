@@ -86,6 +86,7 @@ extern "C" fn _start() -> ! {
     scheduler::init();
 
     debug!("init CPU-{}", cpu_id());
+    // FIXME: use a proper call
     hyperion_arch::swapgs();
     hyperion_syscall::exit(0); // use a syscall from kernel space to enter the main loop
 }
