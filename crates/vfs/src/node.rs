@@ -7,6 +7,7 @@ use hyperion_futures::{lazy::Once, mutex::Mutex};
 use hyperion_mem::buf::{Buffer, BufferMut};
 use hyperion_scheduler::proc::Process;
 use hyperion_syscall::err::{Error, Result};
+use x86_64::PhysAddr;
 
 //
 
@@ -58,6 +59,16 @@ pub struct FileNode {
 
 impl FileNode {}
 
+// TODO: Use (static dispatch) async traits from
+// Rust 1.75 instead of (dynamic dispatch) async_trait
+// Since hyperion is a monolithic kernel,
+// some memory allocations could be prevented
+// by having an enum of types where each
+// implement [`FileDriver`] and the enum is
+// used to dispatch async calls, instead of the
+// dynamic Box<dyn Future> that is currently used.
+// It is possible to then also allow Box<dyn Future>
+// on some Other(Box<dyn Future>) variant
 #[async_trait]
 pub trait FileDriver: Send + Sync {
     async fn read(
@@ -77,6 +88,36 @@ pub trait FileDriver: Send + Sync {
         buf: Buffer<'_, u8, PageMap>,
     ) -> Result<usize> {
         _ = (proc, offset, buf);
+        Err(Error::PERMISSION_DENIED)
+    }
+
+    /// length of the file in bytes
+    async fn len(&self, proc: Option<&Process>) -> Result<usize> {
+        _ = (proc,);
+        Err(Error::PERMISSION_DENIED)
+    }
+
+    /// truncate the file length, length is in bytes
+    async fn trunc(&self, proc: Option<&Process>, new_len: usize) -> Result<()> {
+        _ = (proc, new_len);
+        Err(Error::PERMISSION_DENIED)
+    }
+
+    /// request a page from disk or where ever
+    ///
+    /// the VFS should cache this page
+    async fn load_page(
+        &self,
+        proc: Option<&Process>,
+        i: usize,
+    ) -> Result<(PhysAddr, CacheAllowed)> {
+        _ = (proc, i);
+        Err(Error::PERMISSION_DENIED)
+    }
+
+    /// save a page back to the disk
+    async fn save_page(&self, proc: Option<&Process>, i: usize, page: PhysAddr) -> Result<()> {
+        _ = (proc, i, page);
         Err(Error::PERMISSION_DENIED)
     }
 }

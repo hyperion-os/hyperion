@@ -105,8 +105,9 @@ extern "C" fn _start() -> ! {
     }
 
     // init scheduling
-    debug!("init CPU-{}", cpu_id());
     scheduler::init();
+
+    debug!("init CPU-{}", cpu_id());
     hyperion_syscall::exit(0); // use a syscall from kernel space to enter the main loop
 }
 
