@@ -5,16 +5,20 @@
 
 extern crate alloc;
 
-use core::arch::asm;
+use core::{arch::asm, ptr::NonNull};
 
-use hyperion_cpu_id::{self as cpu_id, cpu_id};
 use hyperion_log::*;
 use x86_64::{
     instructions::random::RdRand,
-    registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags},
+    registers::{
+        control::{Cr0, Cr0Flags, Cr4, Cr4Flags},
+        model_specific::GsBase,
+    },
+    structures::idt::InterruptStackFrame,
+    PrivilegeLevel,
 };
 
-use self::syscall::SyscallHandler;
+use self::{syscall::SyscallHandler, tls::ThreadLocalStorage};
 
 //
 
@@ -31,10 +35,7 @@ pub mod vmm;
 pub fn init(handler: SyscallHandler) {
     int::disable();
 
-    // set this CPUs id using an atomic inc variable
-    cpu_id::init();
-
-    // init TSS, IDT, GDT
+    // init TSS, IDT, GDT and cpu local storage
     let tls = cpu::init();
 
     init_features();
@@ -46,9 +47,46 @@ pub fn init(handler: SyscallHandler) {
     syscall::init(tls.cpu.gdt.selectors, handler);
 }
 
-#[inline(never)]
+pub fn swapgs_guard(f: &InterruptStackFrame) -> impl Drop {
+    struct Guard(bool);
+
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            if self.0 {
+                swapgs();
+            }
+        }
+    }
+
+    let swap = f.code_segment.rpl() != PrivilegeLevel::Ring0;
+    if swap {
+        swapgs();
+    }
+    Guard(swap)
+}
+
+pub fn swapgs() {
+    unsafe { asm!("swapgs") };
+}
+
+pub fn cpu_local() -> &'static ThreadLocalStorage {
+    debug_assert_ne!(GsBase::read().as_u64(), 0);
+
+    let ptr: *mut ThreadLocalStorage;
+    unsafe { asm!("mov {}, gs:0", out(reg) ptr) };
+    let ptr = NonNull::new(ptr).expect("cpu_id not set up");
+    unsafe { ptr.as_ref() }
+}
+
+pub fn cpu_id() -> usize {
+    cpu_local().cpu_id
+}
+
+#[inline(always)]
 pub extern "C" fn reset_rbp() {
-    unsafe { asm!("mov rbp, 0") };
+    unsafe {
+        // asm!("mov QWORD PTR [rbp], 0", "mov QWORD PTR [rbp+8], 0");
+    }
 }
 
 fn init_features() {
@@ -69,7 +107,7 @@ fn init_features() {
 }
 
 pub fn wake_cpus(start: extern "C" fn() -> !) {
-    hyperion_boot::smp_init(cpu_id::cpu_id() == 0, start);
+    hyperion_boot::smp_init(cpu_id() == 0, start);
 }
 
 pub fn rng_seed() -> u64 {

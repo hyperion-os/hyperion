@@ -16,9 +16,9 @@ paste.workspace = true
 spin.workspace = true
 x86_64.workspace = true
 
+hyperion-arch.path = "../arch"
 hyperion-boot.path = "../boot"
 hyperion-clock.path = "../clock"
-hyperion-cpu-id.path = "../cpu-id"
 hyperion-driver-pic.path = "../driver-pic"
 hyperion-events.path = "../events"
 hyperion-interrupts.path = "../interrupts"

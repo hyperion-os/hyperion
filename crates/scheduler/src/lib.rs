@@ -7,12 +7,13 @@ extern crate alloc;
 
 use hyperion_arch::{
     cpu::ints::PAGE_FAULT_HANDLER,
+    cpu_local,
     vmm::{PageMap, HIGHER_HALF_DIRECT_MAPPING},
 };
 use hyperion_mem::vmm::{PageFaultResult, PageMapImpl, Privilege};
 use x86_64::VirtAddr;
 
-use self::proc::Process;
+use self::{proc::Process, task::Cpu};
 
 //
 
@@ -24,6 +25,7 @@ pub mod task;
 
 // /// terminate the active task and enter the async scheduler
 pub fn init() {
+    unsafe { cpu_local().init_sched_opaque(Cpu::new()) };
     PAGE_FAULT_HANDLER.store(page_fault_handler);
 }
 
@@ -57,6 +59,8 @@ fn page_fault_handler(_ip: usize, addr: usize, privilege: Privilege) -> PageFaul
         // TODO: sig segv
         // FIXME: syscall exit to not use the page fault stack
         hyperion_log::warn!("user-space page fault ip={_ip:#x} addr={addr:#x}");
+        panic!();
+        hyperion_arch::die();
         hyperion_syscall::exit(0);
     }
 

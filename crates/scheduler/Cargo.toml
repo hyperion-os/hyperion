@@ -10,7 +10,6 @@ spin.workspace = true
 x86_64.workspace = true
 
 hyperion-arch.path = "../arch"
-hyperion-cpu-id.path = "../cpu-id"
 hyperion-futures.path = "../futures"
 hyperion-mem.path = "../mem"
 hyperion-log.path = "../log"

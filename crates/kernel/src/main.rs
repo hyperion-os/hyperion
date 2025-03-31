@@ -19,9 +19,8 @@
 
 extern crate alloc;
 
-use hyperion_arch::{self as arch, generate_handler};
+use hyperion_arch::{self as arch, cpu_id, generate_handler};
 use hyperion_boot as boot;
-use hyperion_cpu_id::cpu_id;
 // use hyperion_drivers as drivers;
 use hyperion_futures::{self as futures};
 // use hyperion_kernel_impl::VFS_ROOT;
@@ -79,26 +78,6 @@ extern "C" fn _start() -> ! {
         test_main();
     }
 
-    // fn benchmark(f: impl Fn() -> usize) {
-    //     let mut i = 0usize;
-    //     let start = hyperion_instant::Instant::now();
-    //     for _ in 0..5_000_000 {
-    //         let n = core::hint::black_box(&f)();
-    //         i = unsafe { i.wrapping_add(n) };
-    //     }
-    //     core::hint::black_box(i);
-    //     println!("5M cpu_id calls in {}", start.elapsed());
-    // }
-    // println!("benchmark _cpu_id_rdpid");
-    // benchmark(|| hyperion_cpu_id::_cpu_id_rdpid());
-    // println!("benchmark _cpu_id_rdtscp");
-    // benchmark(|| hyperion_cpu_id::_cpu_id_rdtscp());
-    // println!("benchmark _cpu_id_gs");
-    // benchmark(|| hyperion_cpu_id::_cpu_id_gs());
-    // println!("benchmark _cpu_id_tsc_msr");
-    // benchmark(|| hyperion_cpu_id::_cpu_id_tsc_msr());
-    // panic!();
-
     if sync::once!() {
         futures::spawn(init());
     }
@@ -107,6 +86,7 @@ extern "C" fn _start() -> ! {
     scheduler::init();
 
     debug!("init CPU-{}", cpu_id());
+    hyperion_arch::swapgs();
     hyperion_syscall::exit(0); // use a syscall from kernel space to enter the main loop
 }
 

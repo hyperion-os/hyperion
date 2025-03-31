@@ -14,6 +14,7 @@ use elf::{
     segment::ProgramHeader,
     ElfBytes,
 };
+use hyperion_arch::cpu_id;
 use hyperion_log::*;
 use hyperion_mem::{
     is_higher_half,
@@ -109,6 +110,7 @@ impl<'a> Loader<'a> {
     }
 
     fn load_segment(&self, segment: ProgramHeader) {
+        cpu_id();
         if segment.p_type != PT_LOAD && segment.p_type != PT_TLS {
             return;
         }

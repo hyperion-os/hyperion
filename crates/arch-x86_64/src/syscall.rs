@@ -9,13 +9,13 @@ use x86_64::{
     VirtAddr,
 };
 
-use crate::{cpu::gdt::SegmentSelectors, tls::ThreadLocalStorage, vmm::get_stack};
+use crate::{cpu::gdt::SegmentSelectors, cpu_local, tls::ThreadLocalStorage, vmm::get_stack};
 
 //
 
 /// init `syscall` and `sysret`
 pub fn init(selectors: SegmentSelectors, handler: SyscallHandler) {
-    let tls: &'static ThreadLocalStorage = unsafe { &*KernelGsBase::read().as_ptr() };
+    let tls: &'static ThreadLocalStorage = cpu_local();
 
     // syscalls should use this task's stack to allow switching tasks from a syscall
     tls.kernel_stack
@@ -158,7 +158,6 @@ impl SyscallRegs {
                 "pop rbx",
                 "pop rax",
 
-                "swapgs",
                 "pop QWORD PTR gs:{user_stack}",
                 "mov rsp, gs:{user_stack}",
                 "swapgs",
@@ -201,7 +200,6 @@ macro_rules! generate_handler {
                     "mov gs:{user_stack}, rsp",   // backup the user stack
                     "mov rsp, gs:{kernel_stack}", // switch to the kernel stack
                     "push QWORD PTR gs:{user_stack}",
-                    "swapgs",
 
                     // save registers
                     "push rax",
@@ -252,7 +250,6 @@ macro_rules! generate_handler {
                     "pop rbx",
                     "pop rax",
 
-                    "swapgs",
                     "pop QWORD PTR gs:{user_stack}",
                     "mov rsp, gs:{user_stack}",
                     "swapgs",

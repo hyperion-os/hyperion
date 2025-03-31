@@ -46,6 +46,7 @@ pub fn gen_int_handlers(input: proc_macro::TokenStream) -> proc_macro::TokenStre
         let ident = syn::Ident::new(&format!("int_handler_{i}"), Span::call_site());
         quote! {
             pub extern #ext fn #ident(frame: InterruptStackFrame) {
+                let _g = swapgs_guard(&frame);
                 interrupt_handler(#i, frame.instruction_pointer.as_u64() as usize);
             }
         }

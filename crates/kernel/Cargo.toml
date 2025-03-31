@@ -24,7 +24,6 @@ x86_64.workspace = true
 hyperion-arch.path = "../arch"
 hyperion-boot.path = "../boot"
 hyperion-backtrace.path = "../backtrace"
-hyperion-cpu-id.path = "../cpu-id"
 hyperion-defer.path = "../defer"
 hyperion-drivers.path = "../drivers"
 hyperion-futures.path = "../futures"

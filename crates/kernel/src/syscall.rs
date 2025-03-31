@@ -44,8 +44,9 @@ pub fn syscall(args: &mut SyscallRegs) {
     };
 
     hyperion_log::trace!(
-        "syscall={syscall:?} {:?}",
+        "syscall={syscall:?} {:?} CPU-{}",
         [args.arg0, args.arg1, args.arg2, args.arg3, args.arg4],
+        hyperion_arch::cpu_id(),
     );
 
     match syscall {

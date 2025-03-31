@@ -1,12 +1,9 @@
 use alloc::boxed::Box;
-use core::{
-    ops::Deref,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use core::ops::Deref;
 
 use crossbeam::atomic::AtomicCell;
+use hyperion_arch::cpu_local;
 use hyperion_clock::ClockSource;
-use hyperion_cpu_id::Tls;
 use hyperion_interrupts::{end_of_interrupt, IntController, INT_CONTROLLER, INT_EOI_HANDLER};
 use hyperion_log::trace;
 use hyperion_mem::to_higher_half;
@@ -69,22 +66,22 @@ pub fn enable() {
     });
     INT_CONTROLLER.store(IntController::Apic);
 
-    // enable apic only once per cpu
-    static ONCE: Lazy<Tls<AtomicBool>> = Lazy::new(Tls::default);
-    if ONCE.swap(true, Ordering::SeqCst) {
-        panic!("apic enable twice on the same cpu");
-    }
-
     // SAFETY: the check above
     let regs: &mut ApicRegs = unsafe { get_apic_regs() };
     let apic_id = ApicId(regs.lapic_id.read());
 
     trace!("Initializing {apic_id:?}");
-    let mut lapic = LAPICS.call_once(|| RwLock::new(Lapic { regs })).write();
+    let local = cpu_local();
+    let lapic = unsafe {
+        local.init_lapic_opaque::<RwLock<Lapic>>(RwLock::new(Lapic { regs }));
+        local.get_lapic_opaque::<RwLock<Lapic>>()
+    };
+
+    let mut lapic = lapic.write();
 
     const ENABLE_APIC_TASK_SWITCH: bool = true;
     if ENABLE_APIC_TASK_SWITCH {
-        enable_timer(lapic);
+        enable_timer(lapic.regs);
     } else {
         reset(lapic.regs);
     }
@@ -92,7 +89,7 @@ pub fn enable() {
     trace!("Done Initializing {apic_id:?}");
 }
 
-pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
+pub fn enable_timer(lapic: &mut ApicRegs) {
     let timer_irq = hyperion_interrupts::set_any_interrupt_handler(
         |irq| (0x30..=0xFF).contains(&irq),
         |irq, _| {
@@ -106,7 +103,7 @@ pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
     // let mut lapic = Lapic::current_mut();
 
     // reset APIC to a known state
-    reset(lapic.regs);
+    reset(lapic);
 
     // .. then enable it
     write_msr(
@@ -115,7 +112,7 @@ pub fn enable_timer(mut lapic: RwLockWriteGuard<Lapic>) {
     );
 
     // .. and then enable the timer interrupts
-    init_lvt_timer(timer_irq, lapic.regs);
+    init_lvt_timer(timer_irq, lapic);
 }
 
 /// # Safety
@@ -166,11 +163,13 @@ impl ApicId {
 
 impl Lapic {
     pub fn current() -> RwLockReadGuard<'static, Lapic> {
-        LAPICS.get().expect("LAPICS not set up").read()
+        let lapic = unsafe { cpu_local().get_lapic_opaque::<RwLock<Lapic>>() };
+        lapic.read()
     }
 
     pub fn current_mut() -> RwLockWriteGuard<'static, Lapic> {
-        LAPICS.get().expect("LAPICS not set up").write()
+        let lapic = unsafe { cpu_local().get_lapic_opaque::<RwLock<Lapic>>() };
+        lapic.write()
     }
 
     pub fn regs(&self) -> &ApicRegs {
@@ -188,7 +187,6 @@ impl Lapic {
 
 //
 
-static LAPICS: Lazy<Tls<Once<RwLock<Lapic>>>> = Lazy::new(Tls::default);
 static LAPIC_IDS: Lazy<&'static [ApicId]> =
     Lazy::new(|| Box::leak(hyperion_boot::lapics().map(ApicId).collect::<Box<_>>()));
 

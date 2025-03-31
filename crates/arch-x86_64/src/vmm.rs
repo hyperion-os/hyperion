@@ -38,7 +38,7 @@ use core::{
     sync::atomic::{fence, Ordering},
 };
 
-use hyperion_cpu_id::{cpu_count, cpu_id};
+use hyperion_boot::cpu_count;
 use hyperion_mem::{
     from_higher_half, is_higher_half,
     pmm::{self, PageFrame},
@@ -57,6 +57,8 @@ use x86_64::{
     },
     PhysAddr, VirtAddr,
 };
+
+use crate::cpu_id;
 
 //
 

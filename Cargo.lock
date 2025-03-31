@@ -484,7 +484,6 @@ version = "0.4.0"
 dependencies = [
  "crossbeam",
  "hyperion-boot",
- "hyperion-cpu-id",
  "hyperion-interrupts",
  "hyperion-log",
  "hyperion-macros",
@@ -542,14 +541,6 @@ name = "hyperion-color"
 version = "0.4.0"
 
 [[package]]
-name = "hyperion-cpu-id"
-version = "0.4.0"
-dependencies = [
- "hyperion-boot",
- "x86_64",
-]
-
-[[package]]
 name = "hyperion-defer"
 version = "0.4.0"
 
@@ -560,9 +551,9 @@ dependencies = [
  "bit_field",
  "crossbeam",
  "heapless",
+ "hyperion-arch",
  "hyperion-boot",
  "hyperion-clock",
- "hyperion-cpu-id",
  "hyperion-driver-pic",
  "hyperion-events",
  "hyperion-interrupts",
@@ -726,7 +717,6 @@ dependencies = [
  "hyperion-backtrace",
  "hyperion-boot",
  "hyperion-clock",
- "hyperion-cpu-id",
  "hyperion-defer",
  "hyperion-driver-acpi",
  "hyperion-drivers",
@@ -851,7 +841,6 @@ dependencies = [
  "bitflags 2.6.0",
  "hyperion-boot",
  "hyperion-boot-interface",
- "hyperion-cpu-id",
  "hyperion-log",
  "hyperion-num-postfix",
  "hyperion-slab-alloc",
@@ -896,7 +885,6 @@ dependencies = [
  "arcstr",
  "crossbeam",
  "hyperion-arch",
- "hyperion-cpu-id",
  "hyperion-futures",
  "hyperion-log",
  "hyperion-mem",

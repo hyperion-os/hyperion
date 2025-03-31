@@ -5,18 +5,15 @@ use core::{
     sync::atomic::Ordering,
 };
 
-use hyperion_arch::syscall::SyscallRegs;
-use hyperion_cpu_id::{cpu_id, Tls};
+use hyperion_arch::{cpu_id, cpu_local, syscall::SyscallRegs};
 use hyperion_futures::mpmc::Channel;
 use hyperion_mem::vmm::PageMapImpl;
-use spin::Lazy;
 
 use crate::proc::{Process, ProcessExt};
 
 //
 
 pub static TASKS: Channel<RunnableTask> = Channel::new();
-pub static CPU: Lazy<Tls<Cpu>> = Lazy::new(Tls::default);
 
 //
 
@@ -29,6 +26,10 @@ impl Cpu {
         Self {
             active: RefCell::new(None),
         }
+    }
+
+    pub fn get() -> &'static Cpu {
+        unsafe { cpu_local().get_sched_opaque() }
     }
 }
 
@@ -83,7 +84,7 @@ impl RunnableTask {
     pub fn set_active(self) -> SyscallRegs {
         let RunnableTask { trap, task } = self;
         task.process.address_space.activate();
-        CPU.active.replace(Some(task));
+        Cpu::get().active.replace(Some(task));
         trap
     }
 
@@ -126,19 +127,19 @@ pub struct Task {
 
 impl Task {
     pub fn take_active() -> Option<Box<Self>> {
-        CPU.active.take()
+        Cpu::get().active.take()
     }
 
     pub fn set_active(self: Box<Self>) {
-        _ = CPU.active.replace(Some(self));
+        _ = Cpu::get().active.replace(Some(self));
     }
 
     pub fn current() -> Option<Ref<'static, Self>> {
-        Ref::filter_map(CPU.active.borrow(), |s| s.as_deref()).ok()
+        Ref::filter_map(Cpu::get().active.borrow(), |s| s.as_deref()).ok()
     }
 
     pub fn current_mut() -> Option<RefMut<'static, Self>> {
-        RefMut::filter_map(CPU.active.borrow_mut(), |s| s.as_deref_mut()).ok()
+        RefMut::filter_map(Cpu::get().active.borrow_mut(), |s| s.as_deref_mut()).ok()
     }
 
     /* pub fn init_tls(&self) {
